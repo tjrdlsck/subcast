@@ -940,7 +940,7 @@
         }
 
         function onObjectSelected(e) {
-            const activeObj = e.selected ? e.selected[0] : e.target;
+            const activeObj = canvas.getActiveObject();
             if (!activeObj) return;
             currentEditingElement = activeObj;
             ['btn-layer-up', 'btn-layer-down', 'btn-layer-front', 'btn-layer-back', 'btn-delete'].forEach(id => document.getElementById(id).disabled = false);
