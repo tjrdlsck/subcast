@@ -1,5 +1,7 @@
 import json
 import logging
+import uuid
+import random
 from typing import Dict, List, Set
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPException
@@ -186,6 +188,78 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                         "slideId": slide_id
                     })
                     logger.info(f"Slide unlocked: {slide_id}")
+
+            elif msg_type == "ADD_SLIDE":
+                new_id = f"slide_{uuid.uuid4().hex[:8]}"
+                slide_num = len(manager.project_data.slides) + 1
+                new_slide = Slide(id=new_id, name=f"새 슬라이드 {slide_num}", elements=[])
+                manager.project_data.slides.append(new_slide)
+                await save_project_data(manager.project_data)
+                await manager.broadcast({
+                    "type": "INITIAL_SYNC",
+                    "data": manager.project_data.model_dump(),
+                    "lockedSlides": manager.locked_slides
+                })
+                logger.info(f"New slide added: {new_id}")
+
+            elif msg_type == "SAVE_TEMPLATE":
+                tpl_data = message.get("template")
+                if tpl_data:
+                    from backend.schemas import SlideTemplate
+                    new_tpl = SlideTemplate.model_validate(tpl_data)
+                    for idx, t in enumerate(manager.project_data.templates):
+                        if t.id == new_tpl.id:
+                            manager.project_data.templates[idx] = new_tpl
+                            break
+                    else:
+                        manager.project_data.templates.append(new_tpl)
+                    await save_project_data(manager.project_data)
+                    await manager.broadcast({
+                        "type": "INITIAL_SYNC",
+                        "data": manager.project_data.model_dump(),
+                        "lockedSlides": manager.locked_slides
+                    })
+                    logger.info(f"Template saved: {new_tpl.id}")
+
+            elif msg_type == "DELETE_TEMPLATE":
+                tpl_id = message.get("templateId")
+                if tpl_id:
+                    manager.project_data.templates = [t for t in manager.project_data.templates if t.id != tpl_id]
+                    await save_project_data(manager.project_data)
+                    await manager.broadcast({
+                        "type": "INITIAL_SYNC",
+                        "data": manager.project_data.model_dump(),
+                        "lockedSlides": manager.locked_slides
+                    })
+                    logger.info(f"Template deleted: {tpl_id}")
+
+            elif msg_type == "APPLY_TEMPLATE_BULK":
+                slide_ids = message.get("slideIds", [])
+                template_id = message.get("templateId")
+                target_tpl = next((t for t in manager.project_data.templates if t.id == template_id), None)
+                if target_tpl and slide_ids:
+                    def clone_elements(elems):
+                        cloned = []
+                        for el in elems:
+                            el_dict = el.model_dump()
+                            el_dict["id"] = f"elem_{uuid.uuid4().hex[:9]}"
+                            if "children" in el_dict and el_dict["children"]:
+                                el_dict["children"] = clone_elements(el.children)
+                            from backend.schemas import Element
+                            cloned.append(Element.model_validate(el_dict))
+                        return cloned
+
+                    for idx, s in enumerate(manager.project_data.slides):
+                        if s.id in slide_ids:
+                            manager.project_data.slides[idx].elements = clone_elements(target_tpl.elements)
+
+                    await save_project_data(manager.project_data)
+                    await manager.broadcast({
+                        "type": "INITIAL_SYNC",
+                        "data": manager.project_data.model_dump(),
+                        "lockedSlides": manager.locked_slides
+                    })
+                    logger.info(f"Template {template_id} applied bulk to: {slide_ids}")
 
             elif msg_type == "SAVE_SLIDE":
                 # 슬라이드 내용 저장 및 방송 상태 동기화 처리

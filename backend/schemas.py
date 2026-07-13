@@ -34,6 +34,11 @@ class Slide(BaseModel):
     name: str
     elements: List[Element] = Field(default_factory=list)
 
+class SlideTemplate(BaseModel):
+    id: str
+    name: str
+    elements: List[Element] = Field(default_factory=list)
+
 class SystemSettings(BaseModel):
     targetWidth: int = 1920
     targetHeight: int = 1080
@@ -42,3 +47,4 @@ class SystemSettings(BaseModel):
 class ProjectData(BaseModel):
     settings: SystemSettings = Field(default_factory=SystemSettings)
     slides: List[Slide] = Field(default_factory=list)
+    templates: List[SlideTemplate] = Field(default_factory=list)

@@ -603,7 +603,10 @@
     <div class="workspace">
         <!-- 왼쪽: 슬라이드 목록 -->
         <div class="slide-panel">
-            <div class="panel-header">슬라이드 리스트</div>
+            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>슬라이드 리스트</span>
+                <button class="ribbon-action-btn" id="btn-add-slide" style="padding: 4px 8px; font-size: 0.75rem; background: var(--accent); border-color: var(--accent); cursor: pointer;">+ 새 슬라이드</button>
+            </div>
             <div class="slide-list" id="slide-list">
                 <!-- 동적 렌더링 -->
             </div>
@@ -730,6 +733,21 @@
                                             </div>
                                         </div>
                                     </div>
+
+                                    <div class="ribbon-group-divider"></div>
+
+                                    <!-- 디자인 템플릿 그룹 -->
+                                    <div class="ribbon-group">
+                                        <div class="ribbon-group-label">디자인 템플릿</div>
+                                        <div style="display: flex; gap: 10px; align-items: center;">
+                                            <button class="ribbon-action-btn" id="btn-save-template" style="padding: 6px 12px; font-size: 0.8rem;" disabled>현재 디자인을 템플릿으로 저장</button>
+                                            <select id="select-templates" class="select-field" style="padding: 6px 10px; width: 150px; font-size: 0.8rem;" disabled>
+                                                <option value="">-- 템플릿 선택 --</option>
+                                            </select>
+                                            <button class="ribbon-action-btn" id="btn-apply-template-bulk" style="padding: 6px 12px; font-size: 0.8rem;" disabled>선택 슬라이드에 적용</button>
+                                            <button class="ribbon-action-btn" id="btn-delete-template" style="padding: 6px 12px; font-size: 0.8rem; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.25); color: #fca5a5;" disabled>삭제</button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -820,13 +838,22 @@
                 const item = document.createElement("div");
                 item.className = "slide-item";
                 item.id = `slide-item-${slide.id}`;
+                item.style.position = "relative";
                 if (slide.id === activeSlideId) item.classList.add("editing");
                 const lockOwner = lockedSlides[slide.id];
                 const isLockedByOthers = lockOwner !== undefined && lockOwner.ownerId !== myEditorId;
                 if (isLockedByOthers) item.classList.add("locked");
                 const textElem = slide.elements.find(e => e.type === 'text');
                 const contentText = textElem ? textElem.content : "(요소 없음)";
-                item.innerHTML = `<h3>${index + 1}. ${slide.name}</h3><div class="slide-preview-text">${contentText}</div>${isLockedByOthers ? `<div class="lock-owner-text">🔒 ${lockOwner.editorName}님이 편집 중</div>` : ''}`;
+                
+                item.innerHTML = `
+                    <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
+                        <h3 style="margin: 0; font-size: 0.95rem; font-weight: 600;">${index + 1}. ${slide.name}</h3>
+                        <input type="checkbox" class="slide-select-checkbox" data-slide-id="${slide.id}" style="width:16px; height:16px; cursor:pointer;" onclick="event.stopPropagation();">
+                    </div>
+                    <div class="slide-preview-text" style="margin-top: 6px;">${contentText}</div>
+                    ${isLockedByOthers ? `<div class="lock-owner-text" style="margin-top: 4px;">🔒 ${lockOwner.editorName}님이 편집 중</div>` : ''}
+                `;
                 if (!isLockedByOthers) item.onclick = () => selectSlideForEdit(slide.id);
                 listEl.appendChild(item);
             });
@@ -935,7 +962,10 @@
         }
 
         function setControlsState(enabled) {
-            ['btn-add-text', 'btn-add-rect', 'btn-add-circle', 'btn-add-triangle', 'btn-add-line', 'btn-save', 'btn-cancel'].forEach(id => document.getElementById(id).disabled = !enabled);
+            ['btn-add-text', 'btn-add-rect', 'btn-add-circle', 'btn-add-triangle', 'btn-add-line', 'btn-save', 'btn-cancel', 'btn-save-template', 'select-templates', 'btn-apply-template-bulk', 'btn-delete-template'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.disabled = !enabled;
+            });
             if (!enabled) onObjectCleared();
         }
 
@@ -1055,11 +1085,89 @@
             renderSlides();
         }
 
+        function addSlide() {
+            ws.send(JSON.stringify({ type: "ADD_SLIDE" }));
+        }
+
+        function saveAsTemplate() {
+            if (!activeSlideId || !canvas) return;
+            const tplName = prompt("저장할 템플릿의 이름을 입력하세요:", "새 디자인 템플릿");
+            if (!tplName) return;
+
+            const elements = canvas.getObjects().map(obj => serializeElement(obj, canvas.getWidth(), canvas.getHeight()));
+            const templateData = {
+                id: `tpl_${Math.random().toString(36).substr(2, 9)}`,
+                name: tplName,
+                elements: elements
+            };
+
+            ws.send(JSON.stringify({
+                type: "SAVE_TEMPLATE",
+                template: templateData
+            }));
+        }
+
+        function deleteTemplate() {
+            const selectEl = document.getElementById("select-templates");
+            const tplId = selectEl.value;
+            if (!tplId) {
+                alert("삭제할 템플릿을 먼저 선택해주세요.");
+                return;
+            }
+            if (confirm("정말로 이 템플릿을 삭제하시겠습니까?")) {
+                ws.send(JSON.stringify({
+                    type: "DELETE_TEMPLATE",
+                    templateId: tplId
+                }));
+            }
+        }
+
+        function applyTemplateBulk() {
+            const selectEl = document.getElementById("select-templates");
+            const tplId = selectEl.value;
+            if (!tplId) {
+                alert("적용할 템플릿을 선택해주세요.");
+                return;
+            }
+
+            const checkboxes = document.querySelectorAll(".slide-select-checkbox:checked");
+            const slideIds = Array.from(checkboxes).map(cb => cb.getAttribute("data-slide-id"));
+            if (slideIds.length === 0) {
+                alert("템플릿을 일괄 적용할 슬라이드를 왼쪽 목록에서 체크박스로 선택해주세요.");
+                return;
+            }
+
+            if (confirm(`선택한 ${slideIds.length}개의 슬라이드에 디자인 템플릿을 일괄 적용하시겠습니까? (기존 요소들은 모두 교체됩니다.)`)) {
+                ws.send(JSON.stringify({
+                    type: "APPLY_TEMPLATE_BULK",
+                    slideIds: slideIds,
+                    templateId: tplId
+                }));
+            }
+        }
+
+        function renderTemplates() {
+            const selectEl = document.getElementById("select-templates");
+            if (!selectEl) return;
+            selectEl.innerHTML = '<option value="">-- 템플릿 선택 --</option>';
+            if (!projectData || !projectData.templates) return;
+            projectData.templates.forEach(tpl => {
+                const opt = document.createElement("option");
+                opt.value = tpl.id;
+                opt.innerText = tpl.name;
+                selectEl.appendChild(opt);
+            });
+        }
+
         function connectWebSocket() {
             ws = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws?role=editor`);
             ws.onmessage = (event) => {
                 const message = JSON.parse(event.data);
-                if (message.type === 'INITIAL_SYNC') { projectData = message.data; renderSlides(); }
+                if (message.type === 'INITIAL_SYNC') { 
+                    projectData = message.data; 
+                    renderSlides(); 
+                    renderTemplates();
+                }
                 else if (message.type === 'SLIDE_LOCKED') { lockedSlides[message.slideId] = { ownerId: message.ownerId, editorName: message.editorName }; if (message.slideId === activeSlideId) myEditorId = message.ownerId; renderSlides(); }
                 else if (message.type === 'SLIDE_UNLOCKED') { delete lockedSlides[message.slideId]; renderSlides(); }
                 else if (message.type === 'SLIDE_UPDATED') { const idx = projectData.slides.findIndex(s => s.id === message.slideId); if (idx !== -1) projectData.slides[idx] = message.slide; if (activeSlideId === message.slideId && lockedSlides[activeSlideId]?.ownerId !== myEditorId) loadSlideToCanvas(activeSlideId); renderSlides(); }
@@ -1070,6 +1178,14 @@
         window.onload = () => {
             initCanvas();
             connectWebSocket();
+
+            // 슬라이드 추가 버튼
+            document.getElementById("btn-add-slide").onclick = addSlide;
+
+            // 템플릿 제어 버튼
+            document.getElementById("btn-save-template").onclick = saveAsTemplate;
+            document.getElementById("btn-apply-template-bulk").onclick = applyTemplateBulk;
+            document.getElementById("btn-delete-template").onclick = deleteTemplate;
 
             // 공통: 불투명도 조절 슬라이더
             document.getElementById("element-opacity").oninput = (e) => {
