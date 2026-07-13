@@ -172,7 +172,7 @@
         .slide-item.editing::before {
             content: 'EDITING';
             position: absolute;
-            top: 12px;
+            bottom: 12px;
             right: 12px;
             background: var(--secondary);
             color: white;
@@ -191,7 +191,7 @@
         .slide-item.locked::before {
             content: 'LOCKED';
             position: absolute;
-            top: 12px;
+            bottom: 12px;
             right: 12px;
             background: var(--accent-live);
             color: white;
@@ -828,7 +828,23 @@
             canvas.on('object:scaling', onObjectModified);
         }
 
-        document.getElementById("editor-name").value = `편집자_${Math.floor(Math.random() * 900) + 100}`;
+        let lastCheckedIndex = -1;
+
+        function handleCheckboxClick(e, index) {
+            e.stopPropagation();
+            const checkboxes = document.querySelectorAll(".slide-select-checkbox");
+            
+            if (e.shiftKey && lastCheckedIndex !== -1) {
+                const start = Math.min(index, lastCheckedIndex);
+                const end = Math.max(index, lastCheckedIndex);
+                const targetState = e.target.checked;
+                
+                for (let i = start; i <= end; i++) {
+                    checkboxes[i].checked = targetState;
+                }
+            }
+            lastCheckedIndex = index;
+        }
 
         function renderSlides() {
             const listEl = document.getElementById("slide-list");
@@ -843,16 +859,18 @@
                 const lockOwner = lockedSlides[slide.id];
                 const isLockedByOthers = lockOwner !== undefined && lockOwner.ownerId !== myEditorId;
                 if (isLockedByOthers) item.classList.add("locked");
-                const textElem = slide.elements.find(e => e.type === 'text');
-                const contentText = textElem ? textElem.content : "(요소 없음)";
                 
                 item.innerHTML = `
-                    <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
-                        <h3 style="margin: 0; font-size: 0.95rem; font-weight: 600;">${index + 1}. ${slide.name}</h3>
-                        <input type="checkbox" class="slide-select-checkbox" data-slide-id="${slide.id}" style="width:16px; height:16px; cursor:pointer;" onclick="event.stopPropagation();">
+                    <div style="display: flex; gap: 10px; align-items: flex-start;">
+                        <input type="checkbox" class="slide-select-checkbox" data-slide-id="${slide.id}" style="width:16px; height:16px; cursor:pointer; flex-shrink: 0; margin-top: 2px; z-index: 10; position: relative;" onclick="handleCheckboxClick(event, ${index})">
+                        <div style="flex: 1; min-width: 0;">
+                            <h3 style="margin: 0 0 8px 0; font-size: 0.95rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 60px;">${index + 1}. ${slide.name}</h3>
+                            <div class="slide-thumbnail-wrapper" style="width: 100%; height: 90px; background: #0b0f19; border-radius: 8px; overflow: hidden; border: 1px solid var(--panel-border); display: flex; align-items: center; justify-content: center;">
+                                ${slide.thumbnail ? `<img src="${slide.thumbnail}" style="width: 100%; height: 100%; object-fit: contain;">` : `<span style="font-size: 0.72rem; color: var(--text-muted);">미리보기 없음</span>`}
+                            </div>
+                            ${isLockedByOthers ? `<div class="lock-owner-text" style="margin-top: 4px;">🔒 ${lockOwner.editorName}님이 편집 중</div>` : ''}
+                        </div>
                     </div>
-                    <div class="slide-preview-text" style="margin-top: 6px;">${contentText}</div>
-                    ${isLockedByOthers ? `<div class="lock-owner-text" style="margin-top: 4px;">🔒 ${lockOwner.editorName}님이 편집 중</div>` : ''}
                 `;
                 if (!isLockedByOthers) item.onclick = () => selectSlideForEdit(slide.id);
                 listEl.appendChild(item);
@@ -1076,8 +1094,25 @@
         function saveSlideData() {
             if (!activeSlideId || !projectData) return;
             const slide = projectData.slides.find(s => s.id === activeSlideId);
+            
+            const activeObj = canvas.getActiveObject();
+            if (activeObj) {
+                canvas.discardActiveObject();
+                canvas.requestRenderAll();
+            }
+            
+            const thumbnailData = canvas.toDataURL({
+                format: 'jpeg',
+                quality: 0.4
+            });
+            
+            if (activeObj) {
+                canvas.setActiveObject(activeObj);
+                canvas.requestRenderAll();
+            }
+
             const elements = canvas.getObjects().map(obj => serializeElement(obj, canvas.getWidth(), canvas.getHeight()));
-            const updatedSlide = { id: slide.id, name: slide.name, elements: elements };
+            const updatedSlide = { id: slide.id, name: slide.name, thumbnail: thumbnailData, elements: elements };
             ws.send(JSON.stringify({ type: "SAVE_SLIDE", slide: updatedSlide }));
             const idx = projectData.slides.findIndex(s => s.id === activeSlideId);
             if (idx !== -1) projectData.slides[idx] = updatedSlide;
@@ -1094,10 +1129,27 @@
             const tplName = prompt("저장할 템플릿의 이름을 입력하세요:", "새 디자인 템플릿");
             if (!tplName) return;
 
+            const activeObj = canvas.getActiveObject();
+            if (activeObj) {
+                canvas.discardActiveObject();
+                canvas.requestRenderAll();
+            }
+            
+            const thumbnailData = canvas.toDataURL({
+                format: 'jpeg',
+                quality: 0.4
+            });
+            
+            if (activeObj) {
+                canvas.setActiveObject(activeObj);
+                canvas.requestRenderAll();
+            }
+
             const elements = canvas.getObjects().map(obj => serializeElement(obj, canvas.getWidth(), canvas.getHeight()));
             const templateData = {
                 id: `tpl_${Math.random().toString(36).substr(2, 9)}`,
                 name: tplName,
+                thumbnail: thumbnailData,
                 elements: elements
             };
 
