@@ -367,6 +367,99 @@
             align-items: center;
             gap: 10px;
         }
+
+        /* PPT 스타일 툴바 및 속성 패널 추가 */
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--panel-border);
+            padding: 10px 15px;
+            border-radius: 12px;
+            width: 100%;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .toolbar-divider {
+            width: 1px;
+            height: 24px;
+            background: var(--panel-border);
+            margin: 0 5px;
+        }
+
+        .property-panel {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 20px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .property-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .property-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .property-group label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .select-field {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: white;
+            font-size: 0.85rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        /* 토글 형태의 버튼들 */
+        .btn-toggle {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border);
+            color: white;
+            width: 36px;
+            height: 36px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+
+        .btn-toggle:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-toggle.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 0 8px var(--primary-glow);
+        }
+
+        .btn-toggle:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -404,25 +497,92 @@
                 <div class="editor-card">
                     <h3 style="font-family: 'Outfit'; font-size: 1.2rem; font-weight: 600;" id="editor-title">슬라이드를 선택해주세요.</h3>
                     
+                    <!-- 개체 추가 및 레이어 순서 조작 툴바 -->
+                    <div class="toolbar">
+                        <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">개체 추가:</span>
+                        <button class="btn-tool" id="btn-add-text" disabled>+ 텍스트</button>
+                        <button class="btn-tool" id="btn-add-rect" disabled>+ 사각형</button>
+                        <button class="btn-tool" id="btn-add-circle" disabled>+ 원형</button>
+                        
+                        <div class="toolbar-divider"></div>
+                        
+                        <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">레이어/정렬:</span>
+                        <button class="btn-tool" id="btn-layer-up" disabled>앞으로</button>
+                        <button class="btn-tool" id="btn-layer-down" disabled>뒤로</button>
+                        <button class="btn-tool" id="btn-layer-front" disabled>맨앞으로</button>
+                        <button class="btn-tool" id="btn-layer-back" disabled>맨뒤로</button>
+                        
+                        <div class="toolbar-divider"></div>
+                        
+                        <button class="btn-tool" id="btn-delete" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: #fca5a5;" disabled>선택 삭제</button>
+                    </div>
+
                     <div class="canvas-wrapper">
                         <canvas id="editor-canvas"></canvas>
                     </div>
 
-                    <!-- 편집 도구 모음 -->
-                    <div class="editor-controls">
-                        <!-- 텍스트 설정 그룹 -->
-                        <div class="tool-group">
-                            <input type="text" id="text-editor" class="text-input-field" placeholder="자막 내용 입력" disabled>
-                            <input type="number" id="fontsize-editor" class="fontSize-input" value="3" min="1" max="10" step="0.5" disabled>
-                            <span style="font-size: 0.8rem; color: var(--text-muted);">vw</span>
-                            <input type="color" id="fontcolor-editor" class="fontColor-input" value="#ffffff" disabled>
+                    <!-- 상세 속성 편집 패널 -->
+                    <div class="property-panel" id="property-panel">
+                        <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);" id="property-title">선택된 개체가 없습니다.</div>
+                        
+                        <!-- 텍스트 전용 속성 -->
+                        <div class="property-row" id="text-properties" style="display: none;">
+                            <div class="property-group">
+                                <label for="text-editor">내용</label>
+                                <input type="text" id="text-editor" class="text-input-field" placeholder="텍스트 입력">
+                            </div>
+                            <div class="property-group">
+                                <label for="fontfamily-editor">글꼴</label>
+                                <select id="fontfamily-editor" class="select-field">
+                                    <option value="Inter">Inter</option>
+                                    <option value="Outfit">Outfit</option>
+                                    <option value="Arial">Arial</option>
+                                    <option value="Georgia">Georgia</option>
+                                    <option value="Courier New">Courier New</option>
+                                </select>
+                            </div>
+                            <div class="property-group">
+                                <label for="fontsize-editor">크기</label>
+                                <input type="number" id="fontsize-editor" class="fontSize-input" value="3" min="0.5" max="20" step="0.1">
+                                <span style="font-size: 0.8rem; color: var(--text-muted);">vw</span>
+                            </div>
+                            <div class="property-group">
+                                <label for="fontcolor-editor">글자색</label>
+                                <input type="color" id="fontcolor-editor" class="fontColor-input" value="#ffffff">
+                            </div>
+                            <div class="property-group" style="gap: 4px;">
+                                <button class="btn-toggle" id="btn-bold" title="굵게">B</button>
+                                <button class="btn-toggle" id="btn-italic" title="기울임">I</button>
+                            </div>
+                            <div class="property-group" style="gap: 4px;">
+                                <button class="btn-toggle" id="btn-align-left" title="왼쪽 정렬">L</button>
+                                <button class="btn-toggle" id="btn-align-center" title="가운데 정렬">C</button>
+                                <button class="btn-toggle" id="btn-align-right" title="오른쪽 정렬">R</button>
+                            </div>
                         </div>
 
-                        <!-- 액션 저장/취소 그룹 -->
-                        <div class="tool-group">
-                            <button class="btn-tool btn-cancel" id="btn-cancel" disabled>취소</button>
-                            <button class="btn-tool btn-save" id="btn-save" disabled>저장 (Apply)</button>
+                        <!-- 도형 전용 속성 -->
+                        <div class="property-row" id="shape-properties" style="display: none;">
+                            <div class="property-group">
+                                <label for="shape-fillcolor">채우기 색상</label>
+                                <input type="color" id="shape-fillcolor" class="fontColor-input" value="#4f46e5">
+                            </div>
+                            <div class="property-group">
+                                <label for="shape-strokecolor">테두리 색상</label>
+                                <input type="color" id="shape-strokecolor" class="fontColor-input" value="#ffffff">
+                            </div>
+                            <div class="property-group">
+                                <label for="shape-strokewidth">테두리 두께</label>
+                                <input type="number" id="shape-strokewidth" class="fontSize-input" value="0" min="0" max="20" step="1">
+                                <span style="font-size: 0.8rem; color: var(--text-muted);">px</span>
+                            </div>
                         </div>
+                    </div>
+
+                    <!-- 액션 저장/취소 그룹 -->
+                    <div style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--panel-border); padding-top: 20px;">
+                        <button class="btn-tool btn-cancel" id="btn-cancel" disabled>취소</button>
+                        <button class="btn-tool btn-save" id="btn-save" disabled>저장 (Apply)</button>
                     </div>
                 </div>
             </div>
@@ -564,22 +724,51 @@
                         }
                     }
 
-                    const textObj = new fabric.Text(elem.content, {
+                    // fabric.Textbox 사용 (줄바꿈 및 직접 더블클릭 편집 가능)
+                    const textObj = new fabric.Textbox(elem.content, {
                         left: x,
                         top: y,
-                        width: w,
-                        height: h,
+                        width: w > 50 ? w : 250,
                         fontSize: fontSize,
                         fill: elem.style?.fontColor || '#ffffff',
-                        fontFamily: 'Inter',
+                        fontFamily: elem.style?.fontFamily || 'Inter',
+                        fontWeight: elem.style?.fontWeight || 'normal',
+                        fontStyle: elem.style?.fontStyle || 'normal',
+                        textAlign: elem.style?.textAlign || 'left',
                         selectable: true,
                         hasControls: true,
-                        // 오리지널 데이터 캐싱용 커스텀 속성
                         originalId: elem.id,
                         originalVwSize: elem.style?.fontSize || "3vw"
                     });
 
                     canvas.add(textObj);
+                } else if (elem.type === 'rect') {
+                    const rectObj = new fabric.Rect({
+                        left: x,
+                        top: y,
+                        width: w,
+                        height: h,
+                        fill: elem.style?.fillColor || '#4f46e5',
+                        stroke: elem.style?.strokeColor || 'transparent',
+                        strokeWidth: elem.style?.strokeWidth !== undefined ? elem.style.strokeWidth : 0,
+                        selectable: true,
+                        hasControls: true,
+                        originalId: elem.id
+                    });
+                    canvas.add(rectObj);
+                } else if (elem.type === 'circle') {
+                    const circleObj = new fabric.Circle({
+                        left: x,
+                        top: y,
+                        radius: w / 2 || 30,
+                        fill: elem.style?.fillColor || '#06b6d4',
+                        stroke: elem.style?.strokeColor || 'transparent',
+                        strokeWidth: elem.style?.strokeWidth !== undefined ? elem.style.strokeWidth : 0,
+                        selectable: true,
+                        hasControls: true,
+                        originalId: elem.id
+                    });
+                    canvas.add(circleObj);
                 }
             });
             canvas.renderAll();
@@ -587,38 +776,90 @@
 
         // 입력 폼 활성화/비활성화 제어
         function setControlsState(enabled) {
-            document.getElementById("text-editor").disabled = !enabled;
-            document.getElementById("fontsize-editor").disabled = !enabled;
-            document.getElementById("fontcolor-editor").disabled = !enabled;
+            // 개체 추가 단추
+            document.getElementById("btn-add-text").disabled = !enabled;
+            document.getElementById("btn-add-rect").disabled = !enabled;
+            document.getElementById("btn-add-circle").disabled = !enabled;
+            
+            // 저장/취소 단추
             document.getElementById("btn-save").disabled = !enabled;
             document.getElementById("btn-cancel").disabled = !enabled;
+
+            if (!enabled) {
+                onObjectCleared();
+            }
         }
 
         // 오브젝트 선택 시 이벤트
         function onObjectSelected(e) {
-            const activeObj = e.selected[0];
-            if (!activeObj || activeObj.type !== 'text') return;
+            const activeObj = e.selected ? e.selected[0] : e.target;
+            if (!activeObj) return;
 
             currentEditingElement = activeObj;
 
-            // 텍스트 인풋 필드 갱신
-            document.getElementById("text-editor").value = activeObj.text;
-            
-            // vw 값 계산
-            let vwVal = 3.0;
-            if (activeObj.originalVwSize) {
-                const match = activeObj.originalVwSize.match(/^(\d+(?:\.\d+)?)\s*vw$/);
-                if (match) {
-                    vwVal = parseFloat(match[1]);
+            // 삭제 및 레이어 버튼 활성화
+            document.getElementById("btn-layer-up").disabled = false;
+            document.getElementById("btn-layer-down").disabled = false;
+            document.getElementById("btn-layer-front").disabled = false;
+            document.getElementById("btn-layer-back").disabled = false;
+            document.getElementById("btn-delete").disabled = false;
+
+            const propertyTitle = document.getElementById("property-title");
+            const textProps = document.getElementById("text-properties");
+            const shapeProps = document.getElementById("shape-properties");
+
+            if (activeObj.type === 'textbox' || activeObj.type === 'text') {
+                propertyTitle.innerText = "텍스트 속성 설정";
+                textProps.style.display = "flex";
+                shapeProps.style.display = "none";
+
+                // 텍스트 속성 값 채우기
+                document.getElementById("text-editor").value = activeObj.text || "";
+                document.getElementById("fontfamily-editor").value = activeObj.fontFamily || "Inter";
+                
+                // vw 값 계산
+                let vwVal = 3.0;
+                if (activeObj.originalVwSize) {
+                    const match = activeObj.originalVwSize.match(/^(\d+(?:\.\d+)?)\s*vw$/);
+                    if (match) {
+                        vwVal = parseFloat(match[1]);
+                    }
                 }
+                document.getElementById("fontsize-editor").value = vwVal;
+                document.getElementById("fontcolor-editor").value = activeObj.fill || "#ffffff";
+
+                // Bold / Italic active 클래스
+                document.getElementById("btn-bold").classList.toggle("active", activeObj.fontWeight === 'bold');
+                document.getElementById("btn-italic").classList.toggle("active", activeObj.fontStyle === 'italic');
+
+                // Align active 클래스
+                document.getElementById("btn-align-left").classList.toggle("active", activeObj.textAlign === 'left');
+                document.getElementById("btn-align-center").classList.toggle("active", activeObj.textAlign === 'center');
+                document.getElementById("btn-align-right").classList.toggle("active", activeObj.textAlign === 'right');
+            } else {
+                // rect, circle 등 도형일 경우
+                propertyTitle.innerText = `${activeObj.type === 'rect' ? '사각형' : '원형'} 속성 설정`;
+                textProps.style.display = "none";
+                shapeProps.style.display = "flex";
+
+                document.getElementById("shape-fillcolor").value = activeObj.fill || "#4f46e5";
+                document.getElementById("shape-strokecolor").value = activeObj.stroke || "#ffffff";
+                document.getElementById("shape-strokewidth").value = activeObj.strokeWidth || 0;
             }
-            document.getElementById("fontsize-editor").value = vwVal;
-            document.getElementById("fontcolor-editor").value = activeObj.fill;
         }
 
         function onObjectCleared() {
             currentEditingElement = null;
-            document.getElementById("text-editor").value = "";
+            document.getElementById("property-title").innerText = "선택된 개체가 없습니다.";
+            document.getElementById("text-properties").style.display = "none";
+            document.getElementById("shape-properties").style.display = "none";
+
+            // 삭제 및 레이어 버튼 비활성화
+            document.getElementById("btn-layer-up").disabled = true;
+            document.getElementById("btn-layer-down").disabled = true;
+            document.getElementById("btn-layer-front").disabled = true;
+            document.getElementById("btn-layer-back").disabled = true;
+            document.getElementById("btn-delete").disabled = true;
         }
 
         // 로컬 캔버스 이동/스케일 시 데이터 업데이트 (메모리 격리)
@@ -626,17 +867,115 @@
             const activeObj = e.target;
             if (!activeObj) return;
 
-            // 사이즈나 크기 수정 시 vw 값을 실시간 재계산해서 저장할 수 있도록 캐싱
-            const canvasWidth = canvas.getWidth();
-            const currentFontSize = activeObj.fontSize * (activeObj.scaleX || 1);
-            const newVwSize = `${((currentFontSize / canvasWidth) * 100).toFixed(2)}vw`;
-            activeObj.originalVwSize = newVwSize;
+            if (activeObj.type === 'textbox' || activeObj.type === 'text') {
+                // 사이즈나 크기 수정 시 vw 값을 실시간 재계산해서 저장할 수 있도록 캐싱
+                const canvasWidth = canvas.getWidth();
+                const currentFontSize = activeObj.fontSize * (activeObj.scaleX || 1);
+                const newVwSize = `${((currentFontSize / canvasWidth) * 100).toFixed(2)}vw`;
+                activeObj.originalVwSize = newVwSize;
+            }
         }
 
         // 취소 처리
         function cancelEditing() {
             if (activeSlideId) {
                 loadSlideToCanvas(activeSlideId);
+            }
+        }
+
+        // 개체 추가 함수
+        function addText() {
+            if (!activeSlideId) return;
+            const textObj = new fabric.Textbox("텍스트를 입력하세요", {
+                left: 100,
+                top: 100,
+                width: 250,
+                fontSize: (3 / 100) * canvas.getWidth(), // 기본 3vw
+                fill: '#ffffff',
+                fontFamily: 'Inter',
+                selectable: true,
+                hasControls: true,
+                originalId: `elem_${Math.random().toString(36).substr(2, 9)}`,
+                originalVwSize: "3vw"
+            });
+            canvas.add(textObj);
+            canvas.setActiveObject(textObj);
+            canvas.renderAll();
+        }
+
+        function addRect() {
+            if (!activeSlideId) return;
+            const rectObj = new fabric.Rect({
+                left: 150,
+                top: 150,
+                width: 150,
+                height: 100,
+                fill: '#4f46e5',
+                stroke: 'transparent',
+                strokeWidth: 0,
+                selectable: true,
+                hasControls: true,
+                originalId: `elem_${Math.random().toString(36).substr(2, 9)}`
+            });
+            canvas.add(rectObj);
+            canvas.setActiveObject(rectObj);
+            canvas.renderAll();
+        }
+
+        function addCircle() {
+            if (!activeSlideId) return;
+            const circleObj = new fabric.Circle({
+                left: 150,
+                top: 150,
+                radius: 60,
+                fill: '#06b6d4',
+                stroke: 'transparent',
+                strokeWidth: 0,
+                selectable: true,
+                hasControls: true,
+                originalId: `elem_${Math.random().toString(36).substr(2, 9)}`
+            });
+            canvas.add(circleObj);
+            canvas.setActiveObject(circleObj);
+            canvas.renderAll();
+        }
+
+        // 레이어 순서 조작 함수
+        function layerUp() {
+            if (currentEditingElement) {
+                canvas.bringForward(currentEditingElement);
+                canvas.renderAll();
+            }
+        }
+
+        function layerDown() {
+            if (currentEditingElement) {
+                canvas.sendBackwards(currentEditingElement);
+                canvas.renderAll();
+            }
+        }
+
+        function layerFront() {
+            if (currentEditingElement) {
+                canvas.bringToFront(currentEditingElement);
+                canvas.renderAll();
+            }
+        }
+
+        function layerBack() {
+            if (currentEditingElement) {
+                canvas.sendToBack(currentEditingElement);
+                canvas.renderAll();
+            }
+        }
+
+        // 개체 삭제 함수
+        function deleteElement() {
+            if (currentEditingElement) {
+                canvas.remove(currentEditingElement);
+                canvas.discardActiveObject();
+                onObjectCleared();
+                canvas.renderAll();
             }
         }
 
@@ -655,21 +994,44 @@
             canvas.getObjects().forEach(obj => {
                 const xPct = (obj.left / canvasWidth) * 100;
                 const yPct = (obj.top / canvasHeight) * 100;
-                const wPct = ((obj.width * obj.scaleX) / canvasWidth) * 100;
-                const hPct = ((obj.height * obj.scaleY) / canvasHeight) * 100;
+                
+                let wPct = 0;
+                let hPct = 0;
+
+                if (obj.type === 'circle') {
+                    const radius = obj.radius * (obj.scaleX || 1);
+                    wPct = ((radius * 2) / canvasWidth) * 100;
+                    hPct = ((radius * 2) / canvasHeight) * 100;
+                } else {
+                    wPct = ((obj.width * obj.scaleX) / canvasWidth) * 100;
+                    hPct = ((obj.height * obj.scaleY) / canvasHeight) * 100;
+                }
+
+                const type = (obj.type === 'textbox' || obj.type === 'text') ? 'text' : obj.type;
+                const style = {};
+
+                if (type === 'text') {
+                    style.fontSize = obj.originalVwSize || "3vw";
+                    style.fontColor = obj.fill;
+                    style.fontFamily = obj.fontFamily || "Inter";
+                    style.fontWeight = obj.fontWeight || "normal";
+                    style.fontStyle = obj.fontStyle || "normal";
+                    style.textAlign = obj.textAlign || "left";
+                } else {
+                    style.fillColor = obj.fill;
+                    style.strokeColor = obj.stroke || "transparent";
+                    style.strokeWidth = obj.strokeWidth || 0;
+                }
 
                 elements.push({
                     id: obj.originalId || `elem_${Math.random().toString(36).substr(2, 9)}`,
-                    type: "text",
-                    content: obj.text,
+                    type: type,
+                    content: type === 'text' ? (obj.text || "") : "",
                     x: parseFloat(xPct.toFixed(2)),
                     y: parseFloat(yPct.toFixed(2)),
                     width: parseFloat(wPct.toFixed(2)),
                     height: parseFloat(hPct.toFixed(2)),
-                    style: {
-                        fontSize: obj.originalVwSize || "3vw",
-                        fontColor: obj.fill
-                    }
+                    style: style
                 });
             });
 
@@ -724,9 +1086,6 @@
                         };
                     }
                     
-                    // 최초 동기화 수신 직후 내 세션 식별
-                    // (FastAPI id(websocket)을 직접 받아오지 못할 수 있으나, INITIAL_SYNC 시 본인의 락 상태 매칭으로 알아내거나
-                    // 단순 문자열 매칭으로 동시 락 충돌을 차단합니다.)
                     renderSlides();
                 }
                 else if (message.type === 'SLIDE_LOCKED') {
@@ -788,15 +1147,23 @@
 
             // 텍스트 내용 편집
             document.getElementById("text-editor").oninput = (e) => {
-                if (currentEditingElement) {
+                if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
                     currentEditingElement.set('text', e.target.value);
+                    canvas.renderAll();
+                }
+            };
+
+            // 글꼴 변경
+            document.getElementById("fontfamily-editor").onchange = (e) => {
+                if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
+                    currentEditingElement.set('fontFamily', e.target.value);
                     canvas.renderAll();
                 }
             };
 
             // 폰트 크기 변경
             document.getElementById("fontsize-editor").oninput = (e) => {
-                if (currentEditingElement) {
+                if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
                     const vw = parseFloat(e.target.value) || 3.0;
                     const pxSize = (vw / 100) * canvas.getWidth();
                     
@@ -808,11 +1175,90 @@
 
             // 폰트 색상 변경
             document.getElementById("fontcolor-editor").oninput = (e) => {
-                if (currentEditingElement) {
+                if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
                     currentEditingElement.set('fill', e.target.value);
                     canvas.renderAll();
                 }
             };
+
+            // Bold / Italic / Align 토글 핸들러
+            document.getElementById("btn-bold").onclick = () => {
+                if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
+                    const isBold = currentEditingElement.fontWeight === 'bold';
+                    currentEditingElement.set('fontWeight', isBold ? 'normal' : 'bold');
+                    document.getElementById("btn-bold").classList.toggle("active", !isBold);
+                    canvas.renderAll();
+                }
+            };
+
+            document.getElementById("btn-italic").onclick = () => {
+                if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
+                    const isItalic = currentEditingElement.fontStyle === 'italic';
+                    currentEditingElement.set('fontStyle', isItalic ? 'normal' : 'italic');
+                    document.getElementById("btn-italic").classList.toggle("active", !isItalic);
+                    canvas.renderAll();
+                }
+            };
+
+            const setAlign = (align) => {
+                if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
+                    currentEditingElement.set('textAlign', align);
+                    document.getElementById("btn-align-left").classList.toggle("active", align === 'left');
+                    document.getElementById("btn-align-center").classList.toggle("active", align === 'center');
+                    document.getElementById("btn-align-right").classList.toggle("active", align === 'right');
+                    canvas.renderAll();
+                }
+            };
+
+            document.getElementById("btn-align-left").onclick = () => setAlign('left');
+            document.getElementById("btn-align-center").onclick = () => setAlign('center');
+            document.getElementById("btn-align-right").onclick = () => setAlign('right');
+
+            // 도형 속성 리스너
+            document.getElementById("shape-fillcolor").oninput = (e) => {
+                if (currentEditingElement && currentEditingElement.type !== 'textbox' && currentEditingElement.type !== 'text') {
+                    currentEditingElement.set('fill', e.target.value);
+                    canvas.renderAll();
+                }
+            };
+
+            document.getElementById("shape-strokecolor").oninput = (e) => {
+                if (currentEditingElement && currentEditingElement.type !== 'textbox' && currentEditingElement.type !== 'text') {
+                    currentEditingElement.set('stroke', e.target.value);
+                    canvas.renderAll();
+                }
+            };
+
+            document.getElementById("shape-strokewidth").oninput = (e) => {
+                if (currentEditingElement && currentEditingElement.type !== 'textbox' && currentEditingElement.type !== 'text') {
+                    currentEditingElement.set('strokeWidth', parseInt(e.target.value) || 0);
+                    canvas.renderAll();
+                }
+            };
+
+            // 개체 추가 리스너
+            document.getElementById("btn-add-text").onclick = addText;
+            document.getElementById("btn-add-rect").onclick = addRect;
+            document.getElementById("btn-add-circle").onclick = addCircle;
+
+            // 레이어 리스너
+            document.getElementById("btn-layer-up").onclick = layerUp;
+            document.getElementById("btn-layer-down").onclick = layerDown;
+            document.getElementById("btn-layer-front").onclick = layerFront;
+            document.getElementById("btn-layer-back").onclick = layerBack;
+
+            // 삭제 리스너
+            document.getElementById("btn-delete").onclick = deleteElement;
+
+            // Delete 키 단축키로 삭제 처리
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Delete' && currentEditingElement) {
+                    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT') {
+                        return;
+                    }
+                    deleteElement();
+                }
+            });
 
             // 저장/취소 리스너
             document.getElementById("btn-save").onclick = saveSlideData;

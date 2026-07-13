@@ -7,6 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Fabric.js 안정 버전 5.3.0 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
     <style>
         :root {
             --bg-color: #0b0f19;
@@ -383,10 +385,8 @@
                 <div class="card-title">
                     <span style="color: var(--accent-live); font-size: 1.5rem;">●</span> LIVE 송출 모니터링 (16:9 비율 프리뷰)
                 </div>
-                <div class="preview-screen">
-                    <div class="preview-screen-live-text" id="live-text-preview">
-                        대기 중...
-                    </div>
+                <div class="preview-screen" style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                    <canvas id="presenter-preview-canvas"></canvas>
                 </div>
             </div>
 
@@ -428,6 +428,126 @@
         let projectData = null;
         let lockedSlides = {};
         let currentLiveIndex = -1;
+        let canvas = null;
+        let targetWidth = 1920;
+        let targetHeight = 1080;
+
+        // 캔버스 초기화
+        function initCanvas() {
+            if (canvas) {
+                canvas.dispose();
+            }
+            
+            // 프리뷰는 상호작용이 없는 StaticCanvas를 사용
+            canvas = new fabric.StaticCanvas('presenter-preview-canvas', {
+                width: 480,
+                height: 270,
+                backgroundColor: '#000000'
+            });
+            
+            updateCanvasDimensions();
+        }
+
+        // 창 크기나 프리뷰 영역 크기에 맞춰 캔버스 크기 조정
+        function updateCanvasDimensions() {
+            if (!canvas) return;
+
+            const previewScreen = document.querySelector(".preview-screen");
+            if (!previewScreen) return;
+
+            const rect = previewScreen.getBoundingClientRect();
+            // 종횡비 유지를 위해 width 기준으로 height 조절하거나 16:9 비율 유지
+            const w = rect.width;
+            const h = rect.width * (9 / 16);
+
+            canvas.setWidth(w);
+            canvas.setHeight(h);
+
+            // 캔버스 요소를 중앙에 정렬하기 위해 컨테이너 마진 설정
+            const canvasEl = canvas.getElement().parentNode;
+            if (canvasEl) {
+                canvasEl.style.width = `${w}px`;
+                canvasEl.style.height = `${h}px`;
+            }
+
+            renderCurrentLiveSlide();
+        }
+
+        // 현재 라이브 슬라이드 그리기
+        function renderCurrentLiveSlide() {
+            if (!canvas || !projectData) return;
+
+            canvas.clear();
+
+            const currentLiveSlideId = projectData.settings?.currentLiveSlideId;
+            if (!currentLiveSlideId) return;
+
+            const currentSlide = projectData.slides.find(s => s.id === currentLiveSlideId);
+            if (!currentSlide) return;
+
+            const canvasWidth = canvas.getWidth();
+            const canvasHeight = canvas.getHeight();
+
+            currentSlide.elements.forEach(elem => {
+                const x = (elem.x / 100) * canvasWidth;
+                const y = (elem.y / 100) * canvasHeight;
+                const w = (elem.width / 100) * canvasWidth;
+                const h = (elem.height / 100) * canvasHeight;
+
+                if (elem.type === 'text') {
+                    let fontSize = 24;
+                    if (elem.style?.fontSize) {
+                        const match = elem.style.fontSize.match(/^(\d+(?:\.\d+)?)\s*vw$/);
+                        if (match) {
+                            const vwVal = parseFloat(match[1]);
+                            fontSize = (vwVal / 100) * canvasWidth;
+                        } else {
+                            fontSize = parseInt(elem.style.fontSize) || 24;
+                        }
+                    }
+
+                    const textObj = new fabric.Text(elem.content, {
+                        left: x,
+                        top: y,
+                        width: w,
+                        fontSize: fontSize,
+                        fill: elem.style?.fontColor || '#ffffff',
+                        fontFamily: elem.style?.fontFamily || 'Inter',
+                        fontWeight: elem.style?.fontWeight || 'normal',
+                        fontStyle: elem.style?.fontStyle || 'normal',
+                        textAlign: elem.style?.textAlign || 'left',
+                        selectable: false
+                    });
+                    
+                    canvas.add(textObj);
+                } else if (elem.type === 'rect') {
+                    const rectObj = new fabric.Rect({
+                        left: x,
+                        top: y,
+                        width: w,
+                        height: h,
+                        fill: elem.style?.fillColor || '#4f46e5',
+                        stroke: elem.style?.strokeColor || 'transparent',
+                        strokeWidth: elem.style?.strokeWidth !== undefined ? (elem.style.strokeWidth / 1920) * canvasWidth : 0,
+                        selectable: false
+                    });
+                    canvas.add(rectObj);
+                } else if (elem.type === 'circle') {
+                    const circleObj = new fabric.Circle({
+                        left: x,
+                        top: y,
+                        radius: w / 2,
+                        fill: elem.style?.fillColor || '#06b6d4',
+                        stroke: elem.style?.strokeColor || 'transparent',
+                        strokeWidth: elem.style?.strokeWidth !== undefined ? (elem.style.strokeWidth / 1920) * canvasWidth : 0,
+                        selectable: false
+                    });
+                    canvas.add(circleObj);
+                }
+            });
+
+            canvas.renderAll();
+        }
 
         // UI 갱신
         function renderDeck() {
@@ -447,10 +567,6 @@
                 if (isLive) {
                     item.classList.add("live");
                     currentLiveIndex = index;
-                    
-                    // 프리뷰 텍스트 업데이트
-                    const textElem = slide.elements.find(e => e.type === 'text');
-                    document.getElementById("live-text-preview").innerText = textElem ? textElem.content : "(텍스트 없음)";
                 }
 
                 const isLocked = lockedSlides[slide.id] !== undefined;
@@ -481,6 +597,9 @@
             if (activeItem) {
                 activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
+
+            // 라이브 프리뷰 업데이트
+            renderCurrentLiveSlide();
         }
 
         // 슬라이드 전환 명령 송신
@@ -531,7 +650,10 @@
                     if (projectData.settings) {
                         document.getElementById("width-input").value = projectData.settings.targetWidth || 1920;
                         document.getElementById("height-input").value = projectData.settings.targetHeight || 1080;
+                        targetWidth = projectData.settings.targetWidth || 1920;
+                        targetHeight = projectData.settings.targetHeight || 1080;
                     }
+                    initCanvas();
                     renderDeck();
                 }
                 else if (message.type === 'SLIDE_CHANGE') {
@@ -543,6 +665,9 @@
                 else if (message.type === 'UPDATE_RESOLUTION') {
                     document.getElementById("width-input").value = message.width;
                     document.getElementById("height-input").value = message.height;
+                    targetWidth = message.width;
+                    targetHeight = message.height;
+                    updateCanvasDimensions();
                 }
                 else if (message.type === 'SLIDE_LOCKED') {
                     lockedSlides[message.slideId] = message.editorName;
@@ -607,6 +732,9 @@
                     navigateSlide('prev');
                 }
             };
+
+            // 리사이즈 이벤트 연결
+            window.addEventListener('resize', updateCanvasDimensions);
         };
     </script>
 </body>

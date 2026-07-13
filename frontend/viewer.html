@@ -117,16 +117,40 @@
                         left: x,
                         top: y,
                         width: w,
-                        height: h,
                         fontSize: fontSize,
                         fill: elem.style?.fontColor || '#ffffff',
-                        fontFamily: 'Inter',
+                        fontFamily: elem.style?.fontFamily || 'Inter',
+                        fontWeight: elem.style?.fontWeight || 'normal',
+                        fontStyle: elem.style?.fontStyle || 'normal',
+                        textAlign: elem.style?.textAlign || 'left',
                         selectable: false
                     });
                     
                     canvas.add(textObj);
+                } else if (elem.type === 'rect') {
+                    const rectObj = new fabric.Rect({
+                        left: x,
+                        top: y,
+                        width: w,
+                        height: h,
+                        fill: elem.style?.fillColor || '#4f46e5',
+                        stroke: elem.style?.strokeColor || 'transparent',
+                        strokeWidth: elem.style?.strokeWidth !== undefined ? (elem.style.strokeWidth / 1920) * canvasWidth : 0,
+                        selectable: false
+                    });
+                    canvas.add(rectObj);
+                } else if (elem.type === 'circle') {
+                    const circleObj = new fabric.Circle({
+                        left: x,
+                        top: y,
+                        radius: w / 2,
+                        fill: elem.style?.fillColor || '#06b6d4',
+                        stroke: elem.style?.strokeColor || 'transparent',
+                        strokeWidth: elem.style?.strokeWidth !== undefined ? (elem.style.strokeWidth / 1920) * canvasWidth : 0,
+                        selectable: false
+                    });
+                    canvas.add(circleObj);
                 }
-                // 필요 시 이미지 및 기타 요소 확장 지원 가능
             });
 
             canvas.renderAll();

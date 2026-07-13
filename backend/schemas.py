@@ -4,12 +4,18 @@ from pydantic import BaseModel, Field
 class ElementStyle(BaseModel):
     fontSize: Optional[str] = "4vw"
     fontColor: Optional[str] = "#ffffff"
-    # 추가적인 스타일 속성을 유연하게 받기 위해 extra 속성을 허용하거나 dict 형태로 추가 정의 가능
+    fontFamily: Optional[str] = "Inter"
+    fontWeight: Optional[str] = "normal"
+    fontStyle: Optional[str] = "normal"
+    textAlign: Optional[str] = "left"
+    fillColor: Optional[str] = "#4f46e5"
+    strokeColor: Optional[str] = "transparent"
+    strokeWidth: Optional[int] = 0
     extra: Optional[Dict[str, Any]] = None
 
 class Element(BaseModel):
     id: str
-    type: str  # e.g., "text", "image"
+    type: str  # e.g., "text", "rect", "circle"
     content: str
     x: float
     y: float
