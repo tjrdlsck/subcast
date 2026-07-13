@@ -93,63 +93,60 @@
             const canvasWidth = canvas.getWidth();
             const canvasHeight = canvas.getHeight();
 
+        // 공용 역직렬화 (Deserialize) 함수: 백분율 데이터를 Fabric 객체로 변환
+        function deserializeElement(elem, canvasWidth, canvasHeight, isInsideGroup = false, groupW = 1, groupH = 1) {
+            let x, y, w, h;
+            if (isInsideGroup) {
+                x = (elem.x / 100) * groupW;
+                y = (elem.y / 100) * groupH;
+                w = (elem.width / 100) * groupW;
+                h = (elem.height / 100) * groupH;
+            } else {
+                x = (elem.x / 100) * canvasWidth;
+                y = (elem.y / 100) * canvasHeight;
+                w = (elem.width / 100) * canvasWidth;
+                h = (elem.height / 100) * canvasHeight;
+            }
+            let obj = null;
+            const opacity = elem.style?.opacity !== undefined ? elem.style.opacity : 1.0;
+            if (elem.type === 'text') {
+                let fontSize = 20;
+                if (elem.style?.fontSize) {
+                    const match = elem.style.fontSize.match(/^(\d+(?:\.\d+)?)\s*vw$/);
+                    fontSize = match ? (parseFloat(match[1]) / 100) * (isInsideGroup ? groupW : canvasWidth) : parseInt(elem.style.fontSize) || 20;
+                }
+                obj = new fabric.Text(elem.content, { left: x, top: y, width: w, fontSize: fontSize, fill: elem.style?.fontColor || '#ffffff', fontFamily: elem.style?.fontFamily || 'Inter', fontWeight: elem.style?.fontWeight || 'normal', fontStyle: elem.style?.fontStyle || 'normal', textAlign: elem.style?.textAlign || 'left', opacity: opacity, selectable: false });
+            } else if (elem.type === 'rect') {
+                obj = new fabric.Rect({ left: x, top: y, width: w, height: h, rx: elem.style?.cornerRadius || 0, ry: elem.style?.cornerRadius || 0, fill: elem.style?.fillColor || '#4f46e5', stroke: elem.style?.strokeColor || 'transparent', strokeWidth: elem.style?.strokeWidth !== undefined ? (elem.style.strokeWidth / 1920) * canvasWidth : 0, opacity: opacity, selectable: false });
+            } else if (elem.type === 'circle') {
+                obj = new fabric.Circle({ left: x, top: y, radius: w / 2 || 30, fill: elem.style?.fillColor || '#06b6d4', stroke: elem.style?.strokeColor || 'transparent', strokeWidth: elem.style?.strokeWidth !== undefined ? (elem.style.strokeWidth / 1920) * canvasWidth : 0, opacity: opacity, selectable: false });
+            } else if (elem.type === 'triangle') {
+                obj = new fabric.Triangle({ left: x, top: y, width: w, height: h, fill: elem.style?.fillColor || '#10b981', stroke: elem.style?.strokeColor || 'transparent', strokeWidth: elem.style?.strokeWidth !== undefined ? (elem.style.strokeWidth / 1920) * canvasWidth : 0, opacity: opacity, selectable: false });
+            } else if (elem.type === 'line') {
+                obj = new fabric.Line([x, y, x + w, y], { stroke: elem.style?.fillColor || elem.style?.strokeColor || '#f59e0b', strokeWidth: elem.style?.strokeWidth !== undefined && elem.style?.strokeWidth > 0 ? (elem.style.strokeWidth / 1920) * canvasWidth : 4, opacity: opacity, selectable: false });
+            } else if (elem.type === 'group' && elem.children) {
+                const members = elem.children.map(child => deserializeElement(child, canvasWidth, canvasHeight, true, w, h));
+                obj = new fabric.Group(members, { left: x, top: y, opacity: opacity, selectable: false });
+            }
+            return obj;
+        }
+
+        // 슬라이드 렌더링
+        function renderCurrentSlide() {
+            if (!canvas || !projectData) return;
+
+            canvas.clear();
+
+            const currentSlideId = projectData.settings?.currentLiveSlideId;
+            if (!currentSlideId) return;
+
+            const currentSlide = projectData.slides.find(s => s.id === currentSlideId);
+            if (!currentSlide) return;
+
             currentSlide.elements.forEach(elem => {
-                // 백분율(%) 기반으로 위치 및 크기 계산
-                const x = (elem.x / 100) * canvasWidth;
-                const y = (elem.y / 100) * canvasHeight;
-                const w = (elem.width / 100) * canvasWidth;
-                const h = (elem.height / 100) * canvasHeight;
-
-                if (elem.type === 'text') {
-                    // 반응형 텍스트 폰트 크기 계산 (vw 단위 처리)
-                    let fontSize = 24;
-                    if (elem.style?.fontSize) {
-                        const match = elem.style.fontSize.match(/^(\d+(?:\.\d+)?)\s*vw$/);
-                        if (match) {
-                            const vwVal = parseFloat(match[1]);
-                            fontSize = (vwVal / 100) * canvasWidth;
-                        } else {
-                            fontSize = parseInt(elem.style.fontSize) || 24;
-                        }
-                    }
-
-                    const textObj = new fabric.Text(elem.content, {
-                        left: x,
-                        top: y,
-                        width: w,
-                        fontSize: fontSize,
-                        fill: elem.style?.fontColor || '#ffffff',
-                        fontFamily: elem.style?.fontFamily || 'Inter',
-                        fontWeight: elem.style?.fontWeight || 'normal',
-                        fontStyle: elem.style?.fontStyle || 'normal',
-                        textAlign: elem.style?.textAlign || 'left',
-                        selectable: false
-                    });
-                    
-                    canvas.add(textObj);
-                } else if (elem.type === 'rect') {
-                    const rectObj = new fabric.Rect({
-                        left: x,
-                        top: y,
-                        width: w,
-                        height: h,
-                        fill: elem.style?.fillColor || '#4f46e5',
-                        stroke: elem.style?.strokeColor || 'transparent',
-                        strokeWidth: elem.style?.strokeWidth !== undefined ? (elem.style.strokeWidth / 1920) * canvasWidth : 0,
-                        selectable: false
-                    });
-                    canvas.add(rectObj);
-                } else if (elem.type === 'circle') {
-                    const circleObj = new fabric.Circle({
-                        left: x,
-                        top: y,
-                        radius: w / 2,
-                        fill: elem.style?.fillColor || '#06b6d4',
-                        stroke: elem.style?.strokeColor || 'transparent',
-                        strokeWidth: elem.style?.strokeWidth !== undefined ? (elem.style.strokeWidth / 1920) * canvasWidth : 0,
-                        selectable: false
-                    });
-                    canvas.add(circleObj);
+                const obj = deserializeElement(elem, canvas.getWidth(), canvas.getHeight());
+                if (obj) {
+                    canvas.add(obj);
                 }
             });
 
