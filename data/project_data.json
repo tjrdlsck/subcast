@@ -1,0 +1,49 @@
+{
+  "settings": {
+    "targetWidth": 1920,
+    "targetHeight": 1080,
+    "currentLiveSlideId": "slide_2"
+  },
+  "slides": [
+    {
+      "id": "slide_1",
+      "name": "오프닝 타이틀",
+      "elements": [
+        {
+          "id": "elem_1",
+          "type": "text",
+          "content": "생방송 시작 5분 전",
+          "x": 20.0,
+          "y": 45.0,
+          "width": 60.0,
+          "height": 10.0,
+          "style": {
+            "fontSize": "4vw",
+            "fontColor": "#ffffff",
+            "extra": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "slide_2",
+      "name": "본방송 하단 자막",
+      "elements": [
+        {
+          "id": "elem_2",
+          "type": "text",
+          "content": "홍길동 의원 / 현직 국회의원 인터뷰",
+          "x": 10.0,
+          "y": 80.0,
+          "width": 80.0,
+          "height": 12.0,
+          "style": {
+            "fontSize": "3vw",
+            "fontColor": "#ffeb3b",
+            "extra": null
+          }
+        }
+      ]
+    }
+  ]
+}
