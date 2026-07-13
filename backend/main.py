@@ -252,6 +252,7 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                     for idx, s in enumerate(manager.project_data.slides):
                         if s.id in slide_ids:
                             manager.project_data.slides[idx].elements = clone_elements(target_tpl.elements)
+                            manager.project_data.slides[idx].thumbnail = target_tpl.thumbnail
 
                     await save_project_data(manager.project_data)
                     await manager.broadcast({

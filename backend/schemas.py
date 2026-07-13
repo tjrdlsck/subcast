@@ -32,11 +32,13 @@ Element.model_rebuild()
 class Slide(BaseModel):
     id: str
     name: str
+    thumbnail: Optional[str] = None
     elements: List[Element] = Field(default_factory=list)
 
 class SlideTemplate(BaseModel):
     id: str
     name: str
+    thumbnail: Optional[str] = None
     elements: List[Element] = Field(default_factory=list)
 
 class SystemSettings(BaseModel):

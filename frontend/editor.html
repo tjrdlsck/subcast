@@ -11,578 +11,269 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
     <style>
         :root {
-            --bg-color: #0b0f19;
-            --panel-bg: rgba(255, 255, 255, 0.02);
+            --bg-color: #121212;
+            --panel-bg: rgba(255, 255, 255, 0.03);
             --panel-border: rgba(255, 255, 255, 0.08);
-            --primary: #4f46e5;
-            --primary-glow: rgba(79, 70, 229, 0.3);
-            --secondary: #06b6d4;
-            --secondary-glow: rgba(6, 182, 212, 0.3);
-            --accent-live: #ef4444;
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
-            --green-online: #10b981;
+            --panel-blur: blur(24px);
+            --primary: #007aff;
+            --primary-glow: rgba(0, 122, 255, 0.3);
+            --secondary: #0067c0;
+            --accent-live: #ff3b30;
+            --text-main: #ffffff;
+            --text-muted: #8e8e93;
+            --green-online: #34c759;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.2);
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             background-color: var(--bg-color);
+            background-image: radial-gradient(circle at top right, rgba(0, 122, 255, 0.05) 0%, transparent 40%),
+                              radial-gradient(circle at bottom left, rgba(255, 59, 48, 0.05) 0%, transparent 40%);
             color: var(--text-main);
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             overflow-x: hidden;
         }
 
-        /* 헤더 */
         header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px 40px;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 32px;
+            background: rgba(18, 18, 18, 0.7);
+            backdrop-filter: var(--panel-blur);
+            -webkit-backdrop-filter: var(--panel-blur);
             border-bottom: 1px solid var(--panel-border);
-            background: rgba(11, 15, 25, 0.8);
-            backdrop-filter: blur(8px);
-            position: sticky;
-            top: 0;
-            z-index: 100;
+            position: sticky; top: 0; z-index: 100;
         }
 
         header h1 {
             font-family: 'Outfit', sans-serif;
-            font-size: 1.8rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #fff 40%, var(--text-muted) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            font-size: 1.5rem; font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #fff 30%, var(--text-muted) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
 
-        .header-controls {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .editor-name-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .editor-name-group label {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-        }
-
+        .header-controls { display: flex; align-items: center; gap: 20px; }
+        .editor-name-group { display: flex; align-items: center; gap: 12px; }
+        .editor-name-group label { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
         .editor-name-input {
-            background: rgba(0, 0, 0, 0.3);
+            background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--panel-border);
-            border-radius: 8px;
-            padding: 6px 12px;
-            color: white;
-            font-size: 0.85rem;
-            outline: none;
-            width: 120px;
+            border-radius: var(--radius-sm);
+            padding: 8px 16px; color: white; font-size: 0.85rem;
+            transition: all 0.2s ease;
+            width: 140px;
+        }
+        .editor-name-input:focus {
+            outline: none; border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
         }
 
         .status-badge {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            padding: 6px 16px;
-            border-radius: 20px;
-            background: rgba(255, 255, 255, 0.05);
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.8rem; font-weight: 600;
+            padding: 8px 16px; border-radius: 20px;
+            background: var(--panel-bg);
             border: 1px solid var(--panel-border);
+            backdrop-filter: var(--panel-blur);
+            box-shadow: var(--shadow-sm);
         }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background-color: var(--accent-live); }
+        .status-badge.connected .status-dot { background-color: var(--green-online); box-shadow: 0 0 8px var(--green-online); }
 
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background-color: var(--accent-live);
-        }
-
-        .status-badge.connected .status-dot {
-            background-color: var(--green-online);
-            box-shadow: 0 0 10px var(--green-online);
-        }
-
-        /* 메인 레이아웃 */
         .workspace {
-            flex: 1;
-            display: grid;
-            grid-template-columns: 350px 1fr;
-            height: calc(100vh - 80px);
+            flex: 1; display: grid; grid-template-columns: 320px 1fr;
+            height: calc(100vh - 70px);
         }
 
-        /* 왼쪽: 슬라이드 목록 */
         .slide-panel {
+            background: rgba(18, 18, 18, 0.5);
+            backdrop-filter: var(--panel-blur);
             border-right: 1px solid var(--panel-border);
-            background: rgba(0, 0, 0, 0.2);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
+            display: flex; flex-direction: column; overflow: hidden;
         }
-
         .panel-header {
-            padding: 20px;
-            border-bottom: 1px solid var(--panel-border);
-            font-weight: 600;
-            font-size: 1.1rem;
+            padding: 24px 20px 12px 20px; font-weight: 600; font-size: 1rem; color: var(--text-main);
         }
-
         .slide-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
+            flex: 1; overflow-y: auto; padding: 12px 20px;
+            display: flex; flex-direction: column; gap: 12px;
         }
 
         .slide-item {
             background: var(--panel-bg);
-            border: 1px solid var(--panel-border);
-            border-radius: 16px;
-            padding: 16px;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            border: 1px solid transparent;
+            border-radius: var(--radius-md);
+            padding: 16px; cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
             position: relative;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            align-items: flex-start;
         }
-
         .slide-item:hover {
-            border-color: rgba(255, 255, 255, 0.2);
-            background: rgba(255, 255, 255, 0.04);
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-2px);
         }
-
         .slide-item.editing {
-            border-color: var(--secondary);
-            background: rgba(6, 182, 212, 0.05);
-            box-shadow: 0 0 15px var(--secondary-glow);
+            border-color: var(--primary);
+            background: rgba(0, 122, 255, 0.1);
         }
-
+        .slide-item.editing::before, .slide-item.locked::before {
+            position: absolute; bottom: 12px; right: 12px;
+            font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;
+            padding: 4px 8px; border-radius: 6px;
+        }
         .slide-item.editing::before {
-            content: 'EDITING';
-            position: absolute;
-            bottom: 12px;
-            right: 12px;
-            background: var(--secondary);
-            color: white;
-            font-size: 0.7rem;
-            font-weight: bold;
-            padding: 2px 6px;
-            border-radius: 4px;
+            content: 'EDITING'; background: var(--primary); color: white;
         }
-
-        .slide-item.locked {
-            opacity: 0.6;
-            cursor: not-allowed;
-            pointer-events: none;
-        }
-
+        .slide-item.locked { opacity: 0.5; pointer-events: none; }
         .slide-item.locked::before {
-            content: 'LOCKED';
-            position: absolute;
-            bottom: 12px;
-            right: 12px;
-            background: var(--accent-live);
-            color: white;
-            font-size: 0.7rem;
-            font-weight: bold;
-            padding: 2px 6px;
-            border-radius: 4px;
+            content: 'LOCKED'; background: var(--accent-live); color: white;
         }
 
-        .slide-item h3 {
-            font-size: 0.95rem;
-            font-weight: 600;
-            margin-bottom: 8px;
-            padding-right: 70px;
+        .slide-item-checkbox {
+            margin-right: 12px;
+            margin-top: 4px;
+            width: 16px; height: 16px;
+            cursor: pointer;
+            accent-color: var(--primary);
         }
+        .slide-item-content { flex: 1; min-width: 0; }
+        .slide-item h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 6px; }
 
-        .slide-preview-text {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        .slide-item-preview-img {
+            width: 100%; aspect-ratio: 16/9;
+            object-fit: contain; background: #000;
+            border-radius: 6px; margin-bottom: 8px;
+            border: 1px solid var(--panel-border);
         }
+        .slide-preview-text { font-size: 0.8rem; color: var(--text-muted); }
+        .lock-owner-text { font-size: 0.75rem; color: #ff6b6b; margin-top: 8px; font-weight: 500; }
 
-        .lock-owner-text {
-            font-size: 0.75rem;
-            color: #fb7185;
-            margin-top: 8px;
-            font-weight: 500;
-        }
-
-        /* 오른쪽: 편집기 캔버스 영역 */
         .editor-container {
-            display: flex;
-            flex-direction: column;
-            padding: 30px;
-            gap: 20px;
-            overflow-y: auto;
-            align-items: center;
+            display: flex; flex-direction: column; padding: 24px 32px;
+            gap: 24px; overflow-y: auto; align-items: center;
+        }
+        .editor-workspace {
+            width: 100%; max-width: 1024px; display: flex; flex-direction: column; gap: 20px;
         }
 
-        .editor-workspace {
-            width: 100%;
-            max-width: 960px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
+        .ppt-ribbon-bar {
+            background: var(--panel-bg);
+            backdrop-filter: var(--panel-blur);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-lg);
+            width: 100%; display: flex; flex-direction: column;
+            overflow: hidden; box-shadow: var(--shadow-md);
+        }
+        .ribbon-tabs {
+            display: flex; background: rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid var(--panel-border);
+        }
+        .ribbon-tab-btn {
+            background: transparent; border: none; border-bottom: 2px solid transparent;
+            color: var(--text-muted); padding: 12px 24px; font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .ribbon-tab-btn:hover { color: white; background: rgba(255, 255, 255, 0.05); }
+        .ribbon-tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+        .ribbon-panels {
+            padding: 16px 24px; background: rgba(255, 255, 255, 0.02);
+            display: flex; align-items: center; min-height: 100px;
+        }
+        .ribbon-panel { display: none; width: 100%; align-items: center; gap: 32px; flex-wrap: wrap; }
+        .ribbon-panel.active { display: flex; }
+        .ribbon-group { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+        .ribbon-group-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+        .ribbon-group-divider { width: 1px; height: 48px; background: var(--panel-border); align-self: center; }
+
+        .ribbon-action-btn, .btn-tool {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-sm); color: white;
+            padding: 8px 16px; font-size: 0.85rem; font-weight: 500;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+            transition: all 0.2s; box-shadow: var(--shadow-sm);
+        }
+        .ribbon-action-btn:hover:not(:disabled), .btn-tool:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.1); transform: translateY(-1px);
+        }
+        .ribbon-action-btn:active:not(:disabled), .btn-tool:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        .text-input-field, .fontSize-input, .select-field {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-sm);
+            padding: 8px 12px; color: white; font-size: 0.85rem;
+            transition: all 0.2s; outline: none;
+        }
+        .text-input-field:focus, .fontSize-input:focus, .select-field:focus {
+            border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+        .fontColor-input {
+            width: 32px; height: 32px; padding: 0; border: 1px solid var(--panel-border);
+            border-radius: 50%; cursor: pointer; overflow: hidden;
         }
 
         .editor-card {
-            background: rgba(255, 255, 255, 0.01);
+            background: var(--panel-bg); backdrop-filter: var(--panel-blur);
             border: 1px solid var(--panel-border);
-            border-radius: 24px;
-            padding: 24px;
-            width: 100%;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
+            border-radius: var(--radius-xl); padding: 32px;
+            box-shadow: var(--shadow-md); display: flex; flex-direction: column; gap: 24px;
         }
-
         .canvas-wrapper {
-            width: 100%;
-            aspect-ratio: 16/9;
-            background-color: #1e293b;
-            background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 0);
-            background-size: 20px 20px;
-            border: 2px solid var(--panel-border);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            overflow: hidden;
+            width: 100%; aspect-ratio: 16/9;
+            background: #1e1e1e;
+            background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 0); background-size: 20px 20px;
+            border: 1px solid var(--panel-border); border-radius: var(--radius-md);
+            display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        .canvas-container {
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
 
-        .canvas-wrapper .canvas-container {
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85);
-            border: 2px solid #475569;
-            border-radius: 4px;
-        }
-
-        /* 컨트롤 영역 */
         .editor-controls {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-top: 1px solid var(--panel-border);
-            padding-top: 20px;
-            flex-wrap: wrap;
-            gap: 16px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-top: 1px solid var(--panel-border); padding-top: 24px; gap: 16px;
         }
-
-        .tool-group {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-
-        .btn-tool {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--panel-border);
-            color: white;
-            padding: 10px 18px;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .btn-tool:hover:not(:disabled) {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.3);
-        }
-
-        .btn-save {
-            background: var(--primary);
-            border-color: var(--primary);
-        }
-
-        .btn-save:hover:not(:disabled) {
-            background: #4338ca;
-        }
-
-        .btn-cancel {
-            background: transparent;
-            border-color: transparent;
-        }
-
-        .btn-cancel:hover {
-            background: rgba(255, 255, 255, 0.03);
-        }
-
-        .text-input-field {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--panel-border);
-            border-radius: 8px;
-            padding: 10px 14px;
-            color: white;
-            font-size: 0.9rem;
-            outline: none;
-            width: 300px;
-            transition: border-color 0.2s ease;
-        }
-
-        .text-input-field:focus {
-            border-color: var(--secondary);
-        }
-
-        .fontSize-input {
-            width: 70px;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--panel-border);
-            border-radius: 8px;
-            padding: 10px;
-            color: white;
-            text-align: center;
-        }
-
-        .fontColor-input {
-            width: 50px;
-            height: 40px;
-            border: 1px solid var(--panel-border);
-            background: none;
-            cursor: pointer;
-            border-radius: 8px;
-        }
-
-        /* 잠금 알림 안내 배너 */
-        .lock-warning-banner {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            color: #fca5a5;
-            padding: 14px 20px;
-            border-radius: 12px;
-            font-size: 0.9rem;
-            font-weight: 500;
-            width: 100%;
-            display: none;
-            align-items: center;
-            gap: 10px;
-        }
-
-        /* PPT 스타일 툴바 및 속성 패널 추가 */
-        .toolbar {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--panel-border);
-            padding: 10px 15px;
-            border-radius: 12px;
-            width: 100%;
-            margin-bottom: 10px;
-            flex-wrap: wrap;
-        }
+        .btn-save { background: var(--primary); border-color: var(--primary); padding: 12px 24px; font-weight: 600; border-radius: var(--radius-md); cursor: pointer; color: white; transition: all 0.2s; }
+        .btn-save:hover:not(:disabled) { background: #0062cc; transform: translateY(-2px); box-shadow: 0 4px 12px var(--primary-glow); }
         
-        .toolbar-divider {
-            width: 1px;
-            height: 24px;
-            background: var(--panel-border);
-            margin: 0 5px;
+        .btn-cancel { background: transparent; border: 1px solid var(--panel-border); padding: 12px 24px; font-weight: 600; border-radius: var(--radius-md); cursor: pointer; color: white; transition: all 0.2s; }
+        .btn-cancel:hover { background: rgba(255, 255, 255, 0.05); }
+
+        .lock-warning-banner {
+            background: rgba(255, 59, 48, 0.15); border: 1px solid rgba(255, 59, 48, 0.3);
+            color: #ff6b6b; padding: 16px 20px; border-radius: var(--radius-md);
+            font-size: 0.9rem; font-weight: 500; width: 100%; display: none; align-items: center; gap: 12px;
         }
 
-        .property-panel {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--panel-border);
-            border-radius: 16px;
-            padding: 20px;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .property-row {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .property-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .property-group label {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            font-weight: 500;
-        }
-
-        .select-field {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--panel-border);
-            border-radius: 8px;
-            padding: 8px 12px;
-            color: white;
-            font-size: 0.85rem;
-            outline: none;
-            cursor: pointer;
-        }
-
-        /* 토글 형태의 버튼들 */
         .btn-toggle {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--panel-border);
-            color: white;
-            width: 36px;
-            height: 36px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.05); border: 1px solid var(--panel-border);
+            color: white; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;
+            border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s;
         }
-
-        .btn-toggle:hover:not(:disabled) {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .btn-toggle.active {
-            background: var(--primary);
-            border-color: var(--primary);
-            box-shadow: 0 0 8px var(--primary-glow);
-        }
-
-        .btn-toggle:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-        }
-
-        /* PPT 스타일 리본바 스타일 정의 */
-        .ppt-ribbon-bar {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--panel-border);
-            border-radius: 16px;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            margin-bottom: 15px;
-        }
-
-        .ribbon-tabs {
-            display: flex;
-            background: rgba(0, 0, 0, 0.2);
-            border-bottom: 1px solid var(--panel-border);
-            padding: 0 10px;
-        }
-
-        .ribbon-tab-btn {
-            background: transparent;
-            border: none;
-            border-bottom: 2px solid transparent;
-            color: var(--text-muted);
-            padding: 10px 18px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .ribbon-tab-btn:hover {
-            color: white;
-            background: rgba(255, 255, 255, 0.03);
-        }
-
-        .ribbon-tab-btn.active {
-            color: var(--secondary);
-            border-bottom-color: var(--secondary);
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .ribbon-panels {
-            padding: 15px 20px;
-            min-height: 95px;
-            background: rgba(255, 255, 255, 0.01);
-            display: flex;
-            align-items: center;
-        }
-
-        .ribbon-panel {
-            display: none;
-            width: 100%;
-            align-items: center;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-
-        .ribbon-panel.active {
-            display: flex;
-        }
-
-        .ribbon-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            justify-content: center;
-        }
-
-        .ribbon-group-label {
-            font-size: 0.72rem;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 2px;
-        }
-
-        .ribbon-group-divider {
-            width: 1px;
-            height: 45px;
-            background: var(--panel-border);
-            align-self: center;
-        }
-
-        .ribbon-action-btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--panel-border);
-            border-radius: 8px;
-            color: white;
-            padding: 8px 14px;
-            font-size: 0.82rem;
-            font-weight: 600;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            transition: all 0.2s ease;
-        }
-
-        .ribbon-action-btn:hover:not(:disabled) {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .ribbon-action-btn:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-        }
-
-        .ribbon-icon {
-            font-size: 0.95rem;
-            line-height: 1;
-        }
+        .btn-toggle:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); }
+        .btn-toggle.active { background: var(--primary); border-color: var(--primary); }
     </style>
 </head>
 <body>
