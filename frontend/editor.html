@@ -759,10 +759,26 @@
                                 </div>
                             </div>
                         </div>
+                    <div class="canvas-wrapper">
+                        <canvas id="editor-canvas"></canvas>
                     </div>
 
-                    <div class="canvas-wrapper">
-<script>
+                    <!-- 선택 개체 간략 상태표시줄 -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.01); border: 1px solid var(--panel-border); border-radius: 10px; padding: 10px 16px; font-size: 0.82rem; width: 100%;">
+                        <span id="selection-status-bar" style="color: var(--text-muted); font-weight: 500;">선택된 개체가 없습니다.</span>
+                        
+                        <!-- 액션 저장/취소 그룹 -->
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button class="btn-tool btn-cancel" id="btn-cancel" style="padding: 6px 14px; font-size:0.82rem;" disabled>취소</button>
+                            <button class="btn-tool btn-save" id="btn-save" style="padding: 6px 14px; font-size:0.82rem;" disabled>저장 (Apply)</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
         let ws = null;
         let projectData = null;
         let lockedSlides = {};
