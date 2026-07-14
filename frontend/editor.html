@@ -11,479 +11,1258 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
     <style>
         :root {
-            --bg-color: #121212;
-            --panel-bg: rgba(255, 255, 255, 0.03);
+            --bg-color: #0b0f19;
+            --sidebar-bg: #111827;
+            --panel-bg: #1f2937;
             --panel-border: rgba(255, 255, 255, 0.08);
-            --panel-blur: blur(24px);
-            --primary: #007aff;
-            --primary-glow: rgba(0, 122, 255, 0.3);
-            --secondary: #0067c0;
-            --accent-live: #ff3b30;
-            --text-main: #ffffff;
-            --text-muted: #8e8e93;
-            --green-online: #34c759;
-            --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 16px;
-            --radius-xl: 24px;
-            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
-            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.2);
+            --panel-blur: blur(20px);
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --primary-glow: rgba(99, 102, 241, 0.25);
+            --accent-live: #ef4444;
+            --text-main: #f9fafb;
+            --text-muted: #9ca3af;
+            --text-dark: #111827;
+            --green-online: #10b981;
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --radius-xl: 20px;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
+            --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.45);
         }
 
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             background-color: var(--bg-color);
-            background-image: radial-gradient(circle at top right, rgba(0, 122, 255, 0.05) 0%, transparent 40%),
-                              radial-gradient(circle at bottom left, rgba(255, 59, 48, 0.05) 0%, transparent 40%);
+            background-image: radial-gradient(circle at top right, rgba(99, 102, 241, 0.04) 0%, transparent 40%),
+                              radial-gradient(circle at bottom left, rgba(239, 68, 68, 0.03) 0%, transparent 40%);
             color: var(--text-main);
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
-            overflow-x: hidden;
         }
 
+        /* 1. Top Bar (상단 바) */
         header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 16px 32px;
-            background: rgba(18, 18, 18, 0.7);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 56px;
+            padding: 0 24px;
+            background: rgba(17, 24, 39, 0.85);
             backdrop-filter: var(--panel-blur);
-            -webkit-backdrop-filter: var(--panel-blur);
             border-bottom: 1px solid var(--panel-border);
-            position: sticky; top: 0; z-index: 100;
+            z-index: 100;
+            flex-shrink: 0;
         }
 
         header h1 {
             font-family: 'Outfit', sans-serif;
-            font-size: 1.5rem; font-weight: 700;
+            font-size: 1.3rem;
+            font-weight: 700;
             letter-spacing: -0.5px;
-            background: linear-gradient(135deg, #fff 30%, var(--text-muted) 100%);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #fff 40%, var(--text-muted) 100%);
+            -webkit-background-clip: text;
+            -webkit-fill-color: transparent;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .header-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .header-center h2 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-main);
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 6px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--panel-border);
         }
 
-        .header-controls { display: flex; align-items: center; gap: 20px; }
-        .editor-name-group { display: flex; align-items: center; gap: 12px; }
-        .editor-name-group label { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .editor-name-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .editor-name-group label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
         .editor-name-input {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--panel-border);
             border-radius: var(--radius-sm);
-            padding: 8px 16px; color: white; font-size: 0.85rem;
+            padding: 6px 12px;
+            color: white;
+            font-size: 0.8rem;
             transition: all 0.2s ease;
-            width: 140px;
+            width: 110px;
         }
+        
         .editor-name-input:focus {
-            outline: none; border-color: var(--primary);
-            box-shadow: 0 0 0 3px var(--primary-glow);
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px var(--primary-glow);
         }
 
         .status-badge {
-            display: flex; align-items: center; gap: 8px;
-            font-size: 0.8rem; font-weight: 600;
-            padding: 8px 16px; border-radius: 20px;
-            background: var(--panel-bg);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.03);
             border: 1px solid var(--panel-border);
-            backdrop-filter: var(--panel-blur);
-            box-shadow: var(--shadow-sm);
         }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; background-color: var(--accent-live); }
-        .status-badge.connected .status-dot { background-color: var(--green-online); box-shadow: 0 0 8px var(--green-online); }
+        
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--accent-live);
+        }
+        
+        .status-badge.connected .status-dot {
+            background-color: var(--green-online);
+            box-shadow: 0 0 6px var(--green-online);
+        }
 
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-header-action {
+            padding: 6px 14px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        
+        .btn-header-action.btn-save {
+            background: var(--primary);
+            color: white;
+        }
+        .btn-header-action.btn-save:hover:not(:disabled) {
+            background: var(--primary-hover);
+            box-shadow: 0 4px 12px var(--primary-glow);
+            transform: translateY(-1px);
+        }
+        .btn-header-action.btn-save:disabled,
+        .btn-header-action.btn-cancel:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+        
+        .btn-header-action.btn-cancel {
+            background: transparent;
+            border-color: var(--panel-border);
+            color: var(--text-main);
+        }
+        .btn-header-action.btn-cancel:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--text-muted);
+        }
+
+        /* 2. Main Workspace Layout */
         .workspace {
-            flex: 1; display: grid; grid-template-columns: 320px 1fr;
-            height: calc(100vh - 70px);
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            height: calc(100vh - 56px);
         }
 
-        .slide-panel {
-            background: rgba(18, 18, 18, 0.5);
+        /* Left Navigation Sidebar (아이콘 세로 탭) */
+        .left-nav-sidebar {
+            width: 72px;
+            background: #0f131f;
+            border-right: 1px solid var(--panel-border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px 0;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .nav-tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            width: 56px;
+            height: 56px;
+            border-radius: var(--radius-md);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            cursor: pointer;
+            font-size: 0.65rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-tab-btn:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.03);
+        }
+        
+        .nav-tab-btn.active {
+            color: white;
+            background: var(--primary);
+            box-shadow: 0 4px 14px var(--primary-glow);
+        }
+
+        .nav-tab-btn svg {
+            width: 20px;
+            height: 20px;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
+            transition: transform 0.2s ease;
+        }
+        .nav-tab-btn:hover svg {
+            transform: scale(1.05);
+        }
+        .nav-tab-btn.active svg {
+            stroke: white;
+        }
+
+        /* Left Sub Panel (드로어 패널) */
+        .left-sub-panel {
+            width: 280px;
+            background: rgba(17, 24, 39, 0.95);
             backdrop-filter: var(--panel-blur);
             border-right: 1px solid var(--panel-border);
-            display: flex; flex-direction: column; overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            flex-shrink: 0;
         }
+
+        .sidebar-panel {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        .sidebar-panel.active {
+            display: flex;
+        }
+
         .panel-header {
-            padding: 24px 20px 12px 20px; font-weight: 600; font-size: 1rem; color: var(--text-main);
+            padding: 20px;
+            border-bottom: 1px solid var(--panel-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
         }
+
+        .panel-header h3 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .panel-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        /* 슬라이드 목록 스타일 */
         .slide-list {
-            flex: 1; overflow-y: auto; padding: 12px 20px;
-            display: flex; flex-direction: column; gap: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
         .slide-item {
-            background: var(--panel-bg);
-            border: 1px solid transparent;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
             border-radius: var(--radius-md);
-            padding: 16px; cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             box-shadow: var(--shadow-sm);
-            display: flex;
-            align-items: flex-start;
         }
+        
         .slide-item:hover {
-            background: rgba(255, 255, 255, 0.08);
-            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.12);
+            transform: translateY(-1px);
         }
+        
         .slide-item.editing {
             border-color: var(--primary);
-            background: rgba(0, 122, 255, 0.1);
+            background: rgba(99, 102, 241, 0.08);
+            box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
         }
+        
+        .slide-item.locked {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        
         .slide-item.editing::before, .slide-item.locked::before {
-            position: absolute; bottom: 12px; right: 12px;
-            font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;
-            padding: 4px 8px; border-radius: 6px;
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            z-index: 5;
         }
+        
         .slide-item.editing::before {
-            content: 'EDITING'; background: var(--primary); color: white;
+            content: 'EDITING';
+            background: var(--primary);
+            color: white;
         }
-        .slide-item.locked { opacity: 0.5; pointer-events: none; }
+        
         .slide-item.locked::before {
-            content: 'LOCKED'; background: var(--accent-live); color: white;
+            content: 'LOCKED';
+            background: var(--accent-live);
+            color: white;
         }
 
         .slide-item-checkbox {
-            margin-right: 12px;
-            margin-top: 4px;
-            width: 16px; height: 16px;
-            cursor: pointer;
             accent-color: var(--primary);
         }
-        .slide-item-content { flex: 1; min-width: 0; }
-        .slide-item h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 6px; }
 
-        .slide-item-preview-img {
-            width: 100%; aspect-ratio: 16/9;
-            object-fit: contain; background: #000;
-            border-radius: 6px; margin-bottom: 8px;
+        .slide-thumbnail-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #090d16;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
             border: 1px solid var(--panel-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 8px;
         }
-        .slide-preview-text { font-size: 0.8rem; color: var(--text-muted); }
-        .lock-owner-text { font-size: 0.75rem; color: #ff6b6b; margin-top: 8px; font-weight: 500; }
+        
+        .slide-thumbnail-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
 
-        .editor-container {
-            display: flex; flex-direction: column; padding: 24px 32px;
-            gap: 24px; overflow-y: auto; align-items: center;
-        }
-        .editor-workspace {
-            width: 100%; max-width: 1024px; display: flex; flex-direction: column; gap: 20px;
+        .lock-owner-text {
+            font-size: 0.7rem;
+            color: #f87171;
+            margin-top: 6px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
 
-        .ppt-ribbon-bar {
-            background: var(--panel-bg);
-            backdrop-filter: var(--panel-blur);
-            border: 1px solid var(--panel-border);
-            border-radius: var(--radius-lg);
-            width: 100%; display: flex; flex-direction: column;
-            overflow: hidden; box-shadow: var(--shadow-md);
+        /* 템플릿 패널 스타일 */
+        .template-actions {
+            margin-bottom: 16px;
         }
-        .ribbon-tabs {
-            display: flex; background: rgba(0, 0, 0, 0.2);
-            border-bottom: 1px solid var(--panel-border);
-        }
-        .ribbon-tab-btn {
-            background: transparent; border: none; border-bottom: 2px solid transparent;
-            color: var(--text-muted); padding: 12px 24px; font-size: 0.85rem; font-weight: 600;
-            cursor: pointer; transition: all 0.2s;
-        }
-        .ribbon-tab-btn:hover { color: white; background: rgba(255, 255, 255, 0.05); }
-        .ribbon-tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
-
-        .ribbon-panels {
-            padding: 16px 24px; background: rgba(255, 255, 255, 0.02);
-            display: flex; align-items: center; min-height: 100px;
-        }
-        .ribbon-panel { display: none; width: 100%; align-items: center; gap: 32px; flex-wrap: wrap; }
-        .ribbon-panel.active { display: flex; }
-        .ribbon-group { display: flex; flex-direction: column; gap: 10px; align-items: center; }
-        .ribbon-group-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
-        .ribbon-group-divider { width: 1px; height: 48px; background: var(--panel-border); align-self: center; }
-
-        .ribbon-action-btn, .btn-tool {
+        
+        .btn-template-action {
+            width: 100%;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--panel-border);
-            border-radius: var(--radius-sm); color: white;
-            padding: 8px 16px; font-size: 0.85rem; font-weight: 500;
-            cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
-            transition: all 0.2s; box-shadow: var(--shadow-sm);
+            border-radius: var(--radius-sm);
+            color: white;
+            padding: 10px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
-        .ribbon-action-btn:hover:not(:disabled), .btn-tool:hover:not(:disabled) {
-            background: rgba(255, 255, 255, 0.1); transform: translateY(-1px);
+        
+        .btn-template-action:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.1);
         }
-        .ribbon-action-btn:active:not(:disabled), .btn-tool:active:not(:disabled) {
-            transform: translateY(1px);
+        .btn-template-action:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
         }
-
-        .text-input-field, .fontSize-input, .select-field {
-            background: rgba(0, 0, 0, 0.2);
+        
+        .template-selector-group {
+            margin-top: 20px;
+            border-top: 1px solid var(--panel-border);
+            padding-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .template-selector-group label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .select-field {
+            background: rgba(0, 0, 0, 0.3);
             border: 1px solid var(--panel-border);
             border-radius: var(--radius-sm);
-            padding: 8px 12px; color: white; font-size: 0.85rem;
-            transition: all 0.2s; outline: none;
+            padding: 10px 12px;
+            color: white;
+            font-size: 0.85rem;
+            outline: none;
+            width: 100%;
+            transition: all 0.2s;
         }
-        .text-input-field:focus, .fontSize-input:focus, .select-field:focus {
-            border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow);
-        }
-        .fontColor-input {
-            width: 32px; height: 32px; padding: 0; border: 1px solid var(--panel-border);
-            border-radius: 50%; cursor: pointer; overflow: hidden;
-        }
-
-        .editor-card {
-            background: var(--panel-bg); backdrop-filter: var(--panel-blur);
-            border: 1px solid var(--panel-border);
-            border-radius: var(--radius-xl); padding: 32px;
-            box-shadow: var(--shadow-md); display: flex; flex-direction: column; gap: 24px;
-        }
-        .canvas-wrapper {
-            width: 100%; aspect-ratio: 16/9;
-            background: #1e1e1e;
-            background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 0); background-size: 20px 20px;
-            border: 1px solid var(--panel-border); border-radius: var(--radius-md);
-            display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;
-            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
-        }
-        .canvas-container {
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-        }
-
-        .editor-controls {
-            display: flex; justify-content: space-between; align-items: center;
-            border-top: 1px solid var(--panel-border); padding-top: 24px; gap: 16px;
-        }
-        .btn-save { background: var(--primary); border-color: var(--primary); padding: 12px 24px; font-weight: 600; border-radius: var(--radius-md); cursor: pointer; color: white; transition: all 0.2s; }
-        .btn-save:hover:not(:disabled) { background: #0062cc; transform: translateY(-2px); box-shadow: 0 4px 12px var(--primary-glow); }
         
-        .btn-cancel { background: transparent; border: 1px solid var(--panel-border); padding: 12px 24px; font-weight: 600; border-radius: var(--radius-md); cursor: pointer; color: white; transition: all 0.2s; }
-        .btn-cancel:hover { background: rgba(255, 255, 255, 0.05); }
+        .select-field:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px var(--primary-glow);
+        }
+        
+        .template-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 4px;
+        }
+        
+        .template-buttons .btn-apply {
+            flex: 1;
+            background: rgba(99, 102, 241, 0.15);
+            border-color: rgba(99, 102, 241, 0.3);
+            color: #a5b4fc;
+        }
+        .template-buttons .btn-apply:hover:not(:disabled) {
+            background: rgba(99, 102, 241, 0.25);
+        }
+        
+        .template-buttons .btn-delete-tpl {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            padding: 10px 14px;
+        }
+        .template-buttons .btn-delete-tpl:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        /* 텍스트 삽입 패널 스타일 */
+        .text-templates-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .btn-add-text-tpl {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-md);
+            color: white;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .btn-add-text-tpl:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--primary);
+            transform: scale(1.01);
+        }
+        .btn-add-text-tpl:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .btn-add-text-tpl.tpl-title {
+            padding: 18px 16px;
+            font-size: 1.25rem;
+            font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+        }
+        .btn-add-text-tpl.tpl-subtitle {
+            padding: 14px 16px;
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+        .btn-add-text-tpl.tpl-body {
+            padding: 12px 16px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* 도형/선 삽입 패널 스타일 */
+        .shapes-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        
+        .btn-shape-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-md);
+            color: white;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .btn-shape-item:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+        .btn-shape-item:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .shape-icon {
+            font-size: 1.5rem;
+            line-height: 1;
+        }
+
+        /* 3. Center Canvas Workspace (중앙 캔버스 영역) */
+        .canvas-workspace {
+            flex: 1;
+            background-color: #0f131f;
+            background-image: radial-gradient(#1e293b 1px, transparent 1px);
+            background-size: 20px 20px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
 
         .lock-warning-banner {
-            background: rgba(255, 59, 48, 0.15); border: 1px solid rgba(255, 59, 48, 0.3);
-            color: #ff6b6b; padding: 16px 20px; border-radius: var(--radius-md);
-            font-size: 0.9rem; font-weight: 500; width: 100%; display: none; align-items: center; gap: 12px;
+            background: rgba(239, 68, 68, 0.15);
+            border-bottom: 1px solid rgba(239, 68, 68, 0.25);
+            color: #fca5a5;
+            padding: 10px 20px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            width: 100%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 50;
+        }
+
+        .canvas-viewport {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            overflow: auto;
+            position: relative;
+        }
+
+        .canvas-wrapper-outer {
+            background: #090d16;
+            padding: 6px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            transition: box-shadow 0.3s;
+        }
+        
+        .canvas-wrapper-outer:focus-within {
+            box-shadow: 0 20px 50px rgba(99, 102, 241, 0.15);
+        }
+
+        .canvas-wrapper {
+            width: 768px;
+            height: 432px;
+            background: #111827;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 캔버스 하단 바 */
+        .canvas-bottom-bar {
+            height: 38px;
+            background: rgba(17, 24, 39, 0.9);
+            border-top: 1px solid var(--panel-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        /* 4. Right Inspector Panel (우측 속성 패널) */
+        .right-inspector-panel {
+            width: 300px;
+            background: rgba(17, 24, 39, 0.95);
+            backdrop-filter: var(--panel-blur);
+            border-left: 1px solid var(--panel-border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .right-inspector-panel .panel-header {
+            border-bottom: 1px solid var(--panel-border);
+            padding: 20px;
+        }
+
+        .inspector-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .inspector-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            text-align: center;
+            gap: 16px;
+            padding: 40px 20px;
+        }
+
+        .empty-icon {
+            font-size: 2.5rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--panel-border);
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .inspector-empty p {
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .inspector-section {
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 20px;
+        }
+        
+        .inspector-section:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .section-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 14px;
+        }
+
+        .property-row {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+        
+        .property-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .property-row.inline {
+            flex-direction: row;
+            gap: 12px;
+        }
+        
+        .property-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .property-row label, .property-col label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .text-area-field {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-sm);
+            padding: 8px 10px;
+            color: white;
+            font-size: 0.8rem;
+            resize: none;
+            height: 60px;
+            outline: none;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        
+        .text-area-field:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px var(--primary-glow);
+        }
+
+        .fontSize-input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-sm);
+            padding: 8px 10px;
+            color: white;
+            font-size: 0.8rem;
+            outline: none;
+            width: 100%;
+            transition: all 0.2s;
+        }
+        
+        .fontSize-input:focus {
+            border-color: var(--primary);
+        }
+
+        .color-picker-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-sm);
+            padding: 4px 10px;
+        }
+
+        .fontColor-input {
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            border: 1px solid var(--panel-border);
+            border-radius: 50%;
+            cursor: pointer;
+            background: transparent;
+            overflow: hidden;
+            outline: none;
+            flex-shrink: 0;
+        }
+        
+        .fontColor-input::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        
+        .fontColor-input::-webkit-color-swatch {
+            border: none;
+            border-radius: 50%;
+        }
+        
+        .color-hex-val {
+            font-size: 0.8rem;
+            color: var(--text-main);
+            font-family: 'Outfit', monospace;
+        }
+
+        .btn-group-toggle {
+            display: flex;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-sm);
+            padding: 2px;
+            gap: 2px;
         }
 
         .btn-toggle {
-            background: rgba(255, 255, 255, 0.05); border: 1px solid var(--panel-border);
-            color: white; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;
-            border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.2s;
         }
-        .btn-toggle:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); }
-        .btn-toggle.active { background: var(--primary); border-color: var(--primary); }
+        
+        .btn-toggle:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+        }
+        
+        .btn-toggle.active {
+            background: var(--primary);
+            color: white;
+        }
+        .btn-toggle:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .btn-group-toggle .divider {
+            width: 1px;
+            background: var(--panel-border);
+            margin: 4px 2px;
+        }
+
+        /* 공통 인스펙터 속성 */
+        .opacity-control {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .opacity-control label {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .opacity-control input[type="range"] {
+            width: 100%;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        .arrange-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .arrange-grid .ribbon-action-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-sm);
+            color: white;
+            padding: 8px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        
+        .arrange-grid .ribbon-action-btn:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--primary);
+        }
+        .arrange-grid .ribbon-action-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .btn-group-action {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-sm);
+            color: white;
+            padding: 8px 12px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+            text-align: center;
+        }
+        .btn-group-action:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .btn-group-action:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .btn-delete-element {
+            width: 100%;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            padding: 10px;
+            border-radius: var(--radius-sm);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        
+        .btn-delete-element:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.3);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1);
+        }
+        .btn-delete-element:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
-    <header>
-        <h1>Subcast Editor</h1>
-        <div class="header-controls">
-            <div class="editor-name-group">
-                <label for="editor-name">내 이름</label>
-                <input type="text" id="editor-name" class="editor-name-input" value="편집자A">
+    <div class="app-layout">
+        <!-- Top Bar -->
+        <header>
+            <h1>
+                <svg style="width: 22px; height: 22px; fill: var(--primary);" viewBox="0 0 24 24">
+                    <path d="M12 2L2 22h20L12 2zm0 3.99L19.53 19H4.47L12 5.99zM13 16h-2v2h2v-2zm0-6h-2v4h2v-4z"/>
+                </svg>
+                Subcast Editor
+            </h1>
+            <div class="header-center">
+                <h2 id="editor-title">슬라이드를 선택해주세요.</h2>
             </div>
-            <div class="status-badge" id="status-badge">
-                <span class="status-dot"></span>
-                <span id="status-text">Disconnected</span>
+            <div class="header-controls">
+                <div class="editor-name-group">
+                    <label for="editor-name">내 이름</label>
+                    <input type="text" id="editor-name" class="editor-name-input" value="편집자A">
+                </div>
+                <div class="status-badge" id="status-badge">
+                    <span class="status-dot"></span>
+                    <span id="status-text">Disconnected</span>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-header-action btn-cancel" id="btn-cancel" disabled>취소</button>
+                    <button class="btn-header-action btn-save" id="btn-save" disabled>저장 (Apply)</button>
+                </div>
             </div>
-        </div>
-    </header>
+        </header>
 
-    <div class="workspace">
-        <!-- 왼쪽: 슬라이드 목록 -->
-        <div class="slide-panel">
-            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
-                <span>슬라이드 리스트</span>
-                <button class="ribbon-action-btn" id="btn-add-slide" style="padding: 4px 8px; font-size: 0.75rem; background: var(--accent); border-color: var(--accent); cursor: pointer;">+ 새 슬라이드</button>
-            </div>
-            <div class="slide-list" id="slide-list">
-                <!-- 동적 렌더링 -->
-            </div>
-        </div>
+        <!-- Main Workspace Area -->
+        <div class="workspace">
+            <!-- Left Navigation Sidebar -->
+            <aside class="left-nav-sidebar">
+                <button class="nav-tab-btn active" data-target="panel-slides" onclick="switchLeftTab('panel-slides')">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="9" y1="3" x2="9" y2="21"/>
+                    </svg>
+                    <span>슬라이드</span>
+                </button>
+                <button class="nav-tab-btn" data-target="panel-templates" onclick="switchLeftTab('panel-templates')">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+                        <path d="M12 6v6l4 2"/>
+                    </svg>
+                    <span>템플릿</span>
+                </button>
+                <button class="nav-tab-btn" data-target="panel-text" onclick="switchLeftTab('panel-text')">
+                    <svg viewBox="0 0 24 24">
+                        <polyline points="4 7 4 4 20 4 20 7"/>
+                        <line x1="9" y1="20" x2="15" y2="20"/>
+                        <line x1="12" y1="4" x2="12" y2="20"/>
+                    </svg>
+                    <span>텍스트</span>
+                </button>
+                <button class="nav-tab-btn" data-target="panel-shapes" onclick="switchLeftTab('panel-shapes')">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    </svg>
+                    <span>도형/선</span>
+                </button>
+            </aside>
 
-        <!-- 오른쪽: 편집기 캔버스 영역 -->
-        <div class="editor-container">
-            <div class="editor-workspace">
-                <!-- 편집 잠금 상태 알림 배너 -->
+            <!-- Left Sub Panel (드로어 패널) -->
+            <aside class="left-sub-panel">
+                <!-- 1) 슬라이드 리스트 탭 -->
+                <div class="sidebar-panel active" id="panel-slides">
+                    <div class="panel-header">
+                        <h3>슬라이드 목록</h3>
+                        <button class="btn-template-action" id="btn-add-slide" style="width: auto; padding: 6px 12px; font-size: 0.78rem; background: var(--primary); border-color: var(--primary);">+ 새 슬라이드</button>
+                    </div>
+                    <div class="panel-body">
+                        <div class="slide-list" id="slide-list">
+                            <!-- 동적 렌더링 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2) 템플릿 탭 -->
+                <div class="sidebar-panel" id="panel-templates">
+                    <div class="panel-header">
+                        <h3>디자인 템플릿</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="template-actions">
+                            <button class="btn-template-action" id="btn-save-template" disabled>
+                                💾 현재 디자인을 템플릿으로 저장
+                            </button>
+                        </div>
+                        <div class="template-selector-group">
+                            <label for="select-templates">템플릿 보관함</label>
+                            <select id="select-templates" class="select-field" disabled>
+                                <option value="">-- 템플릿 선택 --</option>
+                            </select>
+                            <div class="template-buttons">
+                                <button class="btn-template-action btn-apply" id="btn-apply-template-bulk" disabled>
+                                    일괄 적용
+                                </button>
+                                <button class="btn-template-action btn-delete-tpl" id="btn-delete-template" disabled>
+                                    삭제
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3) 텍스트 탭 -->
+                <div class="sidebar-panel" id="panel-text">
+                    <div class="panel-header">
+                        <h3>텍스트 추가</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="text-templates-grid">
+                            <button class="btn-add-text-tpl tpl-title" id="btn-add-text-title" onclick="addTextTpl('title')" disabled>
+                                제목 추가
+                            </button>
+                            <button class="btn-add-text-tpl tpl-subtitle" id="btn-add-text-subtitle" onclick="addTextTpl('subtitle')" disabled>
+                                부제목 추가
+                            </button>
+                            <button class="btn-add-text-tpl tpl-body" id="btn-add-text-body" onclick="addTextTpl('body')" disabled>
+                                본문 추가
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4) 도형 및 선 탭 -->
+                <div class="sidebar-panel" id="panel-shapes">
+                    <div class="panel-header">
+                        <h3>도형 및 선</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="shapes-grid">
+                            <button class="btn-shape-item" id="btn-add-rect" disabled>
+                                <span class="shape-icon">■</span>
+                                사각형
+                            </button>
+                            <button class="btn-shape-item" id="btn-add-circle" disabled>
+                                <span class="shape-icon">●</span>
+                                원형
+                            </button>
+                            <button class="btn-shape-item" id="btn-add-triangle" disabled>
+                                <span class="shape-icon">▲</span>
+                                삼각형
+                            </button>
+                            <button class="btn-shape-item" id="btn-add-line" disabled>
+                                <span class="shape-icon">━</span>
+                                직선
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Center Canvas Workspace -->
+            <main class="canvas-workspace">
+                <!-- 잠금 경고 배너 -->
                 <div class="lock-warning-banner" id="lock-banner">
                     ⚠️ 다른 사용자가 편집 중인 슬라이드입니다.
                 </div>
 
-                <div class="editor-card">
-                    <h3 style="font-family: 'Outfit'; font-size: 1.2rem; font-weight: 600;" id="editor-title">슬라이드를 선택해주세요.</h3>
-                    
-                    <!-- PPT 스타일 리본 메뉴 -->
-                    <div class="ppt-ribbon-bar">
-                        <!-- 탭 버튼들 -->
-                        <div class="ribbon-tabs">
-                            <button class="ribbon-tab-btn active" id="tab-btn-insert" onclick="switchRibbonTab('tab-insert')">삽입 (Insert)</button>
-                            <button class="ribbon-tab-btn" id="tab-btn-format" onclick="switchRibbonTab('tab-format')">서식 (Format)</button>
-                            <button class="ribbon-tab-btn" id="tab-btn-arrange" onclick="switchRibbonTab('tab-arrange')">정렬 및 그룹 (Arrange)</button>
-                        </div>
-                        
-                        <!-- 탭 패널들 -->
-                        <div class="ribbon-panels">
-                            <!-- [삽입] 탭 패널 -->
-                            <div class="ribbon-panel active" id="tab-insert">
-                                <div class="ribbon-group">
-                                    <div class="ribbon-group-label">텍스트</div>
-                                    <button class="ribbon-action-btn" id="btn-add-text" disabled>
-                                        <span class="ribbon-icon">T</span>
-                                        텍스트 추가
-                                    </button>
-                                </div>
-                                <div class="ribbon-group-divider"></div>
-                                <div class="ribbon-group">
-                                    <div class="ribbon-group-label">도형 및 선</div>
-                                    <div style="display: flex; gap: 8px;">
-                                        <button class="ribbon-action-btn" id="btn-add-rect" disabled>
-                                            <span class="ribbon-icon">■</span>
-                                            사각형
-                                        </button>
-                                        <button class="ribbon-action-btn" id="btn-add-circle" disabled>
-                                            <span class="ribbon-icon">●</span>
-                                            원형
-                                        </button>
-                                        <button class="ribbon-action-btn" id="btn-add-triangle" disabled>
-                                            <span class="ribbon-icon">▲</span>
-                                            삼각형
-                                        </button>
-                                        <button class="ribbon-action-btn" id="btn-add-line" disabled>
-                                            <span class="ribbon-icon">━</span>
-                                            직선
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- [서식] 탭 패널 -->
-                            <div class="ribbon-panel" id="tab-format">
-                                <div style="display: flex; gap: 15px; width: 100%; flex-wrap: wrap; align-items: center;">
-                                    <!-- 공통 속성 -->
-                                    <div class="ribbon-group">
-                                        <div class="ribbon-group-label">공통 속성</div>
-                                        <div class="property-group">
-                                            <label for="element-opacity">불투명도</label>
-                                            <input type="range" id="element-opacity" min="0" max="1" step="0.05" value="1" style="width: 70px;" disabled>
-                                            <span id="opacity-val" style="font-size: 0.8rem; min-width: 32px; text-align: right;">100%</span>
-                                        </div>
-                                    </div>
-                                    <div class="ribbon-group-divider"></div>
-                                    
-                                    <!-- 텍스트 서식 -->
-                                    <div class="ribbon-group" id="ribbon-text-format" style="opacity: 0.4; pointer-events: none;">
-                                        <div class="ribbon-group-label">텍스트 서식</div>
-                                        <div style="display: flex; gap: 10px; align-items: center;">
-                                            <input type="text" id="text-editor" class="text-input-field" placeholder="텍스트 내용 입력" style="width: 140px;" disabled>
-                                            <select id="fontfamily-editor" class="select-field" style="padding: 6px 10px;" disabled>
-                                                <option value="Inter">Inter</option>
-                                                <option value="Outfit">Outfit</option>
-                                                <option value="Arial">Arial</option>
-                                                <option value="Georgia">Georgia</option>
-                                                <option value="Courier New">Courier New</option>
-                                            </select>
-                                            <input type="number" id="fontsize-editor" class="fontSize-input" value="3" min="0.5" max="20" step="0.1" style="width: 55px; padding: 6px;" disabled>
-                                            <span style="font-size: 0.8rem; color: var(--text-muted);">vw</span>
-                                            <input type="color" id="fontcolor-editor" class="fontColor-input" value="#ffffff" style="width: 32px; height: 32px;" disabled>
-                                            <div style="display: flex; gap: 4px;">
-                                                <button class="btn-toggle" id="btn-bold" title="굵게" style="width:32px; height:32px;" disabled>B</button>
-                                                <button class="btn-toggle" id="btn-italic" title="기울임" style="width:32px; height:32px;" disabled>I</button>
-                                            </div>
-                                            <div style="display: flex; gap: 4px;">
-                                                <button class="btn-toggle" id="btn-align-left" title="왼쪽 정렬" style="width:32px; height:32px;" disabled>L</button>
-                                                <button class="btn-toggle" id="btn-align-center" title="가운데 정렬" style="width:32px; height:32px;" disabled>C</button>
-                                                <button class="btn-toggle" id="btn-align-right" title="오른쪽 정렬" style="width:32px; height:32px;" disabled>R</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="ribbon-group-divider"></div>
-                                    
-                                    <!-- 도형 서식 -->
-                                    <div class="ribbon-group" id="ribbon-shape-format" style="opacity: 0.4; pointer-events: none;">
-                                        <div class="ribbon-group-label">도형 서식</div>
-                                        <div style="display: flex; gap: 10px; align-items: center;">
-                                            <div class="property-group">
-                                                <label for="shape-fillcolor">채우기</label>
-                                                <input type="color" id="shape-fillcolor" class="fontColor-input" value="#4f46e5" style="width: 32px; height: 32px;" disabled>
-                                            </div>
-                                            <div class="property-group">
-                                                <label for="shape-strokecolor">테두리</label>
-                                                <input type="color" id="shape-strokecolor" class="fontColor-input" value="#ffffff" style="width: 32px; height: 32px;" disabled>
-                                            </div>
-                                            <div class="property-group">
-                                                <label for="shape-strokewidth">두께</label>
-                                                <input type="number" id="shape-strokewidth" class="fontSize-input" value="0" min="0" max="20" step="1" style="width: 50px; padding: 6px;" disabled>
-                                                <span style="font-size: 0.8rem; color: var(--text-muted);">px</span>
-                                            </div>
-                                            <div class="property-group" id="corner-rounding-group">
-                                                <label for="shape-corners">모서리</label>
-                                                <input type="number" id="shape-corners" class="fontSize-input" value="0" min="0" max="100" step="1" style="width: 50px; padding: 6px;" disabled>
-                                                <span style="font-size: 0.8rem; color: var(--text-muted);">px</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="ribbon-group-divider"></div>
-
-                                    <!-- 디자인 템플릿 그룹 -->
-                                    <div class="ribbon-group">
-                                        <div class="ribbon-group-label">디자인 템플릿</div>
-                                        <div style="display: flex; gap: 10px; align-items: center;">
-                                            <button class="ribbon-action-btn" id="btn-save-template" style="padding: 6px 12px; font-size: 0.8rem;" disabled>현재 디자인을 템플릿으로 저장</button>
-                                            <select id="select-templates" class="select-field" style="padding: 6px 10px; width: 150px; font-size: 0.8rem;" disabled>
-                                                <option value="">-- 템플릿 선택 --</option>
-                                            </select>
-                                            <button class="ribbon-action-btn" id="btn-apply-template-bulk" style="padding: 6px 12px; font-size: 0.8rem;" disabled>선택 슬라이드에 적용</button>
-                                            <button class="ribbon-action-btn" id="btn-delete-template" style="padding: 6px 12px; font-size: 0.8rem; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.25); color: #fca5a5;" disabled>삭제</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- [정렬 및 그룹] 탭 패널 -->
-                            <div class="ribbon-panel" id="tab-arrange">
-                                <div class="ribbon-group">
-                                    <div class="ribbon-group-label">순서 배치 (Z-Index)</div>
-                                    <div style="display: flex; gap: 8px;">
-                                        <button class="ribbon-action-btn" id="btn-layer-up" disabled>앞으로</button>
-                                        <button class="ribbon-action-btn" id="btn-layer-down" disabled>뒤로</button>
-                                        <button class="ribbon-action-btn" id="btn-layer-front" disabled>맨 앞으로</button>
-                                        <button class="ribbon-action-btn" id="btn-layer-back" disabled>맨 뒤로</button>
-                                    </div>
-                                </div>
-                                <div class="ribbon-group-divider"></div>
-                                <div class="ribbon-group">
-                                    <div class="ribbon-group-label">개체 그룹화</div>
-                                    <div style="display: flex; gap: 8px;">
-                                        <button class="ribbon-action-btn" id="btn-group" disabled>그룹 묶기 (Group)</button>
-                                        <button class="ribbon-action-btn" id="btn-ungroup" disabled>그룹 풀기 (Ungroup)</button>
-                                    </div>
-                                </div>
-                                <div class="ribbon-group-divider"></div>
-                                <div class="ribbon-group">
-                                    <div class="ribbon-group-label">편집 제어</div>
-                                    <button class="ribbon-action-btn" id="btn-delete" style="background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.25); color: #fca5a5;" disabled>개체 삭제 (Delete)</button>
-                                </div>
-                            </div>
-                        </div>
-                    <div class="canvas-wrapper">
-                        <canvas id="editor-canvas"></canvas>
-                    </div>
-
-                    <!-- 선택 개체 간략 상태표시줄 -->
-                    <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.01); border: 1px solid var(--panel-border); border-radius: 10px; padding: 10px 16px; font-size: 0.82rem; width: 100%;">
-                        <span id="selection-status-bar" style="color: var(--text-muted); font-weight: 500;">선택된 개체가 없습니다.</span>
-                        
-                        <!-- 액션 저장/취소 그룹 -->
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <button class="btn-tool btn-cancel" id="btn-cancel" style="padding: 6px 14px; font-size:0.82rem;" disabled>취소</button>
-                            <button class="btn-tool btn-save" id="btn-save" style="padding: 6px 14px; font-size:0.82rem;" disabled>저장 (Apply)</button>
+                <div class="canvas-viewport">
+                    <div class="canvas-wrapper-outer">
+                        <div class="canvas-wrapper">
+                            <canvas id="editor-canvas"></canvas>
                         </div>
                     </div>
                 </div>
-            </div>
+
+                <!-- 하단 상태표시줄 -->
+                <div class="canvas-bottom-bar">
+                    <span id="selection-status-bar">선택된 개체가 없습니다.</span>
+                </div>
+            </main>
+
+            <!-- Right Inspector Panel (속성 설정) -->
+            <aside class="right-inspector-panel">
+                <div class="panel-header">
+                    <h3>속성 설정</h3>
+                </div>
+                <div class="inspector-content">
+                    <!-- 선택된 개체가 없을 때 -->
+                    <div class="inspector-empty" id="inspector-empty">
+                        <div class="empty-icon">🎨</div>
+                        <p>캔버스의 개체를 선택하여<br>속성을 편집해 보세요.</p>
+                    </div>
+
+                    <!-- 텍스트 속성 설정 섹션 -->
+                    <div class="inspector-section" id="inspector-text-section" style="display: none;">
+                        <h4 class="section-title">텍스트 서식</h4>
+                        <div class="property-row">
+                            <label for="text-editor">텍스트 내용</label>
+                            <textarea id="text-editor" class="text-area-field" placeholder="텍스트를 입력해 주세요." disabled></textarea>
+                        </div>
+                        <div class="property-row inline">
+                            <div class="property-col">
+                                <label for="fontfamily-editor">서체</label>
+                                <select id="fontfamily-editor" class="select-field" disabled>
+                                    <option value="Inter">Inter</option>
+                                    <option value="Outfit">Outfit</option>
+                                    <option value="Arial">Arial</option>
+                                    <option value="Georgia">Georgia</option>
+                                    <option value="Courier New">Courier New</option>
+                                </select>
+                            </div>
+                            <div class="property-col" style="max-width: 100px;">
+                                <label for="fontsize-editor">크기 (vw)</label>
+                                <input type="number" id="fontsize-editor" class="fontSize-input" value="3" min="0.5" max="20" step="0.1" disabled>
+                            </div>
+                        </div>
+                        <div class="property-row">
+                            <label>글자 색상</label>
+                            <div class="color-picker-wrapper">
+                                <input type="color" id="fontcolor-editor" class="fontColor-input" value="#ffffff" disabled>
+                                <span class="color-hex-val" id="fontcolor-hex">#FFFFFF</span>
+                            </div>
+                        </div>
+                        <div class="property-row">
+                            <label>스타일 및 정렬</label>
+                            <div class="btn-group-toggle">
+                                <button class="btn-toggle" id="btn-bold" title="굵게" disabled><b>B</b></button>
+                                <button class="btn-toggle" id="btn-italic" title="기울임" disabled><i>I</i></button>
+                                <div class="divider"></div>
+                                <button class="btn-toggle" id="btn-align-left" title="왼쪽 정렬" disabled>L</button>
+                                <button class="btn-toggle" id="btn-align-center" title="가운데 정렬" disabled>C</button>
+                                <button class="btn-toggle" id="btn-align-right" title="오른쪽 정렬" disabled>R</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 도형 속성 설정 섹션 -->
+                    <div class="inspector-section" id="inspector-shape-section" style="display: none;">
+                        <h4 class="section-title">도형 서식</h4>
+                        <div class="property-row inline">
+                            <div class="property-col">
+                                <label>채우기 색상</label>
+                                <div class="color-picker-wrapper">
+                                    <input type="color" id="shape-fillcolor" class="fontColor-input" value="#4f46e5" disabled>
+                                    <span class="color-hex-val" id="shape-fillcolor-hex">#4F46E5</span>
+                                </div>
+                            </div>
+                            <div class="property-col">
+                                <label>테두리 색상</label>
+                                <div class="color-picker-wrapper">
+                                    <input type="color" id="shape-strokecolor" class="fontColor-input" value="#ffffff" disabled>
+                                    <span class="color-hex-val" id="shape-strokecolor-hex">#FFFFFF</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="property-row inline">
+                            <div class="property-col">
+                                <label for="shape-strokewidth">테두리 두께 (px)</label>
+                                <input type="number" id="shape-strokewidth" class="fontSize-input" value="0" min="0" max="20" step="1" disabled>
+                            </div>
+                            <div class="property-col" id="corner-rounding-group">
+                                <label for="shape-corners">모서리 반경 (px)</label>
+                                <input type="number" id="shape-corners" class="fontSize-input" value="0" min="0" max="100" step="1" disabled>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 공통 속성 설정 섹션 -->
+                    <div class="inspector-section" id="inspector-common-section" style="display: none;">
+                        <h4 class="section-title">기본 속성</h4>
+                        <div class="property-row">
+                            <div class="opacity-control">
+                                <label>불투명도 <span id="opacity-val">100%</span></label>
+                                <input type="range" id="element-opacity" min="0" max="1" step="0.05" value="1" disabled>
+                            </div>
+                        </div>
+                        <div class="property-row">
+                            <label>레이어 배치</label>
+                            <div class="arrange-grid">
+                                <button class="ribbon-action-btn" id="btn-layer-up" disabled>앞으로</button>
+                                <button class="ribbon-action-btn" id="btn-layer-down" disabled>뒤로</button>
+                                <button class="ribbon-action-btn" id="btn-layer-front" disabled>맨 앞으로</button>
+                                <button class="ribbon-action-btn" id="btn-layer-back" disabled>맨 뒤로</button>
+                            </div>
+                        </div>
+                        <div class="property-row inline">
+                            <button class="btn-group-action" id="btn-group" disabled>그룹화</button>
+                            <button class="btn-group-action" id="btn-ungroup" disabled>그룹해제</button>
+                        </div>
+                        <div class="property-row" style="margin-top: 16px;">
+                            <button class="btn-delete-element" id="btn-delete" disabled>개체 삭제</button>
+                        </div>
+                    </div>
+                </div>
+            </aside>
         </div>
     </div>
 
@@ -556,13 +1335,14 @@
             });
         }
 
-        function switchRibbonTab(tabId) {
-            document.querySelectorAll('.ribbon-tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.ribbon-panel').forEach(panel => panel.classList.remove('active'));
-            const targetBtn = document.getElementById(`tab-btn-${tabId.replace('tab-', '')}`);
-            if (targetBtn) targetBtn.classList.add('active');
-            const targetPanel = document.getElementById(tabId);
-            if (targetPanel) targetPanel.classList.add('active');
+        // 왼쪽 탭 메뉴 전환
+        function switchLeftTab(tabId) {
+            document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-target') === tabId);
+            });
+            document.querySelectorAll('.sidebar-panel').forEach(panel => {
+                panel.classList.toggle('active', panel.id === tabId);
+            });
         }
 
         function initCanvas() {
@@ -605,7 +1385,6 @@
                 const item = document.createElement("div");
                 item.className = "slide-item";
                 item.id = `slide-item-${slide.id}`;
-                item.style.position = "relative";
                 if (slide.id === activeSlideId) item.classList.add("editing");
                 const lockOwner = lockedSlides[slide.id];
                 const isLockedByOthers = lockOwner !== undefined && lockOwner.ownerId !== myEditorId;
@@ -615,11 +1394,11 @@
                     <div style="display: flex; gap: 10px; align-items: flex-start;">
                         <input type="checkbox" class="slide-select-checkbox" data-slide-id="${slide.id}" style="width:16px; height:16px; cursor:pointer; flex-shrink: 0; margin-top: 2px; z-index: 10; position: relative;" onclick="handleCheckboxClick(event, ${index})">
                         <div style="flex: 1; min-width: 0;">
-                            <h3 style="margin: 0 0 8px 0; font-size: 0.95rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 60px;">${index + 1}. ${slide.name}</h3>
-                            <div class="slide-thumbnail-wrapper" style="width: 100%; height: 90px; background: #0b0f19; border-radius: 8px; overflow: hidden; border: 1px solid var(--panel-border); display: flex; align-items: center; justify-content: center;">
-                                ${slide.thumbnail ? `<img src="${slide.thumbnail}" style="width: 100%; height: 100%; object-fit: contain;">` : `<span style="font-size: 0.72rem; color: var(--text-muted);">미리보기 없음</span>`}
+                            <h3 style="margin: 0 0 4px 0; font-size: 0.85rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 20px;">${index + 1}. ${slide.name}</h3>
+                            <div class="slide-thumbnail-wrapper">
+                                ${slide.thumbnail ? `<img src="${slide.thumbnail}">` : `<span style="font-size: 0.7rem; color: var(--text-muted);">미리보기 없음</span>`}
                             </div>
-                            ${isLockedByOthers ? `<div class="lock-owner-text" style="margin-top: 4px;">🔒 ${lockOwner.editorName}님이 편집 중</div>` : ''}
+                            ${isLockedByOthers ? `<div class="lock-owner-text">🔒 ${lockOwner.editorName}님이 편집 중</div>` : ''}
                         </div>
                     </div>
                 `;
@@ -731,7 +1510,7 @@
         }
 
         function setControlsState(enabled) {
-            ['btn-add-text', 'btn-add-rect', 'btn-add-circle', 'btn-add-triangle', 'btn-add-line', 'btn-save', 'btn-cancel', 'btn-save-template', 'select-templates', 'btn-apply-template-bulk', 'btn-delete-template'].forEach(id => {
+            ['btn-add-text-title', 'btn-add-text-subtitle', 'btn-add-text-body', 'btn-add-rect', 'btn-add-circle', 'btn-add-triangle', 'btn-add-line', 'btn-save', 'btn-cancel', 'btn-save-template', 'select-templates', 'btn-apply-template-bulk', 'btn-delete-template'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.disabled = !enabled;
             });
@@ -742,35 +1521,91 @@
             const activeObj = canvas.getActiveObject();
             if (!activeObj) return;
             currentEditingElement = activeObj;
+
+            // Z-Index 배치, 삭제 버튼 활성화
             ['btn-layer-up', 'btn-layer-down', 'btn-layer-front', 'btn-layer-back', 'btn-delete'].forEach(id => document.getElementById(id).disabled = false);
+            
+            // 공통 속성 활성화
             const opacitySlider = document.getElementById("element-opacity");
             opacitySlider.disabled = false;
             opacitySlider.value = activeObj.opacity !== undefined ? activeObj.opacity : 1;
             document.getElementById("opacity-val").innerText = `${Math.round(opacitySlider.value * 100)}%`;
+            
             document.getElementById("btn-group").disabled = activeObj.type !== 'activeSelection';
             document.getElementById("btn-ungroup").disabled = activeObj.type !== 'group';
             document.getElementById("selection-status-bar").innerText = `선택된 개체: ${activeObj.type} (${activeObj.originalId || '신규'})`;
-            const textGroup = document.getElementById("ribbon-text-format"), shapeGroup = document.getElementById("ribbon-shape-format");
+
+            // 인스펙터 화면 처리
+            document.getElementById("inspector-empty").style.display = "none";
+            document.getElementById("inspector-common-section").style.display = "block";
+
+            const textSection = document.getElementById("inspector-text-section");
+            const shapeSection = document.getElementById("inspector-shape-section");
+
             if (activeObj.type === 'textbox' || activeObj.type === 'text') {
-                textGroup.style.cssText = "opacity: 1; pointer-events: auto;"; shapeGroup.style.cssText = "opacity: 0.4; pointer-events: none;";
+                textSection.style.display = "block";
+                shapeSection.style.display = "none";
+
                 ['text-editor', 'fontfamily-editor', 'fontsize-editor', 'fontcolor-editor', 'btn-bold', 'btn-italic', 'btn-align-left', 'btn-align-center', 'btn-align-right'].forEach(id => document.getElementById(id).disabled = false);
                 document.getElementById("text-editor").value = activeObj.text || "";
                 document.getElementById("fontsize-editor").value = parseFloat(activeObj.originalVwSize) || 3.0;
-                document.getElementById("fontcolor-editor").value = activeObj.fill || "#ffffff";
+                
+                const fontColor = activeObj.fill || "#ffffff";
+                document.getElementById("fontcolor-editor").value = fontColor;
+                document.getElementById("fontcolor-hex").innerText = fontColor.toUpperCase();
+
+                // 텍스트 정렬 상태 표시
+                const align = activeObj.textAlign || 'left';
+                document.getElementById("btn-align-left").classList.toggle("active", align === 'left');
+                document.getElementById("btn-align-center").classList.toggle("active", align === 'center');
+                document.getElementById("btn-align-right").classList.toggle("active", align === 'right');
+                
+                // 볼드/이탤릭 상태 표시
+                document.getElementById("btn-bold").classList.toggle("active", activeObj.fontWeight === 'bold');
+                document.getElementById("btn-italic").classList.toggle("active", activeObj.fontStyle === 'italic');
+
             } else if (['rect', 'circle', 'triangle', 'line'].includes(activeObj.type)) {
-                textGroup.style.cssText = "opacity: 0.4; pointer-events: none;"; shapeGroup.style.cssText = "opacity: 1; pointer-events: auto;";
+                textSection.style.display = "none";
+                shapeSection.style.display = "block";
+
                 ['shape-fillcolor', 'shape-strokecolor', 'shape-strokewidth'].forEach(id => document.getElementById(id).disabled = false);
+                
+                const fillColor = activeObj.fill || "#4f46e5";
+                document.getElementById("shape-fillcolor").value = fillColor;
+                document.getElementById("shape-fillcolor-hex").innerText = fillColor.toUpperCase();
+
+                const strokeColor = activeObj.stroke || "#ffffff";
+                document.getElementById("shape-strokecolor").value = strokeColor;
+                document.getElementById("shape-strokecolor-hex").innerText = strokeColor.toUpperCase();
+
+                document.getElementById("shape-strokewidth").value = activeObj.strokeWidth || 0;
+
                 const cornerInput = document.getElementById("shape-corners");
                 cornerInput.disabled = activeObj.type !== 'rect';
-                cornerInput.value = activeObj.rx || 0;
+                if (activeObj.type === 'rect') {
+                    document.getElementById("corner-rounding-group").style.opacity = "1";
+                    cornerInput.value = activeObj.rx || 0;
+                } else {
+                    document.getElementById("corner-rounding-group").style.opacity = "0.4";
+                    cornerInput.value = 0;
+                }
+            } else {
+                // 그룹 등 기타 개체
+                textSection.style.display = "none";
+                shapeSection.style.display = "none";
             }
         }
 
         function onObjectCleared() {
             currentEditingElement = null;
             document.getElementById("selection-status-bar").innerText = "선택된 개체가 없습니다.";
-            document.getElementById("ribbon-text-format").style.cssText = "opacity: 0.4; pointer-events: none;";
-            document.getElementById("ribbon-shape-format").style.cssText = "opacity: 0.4; pointer-events: none;";
+            
+            // 인스펙터 화면 처리
+            document.getElementById("inspector-empty").style.display = "flex";
+            document.getElementById("inspector-text-section").style.display = "none";
+            document.getElementById("inspector-shape-section").style.display = "none";
+            document.getElementById("inspector-common-section").style.display = "none";
+
             document.getElementById("element-opacity").disabled = true;
             ['btn-layer-up', 'btn-layer-down', 'btn-layer-front', 'btn-layer-back', 'btn-delete', 'btn-group', 'btn-ungroup'].forEach(id => document.getElementById(id).disabled = true);
         }
@@ -784,18 +1619,49 @@
 
         function cancelEditing() { if (activeSlideId) loadSlideToCanvas(activeSlideId); }
 
-        function addText() {
+        // 제목, 부제목, 본문 텍스트 템플릿 삽입
+        function addTextTpl(type) {
             if (!activeSlideId) return;
-            const obj = new fabric.Textbox("텍스트를 입력하세요", { left: 100, top: 100, width: 250, fontSize: (3 / 100) * canvas.getWidth(), fill: '#ffffff', fontFamily: 'Inter', originalId: `elem_${Math.random().toString(36).substr(2, 9)}`, originalVwSize: "3vw" });
-            canvas.add(obj); canvas.setActiveObject(obj); canvas.renderAll();
+            let text = "텍스트를 입력해 주세요.";
+            let fontSizeVw = 3.0;
+            let fontWeight = "normal";
+            if (type === 'title') {
+                text = "제목을 입력해 주세요.";
+                fontSizeVw = 5.0;
+                fontWeight = "bold";
+            } else if (type === 'subtitle') {
+                text = "부제목을 입력해 주세요.";
+                fontSizeVw = 3.5;
+                fontWeight = "bold";
+            } else if (type === 'body') {
+                text = "본문 내용을 입력해 주세요.";
+                fontSizeVw = 2.0;
+                fontWeight = "normal";
+            }
+            const pxSize = (fontSizeVw / 100) * canvas.getWidth();
+            const obj = new fabric.Textbox(text, {
+                left: 100,
+                top: 100,
+                width: 350,
+                fontSize: pxSize,
+                fill: '#ffffff',
+                fontFamily: 'Inter',
+                fontWeight: fontWeight,
+                originalId: `elem_${Math.random().toString(36).substr(2, 9)}`,
+                originalVwSize: `${fontSizeVw}vw`
+            });
+            canvas.add(obj);
+            canvas.setActiveObject(obj);
+            canvas.renderAll();
         }
 
         function addRect() {
             if (!activeSlideId) return;
-            const obj = new fabric.Rect({ left: 150, top: 150, width: 150, height: 100, fill: '#4f46e5', originalId: `elem_${Math.random().toString(36).substr(2, 9)}` });
+            const obj = new fabric.Rect({ left: 150, top: 150, width: 150, height: 100, fill: '#6366f1', originalId: `elem_${Math.random().toString(36).substr(2, 9)}` });
             canvas.add(obj); canvas.setActiveObject(obj); canvas.renderAll();
         }
 
+        // 원형 도형 기본 Fill 색상을 인디고 테마에 어울리는 청록색(Cyan)으로 지정
         function addCircle() {
             if (!activeSlideId) return;
             const obj = new fabric.Circle({ left: 150, top: 150, radius: 60, fill: '#06b6d4', originalId: `elem_${Math.random().toString(36).substr(2, 9)}` });
@@ -838,6 +1704,7 @@
             }
         }
 
+        // 템플릿 적용 완료 및 템플릿 삭제 이벤트를 websocket 메시지 수신 이후 로컬 프로젝트 정보 갱신을 위해 handle sync 등 추가적으로 처리
         function deleteElement() {
             if (currentEditingElement) { canvas.remove(currentEditingElement); canvas.discardActiveObject(); onObjectCleared(); canvas.renderAll(); }
         }
@@ -987,9 +1854,37 @@
                         });
                     }
                 }
-                else if (message.type === 'SLIDE_LOCKED') { lockedSlides[message.slideId] = { ownerId: message.ownerId, editorName: message.editorName }; if (message.slideId === activeSlideId) myEditorId = message.ownerId; renderSlides(); }
-                else if (message.type === 'SLIDE_UNLOCKED') { delete lockedSlides[message.slideId]; renderSlides(); }
-                else if (message.type === 'SLIDE_UPDATED') { const idx = projectData.slides.findIndex(s => s.id === message.slideId); if (idx !== -1) projectData.slides[idx] = message.slide; if (activeSlideId === message.slideId && lockedSlides[activeSlideId]?.ownerId !== myEditorId) loadSlideToCanvas(activeSlideId); renderSlides(); }
+                else if (message.type === 'SLIDE_LOCKED') {
+                    lockedSlides[message.slideId] = { ownerId: message.ownerId, editorName: message.editorName };
+                    if (message.slideId === activeSlideId) {
+                        myEditorId = message.ownerId;
+                        document.getElementById("lock-banner").style.display = "flex";
+                    }
+                    renderSlides();
+                }
+                else if (message.type === 'SLIDE_UNLOCKED') {
+                    delete lockedSlides[message.slideId];
+                    if (message.slideId === activeSlideId) {
+                        document.getElementById("lock-banner").style.display = "none";
+                    }
+                    renderSlides();
+                }
+                else if (message.type === 'SLIDE_UPDATED') {
+                    const idx = projectData.slides.findIndex(s => s.id === message.slideId);
+                    if (idx !== -1) projectData.slides[idx] = message.slide;
+                    if (activeSlideId === message.slideId && lockedSlides[activeSlideId]?.ownerId !== myEditorId) {
+                        loadSlideToCanvas(activeSlideId);
+                    }
+                    renderSlides();
+                }
+                else if (message.type === 'PROJECT_SYNC') {
+                    projectData = message.data;
+                    renderSlides();
+                    renderTemplates();
+                    if (activeSlideId) {
+                        loadSlideToCanvas(activeSlideId);
+                    }
+                }
             };
             ws.onclose = () => setTimeout(connectWebSocket, 3000);
         }
@@ -1044,7 +1939,9 @@
 
             document.getElementById("fontcolor-editor").oninput = (e) => {
                 if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
-                    currentEditingElement.set('fill', e.target.value);
+                    const val = e.target.value;
+                    currentEditingElement.set('fill', val);
+                    document.getElementById("fontcolor-hex").innerText = val.toUpperCase();
                     canvas.renderAll();
                 }
             };
@@ -1084,14 +1981,18 @@
             // 도형 서식 리스너들
             document.getElementById("shape-fillcolor").oninput = (e) => {
                 if (currentEditingElement && currentEditingElement.type !== 'textbox' && currentEditingElement.type !== 'text') {
-                    currentEditingElement.set('fill', e.target.value);
+                    const val = e.target.value;
+                    currentEditingElement.set('fill', val);
+                    document.getElementById("shape-fillcolor-hex").innerText = val.toUpperCase();
                     canvas.renderAll();
                 }
             };
 
             document.getElementById("shape-strokecolor").oninput = (e) => {
                 if (currentEditingElement && currentEditingElement.type !== 'textbox' && currentEditingElement.type !== 'text') {
-                    currentEditingElement.set('stroke', e.target.value);
+                    const val = e.target.value;
+                    currentEditingElement.set('stroke', val);
+                    document.getElementById("shape-strokecolor-hex").innerText = val.toUpperCase();
                     canvas.renderAll();
                 }
             };
@@ -1111,8 +2012,7 @@
                 }
             };
 
-            // 개체 추가 리스너
-            document.getElementById("btn-add-text").onclick = addText;
+            // 도형 추가 리스너
             document.getElementById("btn-add-rect").onclick = addRect;
             document.getElementById("btn-add-circle").onclick = addCircle;
             document.getElementById("btn-add-triangle").onclick = addTriangle;
@@ -1134,7 +2034,7 @@
             // Delete 키 단축키로 삭제 처리
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'Delete' && currentEditingElement) {
-                    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT') {
+                    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT' || document.activeElement.tagName === 'TEXTAREA') {
                         return;
                     }
                     deleteElement();
