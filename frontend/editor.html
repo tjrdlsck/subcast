@@ -1143,9 +1143,16 @@
                     </div>
                 </div>
 
-                <!-- 하단 상태표시줄 -->
+                <!-- 하단 상태표시줄 및 줌 제어 컨트롤 -->
                 <div class="canvas-bottom-bar">
                     <span id="selection-status-bar">선택된 개체가 없습니다.</span>
+                    
+                    <div class="zoom-controls" style="display: flex; align-items: center; gap: 8px;">
+                        <button class="btn-toggle" id="btn-zoom-out" title="축소" style="width: 24px; height: 24px; font-size: 0.9rem; line-height: 1;">-</button>
+                        <span id="zoom-percent" style="font-size: 0.75rem; min-width: 42px; text-align: center; font-weight: 600; color: var(--text-main);">100%</span>
+                        <button class="btn-toggle" id="btn-zoom-in" title="확대" style="width: 24px; height: 24px; font-size: 0.9rem; line-height: 1;">+</button>
+                        <button class="btn-toggle" id="btn-zoom-reset" title="화면 맞춤(100%)" style="width: auto; padding: 0 8px; height: 24px; font-size: 0.7rem;">Fit</button>
+                    </div>
                 </div>
             </main>
 
@@ -1296,21 +1303,55 @@
         let myEditorId = null;
         let currentEditingElement = null;
 
+        // 줌 배율 제어를 위한 상수 및 변수
+        let canvasZoom = 1.0;
+        const BASE_WIDTH = 768;
+        const BASE_HEIGHT = 432;
+
+        // 다양한 형식의 색상 문자열을 hex 코드(#rrggbb)로 변환해주는 안전한 헬퍼 함수
+        function colorToHex(color) {
+            if (!color) return "#ffffff";
+            if (color === "transparent") return "#ffffff";
+            if (color.startsWith("#")) return color;
+            
+            // rgb/rgba 변환 또는 HTML5 Canvas fillStyle 리턴값의 안정성을 위한 임시 Canvas Context 파서 활용
+            try {
+                const ctx = document.createElement('canvas').getContext('2d');
+                ctx.fillStyle = color;
+                const parsedColor = ctx.fillStyle;
+                if (parsedColor.startsWith("#")) {
+                    return parsedColor;
+                }
+            } catch (e) {
+                // 파싱 에러 방어
+            }
+            
+            // 기본 Regex 매칭 방어 코드
+            const match = color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+(?:\.\d+)?))?\)$/i);
+            if (match) {
+                const r = parseInt(match[1]).toString(16).padStart(2, '0');
+                const g = parseInt(match[2]).toString(16).padStart(2, '0');
+                const b = parseInt(match[3]).toString(16).padStart(2, '0');
+                return `#${r}${g}${b}`;
+            }
+            return "#ffffff";
+        }
+
         // 백그라운드에서 썸네일을 자동 생성하는 함수
         function autoGenerateThumbnail(slide) {
             if (slide.thumbnail) return Promise.resolve(slide.thumbnail);
             
             return new Promise((resolve) => {
                 const tempCanvasEl = document.createElement('canvas');
-                tempCanvasEl.width = 768;
-                tempCanvasEl.height = 432;
+                tempCanvasEl.width = BASE_WIDTH;
+                tempCanvasEl.height = BASE_HEIGHT;
                 
                 const tempCanvas = new fabric.StaticCanvas(tempCanvasEl, {
                     backgroundColor: '#111827'
                 });
                 
                 slide.elements.forEach(elem => {
-                    const obj = deserializeElement(elem, 768, 432);
+                    const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
                     if (obj) tempCanvas.add(obj);
                 });
                 
@@ -1335,6 +1376,17 @@
             });
         }
 
+        // 캔버스 줌 배율 변경 처리
+        function setCanvasZoom(zoom) {
+            canvasZoom = Math.max(0.3, Math.min(zoom, 3.0)); // 30% ~ 300%
+            canvas.setZoom(canvasZoom);
+            canvas.setWidth(BASE_WIDTH * canvasZoom);
+            canvas.setHeight(BASE_HEIGHT * canvasZoom);
+            canvas.renderAll();
+            
+            document.getElementById("zoom-percent").innerText = `${Math.round(canvasZoom * 100)}%`;
+        }
+
         // 왼쪽 탭 메뉴 전환
         function switchLeftTab(tabId) {
             document.querySelectorAll('.nav-tab-btn').forEach(btn => {
@@ -1347,8 +1399,8 @@
 
         function initCanvas() {
             canvas = new fabric.Canvas('editor-canvas', {
-                width: 768,
-                height: 432,
+                width: BASE_WIDTH,
+                height: BASE_HEIGHT,
                 backgroundColor: '#111827',
                 preserveObjectStacking: true
             });
@@ -1357,6 +1409,22 @@
             canvas.on('selection:cleared', onObjectCleared);
             canvas.on('object:moving', onObjectModified);
             canvas.on('object:scaling', onObjectModified);
+
+            // Alt 키 또는 Ctrl 키를 누르고 마우스 휠 스크롤 시 스무스한 확대/축소 지원
+            canvas.on('mouse:wheel', function(opt) {
+                if (opt.e.ctrlKey || opt.e.altKey) {
+                    var delta = opt.e.deltaY;
+                    var zoom = canvasZoom;
+                    if (delta > 0) {
+                        zoom -= 0.1;
+                    } else {
+                        zoom += 0.1;
+                    }
+                    setCanvasZoom(zoom);
+                    opt.e.preventDefault();
+                    opt.e.stopPropagation();
+                }
+            });
         }
 
         let lastCheckedIndex = -1;
@@ -1503,9 +1571,12 @@
             const slide = projectData.slides.find(s => s.id === slideId);
             if (!slide) return;
             slide.elements.forEach(elem => {
-                const obj = deserializeElement(elem, canvas.getWidth(), canvas.getHeight());
+                // 줌이 반영되지 않은 768, 432 기본 기준 크기로 요소 배치
+                const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
                 if (obj) canvas.add(obj);
             });
+            // 캔버스 로드 시 현재 줌 값(canvasZoom)을 Fabric 내부 줌으로 재적용하여 리렌더링
+            canvas.setZoom(canvasZoom);
             canvas.renderAll();
         }
 
@@ -1550,7 +1621,8 @@
                 document.getElementById("text-editor").value = activeObj.text || "";
                 document.getElementById("fontsize-editor").value = parseFloat(activeObj.originalVwSize) || 3.0;
                 
-                const fontColor = activeObj.fill || "#ffffff";
+                // Fabric fill을 input[type=color] 포맷에 맞춰 안전하게 대입
+                const fontColor = colorToHex(activeObj.fill);
                 document.getElementById("fontcolor-editor").value = fontColor;
                 document.getElementById("fontcolor-hex").innerText = fontColor.toUpperCase();
 
@@ -1570,11 +1642,13 @@
 
                 ['shape-fillcolor', 'shape-strokecolor', 'shape-strokewidth'].forEach(id => document.getElementById(id).disabled = false);
                 
-                const fillColor = activeObj.fill || "#4f46e5";
+                // Fabric fill을 input[type=color] 포맷에 맞춰 안전하게 대입
+                const fillColor = colorToHex(activeObj.fill);
                 document.getElementById("shape-fillcolor").value = fillColor;
                 document.getElementById("shape-fillcolor-hex").innerText = fillColor.toUpperCase();
 
-                const strokeColor = activeObj.stroke || "#ffffff";
+                // Fabric stroke를 input[type=color] 포맷에 맞춰 안전하게 대입
+                const strokeColor = colorToHex(activeObj.stroke);
                 document.getElementById("shape-strokecolor").value = strokeColor;
                 document.getElementById("shape-strokecolor-hex").innerText = strokeColor.toUpperCase();
 
@@ -1613,7 +1687,8 @@
         function onObjectModified(e) {
             const activeObj = e.target;
             if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'text')) {
-                activeObj.originalVwSize = `${((activeObj.fontSize * (activeObj.scaleX || 1) / canvas.getWidth()) * 100).toFixed(2)}vw`;
+                // 줌이 반영되지 않은 768 기본 너비 기준으로 vw를 환산해 저장
+                activeObj.originalVwSize = `${((activeObj.fontSize * (activeObj.scaleX || 1) / BASE_WIDTH) * 100).toFixed(2)}vw`;
             }
         }
 
@@ -1638,7 +1713,8 @@
                 fontSizeVw = 2.0;
                 fontWeight = "normal";
             }
-            const pxSize = (fontSizeVw / 100) * canvas.getWidth();
+            // 줌이 적용되지 않은 기본 해상도(BASE_WIDTH) 기준으로 font size px 산출
+            const pxSize = (fontSizeVw / 100) * BASE_WIDTH;
             const obj = new fabric.Textbox(text, {
                 left: 100,
                 top: 100,
@@ -1704,7 +1780,6 @@
             }
         }
 
-        // 템플릿 적용 완료 및 템플릿 삭제 이벤트를 websocket 메시지 수신 이후 로컬 프로젝트 정보 갱신을 위해 handle sync 등 추가적으로 처리
         function deleteElement() {
             if (currentEditingElement) { canvas.remove(currentEditingElement); canvas.discardActiveObject(); onObjectCleared(); canvas.renderAll(); }
         }
@@ -1719,17 +1794,25 @@
                 canvas.requestRenderAll();
             }
             
+            // 썸네일 캡처 시 임시로 1.0 줌으로 맞춰 깨지지 않는 고해상도 썸네일을 생성
+            const prevZoom = canvasZoom;
+            setCanvasZoom(1.0);
+
             const thumbnailData = canvas.toDataURL({
                 format: 'jpeg',
                 quality: 0.4
             });
             
+            // 캡처 후 이전 사용하던 줌 배율로 원복
+            setCanvasZoom(prevZoom);
+
             if (activeObj) {
                 canvas.setActiveObject(activeObj);
                 canvas.requestRenderAll();
             }
 
-            const elements = canvas.getObjects().map(obj => serializeElement(obj, canvas.getWidth(), canvas.getHeight()));
+            // 줌이 배제된 768, 432 해상도 기준으로 원소들을 직렬화하여 서버 저장
+            const elements = canvas.getObjects().map(obj => serializeElement(obj, BASE_WIDTH, BASE_HEIGHT));
             const updatedSlide = { id: slide.id, name: slide.name, thumbnail: thumbnailData, elements: elements };
             ws.send(JSON.stringify({ type: "SAVE_SLIDE", slide: updatedSlide }));
             const idx = projectData.slides.findIndex(s => s.id === activeSlideId);
@@ -1753,17 +1836,22 @@
                 canvas.requestRenderAll();
             }
             
+            // 템플릿용 썸네일도 1.0배율로 안정적으로 추출
+            const prevZoom = canvasZoom;
+            setCanvasZoom(1.0);
             const thumbnailData = canvas.toDataURL({
                 format: 'jpeg',
                 quality: 0.4
             });
+            setCanvasZoom(prevZoom);
             
             if (activeObj) {
                 canvas.setActiveObject(activeObj);
                 canvas.requestRenderAll();
             }
 
-            const elements = canvas.getObjects().map(obj => serializeElement(obj, canvas.getWidth(), canvas.getHeight()));
+            // 줌을 무시한 고정된 좌표계로 템플릿 직렬화
+            const elements = canvas.getObjects().map(obj => serializeElement(obj, BASE_WIDTH, BASE_HEIGHT));
             const templateData = {
                 id: `tpl_${Math.random().toString(36).substr(2, 9)}`,
                 name: tplName,
@@ -1856,9 +1944,19 @@
                 }
                 else if (message.type === 'SLIDE_LOCKED') {
                     lockedSlides[message.slideId] = { ownerId: message.ownerId, editorName: message.editorName };
-                    if (message.slideId === activeSlideId) {
+                    
+                    // 내 소켓 세션 식별자가 아직 셋팅되지 않은 경우, 내가 발생시킨 락 이벤트를 기반으로 설정
+                    if (message.slideId === activeSlideId && !myEditorId) {
                         myEditorId = message.ownerId;
-                        document.getElementById("lock-banner").style.display = "flex";
+                    }
+                    
+                    if (message.slideId === activeSlideId) {
+                        // 타인이 락을 걸고 있을 때만 상단 배너 표시 및 편집 도구 잠금
+                        const isLockedByOthers = message.ownerId !== myEditorId;
+                        document.getElementById("lock-banner").style.display = isLockedByOthers ? "flex" : "none";
+                        if (isLockedByOthers) {
+                            setControlsState(false);
+                        }
                     }
                     renderSlides();
                 }
@@ -1866,6 +1964,7 @@
                     delete lockedSlides[message.slideId];
                     if (message.slideId === activeSlideId) {
                         document.getElementById("lock-banner").style.display = "none";
+                        setControlsState(true);
                     }
                     renderSlides();
                 }
@@ -1901,6 +2000,11 @@
             document.getElementById("btn-apply-template-bulk").onclick = applyTemplateBulk;
             document.getElementById("btn-delete-template").onclick = deleteTemplate;
 
+            // 줌 컨트롤러 버튼 리스너 연동
+            document.getElementById("btn-zoom-in").onclick = () => setCanvasZoom(canvasZoom + 0.1);
+            document.getElementById("btn-zoom-out").onclick = () => setCanvasZoom(canvasZoom - 0.1);
+            document.getElementById("btn-zoom-reset").onclick = () => setCanvasZoom(1.0);
+
             // 공통: 불투명도 조절 슬라이더
             document.getElementById("element-opacity").oninput = (e) => {
                 if (currentEditingElement) {
@@ -1929,7 +2033,7 @@
             document.getElementById("fontsize-editor").oninput = (e) => {
                 if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
                     const vw = parseFloat(e.target.value) || 3.0;
-                    const pxSize = (vw / 100) * canvas.getWidth();
+                    const pxSize = (vw / 100) * BASE_WIDTH;
                     
                     currentEditingElement.set('fontSize', pxSize);
                     currentEditingElement.originalVwSize = `${vw}vw`;
