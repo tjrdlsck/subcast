@@ -281,6 +281,11 @@
             flex-direction: column;
             overflow: hidden;
             flex-shrink: 0;
+            position: relative;
+        }
+
+        #left-panel-resizer:hover, #left-panel-resizer.resizing {
+            background: rgba(99, 102, 241, 0.3) !important;
         }
 
         .sidebar-panel {
@@ -1039,6 +1044,7 @@
 
             <!-- Left Sub Panel (드로어 패널) -->
             <aside class="left-sub-panel">
+                <div id="left-panel-resizer" style="position: absolute; right: 0; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 100; background: transparent; transition: background 0.2s;"></div>
                 <!-- 1) 슬라이드 리스트 탭 -->
                 <div class="sidebar-panel active" id="panel-slides">
                     <div class="panel-header">
@@ -1472,15 +1478,11 @@
                 if (isLockedByOthers) item.classList.add("locked");
                 
                 item.innerHTML = `
-                    <div style="display: flex; gap: 10px; align-items: flex-start;">
-                        <input type="checkbox" class="slide-select-checkbox" data-slide-id="${slide.id}" style="width:16px; height:16px; cursor:pointer; flex-shrink: 0; margin-top: 2px; z-index: 10; position: relative;" onclick="handleCheckboxClick(event, ${index})">
-                        <div style="flex: 1; min-width: 0;">
-                            <h3 style="margin: 0 0 4px 0; font-size: 0.85rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 20px;">${index + 1}. ${slide.name}</h3>
-                            <div class="slide-thumbnail-wrapper">
-                                ${slide.thumbnail ? `<img src="${slide.thumbnail}">` : `<span style="font-size: 0.7rem; color: var(--text-muted);">미리보기 없음</span>`}
-                            </div>
-                            ${isLockedByOthers ? `<div class="lock-owner-text">🔒 ${lockOwner.editorName}님이 편집 중</div>` : ''}
+                    <div style="position: relative; width: 100%;">
+                        <div class="slide-thumbnail-wrapper" style="margin-top: 0;">
+                            ${slide.thumbnail ? `<img src="${slide.thumbnail}">` : `<span style="font-size: 0.7rem; color: var(--text-muted);">미리보기 없음</span>`}
                         </div>
+                        ${isLockedByOthers ? `<div class="lock-owner-text" style="font-size: 0.75rem; color: var(--accent-live); margin-top: 4px;">🔒 ${lockOwner.editorName}님이 편집 중</div>` : ''}
                     </div>
                 `;
                 if (!isLockedByOthers) item.onclick = () => selectSlideForEdit(slide.id);
@@ -2063,6 +2065,35 @@
         window.onload = () => {
             initCanvas();
             connectWebSocket();
+
+            // 서브 패널 너비 드래그 조절 (Resizer)
+            const resizer = document.getElementById("left-panel-resizer");
+            const panel = document.querySelector(".left-sub-panel");
+            if (resizer && panel) {
+                resizer.addEventListener("mousedown", (e) => {
+                    e.preventDefault();
+                    resizer.classList.add("resizing");
+                    const startX = e.clientX;
+                    const startWidth = panel.getBoundingClientRect().width;
+                    
+                    function onMouseMove(e) {
+                        const newWidth = startWidth + (e.clientX - startX);
+                        // 최소 너비 150px, 최대 너비 600px 제한
+                        if (newWidth >= 150 && newWidth <= 600) {
+                            panel.style.width = `${newWidth}px`;
+                        }
+                    }
+                    
+                    function onMouseUp() {
+                        resizer.classList.remove("resizing");
+                        document.removeEventListener("mousemove", onMouseMove);
+                        document.removeEventListener("mouseup", onMouseUp);
+                    }
+                    
+                    document.addEventListener("mousemove", onMouseMove);
+                    document.addEventListener("mouseup", onMouseUp);
+                });
+            }
 
             // 슬라이드 추가 버튼
             document.getElementById("btn-add-slide").onclick = addSlide;
