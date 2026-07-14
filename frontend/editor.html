@@ -1506,11 +1506,11 @@
                 if (isLockedByOthers) item.classList.add("locked");
                 
                 item.innerHTML = `
+                    <!-- 슬라이드 순번 배지 (카드 자체의 왼쪽 위 모서리에 배치) -->
+                    <div style="position: absolute; top: -8px; left: -8px; background: var(--primary); color: #fff; font-size: 0.7rem; font-weight: 800; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1.5px solid var(--bg-color); z-index: 20; font-family: 'Outfit', sans-serif; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
+                        ${index + 1}
+                    </div>
                     <div style="position: relative; width: 100%;">
-                        <!-- 슬라이드 순번 배지 -->
-                        <div style="position: absolute; top: 8px; left: 8px; background: rgba(17, 24, 39, 0.75); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); color: #fff; font-size: 0.72rem; font-weight: 700; min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.15); z-index: 10; font-family: 'Outfit', sans-serif; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">
-                            ${index + 1}
-                        </div>
                         <div class="slide-thumbnail-wrapper" style="margin-top: 0;">
                             ${slide.thumbnail ? `<img src="${slide.thumbnail}">` : `<span style="font-size: 0.7rem; color: var(--text-muted);">미리보기 없음</span>`}
                         </div>
