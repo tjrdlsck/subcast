@@ -225,6 +225,16 @@
             position: relative;
         }
 
+        .left-nav-sidebar.collapsed {
+            display: none !important;
+        }
+        .left-sub-panel.collapsed {
+            display: none !important;
+        }
+        .left-sub-panel.collapsed + #left-panel-resizer {
+            display: none !important;
+        }
+
         /* Left Navigation Sidebar (아이콘 세로 탭) */
         .left-nav-sidebar {
             width: 72px;
@@ -1003,12 +1013,22 @@
     <div class="app-layout">
         <!-- Top Bar -->
         <header>
-            <h1>
-                <svg style="width: 22px; height: 22px; fill: var(--primary);" viewBox="0 0 24 24">
-                    <path d="M12 2L2 22h20L12 2zm0 3.99L19.53 19H4.47L12 5.99zM13 16h-2v2h2v-2zm0-6h-2v4h2v-4z"/>
-                </svg>
-                Subcast Editor
-            </h1>
+            <div style="display: flex; align-items: center;">
+                <button id="btn-toggle-sidebar" style="background: transparent; border: none; cursor: pointer; color: var(--text-main); display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: var(--radius-sm); margin-right: 12px; transition: background 0.2s;">
+                    <!-- 햄버거 아이콘 SVG -->
+                    <svg style="width: 20px; height: 20px; stroke: currentColor; stroke-width: 2.5; fill: none;" viewBox="0 0 24 24">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
+                <h1 style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 1.3rem; font-weight: 700; font-family: 'Outfit', sans-serif;">
+                    <svg style="width: 22px; height: 22px; fill: var(--primary);" viewBox="0 0 24 24">
+                        <path d="M12 2L2 22h20L12 2zm0 3.99L19.53 19H4.47L12 5.99zM13 16h-2v2h2v-2zm0-6h-2v4h2v-4z"/>
+                    </svg>
+                    Subcast Editor
+                </h1>
+            </div>
 
             <div class="header-controls">
                 <div class="editor-name-group">
@@ -2155,6 +2175,20 @@
         window.onload = () => {
             initCanvas();
             connectWebSocket();
+
+            // 좌측 사이드바 및 서브 패널 토글 (햄버거 메뉴)
+            const toggleSidebarBtn = document.getElementById("btn-toggle-sidebar");
+            if (toggleSidebarBtn) {
+                toggleSidebarBtn.onclick = () => {
+                    const sidebar = document.querySelector(".left-nav-sidebar");
+                    const subPanel = document.querySelector(".left-sub-panel");
+                    if (sidebar && subPanel) {
+                        sidebar.classList.toggle("collapsed");
+                        subPanel.classList.toggle("collapsed");
+                        fitCanvasToScreen(); // 사이드바 토글에 따른 가용 너비 변경을 반영해 캔버스 줌 맞춤
+                    }
+                };
+            }
 
             // 최초 로드 시 및 브라우저 창 크기 변경 시 화면 크기 자동 맞춤 연동
             window.addEventListener('resize', fitCanvasToScreen);
