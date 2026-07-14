@@ -260,7 +260,22 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                         "data": manager.project_data.model_dump(),
                         "lockedSlides": manager.locked_slides
                     })
-                    logger.info(f"Template {template_id} applied bulk to: {slide_ids}")
+            elif msg_type == "REORDER_SLIDES":
+                slide_ids = message.get("slideIds", [])
+                if slide_ids:
+                    slide_map = {s.id: s for s in manager.project_data.slides}
+                    new_slides = [slide_map[sid] for sid in slide_ids if sid in slide_map]
+                    for s in manager.project_data.slides:
+                        if s.id not in slide_ids:
+                            new_slides.append(s)
+                    manager.project_data.slides = new_slides
+                    await save_project_data(manager.project_data)
+                    await manager.broadcast({
+                        "type": "INITIAL_SYNC",
+                        "data": manager.project_data.model_dump(),
+                        "lockedSlides": manager.locked_slides
+                    })
+                    logger.info("Slides reordered and synchronized.")
 
             elif msg_type == "SAVE_SLIDE":
                 # 슬라이드 내용 저장 및 방송 상태 동기화 처리

@@ -1580,6 +1580,8 @@
                 const item = document.createElement("div");
                 item.className = "slide-item";
                 item.id = `slide-item-${slide.id}`;
+                item.setAttribute("draggable", "true");
+                item.dataset.index = index;
                 if (slide.id === activeSlideId) item.classList.add("editing");
                 const lockOwner = lockedSlides[slide.id];
                 const isLockedByOthers = lockOwner !== undefined && lockOwner.ownerId !== myEditorId;
@@ -1597,6 +1599,72 @@
                         ${isLockedByOthers ? `<div class="lock-owner-text" style="font-size: 0.75rem; color: var(--accent-live); margin-top: 4px;">🔒 ${lockOwner.editorName}님이 편집 중</div>` : ''}
                     </div>
                 `;
+                
+                // 드래그 앤 드롭 이벤트 핸들러 바인딩
+                item.addEventListener("dragstart", (e) => {
+                    e.dataTransfer.setData("text/plain", index);
+                    item.classList.add("dragging");
+                });
+
+                item.addEventListener("dragover", (e) => {
+                    e.preventDefault();
+                    const rect = item.getBoundingClientRect();
+                    const relativeY = e.clientY - rect.top;
+                    if (relativeY < rect.height / 2) {
+                        item.style.borderTop = "3px solid var(--primary)";
+                        item.style.borderBottom = "";
+                    } else {
+                        item.style.borderTop = "";
+                        item.style.borderBottom = "3px solid var(--primary)";
+                    }
+                });
+
+                item.addEventListener("dragleave", () => {
+                    item.style.borderTop = "";
+                    item.style.borderBottom = "";
+                });
+
+                item.addEventListener("drop", (e) => {
+                    e.preventDefault();
+                    item.style.borderTop = "";
+                    item.style.borderBottom = "";
+                    
+                    const fromIndex = parseInt(e.dataTransfer.getData("text/plain"));
+                    let toIndex = parseInt(item.dataset.index);
+                    
+                    if (fromIndex === toIndex) return;
+
+                    const rect = item.getBoundingClientRect();
+                    const relativeY = e.clientY - rect.top;
+                    
+                    // 드롭하는 위치에 따라 앞 또는 뒤 정렬 보정
+                    if (relativeY >= rect.height / 2) {
+                        if (fromIndex > toIndex) {
+                            toIndex = toIndex + 1;
+                        }
+                    } else {
+                        if (fromIndex < toIndex) {
+                            toIndex = toIndex - 1;
+                        }
+                    }
+
+                    const draggedSlide = projectData.slides[fromIndex];
+                    projectData.slides.splice(fromIndex, 1);
+                    projectData.slides.splice(toIndex, 0, draggedSlide);
+
+                    // 서버 정렬 동기화 메시지 발송
+                    const updatedSlideIds = projectData.slides.map(s => s.id);
+                    ws.send(JSON.stringify({ type: "REORDER_SLIDES", slideIds: updatedSlideIds }));
+
+                    renderSlides();
+                });
+
+                item.addEventListener("dragend", () => {
+                    item.classList.remove("dragging");
+                    item.style.borderTop = "";
+                    item.style.borderBottom = "";
+                });
+
                 if (!isLockedByOthers) item.onclick = () => selectSlideForEdit(slide.id);
                 listEl.appendChild(item);
             });
@@ -2607,9 +2675,18 @@
                                     elements: slideData.elements
                                 };
                                 
+                                const currentIndex = projectData.slides.findIndex(s => s.id === activeSlideId);
+                                if (currentIndex !== -1) {
+                                    projectData.slides.splice(currentIndex + 1, 0, newSlide);
+                                } else {
+                                    projectData.slides.push(newSlide);
+                                }
+                                
                                 ws.send(JSON.stringify({ type: "SAVE_SLIDE", slide: newSlide }));
                                 
-                                projectData.slides.push(newSlide);
+                                const updatedSlideIds = projectData.slides.map(s => s.id);
+                                ws.send(JSON.stringify({ type: "REORDER_SLIDES", slideIds: updatedSlideIds }));
+                                
                                 renderSlides();
                                 alert("슬라이드가 복제되어 추가되었습니다.");
                             }
