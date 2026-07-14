@@ -282,7 +282,6 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                 if slide_ids:
                     manager.project_data.slides = [s for s in manager.project_data.slides if s.id not in slide_ids]
                     if not manager.project_data.slides:
-                        import uuid
                         from backend.schemas import Slide
                         new_id = f"slide_{uuid.uuid4().hex[:8]}"
                         new_slide = Slide(id=new_id, name="새 슬라이드 1", elements=[])
