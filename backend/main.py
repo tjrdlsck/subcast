@@ -277,6 +277,25 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                     })
                     logger.info("Slides reordered and synchronized.")
 
+            elif msg_type == "DELETE_SLIDES":
+                slide_ids = message.get("slideIds", [])
+                if slide_ids:
+                    manager.project_data.slides = [s for s in manager.project_data.slides if s.id not in slide_ids]
+                    if not manager.project_data.slides:
+                        import uuid
+                        from backend.schemas import Slide
+                        new_id = f"slide_{uuid.uuid4().hex[:8]}"
+                        new_slide = Slide(id=new_id, name="새 슬라이드 1", elements=[])
+                        manager.project_data.slides.append(new_slide)
+                    
+                    await save_project_data(manager.project_data)
+                    await manager.broadcast({
+                        "type": "INITIAL_SYNC",
+                        "data": manager.project_data.model_dump(),
+                        "lockedSlides": manager.locked_slides
+                    })
+                    logger.info(f"Slides deleted: {slide_ids}")
+
             elif msg_type == "SAVE_SLIDE":
                 # 슬라이드 내용 저장 및 방송 상태 동기화 처리
                 slide_data = message.get("slide")

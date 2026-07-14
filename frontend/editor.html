@@ -392,6 +392,12 @@
             background: rgba(99, 102, 241, 0.08);
             box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
         }
+
+        .slide-item.selected-multi {
+            border-color: rgba(99, 102, 241, 0.6);
+            background: rgba(99, 102, 241, 0.04);
+            box-shadow: 0 0 8px rgba(99, 102, 241, 0.1);
+        }
         
         .slide-item.locked {
             opacity: 0.5;
@@ -1373,6 +1379,7 @@
         let projectData = null;
         let lockedSlides = {};
         let activeSlideId = null;
+        let selectedSlideIds = [];
         let canvas = null;
         let myEditorId = null;
         let currentEditingElement = null;
@@ -1583,6 +1590,7 @@
                 item.setAttribute("draggable", "true");
                 item.dataset.index = index;
                 if (slide.id === activeSlideId) item.classList.add("editing");
+                if (selectedSlideIds.includes(slide.id)) item.classList.add("selected-multi");
                 const lockOwner = lockedSlides[slide.id];
                 const isLockedByOthers = lockOwner !== undefined && lockOwner.ownerId !== myEditorId;
                 if (isLockedByOthers) item.classList.add("locked");
@@ -1665,15 +1673,42 @@
                     item.style.borderBottom = "";
                 });
 
-                if (!isLockedByOthers) item.onclick = () => selectSlideForEdit(slide.id);
+                if (!isLockedByOthers) {
+                    item.onclick = (e) => {
+                        if (e.shiftKey) {
+                            const activeIndex = projectData.slides.findIndex(s => s.id === activeSlideId);
+                            const clickedIndex = index;
+                            if (activeIndex !== -1) {
+                                const start = Math.min(activeIndex, clickedIndex);
+                                const end = Math.max(activeIndex, clickedIndex);
+                                selectedSlideIds = [];
+                                for (let i = start; i <= end; i++) {
+                                    selectedSlideIds.push(projectData.slides[i].id);
+                                }
+                            }
+                        } else {
+                            selectedSlideIds = [slide.id];
+                        }
+                        selectSlideForEdit(slide.id);
+                        renderSlides();
+                    };
+                }
                 listEl.appendChild(item);
             });
         }
 
         function selectSlideForEdit(slideId) {
-            if (activeSlideId === slideId) return;
+            if (activeSlideId === slideId) {
+                if (selectedSlideIds.length === 0) {
+                    selectedSlideIds = [slideId];
+                }
+                return;
+            }
             if (activeSlideId) releaseActiveLock();
             activeSlideId = slideId;
+            if (!selectedSlideIds.includes(slideId)) {
+                selectedSlideIds = [slideId];
+            }
             const editorName = document.getElementById("editor-name").value;
             ws.send(JSON.stringify({ type: "LOCK_SLIDE", slideId: slideId, editorName: editorName }));
             loadSlideToCanvas(slideId);
@@ -2200,6 +2235,17 @@
                 const message = JSON.parse(event.data);
                 if (message.type === 'INITIAL_SYNC') { 
                     projectData = message.data; 
+                    
+                    // 활성화된 슬라이드가 서버 데이터에 존재하는지 검증하고 방어적으로 처리
+                    if (projectData.slides && projectData.slides.length > 0) {
+                        const slideExists = projectData.slides.some(s => s.id === activeSlideId);
+                        if (!activeSlideId || !slideExists) {
+                            activeSlideId = projectData.slides[0].id;
+                            selectedSlideIds = [activeSlideId];
+                            selectSlideForEdit(activeSlideId);
+                        }
+                    }
+                    
                     renderSlides(); 
                     renderTemplates();
 
@@ -2521,8 +2567,15 @@
                     return;
                 }
                 
-                if (e.key === 'Delete' && currentEditingElement) {
-                    deleteElement();
+                if (e.key === 'Delete') {
+                    const activeObj = canvas.getActiveObject();
+                    if (activeObj || currentEditingElement) {
+                        deleteElement();
+                    } else if (selectedSlideIds.length > 0) {
+                        if (confirm(`선택한 ${selectedSlideIds.length}개의 슬라이드를 삭제하시겠습니까?`)) {
+                            deleteSlides(selectedSlideIds);
+                        }
+                    }
                 } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
                     e.preventDefault();
                     undo();
@@ -2813,7 +2866,39 @@
                     saveStateToHistory();
                 });
             };
-            reader.readAsDataURL(file);
+        }
+
+        function deleteSlides(slideIds) {
+            if (!projectData || !projectData.slides) return;
+            
+            // 1. 서버로 삭제 전송
+            ws.send(JSON.stringify({ type: "DELETE_SLIDES", slideIds: slideIds }));
+            
+            // 2. 로컬 slides 배열 갱신
+            projectData.slides = projectData.slides.filter(s => !slideIds.includes(s.id));
+            
+            // 3. 만약 slides가 완전히 비었다면 임시 슬라이드를 하나 가상으로 얹어줍니다.
+            if (projectData.slides.length === 0) {
+                projectData.slides.push({
+                    id: "slide_placeholder",
+                    name: "새 슬라이드 1",
+                    elements: []
+                });
+            }
+            
+            // 4. 활성 슬라이드가 삭제 대상에 포함되어 있었다면 다른 슬라이드로 포커스 이동
+            if (slideIds.includes(activeSlideId)) {
+                const nextActiveId = projectData.slides[0].id;
+                selectedSlideIds = [nextActiveId];
+                selectSlideForEdit(nextActiveId);
+            } else {
+                selectedSlideIds = selectedSlideIds.filter(id => !slideIds.includes(id));
+                if (selectedSlideIds.length === 0 && activeSlideId) {
+                    selectedSlideIds = [activeSlideId];
+                }
+            }
+            
+            renderSlides();
         }
     </script>
 </body>
