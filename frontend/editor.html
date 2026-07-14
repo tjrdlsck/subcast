@@ -2482,14 +2482,46 @@
                             clipboardElement = null;
                         }
                     }
-                } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
-                    // 붙여넣기 (Ctrl+V)
+                }
+            });
+
+            // 저장/취소 리스너
+            document.getElementById("btn-save").onclick = saveSlideData;
+            document.getElementById("btn-cancel").onclick = cancelEditing;
+
+            // 우측 인스펙터 패널 드래그 이동 활성화
+            const inspectorPanel = document.querySelector(".right-inspector-panel");
+            const inspectorHeader = document.querySelector(".right-inspector-panel .panel-header");
+            if (inspectorPanel && inspectorHeader) {
+                makeElementDraggable(inspectorPanel, inspectorHeader);
+            }
+
+            // 클립보드 복사 붙여넣기 (Paste) 통합 처리 리스너
+            window.addEventListener('paste', (e) => {
+                if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
+                    return;
+                }
+                
+                const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+                let hasImageFile = false;
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf("image") !== -1) {
+                        const file = items[i].getAsFile();
+                        if (file) {
+                            hasImageFile = true;
+                            insertImageToCanvas(file);
+                            break;
+                        }
+                    }
+                }
+
+                // 클립보드 파일 이미지가 없을 때만 에디터 내부 복제본(개체 또는 슬라이드) 붙여넣기 수행
+                if (!hasImageFile) {
                     if (clipboardElement) {
                         // 1. 개체 붙여넣기
                         const elem = JSON.parse(JSON.stringify(clipboardElement));
                         const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
                         if (obj) {
-                            // 겹침 방지를 위해 좌상단 기준 오프셋 이동
                             obj.set({
                                 left: (obj.left || 0) + 20,
                                 top: (obj.top || 0) + 20,
@@ -2510,40 +2542,11 @@
                             elements: clipboardSlide.elements
                         };
                         
-                        // 서버로 전송하여 프로젝트 데이터 세션에 추가
                         ws.send(JSON.stringify({ type: "SAVE_SLIDE", slide: newSlide }));
                         
-                        // 로컬에도 선 반영
                         projectData.slides.push(newSlide);
                         renderSlides();
                         alert("슬라이드가 복제되어 추가되었습니다.");
-                    }
-                }
-            });
-
-            // 저장/취소 리스너
-            document.getElementById("btn-save").onclick = saveSlideData;
-            document.getElementById("btn-cancel").onclick = cancelEditing;
-
-            // 우측 인스펙터 패널 드래그 이동 활성화
-            const inspectorPanel = document.querySelector(".right-inspector-panel");
-            const inspectorHeader = document.querySelector(".right-inspector-panel .panel-header");
-            if (inspectorPanel && inspectorHeader) {
-                makeElementDraggable(inspectorPanel, inspectorHeader);
-            }
-
-            // 클립보드 복사 붙여넣기 (Paste) 이미지 처리 리스너
-            window.addEventListener('paste', (e) => {
-                if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
-                    return;
-                }
-                const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-                for (let i = 0; i < items.length; i++) {
-                    if (items[i].type.indexOf("image") !== -1) {
-                        const file = items[i].getAsFile();
-                        if (file) {
-                            insertImageToCanvas(file);
-                        }
                     }
                 }
             });
