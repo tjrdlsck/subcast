@@ -686,6 +686,11 @@
             box-shadow: 0 20px 50px rgba(99, 102, 241, 0.15);
         }
 
+        .canvas-wrapper-outer.dragover {
+            box-shadow: 0 0 25px rgba(99, 102, 241, 0.6) !important;
+            border-color: var(--primary) !important;
+        }
+
         .canvas-wrapper {
             width: 768px;
             height: 432px;
@@ -2470,6 +2475,49 @@
                 makeElementDraggable(inspectorPanel, inspectorHeader);
             }
 
+            // 클립보드 복사 붙여넣기 (Paste) 이미지 처리 리스너
+            window.addEventListener('paste', (e) => {
+                if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
+                    return;
+                }
+                const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf("image") !== -1) {
+                        const file = items[i].getAsFile();
+                        if (file) {
+                            insertImageToCanvas(file);
+                        }
+                    }
+                }
+            });
+
+            // 드래그 앤 드롭 파일 업로드 리스너
+            const dropZone = document.querySelector(".canvas-wrapper-outer");
+            if (dropZone) {
+                dropZone.addEventListener("dragover", (e) => {
+                    e.preventDefault();
+                    dropZone.classList.add("dragover");
+                });
+                dropZone.addEventListener("dragleave", (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove("dragover");
+                });
+                dropZone.addEventListener("drop", (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove("dragover");
+                    
+                    const files = e.dataTransfer.files;
+                    if (files && files.length > 0) {
+                        for (let i = 0; i < files.length; i++) {
+                            if (files[i].type.startsWith("image/")) {
+                                const pointer = canvas.getPointer(e);
+                                insertImageToCanvas(files[i], pointer.x, pointer.y);
+                            }
+                        }
+                    }
+                });
+            }
+
             // 창 닫을 때 락 자동 반환
             window.onbeforeunload = () => {
                 releaseActiveLock();
@@ -2533,6 +2581,34 @@
                 document.onmouseup = null;
                 document.onmousemove = null;
             }
+        }
+
+        function insertImageToCanvas(file, x = null, y = null) {
+            if (!activeSlideId) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                fabric.Image.fromURL(event.target.result, function(img) {
+                    const maxW = 400;
+                    if (img.width > maxW) {
+                        img.scaleToWidth(maxW);
+                    }
+                    
+                    const posX = x !== null ? x : (BASE_WIDTH - (img.width * img.scaleX)) / 2;
+                    const posY = y !== null ? y : (BASE_HEIGHT - (img.height * img.scaleY)) / 2;
+                    
+                    img.set({
+                        left: posX,
+                        top: posY,
+                        originalId: `elem_${Math.random().toString(36).substr(2, 9)}`
+                    });
+                    
+                    canvas.add(img);
+                    canvas.setActiveObject(img);
+                    canvas.renderAll();
+                    saveStateToHistory();
+                });
+            };
+            reader.readAsDataURL(file);
         }
     </script>
 </body>
