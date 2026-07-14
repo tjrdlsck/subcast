@@ -2125,7 +2125,23 @@
                     }
                 }
             };
-            ws.onclose = () => setTimeout(connectWebSocket, 3000);
+            ws.onopen = () => {
+                const badge = document.getElementById("status-badge");
+                const text = document.getElementById("status-text");
+                if (badge && text) {
+                    badge.classList.add("connected");
+                    text.innerText = "Connected";
+                }
+            };
+            ws.onclose = () => {
+                const badge = document.getElementById("status-badge");
+                const text = document.getElementById("status-text");
+                if (badge && text) {
+                    badge.classList.remove("connected");
+                    text.innerText = "Disconnected";
+                }
+                setTimeout(connectWebSocket, 3000);
+            };
         }
 
         window.onload = () => {
