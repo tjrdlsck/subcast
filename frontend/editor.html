@@ -167,6 +167,16 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease-in-out, transform 0.25s ease-in-out;
+            transform: translateY(-5px);
+        }
+        
+        .header-actions.visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
         }
 
         .btn-header-action {
@@ -1315,6 +1325,7 @@
         // 줌 배율 제어를 위한 상수 및 변수
         let canvasZoom = 1.0;
         let userZoomFactor = 1.0;
+        let isSlideDirty = false;
         const BASE_WIDTH = 768;
         const BASE_HEIGHT = 432;
 
@@ -1613,6 +1624,18 @@
             return elementData;
         }
 
+        function setSlideDirty(dirty) {
+            isSlideDirty = dirty;
+            const headerActions = document.querySelector('.header-actions');
+            if (headerActions) {
+                if (dirty) {
+                    headerActions.classList.add('visible');
+                } else {
+                    headerActions.classList.remove('visible');
+                }
+            }
+        }
+
         function loadSlideToCanvas(slideId) {
             isUndoingRedoing = true;
             canvas.clear();
@@ -1633,6 +1656,7 @@
             undoStack = [canvas.getObjects().map(obj => serializeElement(obj, BASE_WIDTH, BASE_HEIGHT))];
             redoStack = [];
             isUndoingRedoing = false;
+            setSlideDirty(false);
         }
 
         function saveStateToHistory() {
@@ -1647,6 +1671,7 @@
             
             undoStack.push(currentState);
             redoStack = [];
+            setSlideDirty(true);
         }
 
         function undo() {
@@ -1658,6 +1683,7 @@
             
             const prevState = undoStack[undoStack.length - 1];
             applyStateToCanvas(prevState);
+            setSlideDirty(undoStack.length > 1);
         }
 
         function redo() {
@@ -1668,6 +1694,7 @@
             undoStack.push(nextState);
             
             applyStateToCanvas(nextState);
+            setSlideDirty(true);
         }
 
         function applyStateToCanvas(state) {
@@ -1925,6 +1952,7 @@
             if (idx !== -1) projectData.slides[idx] = updatedSlide;
             alert("슬라이드가 저장 및 동기화되었습니다.");
             renderSlides();
+            setSlideDirty(false);
         }
 
         function addSlide() {
