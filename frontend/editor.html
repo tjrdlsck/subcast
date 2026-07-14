@@ -2465,12 +2465,39 @@
                     // 복사 (Ctrl+C) - 시스템 클립보드 API 활용
                     const activeObj = canvas.getActiveObject();
                     if (activeObj) {
-                        // 1. 개체 복사
-                        const serialized = serializeElement(activeObj, BASE_WIDTH, BASE_HEIGHT);
-                        const payload = { subcastType: "element", data: serialized };
-                        navigator.clipboard.writeText(JSON.stringify(payload)).catch(err => {
-                            console.error("시스템 클립보드 쓰기 실패:", err);
-                        });
+                        if (activeObj.type === 'activeSelection') {
+                            // 1-A. 다중 개체 복사
+                            const serializedList = [];
+                            const groupLeft = activeObj.left || 0;
+                            const groupTop = activeObj.top || 0;
+                            const groupWidth = activeObj.width || 0;
+                            const groupHeight = activeObj.height || 0;
+                            
+                            activeObj.forEachObject((obj) => {
+                                const absLeft = groupLeft + obj.left + groupWidth / 2;
+                                const absTop = groupTop + obj.top + groupHeight / 2;
+                                const originalLeft = obj.left;
+                                const originalTop = obj.top;
+                                
+                                obj.set({ left: absLeft, top: absTop });
+                                const serialized = serializeElement(obj, BASE_WIDTH, BASE_HEIGHT);
+                                serializedList.push(serialized);
+                                
+                                obj.set({ left: originalLeft, top: originalTop });
+                            });
+                            
+                            const payload = { subcastType: "multipleElements", data: serializedList };
+                            navigator.clipboard.writeText(JSON.stringify(payload)).catch(err => {
+                                console.error("시스템 클립보드 쓰기 실패:", err);
+                            });
+                        } else {
+                            // 1-B. 단일 개체 복사
+                            const serialized = serializeElement(activeObj, BASE_WIDTH, BASE_HEIGHT);
+                            const payload = { subcastType: "element", data: serialized };
+                            navigator.clipboard.writeText(JSON.stringify(payload)).catch(err => {
+                                console.error("시스템 클립보드 쓰기 실패:", err);
+                            });
+                        }
                     } else {
                         // 2. 슬라이드 복사
                         const targetSlide = projectData.slides.find(s => s.id === activeSlideId);
@@ -2484,8 +2511,8 @@
                                 }
                             };
                             navigator.clipboard.writeText(JSON.stringify(payload)).catch(err => {
-                                console.error("시스템 클립보드 쓰기 실패:", err);
-                            });
+                                        console.error("시스템 클립보드 쓰기 실패:", err);
+                                    });
                         }
                     }
                 }
@@ -2542,6 +2569,33 @@
                                     canvas.renderAll();
                                     saveStateToHistory();
                                 }
+                            } else if (payload && payload.subcastType === "multipleElements") {
+                                e.preventDefault();
+                                const elemList = payload.data;
+                                const newObjects = [];
+                                
+                                elemList.forEach((elem) => {
+                                    const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
+                                    if (obj) {
+                                        obj.set({
+                                            left: (obj.left || 0) + 20,
+                                            top: (obj.top || 0) + 20,
+                                            originalId: `elem_${Math.random().toString(36).substr(2, 9)}`
+                                        });
+                                        canvas.add(obj);
+                                        newObjects.push(obj);
+                                    }
+                                });
+                                
+                                if (newObjects.length > 0) {
+                                    // 붙여넣은 다중 객체들을 활성 선택 상태(ActiveSelection)로 설정
+                                    const activeSelection = new fabric.ActiveSelection(newObjects, {
+                                        canvas: canvas
+                                    });
+                                    canvas.setActiveObject(activeSelection);
+                                    canvas.requestRenderAll();
+                                }
+                                saveStateToHistory();
                             } else if (payload && payload.subcastType === "slide") {
                                 e.preventDefault();
                                 const slideData = payload.data;
