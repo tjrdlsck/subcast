@@ -1403,6 +1403,28 @@
             document.getElementById("zoom-percent").innerText = `${Math.round(canvasZoom * 100)}%`;
         }
 
+        // 브라우저 뷰포트 크기에 맞춰 캔버스를 최적 비율로 줌 조정하는 함수
+        function fitCanvasToScreen() {
+            if (!canvas) return;
+            const viewport = document.querySelector('.canvas-viewport');
+            if (!viewport) return;
+            
+            // 패딩(80px) 등을 제외한 가용 너비 및 높이 계산
+            const paddingX = 80;
+            const paddingY = 80;
+            
+            const availWidth = Math.max(100, viewport.clientWidth - paddingX);
+            const availHeight = Math.max(100, viewport.clientHeight - paddingY);
+            
+            const ratioX = availWidth / BASE_WIDTH;
+            const ratioY = availHeight / BASE_HEIGHT;
+            
+            // 비율 중 더 작아서 제한이 되는 비율에 맞춰 자동 줌 설정 (0.3 ~ 3.0 한계 유지)
+            const autoZoom = Math.max(0.3, Math.min(Math.min(ratioX, ratioY), 3.0));
+            
+            setCanvasZoom(autoZoom);
+        }
+
         // 왼쪽 탭 메뉴 전환
         function switchLeftTab(tabId) {
             document.querySelectorAll('.nav-tab-btn').forEach(btn => {
@@ -1594,8 +1616,8 @@
                 const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
                 if (obj) canvas.add(obj);
             });
-            // 캔버스 로드 시 현재 줌 배율 및 디멘션 동기화
-            setCanvasZoom(canvasZoom);
+            // 캔버스 로드 시 화면 크기에 맞춰 자동 줌 설정
+            fitCanvasToScreen();
 
             // 히스토리 상태 초기화
             undoStack = [canvas.getObjects().map(obj => serializeElement(obj, BASE_WIDTH, BASE_HEIGHT))];
@@ -2066,6 +2088,10 @@
             initCanvas();
             connectWebSocket();
 
+            // 최초 로드 시 및 브라우저 창 크기 변경 시 화면 크기 자동 맞춤 연동
+            window.addEventListener('resize', fitCanvasToScreen);
+            setTimeout(fitCanvasToScreen, 100); // 캔버스 영역 렌더링이 완료된 후 최초 맞춤 실행
+
             // 서브 패널 너비 드래그 조절 (Resizer)
             const resizer = document.getElementById("left-panel-resizer");
             const panel = document.querySelector(".left-sub-panel");
@@ -2081,6 +2107,7 @@
                         // 최소 너비 150px, 최대 너비 600px 제한
                         if (newWidth >= 150 && newWidth <= 600) {
                             panel.style.width = `${newWidth}px`;
+                            fitCanvasToScreen(); // 좌측 드로어 패널 너비 변경에 맞춰 슬라이드 실시간 자동 스케일링
                         }
                     }
                     
@@ -2106,7 +2133,7 @@
             // 줌 컨트롤러 버튼 리스너 연동
             document.getElementById("btn-zoom-in").onclick = () => setCanvasZoom(canvasZoom + 0.1);
             document.getElementById("btn-zoom-out").onclick = () => setCanvasZoom(canvasZoom - 0.1);
-            document.getElementById("btn-zoom-reset").onclick = () => setCanvasZoom(1.0);
+            document.getElementById("btn-zoom-reset").onclick = () => fitCanvasToScreen();
 
             // 공통: 불투명도 조절 슬라이더
             document.getElementById("element-opacity").oninput = (e) => {
