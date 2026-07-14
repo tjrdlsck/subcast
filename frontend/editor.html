@@ -1382,8 +1382,15 @@
             canvas.setZoom(canvasZoom);
             canvas.setWidth(BASE_WIDTH * canvasZoom);
             canvas.setHeight(BASE_HEIGHT * canvasZoom);
-            canvas.renderAll();
             
+            // DOM Wrapper 크기 동적 조절
+            const wrapper = document.querySelector('.canvas-wrapper');
+            if (wrapper) {
+                wrapper.style.width = `${BASE_WIDTH * canvasZoom}px`;
+                wrapper.style.height = `${BASE_HEIGHT * canvasZoom}px`;
+            }
+            
+            canvas.renderAll();
             document.getElementById("zoom-percent").innerText = `${Math.round(canvasZoom * 100)}%`;
         }
 
@@ -1575,9 +1582,8 @@
                 const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
                 if (obj) canvas.add(obj);
             });
-            // 캔버스 로드 시 현재 줌 값(canvasZoom)을 Fabric 내부 줌으로 재적용하여 리렌더링
-            canvas.setZoom(canvasZoom);
-            canvas.renderAll();
+            // 캔버스 로드 시 현재 줌 배율 및 디멘션 동기화
+            setCanvasZoom(canvasZoom);
         }
 
         function setControlsState(enabled) {
