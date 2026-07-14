@@ -1064,8 +1064,9 @@
             <aside class="left-nav-sidebar">
                 <!-- 상단 드로어 토글 버튼 (화살표 버튼) -->
                 <button id="btn-toggle-sidebar" class="sidebar-top-toggle" aria-label="Toggle Drawer">
-                    <svg id="toggle-arrow-icon" style="width: 16px; height: 16px; stroke: currentColor; stroke-width: 2.5; fill: none; transition: transform 0.25s;" viewBox="0 0 24 24">
-                        <polyline points="15 18 9 12 15 6"></polyline>
+                    <svg id="toggle-arrow-icon" style="width: 16px; height: 16px; stroke: currentColor; stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.25s;" viewBox="0 0 24 24">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
                     </svg>
                 </button>
                 <button class="nav-tab-btn active" data-target="panel-slides" onclick="switchLeftTab('panel-slides')">
