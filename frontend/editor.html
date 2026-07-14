@@ -399,6 +399,48 @@
             box-shadow: 0 0 8px rgba(99, 102, 241, 0.1);
         }
         
+        /* 자동 저장 알림 토스트 */
+        .autosave-toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.92), rgba(5, 150, 105, 0.92));
+            backdrop-filter: blur(10px);
+            color: #ffffff;
+            padding: 12px 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.3), 0 8px 10px -6px rgba(16, 185, 129, 0.3);
+            font-family: 'Outfit', sans-serif;
+            font-weight: 500;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 9999;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .autosave-toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .autosave-toast .spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
         .slide-item.locked {
             opacity: 0.5;
             pointer-events: none;
@@ -1391,6 +1433,8 @@
         let canvasZoom = 1.0;
         let userZoomFactor = 1.0;
         let isSlideDirty = false;
+        const HISTORY_LIMIT = 30;
+        let autoSaveTimeout = null;
         const BASE_WIDTH = 768;
         const BASE_HEIGHT = 432;
 
@@ -1795,6 +1839,15 @@
             return elementData;
         }
 
+        function triggerAutoSave() {
+            if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
+            autoSaveTimeout = setTimeout(() => {
+                if (isSlideDirty && activeSlideId && ws && ws.readyState === WebSocket.OPEN) {
+                    saveSlideData(true);
+                }
+            }, 3000); // 3초 뒤 자동저장 실행
+        }
+
         function setSlideDirty(dirty) {
             isSlideDirty = dirty;
             const headerActions = document.querySelector('.header-actions');
@@ -1805,9 +1858,16 @@
                     headerActions.classList.remove('visible');
                 }
             }
+            if (dirty) {
+                triggerAutoSave();
+            }
         }
 
         function loadSlideToCanvas(slideId) {
+            if (autoSaveTimeout) {
+                clearTimeout(autoSaveTimeout);
+                autoSaveTimeout = null;
+            }
             isUndoingRedoing = true;
             canvas.clear();
             const slide = projectData.slides.find(s => s.id === slideId);
@@ -1841,6 +1901,9 @@
             }
             
             undoStack.push(currentState);
+            if (undoStack.length > HISTORY_LIMIT) {
+                undoStack.shift();
+            }
             redoStack = [];
             setSlideDirty(true);
         }
@@ -2095,7 +2158,7 @@
             if (currentEditingElement) { canvas.remove(currentEditingElement); canvas.discardActiveObject(); onObjectCleared(); canvas.renderAll(); }
         }
 
-        function saveSlideData() {
+        function saveSlideData(isAuto = false) {
             if (!activeSlideId || !projectData) return;
             const slide = projectData.slides.find(s => s.id === activeSlideId);
             
@@ -2128,9 +2191,23 @@
             ws.send(JSON.stringify({ type: "SAVE_SLIDE", slide: updatedSlide }));
             const idx = projectData.slides.findIndex(s => s.id === activeSlideId);
             if (idx !== -1) projectData.slides[idx] = updatedSlide;
-            alert("슬라이드가 저장 및 동기화되었습니다.");
+            
+            if (isAuto) {
+                showAutoSaveNotification();
+            } else {
+                alert("슬라이드가 저장 및 동기화되었습니다.");
+            }
             renderSlides();
             setSlideDirty(false);
+        }
+
+        function showAutoSaveNotification() {
+            const toast = document.getElementById("autosave-toast");
+            if (!toast) return;
+            toast.classList.add("show");
+            setTimeout(() => {
+                toast.classList.remove("show");
+            }, 2500);
         }
 
         function addSlide() {
@@ -2901,5 +2978,10 @@
             renderSlides();
         }
     </script>
+    <!-- 자동 저장 알림 토스트 -->
+    <div id="autosave-toast" class="autosave-toast">
+        <div class="spinner"></div>
+        <span>변경사항이 자동으로 저장되었습니다</span>
+    </div>
 </body>
 </html>
