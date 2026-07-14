@@ -712,7 +712,7 @@
         /* 4. Right Inspector Panel (우측 속성 패널) */
         .right-inspector-panel {
             width: 300px;
-            background: rgba(17, 24, 39, 0.9);
+            background: rgba(17, 24, 39, 0.93);
             backdrop-filter: var(--panel-blur);
             border: 1px solid var(--panel-border);
             border-radius: var(--radius-lg);
@@ -721,18 +721,24 @@
             overflow: hidden;
             flex-shrink: 0;
 
-            /* Floating Absolute Positioning */
+            /* Floating Absolute Positioning & Draggable */
             position: absolute;
             right: 20px;
             top: 20px;
-            bottom: 20px;
-            z-index: 100;
+            z-index: 1000;
             box-shadow: var(--shadow-lg);
+            height: auto;
+            max-height: 80%;
         }
 
         .right-inspector-panel .panel-header {
             border-bottom: 1px solid var(--panel-border);
-            padding: 20px;
+            padding: 16px 20px;
+            cursor: grab;
+            user-select: none;
+        }
+        .right-inspector-panel .panel-header:active {
+            cursor: grabbing;
         }
 
         .inspector-content {
@@ -2457,11 +2463,77 @@
             document.getElementById("btn-save").onclick = saveSlideData;
             document.getElementById("btn-cancel").onclick = cancelEditing;
 
+            // 우측 인스펙터 패널 드래그 이동 활성화
+            const inspectorPanel = document.querySelector(".right-inspector-panel");
+            const inspectorHeader = document.querySelector(".right-inspector-panel .panel-header");
+            if (inspectorPanel && inspectorHeader) {
+                makeElementDraggable(inspectorPanel, inspectorHeader);
+            }
+
             // 창 닫을 때 락 자동 반환
             window.onbeforeunload = () => {
                 releaseActiveLock();
             };
         };
+
+        function makeElementDraggable(elmnt, header) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            if (header) {
+                header.onmousedown = dragMouseDown;
+            } else {
+                elmnt.onmousedown = dragMouseDown;
+            }
+
+            function dragMouseDown(e) {
+                e = e || window.event;
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT') {
+                    return;
+                }
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                
+                let newTop = elmnt.offsetTop - pos2;
+                let newLeft = elmnt.offsetLeft - pos1;
+                
+                // 화면 바운더리 계산 및 이탈 방지
+                const workspace = document.querySelector(".workspace");
+                if (workspace) {
+                    const rect = workspace.getBoundingClientRect();
+                    const elRect = elmnt.getBoundingClientRect();
+                    
+                    if (newTop < 10) newTop = 10;
+                    if (newTop + elRect.height > rect.height - 10) {
+                        newTop = rect.height - elRect.height - 10;
+                    }
+                    if (newLeft < 10) newLeft = 10;
+                    if (newLeft + elRect.width > rect.width - 10) {
+                        newLeft = rect.width - elRect.width - 10;
+                    }
+                }
+                
+                elmnt.style.top = newTop + "px";
+                elmnt.style.left = newLeft + "px";
+                elmnt.style.right = "auto";
+                elmnt.style.bottom = "auto";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
     </script>
 </body>
 </html>
