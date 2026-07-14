@@ -999,9 +999,7 @@
                 </svg>
                 Subcast Editor
             </h1>
-            <div class="header-center">
-                <h2 id="editor-title">슬라이드를 선택해주세요.</h2>
-            </div>
+
             <div class="header-controls">
                 <div class="editor-name-group">
                     <label for="editor-name">내 이름</label>
@@ -1537,7 +1535,6 @@
             if (activeSlideId === slideId) return;
             if (activeSlideId) releaseActiveLock();
             activeSlideId = slideId;
-            document.getElementById("editor-title").innerText = `슬라이드 편집: ${projectData.slides.find(s => s.id === slideId).name}`;
             const editorName = document.getElementById("editor-name").value;
             ws.send(JSON.stringify({ type: "LOCK_SLIDE", slideId: slideId, editorName: editorName }));
             loadSlideToCanvas(slideId);
