@@ -225,14 +225,44 @@
             position: relative;
         }
 
-        .left-nav-sidebar.collapsed {
-            display: none !important;
-        }
         .left-sub-panel.collapsed {
+            width: 0 !important;
+            border-right: none !important;
+        }
+        .left-sub-panel.collapsed .sidebar-panel {
             display: none !important;
         }
         .left-sub-panel.collapsed + #left-panel-resizer {
             display: none !important;
+        }
+
+        /* 플로팅 에지 토글 버튼 (화살표 모양) */
+        .sidebar-edge-toggle {
+            position: absolute;
+            right: -10px;
+            top: 24px;
+            width: 20px;
+            height: 36px;
+            background: #1f2937;
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1000;
+            color: var(--text-muted);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            transition: all 0.2s ease, right 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 0;
+        }
+        .sidebar-edge-toggle:hover {
+            color: #ffffff;
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        .left-sub-panel.collapsed .sidebar-edge-toggle {
+            right: -20px;
         }
 
         /* Left Navigation Sidebar (아이콘 세로 탭) */
@@ -300,9 +330,10 @@
             border-right: 1px solid var(--panel-border);
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            overflow: visible; /* 에지 플로팅 버튼 노출용 */
             flex-shrink: 0;
             position: relative;
+            transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         #left-panel-resizer:hover, #left-panel-resizer.resizing {
@@ -1013,22 +1044,12 @@
     <div class="app-layout">
         <!-- Top Bar -->
         <header>
-            <div style="display: flex; align-items: center;">
-                <button id="btn-toggle-sidebar" style="background: transparent; border: none; cursor: pointer; color: var(--text-main); display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: var(--radius-sm); margin-right: 12px; transition: background 0.2s;">
-                    <!-- 햄버거 아이콘 SVG -->
-                    <svg style="width: 20px; height: 20px; stroke: currentColor; stroke-width: 2.5; fill: none;" viewBox="0 0 24 24">
-                        <line x1="3" y1="12" x2="21" y2="12"></line>
-                        <line x1="3" y1="6" x2="21" y2="6"></line>
-                        <line x1="3" y1="18" x2="21" y2="18"></line>
-                    </svg>
-                </button>
-                <h1 style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 1.3rem; font-weight: 700; font-family: 'Outfit', sans-serif;">
-                    <svg style="width: 22px; height: 22px; fill: var(--primary);" viewBox="0 0 24 24">
-                        <path d="M12 2L2 22h20L12 2zm0 3.99L19.53 19H4.47L12 5.99zM13 16h-2v2h2v-2zm0-6h-2v4h2v-4z"/>
-                    </svg>
-                    Subcast Editor
-                </h1>
-            </div>
+            <h1>
+                <svg style="width: 22px; height: 22px; fill: var(--primary);" viewBox="0 0 24 24">
+                    <path d="M12 2L2 22h20L12 2zm0 3.99L19.53 19H4.47L12 5.99zM13 16h-2v2h2v-2zm0-6h-2v4h2v-4z"/>
+                </svg>
+                Subcast Editor
+            </h1>
 
             <div class="header-controls">
                 <div class="editor-name-group">
@@ -1082,6 +1103,12 @@
 
             <!-- Left Sub Panel (드로어 패널) -->
             <aside class="left-sub-panel">
+                <!-- 플로팅 에지 토글 버튼 (화살표 버튼) -->
+                <button id="btn-toggle-sidebar" class="sidebar-edge-toggle" aria-label="Toggle Sidebar">
+                    <svg id="toggle-arrow-icon" style="width: 14px; height: 14px; stroke: currentColor; stroke-width: 2.5; fill: none; transition: transform 0.25s;" viewBox="0 0 24 24">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </button>
                 <div id="left-panel-resizer" style="position: absolute; right: 0; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 100; background: transparent; transition: background 0.2s;"></div>
                 <!-- 1) 슬라이드 리스트 탭 -->
                 <div class="sidebar-panel active" id="panel-slides">
@@ -1484,6 +1511,10 @@
             const subPanel = document.querySelector(".left-sub-panel");
             if (subPanel && subPanel.classList.contains("collapsed")) {
                 subPanel.classList.remove("collapsed");
+                const arrowIcon = document.getElementById("toggle-arrow-icon");
+                if (arrowIcon) {
+                    arrowIcon.style.transform = "rotate(0deg)";
+                }
                 fitCanvasToScreen();
             }
         }
@@ -2183,13 +2214,17 @@
             initCanvas();
             connectWebSocket();
 
-            // 좌측 서브 패널 토글 (햄버거 메뉴)
+            // 좌측 서브 패널 토글 (화살표 버튼)
             const toggleSidebarBtn = document.getElementById("btn-toggle-sidebar");
             if (toggleSidebarBtn) {
                 toggleSidebarBtn.onclick = () => {
                     const subPanel = document.querySelector(".left-sub-panel");
+                    const arrowIcon = document.getElementById("toggle-arrow-icon");
                     if (subPanel) {
-                        subPanel.classList.toggle("collapsed");
+                        const isCollapsed = subPanel.classList.toggle("collapsed");
+                        if (arrowIcon) {
+                            arrowIcon.style.transform = isCollapsed ? "rotate(180deg)" : "rotate(0deg)";
+                        }
                         fitCanvasToScreen(); // 서브 패널 토글에 따른 가용 너비 변경을 반영해 캔버스 줌 맞춤
                     }
                 };
