@@ -1379,8 +1379,6 @@
         let undoStack = [];
         let redoStack = [];
         let isUndoingRedoing = false;
-        let clipboardElement = null;
-        let clipboardSlide = null;
 
         // 줌 배율 제어를 위한 상수 및 변수
         let canvasZoom = 1.0;
@@ -2464,22 +2462,30 @@
                     e.preventDefault();
                     redo();
                 } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
-                    // 복사 (Ctrl+C)
+                    // 복사 (Ctrl+C) - 시스템 클립보드 API 활용
                     const activeObj = canvas.getActiveObject();
                     if (activeObj) {
                         // 1. 개체 복사
-                        clipboardElement = serializeElement(activeObj, BASE_WIDTH, BASE_HEIGHT);
-                        clipboardSlide = null;
+                        const serialized = serializeElement(activeObj, BASE_WIDTH, BASE_HEIGHT);
+                        const payload = { subcastType: "element", data: serialized };
+                        navigator.clipboard.writeText(JSON.stringify(payload)).catch(err => {
+                            console.error("시스템 클립보드 쓰기 실패:", err);
+                        });
                     } else {
                         // 2. 슬라이드 복사
                         const targetSlide = projectData.slides.find(s => s.id === activeSlideId);
                         if (targetSlide) {
-                            clipboardSlide = {
-                                name: targetSlide.name + " (사본)",
-                                elements: JSON.parse(JSON.stringify(targetSlide.elements)),
-                                thumbnail: targetSlide.thumbnail
+                            const payload = {
+                                subcastType: "slide",
+                                data: {
+                                    name: targetSlide.name + " (사본)",
+                                    elements: JSON.parse(JSON.stringify(targetSlide.elements)),
+                                    thumbnail: targetSlide.thumbnail
+                                }
                             };
-                            clipboardElement = null;
+                            navigator.clipboard.writeText(JSON.stringify(payload)).catch(err => {
+                                console.error("시스템 클립보드 쓰기 실패:", err);
+                            });
                         }
                     }
                 }
@@ -2496,7 +2502,7 @@
                 makeElementDraggable(inspectorPanel, inspectorHeader);
             }
 
-            // 클립보드 복사 붙여넣기 (Paste) 통합 처리 리스너
+            // 클립보드 복사 붙여넣기 (Paste) 통합 처리 리스너 - 시스템 클립보드 연동
             window.addEventListener('paste', (e) => {
                 if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
                     return;
@@ -2515,38 +2521,47 @@
                     }
                 }
 
-                // 클립보드 파일 이미지가 없을 때만 에디터 내부 복제본(개체 또는 슬라이드) 붙여넣기 수행
+                // 클립보드 파일 이미지가 없을 때, 시스템 클립보드 텍스트 데이터를 분석하여 복제본 붙여넣기 수행
                 if (!hasImageFile) {
-                    if (clipboardElement) {
-                        // 1. 개체 붙여넣기
-                        const elem = JSON.parse(JSON.stringify(clipboardElement));
-                        const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
-                        if (obj) {
-                            obj.set({
-                                left: (obj.left || 0) + 20,
-                                top: (obj.top || 0) + 20,
-                                originalId: `elem_${Math.random().toString(36).substr(2, 9)}`
-                            });
-                            canvas.add(obj);
-                            canvas.setActiveObject(obj);
-                            canvas.renderAll();
-                            saveStateToHistory();
+                    const textData = (e.clipboardData || e.originalEvent.clipboardData).getData("text");
+                    if (textData) {
+                        try {
+                            const payload = JSON.parse(textData);
+                            if (payload && payload.subcastType === "element") {
+                                e.preventDefault();
+                                const elem = payload.data;
+                                const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
+                                if (obj) {
+                                    obj.set({
+                                        left: (obj.left || 0) + 20,
+                                        top: (obj.top || 0) + 20,
+                                        originalId: `elem_${Math.random().toString(36).substr(2, 9)}`
+                                    });
+                                    canvas.add(obj);
+                                    canvas.setActiveObject(obj);
+                                    canvas.renderAll();
+                                    saveStateToHistory();
+                                }
+                            } else if (payload && payload.subcastType === "slide") {
+                                e.preventDefault();
+                                const slideData = payload.data;
+                                const newId = `slide_${Math.random().toString(36).substr(2, 8)}`;
+                                const newSlide = {
+                                    id: newId,
+                                    name: slideData.name,
+                                    thumbnail: slideData.thumbnail,
+                                    elements: slideData.elements
+                                };
+                                
+                                ws.send(JSON.stringify({ type: "SAVE_SLIDE", slide: newSlide }));
+                                
+                                projectData.slides.push(newSlide);
+                                renderSlides();
+                                alert("슬라이드가 복제되어 추가되었습니다.");
+                            }
+                        } catch (err) {
+                            // 일반 텍스트 등은 무시
                         }
-                    } else if (clipboardSlide) {
-                        // 2. 슬라이드 붙여넣기 복제 생성
-                        const newId = `slide_${Math.random().toString(36).substr(2, 8)}`;
-                        const newSlide = {
-                            id: newId,
-                            name: clipboardSlide.name,
-                            thumbnail: clipboardSlide.thumbnail,
-                            elements: clipboardSlide.elements
-                        };
-                        
-                        ws.send(JSON.stringify({ type: "SAVE_SLIDE", slide: newSlide }));
-                        
-                        projectData.slides.push(newSlide);
-                        renderSlides();
-                        alert("슬라이드가 복제되어 추가되었습니다.");
                     }
                 }
             });
