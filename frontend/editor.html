@@ -1314,6 +1314,7 @@
 
         // 줌 배율 제어를 위한 상수 및 변수
         let canvasZoom = 1.0;
+        let userZoomFactor = 1.0;
         const BASE_WIDTH = 768;
         const BASE_HEIGHT = 432;
 
@@ -1387,7 +1388,7 @@
 
         // 캔버스 줌 배율 변경 처리
         function setCanvasZoom(zoom) {
-            canvasZoom = Math.max(0.3, Math.min(zoom, 3.0)); // 30% ~ 300%
+            canvasZoom = zoom;
             canvas.setZoom(canvasZoom);
             canvas.setWidth(BASE_WIDTH * canvasZoom);
             canvas.setHeight(BASE_HEIGHT * canvasZoom);
@@ -1400,7 +1401,7 @@
             }
             
             canvas.renderAll();
-            document.getElementById("zoom-percent").innerText = `${Math.round(canvasZoom * 100)}%`;
+            document.getElementById("zoom-percent").innerText = `${Math.round(userZoomFactor * 100)}%`;
         }
 
         // 브라우저 뷰포트 크기에 맞춰 캔버스를 최적 비율로 줌 조정하는 함수
@@ -1419,10 +1420,16 @@
             const ratioX = availWidth / BASE_WIDTH;
             const ratioY = availHeight / BASE_HEIGHT;
             
-            // 비율 중 더 작아서 제한이 되는 비율에 맞춰 자동 줌 설정 (0.3 ~ 3.0 한계 유지)
-            const autoZoom = Math.max(0.3, Math.min(Math.min(ratioX, ratioY), 3.0));
+            // 화면에 딱 맞게 채우는 기준 줌 배율
+            const baseZoom = Math.min(ratioX, ratioY);
             
-            setCanvasZoom(autoZoom);
+            // 최종 줌 배율 = 기준 줌 * 사용자 수동 줌 계수
+            let finalZoom = baseZoom * userZoomFactor;
+            
+            // 최종 줌의 과도한 변형 방지 범위 한계 설정 (0.2 ~ 4.0배)
+            finalZoom = Math.max(0.2, Math.min(finalZoom, 4.0));
+            
+            setCanvasZoom(finalZoom);
         }
 
         // 왼쪽 탭 메뉴 전환
@@ -1455,13 +1462,12 @@
             canvas.on('mouse:wheel', function(opt) {
                 if (opt.e.ctrlKey || opt.e.altKey) {
                     var delta = opt.e.deltaY;
-                    var zoom = canvasZoom;
                     if (delta > 0) {
-                        zoom -= 0.1;
+                        userZoomFactor = Math.max(userZoomFactor - 0.05, 0.3); // 최소 30%
                     } else {
-                        zoom += 0.1;
+                        userZoomFactor = Math.min(userZoomFactor + 0.05, 3.0); // 최대 300%
                     }
-                    setCanvasZoom(zoom);
+                    fitCanvasToScreen();
                     opt.e.preventDefault();
                     opt.e.stopPropagation();
                 }
@@ -2131,9 +2137,18 @@
             document.getElementById("btn-delete-template").onclick = deleteTemplate;
 
             // 줌 컨트롤러 버튼 리스너 연동
-            document.getElementById("btn-zoom-in").onclick = () => setCanvasZoom(canvasZoom + 0.1);
-            document.getElementById("btn-zoom-out").onclick = () => setCanvasZoom(canvasZoom - 0.1);
-            document.getElementById("btn-zoom-reset").onclick = () => fitCanvasToScreen();
+            document.getElementById("btn-zoom-in").onclick = () => {
+                userZoomFactor = Math.min(userZoomFactor + 0.1, 3.0); // 최대 300%
+                fitCanvasToScreen();
+            };
+            document.getElementById("btn-zoom-out").onclick = () => {
+                userZoomFactor = Math.max(userZoomFactor - 0.1, 0.3); // 최소 30%
+                fitCanvasToScreen();
+            };
+            document.getElementById("btn-zoom-reset").onclick = () => {
+                userZoomFactor = 1.0; // 100% 맞춤으로 초기화
+                fitCanvasToScreen();
+            };
 
             // 공통: 불투명도 조절 슬라이더
             document.getElementById("element-opacity").oninput = (e) => {
