@@ -682,7 +682,7 @@
             background: rgba(17, 24, 39, 0.95);
             backdrop-filter: var(--panel-blur);
             border-left: 1px solid var(--panel-border);
-            display: flex;
+            display: none;
             flex-direction: column;
             overflow: hidden;
             flex-shrink: 0;
@@ -1735,6 +1735,9 @@
             document.getElementById("selection-status-bar").innerText = `선택된 개체: ${activeObj.type} (${activeObj.originalId || '신규'})`;
 
             // 인스펙터 화면 처리
+            document.querySelector(".right-inspector-panel").style.display = "flex";
+            fitCanvasToScreen(); // 인스펙터 패널 노출에 맞춰 캔버스 스케일링
+
             document.getElementById("inspector-empty").style.display = "none";
             document.getElementById("inspector-common-section").style.display = "block";
 
@@ -1803,6 +1806,12 @@
             document.getElementById("selection-status-bar").innerText = "선택된 개체가 없습니다.";
             
             // 인스펙터 화면 처리
+            const inspector = document.querySelector(".right-inspector-panel");
+            if (inspector) {
+                inspector.style.display = "none";
+                fitCanvasToScreen(); // 인스펙터 패널 소멸에 맞춰 캔버스 스케일링
+            }
+
             document.getElementById("inspector-empty").style.display = "flex";
             document.getElementById("inspector-text-section").style.display = "none";
             document.getElementById("inspector-shape-section").style.display = "none";
