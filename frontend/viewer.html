@@ -99,21 +99,6 @@
             renderCurrentSlide();
         }
 
-        // 슬라이드 렌더링
-        function renderCurrentSlide() {
-            if (!canvas || !projectData) return;
-
-            canvas.clear();
-
-            const currentSlideId = projectData.settings?.currentLiveSlideId;
-            if (!currentSlideId) return;
-
-            const currentSlide = projectData.slides.find(s => s.id === currentSlideId);
-            if (!currentSlide) return;
-
-            const canvasWidth = canvas.getWidth();
-            const canvasHeight = canvas.getHeight();
-
         // 공용 역직렬화 (Deserialize) 함수: 백분율 데이터를 Fabric 객체로 변환
         function deserializeElement(elem, canvasWidth, canvasHeight, isInsideGroup = false, groupW = 1, groupH = 1) {
             let x, y, w, h;
