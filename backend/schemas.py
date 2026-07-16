@@ -45,6 +45,7 @@ class SystemSettings(BaseModel):
     targetWidth: int = 1920
     targetHeight: int = 1080
     currentLiveSlideId: Optional[str] = None
+    backgroundMode: str = "transparent"
 
 class ProjectData(BaseModel):
     settings: SystemSettings = Field(default_factory=SystemSettings)

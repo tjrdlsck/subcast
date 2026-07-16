@@ -136,6 +136,19 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                 })
                 logger.info(f"Live slide changed to: {new_slide_id}")
 
+            elif msg_type == "SET_BACKGROUND_MODE":
+                # 크로마키 배경 모드 동적으로 변경 및 전파
+                mode = message.get("mode", "transparent")
+                if mode in ["transparent", "chromakey"]:
+                    manager.project_data.settings.backgroundMode = mode
+                    await save_project_data(manager.project_data)
+                    
+                    await manager.broadcast({
+                        "type": "SET_BACKGROUND_MODE",
+                        "mode": mode
+                    })
+                    logger.info(f"Background mode updated to: {mode}")
+
             elif msg_type == "UPDATE_RESOLUTION":
                 # 해상도 설정 저장 및 전파
                 width = message.get("width")

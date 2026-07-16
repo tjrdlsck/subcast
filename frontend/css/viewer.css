@@ -54,3 +54,8 @@ body.system-disconnected #canvas-container {
 body.system-disconnected .disconnect-banner {
     display: block;
 }
+
+/* 크로마키 녹색 배경 모드 */
+body.chromakey-mode {
+    background-color: #00ff00 !important;
+}

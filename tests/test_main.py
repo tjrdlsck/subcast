@@ -127,7 +127,31 @@ def test_save_slide_with_shapes_and_styles():
         assert resp["slideId"] == "slide_1"
         
         # 저장 확인을 위해 DB(메모리 캐시)를 재조회
-        assert manager.project_data.slides[0].elements[0].id == "elem_text_new"
-        assert manager.project_data.slides[0].elements[0].style.fontWeight == "bold"
-        assert manager.project_data.slides[0].elements[1].id == "elem_rect_new"
-        assert manager.project_data.slides[0].elements[1].style.fillColor == "#00ff00"
+        target_slide = next(s for s in manager.project_data.slides if s.id == "slide_1")
+        assert target_slide.elements[0].id == "elem_text_new"
+        assert target_slide.elements[0].style.fontWeight == "bold"
+        assert target_slide.elements[1].id == "elem_rect_new"
+        assert target_slide.elements[1].style.fillColor == "#00ff00"
+
+def test_websocket_background_mode():
+    """웹소켓을 통한 크로마키 배경 모드 변경 및 영속화 테스트"""
+    import asyncio
+    asyncio.run(manager.initialize())
+    
+    with client.websocket_connect("/ws?role=presenter") as ws:
+        # 최초 동기화 버림
+        ws.receive_json()
+        
+        # 배경 모드를 chromakey로 변경 요청
+        ws.send_json({
+            "type": "SET_BACKGROUND_MODE",
+            "mode": "chromakey"
+        })
+        
+        # 브로드캐스트 패킷 수신
+        resp = ws.receive_json()
+        assert resp["type"] == "SET_BACKGROUND_MODE"
+        assert resp["mode"] == "chromakey"
+        
+        # 영속화된 캐시 확인
+        assert manager.project_data.settings.backgroundMode == "chromakey"

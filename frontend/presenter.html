@@ -243,6 +243,21 @@
                 </div>
             </div>
 
+            <!-- 배경 모드 설정 -->
+            <div class="settings-card">
+                <h3 style="font-family: 'Outfit'; font-size: 1.1rem; font-weight: 600;">송출 배경 설정 (Chroma Key)</h3>
+                <div class="settings-form" style="display: flex; gap: 24px; align-items: center; margin-top: 15px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.95rem;">
+                        <input type="radio" name="bg-mode" id="bg-transparent" value="transparent" checked style="cursor: pointer; width: 16px; height: 16px;">
+                        투명 배경 (OBS 오버레이)
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.95rem;">
+                        <input type="radio" name="bg-mode" id="bg-chromakey" value="chromakey" style="cursor: pointer; width: 16px; height: 16px;">
+                        녹색 크로마키 (물리 믹서)
+                    </label>
+                </div>
+            </div>
+
             <!-- 단축키 설명 -->
             <div class="shortcut-info">
                 <strong>💡 마스터 단축키 안내</strong>
@@ -414,8 +429,12 @@
             const currentSlide = projectData.slides.find(s => s.id === currentLiveSlideId);
             if (!currentSlide) return;
 
+            // 절대 해상도(targetWidth, targetHeight)를 기준으로 렌더링하고 setZoom으로 배율을 맞춥니다.
+            const scale = canvas.getWidth() / targetWidth;
+            canvas.setZoom(scale);
+
             currentSlide.elements.forEach(elem => {
-                const obj = deserializeElement(elem, canvas.getWidth(), canvas.getHeight());
+                const obj = deserializeElement(elem, targetWidth, targetHeight);
                 if (obj) {
                     canvas.add(obj);
                 }
@@ -525,6 +544,10 @@
                         document.getElementById("height-input").value = projectData.settings.targetHeight || 1080;
                         targetWidth = projectData.settings.targetWidth || 1920;
                         targetHeight = projectData.settings.targetHeight || 1080;
+                        
+                        const bgMode = projectData.settings.backgroundMode || "transparent";
+                        const radioEl = document.getElementById(`bg-${bgMode}`);
+                        if (radioEl) radioEl.checked = true;
                     }
                     initCanvas();
                     renderDeck();
@@ -544,6 +567,13 @@
                             renderDeck();
                         });
                     }
+                }
+                else if (message.type === 'SET_BACKGROUND_MODE') {
+                    if (projectData && projectData.settings) {
+                        projectData.settings.backgroundMode = message.mode;
+                    }
+                    const radioEl = document.getElementById(`bg-${message.mode}`);
+                    if (radioEl) radioEl.checked = true;
                 }
                 else if (message.type === 'SLIDE_CHANGE') {
                     if (projectData) {
@@ -607,6 +637,19 @@
                     }));
                 }
             };
+
+            // 배경 모드 라디오 버튼 리스너
+            document.querySelectorAll('input[name="bg-mode"]').forEach(radio => {
+                radio.onchange = (e) => {
+                    const mode = e.target.value;
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({
+                            type: "SET_BACKGROUND_MODE",
+                            mode: mode
+                        }));
+                    }
+                };
+            });
 
             // 키보드 단축키
             window.onkeydown = (e) => {

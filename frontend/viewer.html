@@ -149,8 +149,12 @@
             const currentSlide = projectData.slides.find(s => s.id === currentSlideId);
             if (!currentSlide) return;
 
+            // 반응형 줌 비율(Scale Ratio) 계산 및 캔버스 적용
+            const scale = canvas.getWidth() / targetWidth;
+            canvas.setZoom(scale);
+
             currentSlide.elements.forEach(elem => {
-                const obj = deserializeElement(elem, canvas.getWidth(), canvas.getHeight());
+                const obj = deserializeElement(elem, targetWidth, targetHeight);
                 if (obj) {
                     canvas.add(obj);
                 }
@@ -179,9 +183,17 @@
                     if (projectData.settings) {
                         targetWidth = projectData.settings.targetWidth || 1920;
                         targetHeight = projectData.settings.targetHeight || 1080;
+                        const bgMode = projectData.settings.backgroundMode || 'transparent';
+                        document.body.classList.toggle('chromakey-mode', bgMode === 'chromakey');
                     }
                     updateCanvasDimensions();
                 } 
+                else if (message.type === 'SET_BACKGROUND_MODE') {
+                    if (projectData && projectData.settings) {
+                        projectData.settings.backgroundMode = message.mode;
+                    }
+                    document.body.classList.toggle('chromakey-mode', message.mode === 'chromakey');
+                }
                 else if (message.type === 'SLIDE_CHANGE') {
                     if (projectData) {
                         projectData.settings.currentLiveSlideId = message.slideId;
@@ -213,12 +225,20 @@
             ws.onclose = () => {
                 console.warn("WebSocket connection closed. Reconnecting...");
                 document.body.classList.add('system-disconnected');
+                if (canvas) {
+                    canvas.clear();
+                    canvas.renderAll();
+                }
                 setTimeout(connectWebSocket, 3000); // 3초 후 재연결 시도
             };
 
             ws.onerror = (error) => {
                 console.error("WebSocket error:", error);
                 document.body.classList.add('system-disconnected');
+                if (canvas) {
+                    canvas.clear();
+                    canvas.renderAll();
+                }
             };
         }
 
