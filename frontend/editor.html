@@ -1980,8 +1980,8 @@
             });
         }
 
-        function selectSlideForEdit(slideId) {
-            if (activeSlideId === slideId) {
+        function selectSlideForEdit(slideId, force = false) {
+            if (activeSlideId === slideId && !force) {
                 if (selectedSlideIds.length === 0) {
                     selectedSlideIds = [slideId];
                 }
@@ -2868,7 +2868,7 @@
                         if (!activeSlideId || !slideExists || myEditorId === null) {
                             activeSlideId = slideExists ? activeSlideId : projectData.slides[0].id;
                             selectedSlideIds = [activeSlideId];
-                            selectSlideForEdit(activeSlideId);
+                            selectSlideForEdit(activeSlideId, true);
                         } else {
                             // 최신 동기화 데이터 기반으로 현재 편집중인 슬라이드 캔버스를 다시 로드
                             loadSlideToCanvas(activeSlideId);
