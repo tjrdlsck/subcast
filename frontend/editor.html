@@ -1715,33 +1715,33 @@
                 tempCanvasEl.width = BASE_WIDTH;
                 tempCanvasEl.height = BASE_HEIGHT;
                 
-                const tempCanvas = new fabric.StaticCanvas(tempCanvasEl, {
-                    backgroundColor: '#111827'
+                const tempCanvas = new fabric.StaticCanvas(tempCanvasEl);
+                
+                tempCanvas.setBackgroundColor('#111827', () => {
+                    slide.elements.forEach(elem => {
+                        const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
+                        if (obj) tempCanvas.add(obj);
+                    });
+                    
+                    tempCanvas.renderAll();
+                    
+                    const dataUrl = tempCanvas.toDataURL({
+                        format: 'jpeg',
+                        quality: 0.4
+                    });
+                    
+                    tempCanvas.dispose();
+                    slide.thumbnail = dataUrl;
+                    
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({
+                            type: "SAVE_SLIDE",
+                            slide: slide
+                        }));
+                    }
+                    
+                    resolve(dataUrl);
                 });
-                
-                slide.elements.forEach(elem => {
-                    const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
-                    if (obj) tempCanvas.add(obj);
-                });
-                
-                tempCanvas.renderAll();
-                
-                const dataUrl = tempCanvas.toDataURL({
-                    format: 'jpeg',
-                    quality: 0.4
-                });
-                
-                tempCanvas.dispose();
-                slide.thumbnail = dataUrl;
-                
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({
-                        type: "SAVE_SLIDE",
-                        slide: slide
-                    }));
-                }
-                
-                resolve(dataUrl);
             });
         }
 
