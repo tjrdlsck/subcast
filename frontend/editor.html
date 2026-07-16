@@ -2865,8 +2865,8 @@
                     // 활성화된 슬라이드가 서버 데이터에 존재하는지 검증하고 방어적으로 처리
                     if (projectData.slides && projectData.slides.length > 0) {
                         const slideExists = projectData.slides.some(s => s.id === activeSlideId);
-                        if (!activeSlideId || !slideExists) {
-                            activeSlideId = projectData.slides[0].id;
+                        if (!activeSlideId || !slideExists || myEditorId === null) {
+                            activeSlideId = slideExists ? activeSlideId : projectData.slides[0].id;
                             selectedSlideIds = [activeSlideId];
                             selectSlideForEdit(activeSlideId);
                         } else {
