@@ -2464,7 +2464,24 @@
         }
 
         function deleteElement() {
-            if (currentEditingElement) { canvas.remove(currentEditingElement); canvas.discardActiveObject(); onObjectCleared(); canvas.renderAll(); }
+            const activeObj = canvas.getActiveObject();
+            if (!activeObj) return;
+
+            isUndoingRedoing = true;
+            if (activeObj.type === 'activeSelection') {
+                const objectsToDelete = activeObj.getObjects().concat();
+                objectsToDelete.forEach(obj => {
+                    canvas.remove(obj);
+                });
+            } else {
+                canvas.remove(activeObj);
+            }
+            canvas.discardActiveObject();
+            onObjectCleared();
+            canvas.renderAll();
+            isUndoingRedoing = false;
+            saveStateToHistory();
+            updateLayerList();
         }
 
         function saveSlideData() {
