@@ -1518,6 +1518,7 @@
         let selectedSlideIds = [];
         let canvas = null;
         let myEditorId = null;
+        let isLockRequested = false;
         let currentEditingElement = null;
         let undoStack = [];
         let redoStack = [];
@@ -1846,6 +1847,7 @@
                 selectedSlideIds = [slideId];
             }
             const editorName = document.getElementById("editor-name").value;
+            isLockRequested = true;
             ws.send(JSON.stringify({ type: "LOCK_SLIDE", slideId: slideId, editorName: editorName }));
             loadSlideToCanvas(slideId);
             setControlsState(true);
@@ -2605,6 +2607,9 @@
                 const message = JSON.parse(event.data);
                 if (message.type === 'INITIAL_SYNC') { 
                     projectData = message.data; 
+                    if (message.lockedSlides) {
+                        lockedSlides = message.lockedSlides;
+                    }
                     
                     // 활성화된 슬라이드가 서버 데이터에 존재하는지 검증하고 방어적으로 처리
                     if (projectData.slides && projectData.slides.length > 0) {
@@ -2638,20 +2643,36 @@
                 else if (message.type === 'SLIDE_LOCKED') {
                     lockedSlides[message.slideId] = { ownerId: message.ownerId, editorName: message.editorName };
                     
-                    // 내 소켓 세션 식별자가 아직 셋팅되지 않은 경우, 내가 발생시킨 락 이벤트를 기반으로 설정
-                    if (message.slideId === activeSlideId && !myEditorId) {
+                    // 내가 명시적으로 락을 요청했고, 그 요청한 슬라이드에 대한 승인이 온 경우 내 식별자로 설정
+                    if (message.slideId === activeSlideId && isLockRequested) {
                         myEditorId = message.ownerId;
+                        isLockRequested = false;
                     }
                     
                     if (message.slideId === activeSlideId) {
                         // 타인이 락을 걸고 있을 때만 상단 배너 표시 및 편집 도구 잠금
                         const isLockedByOthers = message.ownerId !== myEditorId;
-                        document.getElementById("lock-banner").style.display = isLockedByOthers ? "flex" : "none";
+                        const banner = document.getElementById("lock-banner");
+                        if (banner) {
+                            banner.style.display = isLockedByOthers ? "flex" : "none";
+                            banner.innerText = `⚠️ ${message.editorName}님이 편집 중인 슬라이드입니다.`;
+                        }
                         if (isLockedByOthers) {
                             setControlsState(false);
                         }
                     }
                     renderSlides();
+                }
+                else if (message.type === 'LOCK_FAILED') {
+                    isLockRequested = false;
+                    if (message.slideId === activeSlideId) {
+                        const banner = document.getElementById("lock-banner");
+                        if (banner) {
+                            banner.style.display = "flex";
+                            banner.innerText = `⚠️ ${message.reason}`;
+                        }
+                        setControlsState(false);
+                    }
                 }
                 else if (message.type === 'SLIDE_UNLOCKED') {
                     delete lockedSlides[message.slideId];
@@ -2688,6 +2709,7 @@
                 handleOnline();
                 if (activeSlideId) {
                     const editorName = document.getElementById("editor-name").value;
+                    isLockRequested = true;
                     ws.send(JSON.stringify({ type: "LOCK_SLIDE", slideId: activeSlideId, editorName: editorName }));
                 }
             };
