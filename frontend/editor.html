@@ -2701,6 +2701,8 @@
                 handleOffline();
                 setTimeout(connectWebSocket, 3000);
             };
+        }
+
         function handleOffline() {
             if (autoSaveTimeoutId) {
                 clearTimeout(autoSaveTimeoutId);
