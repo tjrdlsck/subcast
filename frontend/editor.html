@@ -364,8 +364,8 @@
 
         /* 슬라이드 목록 스타일 */
         .slide-list {
-            display: flex;
-            flex-direction: column;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
             gap: 12px;
         }
 
@@ -449,6 +449,90 @@
             width: 100%;
             height: 100%;
             object-fit: contain;
+        }
+
+        /* 커스텀 모달 CSS */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: #111827;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-lg);
+            width: 420px;
+            padding: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            font-family: 'Outfit', 'Pretendard', sans-serif;
+        }
+
+        .modal-header h3 {
+            margin: 0 0 16px 0;
+            font-size: 1.1rem;
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        .modal-body p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin: 0 0 12px 0;
+            line-height: 1.5;
+        }
+
+        .modal-warning-box {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px dashed rgba(239, 68, 68, 0.3);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-modal {
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            border: 1px solid transparent;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-modal.btn-cancel {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+        }
+
+        .btn-modal.btn-cancel:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+        }
+
+        .btn-modal.btn-confirm {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-modal.btn-confirm:hover {
+            background: #dc2626;
         }
 
         .lock-owner-text {
@@ -1252,6 +1336,9 @@
                                 <button class="btn-template-action btn-delete-tpl" id="btn-delete-template" disabled>
                                     삭제
                                 </button>
+                                <button class="btn-template-action" id="btn-undo-template" disabled style="background: var(--bg-hover); border-color: rgba(255,255,255,0.1);">
+                                    되돌리기
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1702,18 +1789,34 @@
 
         function handleCheckboxClick(e, index) {
             e.stopPropagation();
-            const checkboxes = document.querySelectorAll(".slide-select-checkbox");
+            const targetState = e.target.checked;
+            const sId = projectData.slides[index].id;
             
             if (e.shiftKey && lastCheckedIndex !== -1) {
                 const start = Math.min(index, lastCheckedIndex);
                 const end = Math.max(index, lastCheckedIndex);
-                const targetState = e.target.checked;
                 
                 for (let i = start; i <= end; i++) {
-                    checkboxes[i].checked = targetState;
+                    const slideId = projectData.slides[i].id;
+                    if (targetState) {
+                        if (!selectedSlideIds.includes(slideId)) {
+                            selectedSlideIds.push(slideId);
+                        }
+                    } else {
+                        selectedSlideIds = selectedSlideIds.filter(id => id !== slideId);
+                    }
+                }
+            } else {
+                if (targetState) {
+                    if (!selectedSlideIds.includes(sId)) {
+                        selectedSlideIds.push(sId);
+                    }
+                } else {
+                    selectedSlideIds = selectedSlideIds.filter(id => id !== sId);
                 }
             }
             lastCheckedIndex = index;
+            renderSlides();
         }
 
         function renderSlides() {
@@ -1737,6 +1840,12 @@
                     <div style="position: absolute; top: -8px; left: -8px; background: var(--primary); color: #fff; font-size: 0.7rem; font-weight: 800; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1.5px solid var(--bg-color); z-index: 20; font-family: 'Outfit', sans-serif; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
                         ${index + 1}
                     </div>
+                    <!-- 다중 선택 체크박스 (카드 오른쪽 위 모서리에 배치) -->
+                    <input type="checkbox" class="slide-select-checkbox slide-item-checkbox" 
+                           data-slide-id="${slide.id}"
+                           style="position: absolute; top: 8px; right: 8px; z-index: 25; width: 16px; height: 16px; cursor: pointer;"
+                           ${selectedSlideIds.includes(slide.id) ? 'checked' : ''}
+                           onclick="handleCheckboxClick(event, ${index})">
                     <div style="position: relative; width: 100%;">
                         <div class="slide-thumbnail-wrapper" style="margin-top: 0;">
                             ${slide.thumbnail ? `<img src="${slide.thumbnail}">` : `<span style="font-size: 0.7rem; color: var(--text-muted);">미리보기 없음</span>`}
@@ -1812,6 +1921,8 @@
 
                 if (!isLockedByOthers) {
                     item.onclick = (e) => {
+                        if (e.target.classList.contains('slide-select-checkbox')) return;
+                        
                         if (e.shiftKey) {
                             const activeIndex = projectData.slides.findIndex(s => s.id === activeSlideId);
                             const clickedIndex = index;
@@ -1823,11 +1934,22 @@
                                     selectedSlideIds.push(projectData.slides[i].id);
                                 }
                             }
+                        } else if (e.ctrlKey || e.metaKey) {
+                            const sId = slide.id;
+                            if (selectedSlideIds.includes(sId)) {
+                                selectedSlideIds = selectedSlideIds.filter(id => id !== sId);
+                            } else {
+                                selectedSlideIds.push(sId);
+                            }
                         } else {
                             selectedSlideIds = [slide.id];
                         }
-                        selectSlideForEdit(slide.id);
-                        renderSlides();
+                        
+                        if (!e.ctrlKey && !e.shiftKey) {
+                            selectSlideForEdit(slide.id);
+                        } else {
+                            renderSlides();
+                        }
                     };
                 }
                 listEl.appendChild(item);
@@ -2089,7 +2211,7 @@
         }
 
         function setControlsState(enabled) {
-            ['btn-add-text-title', 'btn-add-text-subtitle', 'btn-add-text-body', 'btn-add-rect', 'btn-add-circle', 'btn-add-triangle', 'btn-add-line', 'btn-save', 'btn-cancel', 'btn-save-template', 'select-templates', 'btn-apply-template-bulk', 'btn-delete-template'].forEach(id => {
+            ['btn-add-text-title', 'btn-add-text-subtitle', 'btn-add-text-body', 'btn-add-rect', 'btn-add-circle', 'btn-add-triangle', 'btn-add-line', 'btn-save', 'btn-cancel', 'btn-save-template', 'select-templates', 'btn-apply-template-bulk', 'btn-delete-template', 'btn-undo-template'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.disabled = !enabled;
             });
@@ -2581,6 +2703,8 @@
             }
         }
 
+        let onConfirmAction = null;
+
         function applyTemplateBulk() {
             const selectEl = document.getElementById("select-templates");
             const tplId = selectEl.value;
@@ -2596,12 +2720,25 @@
                 return;
             }
 
-            if (confirm(`선택한 ${slideIds.length}개의 슬라이드에 디자인 템플릿을 일괄 적용하시겠습니까? (기존 요소들은 모두 교체됩니다.)`)) {
+            // 커스텀 모달 띄우기
+            document.getElementById("confirm-slide-count").innerText = slideIds.length;
+            const modal = document.getElementById("template-confirm-modal");
+            modal.style.display = "flex";
+
+            onConfirmAction = () => {
                 ws.send(JSON.stringify({
                     type: "APPLY_TEMPLATE_BULK",
                     slideIds: slideIds,
                     templateId: tplId
                 }));
+                modal.style.display = "none";
+                onConfirmAction = null;
+            };
+        }
+
+        function undoBulkAction() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: "UNDO_BULK_ACTION" }));
             }
         }
 
@@ -2640,6 +2777,12 @@
                     
                     renderSlides(); 
                     renderTemplates();
+
+                    // 되돌리기 버튼 상태 업데이트
+                    const undoBtn = document.getElementById("btn-undo-template");
+                    if (undoBtn) {
+                        undoBtn.disabled = !(message.historyCount && message.historyCount > 0);
+                    }
 
                     // 썸네일이 없는 슬라이드가 있다면 순차적으로 자동 생성하여 반영 및 서버 동기화
                     let needsUpdate = false;
@@ -2827,6 +2970,16 @@
             document.getElementById("btn-save-template").onclick = saveAsTemplate;
             document.getElementById("btn-apply-template-bulk").onclick = applyTemplateBulk;
             document.getElementById("btn-delete-template").onclick = deleteTemplate;
+            document.getElementById("btn-undo-template").onclick = undoBulkAction;
+
+            // 커스텀 모달 제어 버튼
+            document.getElementById("btn-modal-cancel").onclick = () => {
+                document.getElementById("template-confirm-modal").style.display = "none";
+                onConfirmAction = null;
+            };
+            document.getElementById("btn-modal-confirm").onclick = () => {
+                if (onConfirmAction) onConfirmAction();
+            };
 
             // 줌 컨트롤러 버튼 리스너 연동
             document.getElementById("btn-zoom-in").onclick = () => {
@@ -3406,5 +3559,28 @@
             renderSlides();
         }
     </script>
+    <!-- 템플릿 적용 확인 커스텀 모달 -->
+    <div id="template-confirm-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚠️ 디자인 템플릿 일괄 적용 경고</h3>
+            </div>
+            <div class="modal-body">
+                <p>선택하신 <span id="confirm-slide-count" style="color: var(--accent-live); font-weight: 700;">0</span>개의 슬라이드에 디자인 템플릿을 일괄 적용하시겠습니까?</p>
+                <div class="modal-warning-box">
+                    <p style="margin: 0; color: #ef4444; font-size: 0.85rem; font-weight: 600; line-height: 1.4;">
+                        ※ 주의: 대상 슬라이드의 기존 텍스트 및 도형 디자인이 완전히 교체되어 유실됩니다.
+                    </p>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 12px;">
+                    (자동 백업이 수행되므로 되돌리기 버튼이나 Ctrl + Z를 통해 원상복구 하실 수 있습니다.)
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal btn-cancel" id="btn-modal-cancel">취소</button>
+                <button class="btn-modal btn-confirm" id="btn-modal-confirm">확인 및 적용</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

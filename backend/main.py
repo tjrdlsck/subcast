@@ -41,6 +41,14 @@ class ConnectionManager:
         self.locked_slides: Dict[str, str] = {}
         # 서버 메모리 상의 프로젝트 데이터 캐시
         self.project_data: ProjectData = None
+        # 디자인 템플릿 일괄 적용 이전 히스토리 스냅샷 저장 스택 (최대 5개)
+        self.project_history: List[dict] = []
+
+    def push_history(self):
+        """현재 프로젝트 데이터를 깊은 복사하여 히스토리 스택에 보관합니다."""
+        self.project_history.append(self.project_data.model_dump())
+        if len(self.project_history) > 5:
+            self.project_history.pop(0)
 
     async def initialize(self):
         """저장소로부터 데이터를 읽어 캐싱합니다."""
@@ -56,7 +64,8 @@ class ConnectionManager:
             initial_payload = {
                 "type": "INITIAL_SYNC",
                 "data": self.project_data.model_dump(),
-                "lockedSlides": self.locked_slides
+                "lockedSlides": self.locked_slides,
+                "historyCount": len(self.project_history)
             }
             await websocket.send_text(json.dumps(initial_payload))
         else:
@@ -80,6 +89,8 @@ class ConnectionManager:
 
     async def broadcast(self, message: dict, role: str = None):
         """특정 역할의 클라이언트들에게만 전송하거나, role이 지정되지 않으면 전체에게 브로드캐스트합니다."""
+        if message.get("type") == "INITIAL_SYNC":
+            message["historyCount"] = len(self.project_history)
         payload = json.dumps(message)
         
         if role:
@@ -251,6 +262,9 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                 template_id = message.get("templateId")
                 target_tpl = next((t for t in manager.project_data.templates if t.id == template_id), None)
                 if target_tpl and slide_ids:
+                    # 일괄 적용 전 현재 프로젝트 상태 백업
+                    manager.push_history()
+
                     def clone_elements(elems):
                         cloned = []
                         for el in elems:
@@ -273,6 +287,19 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                         "data": manager.project_data.model_dump(),
                         "lockedSlides": manager.locked_slides
                     })
+
+            elif msg_type == "UNDO_BULK_ACTION":
+                if manager.project_history:
+                    prev_state = manager.project_history.pop()
+                    from backend.schemas import ProjectData
+                    manager.project_data = ProjectData.model_validate(prev_state)
+                    await save_project_data(manager.project_data)
+                    await manager.broadcast({
+                        "type": "INITIAL_SYNC",
+                        "data": manager.project_data.model_dump(),
+                        "lockedSlides": manager.locked_slides
+                    })
+                    logger.info("Bulk action undone successfully.")
             elif msg_type == "REORDER_SLIDES":
                 slide_ids = message.get("slideIds", [])
                 if slide_ids:
