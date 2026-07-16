@@ -2869,6 +2869,9 @@
                             activeSlideId = projectData.slides[0].id;
                             selectedSlideIds = [activeSlideId];
                             selectSlideForEdit(activeSlideId);
+                        } else {
+                            // 최신 동기화 데이터 기반으로 현재 편집중인 슬라이드 캔버스를 다시 로드
+                            loadSlideToCanvas(activeSlideId);
                         }
                     }
                     
