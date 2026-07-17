@@ -615,7 +615,7 @@
             border: 1px solid var(--panel-border);
             border-radius: var(--radius-sm);
             color: white;
-            padding: 10px;
+            padding: 6px 10px;
             font-size: 0.8rem;
             font-weight: 500;
             cursor: pointer;
@@ -654,7 +654,7 @@
             background: rgba(0, 0, 0, 0.3);
             border: 1px solid var(--panel-border);
             border-radius: var(--radius-sm);
-            padding: 10px 12px;
+            padding: 6px 10px;
             color: white;
             font-size: 0.85rem;
             outline: none;
@@ -687,7 +687,7 @@
             background: rgba(239, 68, 68, 0.1);
             border-color: rgba(239, 68, 68, 0.2);
             color: #fca5a5;
-            padding: 10px 14px;
+            padding: 6px 10px;
         }
         .template-buttons .btn-delete-tpl:hover:not(:disabled) {
             background: rgba(239, 68, 68, 0.2);
@@ -1385,9 +1385,19 @@
                         </div>
                         <div class="template-selector-group">
                             <label for="select-templates">템플릿 보관함</label>
-                            <select id="select-templates" class="select-field" disabled>
+                            <select id="select-templates" class="select-field" disabled onchange="updateTemplatePreview()">
                                 <option value="">-- 템플릿 선택 --</option>
                             </select>
+                            
+                            <!-- 템플릿 미리보기 영역 -->
+                            <div id="template-preview-container" style="display: none; margin-top: 4px; border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 8px; background: rgba(0,0,0,0.2);">
+                                <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 6px; font-weight: 600;">템플릿 미리보기</div>
+                                <div id="template-preview-box" style="position: relative; width: 100%; aspect-ratio: 16/9; border-radius: var(--radius-xs); overflow: hidden; background: #000; border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;">
+                                    <img id="template-preview-img" style="width: 100%; height: 100%; object-fit: contain; display: none;">
+                                    <span id="template-preview-placeholder" style="font-size: 0.65rem; color: var(--text-muted);">템플릿을 선택하면 미리보기가 표시됩니다.</span>
+                                </div>
+                            </div>
+
                             <div class="template-buttons">
                                 <button class="btn-template-action btn-apply" id="btn-apply-template-bulk" disabled>
                                     일괄 적용
@@ -2878,14 +2888,60 @@
         function renderTemplates() {
             const selectEl = document.getElementById("select-templates");
             if (!selectEl) return;
+            const currentVal = selectEl.value;
             selectEl.innerHTML = '<option value="">-- 템플릿 선택 --</option>';
-            if (!projectData || !projectData.templates) return;
+            if (!projectData || !projectData.templates) {
+                updateTemplatePreview();
+                return;
+            }
             projectData.templates.forEach(tpl => {
                 const opt = document.createElement("option");
                 opt.value = tpl.id;
                 opt.innerText = tpl.name;
                 selectEl.appendChild(opt);
             });
+            
+            if (currentVal && projectData.templates.some(t => t.id === currentVal)) {
+                selectEl.value = currentVal;
+            }
+            
+            updateTemplatePreview();
+        }
+
+        function updateTemplatePreview() {
+            const selectEl = document.getElementById("select-templates");
+            const previewContainer = document.getElementById("template-preview-container");
+            const previewImg = document.getElementById("template-preview-img");
+            const placeholder = document.getElementById("template-preview-placeholder");
+            
+            if (!selectEl || !previewContainer) return;
+            
+            const tplId = selectEl.value;
+            if (!tplId) {
+                previewContainer.style.display = "none";
+                return;
+            }
+            
+            if (!projectData || !projectData.templates) {
+                previewContainer.style.display = "none";
+                return;
+            }
+            
+            const tpl = projectData.templates.find(t => t.id === tplId);
+            if (tpl) {
+                previewContainer.style.display = "block";
+                if (tpl.thumbnail) {
+                    previewImg.src = tpl.thumbnail;
+                    previewImg.style.display = "block";
+                    placeholder.style.display = "none";
+                } else {
+                    previewImg.style.display = "none";
+                    placeholder.style.display = "block";
+                    placeholder.innerText = "미리보기 없음";
+                }
+            } else {
+                previewContainer.style.display = "none";
+            }
         }
 
         function connectWebSocket() {
