@@ -3507,9 +3507,10 @@
                     textboxSelect.innerHTML = "";
                     textElements.forEach((el, index) => {
                         const previewText = el.content ? el.content.substring(0, 15) : `텍스트 영역 ${index + 1}`;
+                        const locName = getGeometricLocationName(el.x, el.y);
                         const opt = document.createElement("option");
                         opt.value = el.id;
-                        opt.textContent = `[텍스트 영역 ${index + 1}] ${previewText} (${el.id})`;
+                        opt.textContent = `[텍스트 영역 ${index + 1}] [${locName}] ${previewText} (${el.id})`;
                         textboxSelect.appendChild(opt);
                     });
                 } else {
@@ -5795,15 +5796,17 @@
 
                     if (textElements.length === 1) {
                         container.style.display = "none";
-                        selectBox.innerHTML = `<option value="${textElements[0].id}">${textElements[0].content || "텍스트 영역 1"} (${textElements[0].id})</option>`;
+                        const locName = getGeometricLocationName(textElements[0].x, textElements[0].y);
+                        selectBox.innerHTML = `<option value="${textElements[0].id}">${textElements[0].content || "텍스트 영역 1"} [${locName}] (${textElements[0].id})</option>`;
                     } else {
                         container.style.display = "flex";
                         selectBox.innerHTML = "";
                         textElements.forEach((el, index) => {
                             const previewText = el.content ? el.content.substring(0, 15) : `텍스트 영역 ${index + 1}`;
+                            const locName = getGeometricLocationName(el.x, el.y);
                             const opt = document.createElement("option");
                             opt.value = el.id;
-                            opt.textContent = `[텍스트 영역 ${index + 1}] ${previewText} (${el.id})`;
+                            opt.textContent = `[텍스트 영역 ${index + 1}] [${locName}] ${previewText} (${el.id})`;
                             selectBox.appendChild(opt);
                         });
                     }
@@ -6138,6 +6141,32 @@
                 name: `자막(템): ${header}`,
                 elements: clonedElements
             };
+        }
+
+        // x, y 좌표 백분율을 기반으로 9분할 기하학적 위치 이름을 판단하는 헬퍼 함수
+        function getGeometricLocationName(x, y) {
+            let vPos = "";
+            if (y < 33) {
+                vPos = "상단";
+            } else if (y <= 66) {
+                vPos = "중앙";
+            } else {
+                vPos = "하단";
+            }
+
+            let hPos = "";
+            if (x < 33) {
+                hPos = "좌측";
+            } else if (x <= 66) {
+                hPos = "중앙";
+            } else {
+                hPos = "우측";
+            }
+
+            if (vPos === "중앙" && hPos === "중앙") {
+                return "정중앙";
+            }
+            return vPos + " " + hPos;
         }
     </script>
     <!-- 찬양 추가/편집 전용 모달창 -->
