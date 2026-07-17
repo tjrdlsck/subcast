@@ -188,6 +188,97 @@ class BibleDatabaseHelper:
 
 db_helper = BibleDatabaseHelper("GAE_Bible.db")
 
+class PraiseDatabaseHelper:
+    def __init__(self, db_path="GAE_Bible.db"):
+        self.db_path = db_path
+        self.init_table()
+
+    def get_connection(self):
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def init_table(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS praise_songs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    lyrics TEXT NOT NULL,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_praise_title ON praise_songs(title)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_praise_lyrics ON praise_songs(lyrics)")
+            conn.commit()
+        finally:
+            conn.close()
+
+    def search_songs(self, query_str: str, limit: int = 50):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        sql = """
+            SELECT title, lyrics 
+            FROM praise_songs 
+            WHERE title LIKE ? OR lyrics LIKE ?
+            ORDER BY title ASC
+            LIMIT ?
+        """
+        try:
+            param = f"%{query_str}%"
+            cursor.execute(sql, (param, param, limit))
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            conn.close()
+
+    def save_song(self, title: str, lyrics: str):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT id FROM praise_songs WHERE title = ?", (title,))
+            row = cursor.fetchone()
+            if row:
+                cursor.execute("""
+                    UPDATE praise_songs 
+                    SET lyrics = ?, updated_at = CURRENT_TIMESTAMP 
+                    WHERE id = ?
+                """, (lyrics, row["id"]))
+            else:
+                cursor.execute("""
+                    INSERT INTO praise_songs (title, lyrics) 
+                    VALUES (?, ?)
+                """, (title, lyrics))
+            conn.commit()
+        finally:
+            conn.close()
+
+praise_db = PraiseDatabaseHelper("GAE_Bible.db")
+
+from pydantic import BaseModel
+class PraiseSongSaveRequest(BaseModel):
+    title: str
+    lyrics: str
+
+@app.get("/api/praise/search")
+async def search_praise_songs(query: str = Query("")):
+    try:
+        return praise_db.search_songs(query)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/praise/save")
+async def save_praise_song(req: PraiseSongSaveRequest):
+    try:
+        if not req.title.strip() or not req.lyrics.strip():
+            raise HTTPException(status_code=400, detail="제목과 가사를 모두 입력해 주세요.")
+        praise_db.save_song(req.title.strip(), req.lyrics.strip())
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/bible/books")
 async def get_bible_books():
     try:

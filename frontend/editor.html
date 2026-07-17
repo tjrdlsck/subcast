@@ -1613,6 +1613,14 @@
                     </svg>
                     <span>성경</span>
                 </button>
+                <button class="nav-tab-btn" data-target="panel-praise" onclick="switchLeftTab('panel-praise')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 18V5l12-2v13"></path>
+                        <circle cx="6" cy="18" r="3"></circle>
+                        <circle cx="18" cy="16" r="3"></circle>
+                    </svg>
+                    <span>찬양</span>
+                </button>
             </aside>
 
             <!-- Left Sub Panel (드로어 패널) -->
@@ -1816,6 +1824,52 @@
                             <button class="btn-template-action" id="btn-add-bible-slides" style="background: #10b981; border: none; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 6px; height: 38px; font-weight: 600; cursor: not-allowed; opacity: 0.5;" disabled>
                                 <span>➕ 선택 구절 슬라이드 추가</span>
                             </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 7) 찬양 탭 패널 -->
+                <div class="sidebar-panel" id="panel-praise">
+                    <div class="panel-header">
+                        <h3>찬양 가사 입력 및 검색</h3>
+                    </div>
+                    
+                    <div class="panel-body" style="display: flex; flex-direction: column; overflow: hidden; gap: 12px; height: 100%;">
+                        <!-- 1) 실시간 노래 통합 검색 인풋 -->
+                        <div style="display: flex; flex-direction: column; gap: 4px; position: relative;" id="praise-search-wrapper">
+                            <label style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600;">기존 찬양 검색 (제목/가사)</label>
+                            <input type="text" id="input-praise-search" placeholder="노래 제목 또는 가사 검색" style="width: 100%; padding: 8px 12px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; height: 36px; outline: none; transition: border-color 0.2s;" autocomplete="off">
+                            <div id="praise-search-dropdown-popup" class="custom-scrollbar" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; max-height: 200px; overflow-y: auto; background: #1e1e1e; border: 1px solid var(--panel-border); border-radius: var(--radius-sm); z-index: 1001; box-shadow: 0 4px 12px rgba(0,0,0,0.5); margin-top: 4px; padding: 4px 0;"></div>
+                        </div>
+
+                        <!-- 2) 노래 정보 입력 폼 -->
+                        <div style="display: flex; flex-direction: column; gap: 4px; flex-shrink: 0;">
+                            <label style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600;">노래 제목</label>
+                            <input type="text" id="input-praise-title" placeholder="찬양 제목 입력" style="width: 100%; padding: 8px 12px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; height: 36px; outline: none;">
+                        </div>
+
+                        <!-- 3) 노래 가사 입력란 -->
+                        <div style="display: flex; flex-direction: column; gap: 4px; flex: 1; min-height: 150px;">
+                            <label style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600;">가사 입력 (빈 줄 분할 적용)</label>
+                            <textarea id="textarea-praise-lyrics" placeholder="가사를 입력해 주세요.&#13;&#10;슬라이드를 나눌 때는 빈 줄(엔터 2번)을 한 칸 띄우시면 됩니다.&#13;&#10;&#13;&#10;예시:&#13;&#10;첫 번째 슬라이드 가사 줄&#13;&#10;&#13;&#10;두 번째 슬라이드 가사 줄" style="width: 100%; flex: 1; padding: 10px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; line-height: 1.4; resize: none; outline: none; font-family: inherit;"></textarea>
+                        </div>
+
+                        <!-- 4) 실시간 예측 현황 및 제어 버튼 -->
+                        <div style="border-top: 1px solid var(--panel-border); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;">
+                            <!-- 예상 슬라이드 개수 실시간 피드백 컴포넌트 -->
+                            <div id="praise-generation-status" style="font-size: 0.72rem; color: var(--text-muted); background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 6px 10px; min-height: 28px; display: flex; align-items: center; justify-content: space-between;">
+                                <span>작성된 글자수: <strong id="val-praise-char-count" style="color: var(--primary);">0</strong>자</span>
+                                <span>예상 생성 슬라이드: <strong id="val-praise-expected-slides" style="color: #10b981;">0</strong>장</span>
+                            </div>
+                            
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn-template-action" id="btn-praise-save" style="flex: 1; background: rgba(255,255,255,0.05); color: var(--text-main); border: 1px solid var(--panel-border); height: 38px; font-weight: 600; cursor: pointer; transition: background 0.15s; margin-top: 0; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                                    <span>💾 DB 저장/수정</span>
+                                </button>
+                                <button class="btn-template-action" id="btn-add-praise-slides" style="flex: 1.5; background: #10b981; border: none; height: 38px; font-weight: 600; cursor: not-allowed; opacity: 0.5; margin-top: 0; display: flex; align-items: center; justify-content: center; gap: 4px;" disabled>
+                                    <span>➕ 슬라이드 추가</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -3758,6 +3812,9 @@
             // 성경 구절 연동 기능 초기화
             initBibleFeature();
 
+            // 찬양 가사 연동 기능 초기화
+            initPraiseFeature();
+
             // 템플릿 제어 버튼
             document.getElementById("btn-save-template").onclick = saveAsTemplate;
             document.getElementById("btn-apply-template-bulk").onclick = applyTemplateBulk;
@@ -5159,28 +5216,50 @@
             });
         }
 
-        // 모달 최종 확인 처리
+        // 모달 최종 확인 처리 (성경 및 찬양 공용)
         function confirmAddBibleSlides() {
-            if (tempBibleSlidesToAdd.length === 0) return;
+            let slidesToSend = [];
+            if (tempBibleSlidesToAdd.length > 0) {
+                slidesToSend = tempBibleSlidesToAdd;
+            } else if (tempPraiseSlidesToAdd.length > 0) {
+                slidesToSend = tempPraiseSlidesToAdd;
+            }
+
+            if (slidesToSend.length === 0) return;
 
             // 백엔드로 추가 명령 전송 (삽입 기준 아이디 지정)
             ws.send(JSON.stringify({
                 type: "ADD_SLIDES_BULK",
-                slides: tempBibleSlidesToAdd,
+                slides: slidesToSend,
                 insertAfterId: targetInsertAfterSlideId
             }));
 
-            // 결과 초기화
-            const container = document.getElementById("bible-results-list");
-            if (container) {
-                container.innerHTML = `<div style="color: #10b981; font-size: 0.78rem; text-align: center; margin: auto; padding: 20px 0;">🎉 성공적으로 슬라이드가 추가되었습니다.</div>`;
+            // 결과 초기화 피드백
+            if (tempBibleSlidesToAdd.length > 0) {
+                const container = document.getElementById("bible-results-list");
+                if (container) {
+                    container.innerHTML = `<div style="color: #10b981; font-size: 0.78rem; text-align: center; margin: auto; padding: 20px 0;">🎉 성공적으로 슬라이드가 추가되었습니다.</div>`;
+                }
+                selectedBibleVerses = [];
+                updateBibleExpectedSlides();
+            } else if (tempPraiseSlidesToAdd.length > 0) {
+                document.getElementById("input-praise-title").value = "";
+                document.getElementById("textarea-praise-lyrics").value = "";
+                document.getElementById("val-praise-char-count").textContent = "0";
+                document.getElementById("val-praise-expected-slides").textContent = "0";
+                const addBtn = document.getElementById("btn-add-praise-slides");
+                if (addBtn) {
+                    addBtn.disabled = true;
+                    addBtn.style.opacity = "0.5";
+                    addBtn.style.cursor = "not-allowed";
+                }
+                alert("🎉 찬양 슬라이드가 성공적으로 추가되었습니다.");
             }
-            selectedBibleVerses = [];
-            updateBibleExpectedSlides();
 
             // 모달 닫기 및 임시 변수 해제
             document.getElementById("bible-insert-modal").style.display = "none";
             tempBibleSlidesToAdd = [];
+            tempPraiseSlidesToAdd = [];
             targetInsertAfterSlideId = null;
         }
 
