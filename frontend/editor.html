@@ -669,8 +669,13 @@
         
         .template-buttons {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             margin-top: 4px;
+        }
+        
+        .template-buttons .btn-template-action {
+            padding: 5px 8px;
+            font-size: 0.75rem;
         }
         
         .template-buttons .btn-apply {
@@ -687,7 +692,7 @@
             background: rgba(239, 68, 68, 0.1);
             border-color: rgba(239, 68, 68, 0.2);
             color: #fca5a5;
-            padding: 6px 10px;
+            padding: 5px 8px;
         }
         .template-buttons .btn-delete-tpl:hover:not(:disabled) {
             background: rgba(239, 68, 68, 0.2);
@@ -1383,19 +1388,12 @@
                                 💾 현재 디자인을 템플릿으로 저장
                             </button>
                         </div>
-                        <div class="template-selector-group">
-                            <label for="select-templates">템플릿 보관함</label>
-                            <select id="select-templates" class="select-field" disabled onchange="updateTemplatePreview()">
-                                <option value="">-- 템플릿 선택 --</option>
-                            </select>
+                        <div class="template-selector-group" style="margin-top: 12px; border-top: 1px solid var(--panel-border); padding-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+                            <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">템플릿 보관함</label>
                             
-                            <!-- 템플릿 미리보기 영역 -->
-                            <div id="template-preview-container" style="display: none; margin-top: 4px; border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 8px; background: rgba(0,0,0,0.2);">
-                                <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 6px; font-weight: 600;">템플릿 미리보기</div>
-                                <div id="template-preview-box" style="position: relative; width: 100%; aspect-ratio: 16/9; border-radius: var(--radius-xs); overflow: hidden; background: #000; border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;">
-                                    <img id="template-preview-img" style="width: 100%; height: 100%; object-fit: contain; display: none;">
-                                    <span id="template-preview-placeholder" style="font-size: 0.65rem; color: var(--text-muted);">템플릿을 선택하면 미리보기가 표시됩니다.</span>
-                                </div>
+                            <!-- 모든 템플릿을 격자형 미리보기로 표시하는 영역 -->
+                            <div id="templates-grid-list" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; max-height: 240px; overflow-y: auto; padding-right: 4px;">
+                                <!-- 템플릿 아이템들이 동적으로 여기에 렌더링됨 -->
                             </div>
 
                             <div class="template-buttons">
@@ -2279,10 +2277,13 @@
         }
 
         function setControlsState(enabled) {
-            ['btn-add-text-title', 'btn-add-text-subtitle', 'btn-add-text-body', 'btn-add-rect', 'btn-add-circle', 'btn-add-triangle', 'btn-add-line', 'btn-save', 'btn-cancel', 'btn-save-template', 'select-templates', 'btn-apply-template-bulk', 'btn-delete-template', 'btn-undo-template'].forEach(id => {
+            ['btn-add-text-title', 'btn-add-text-subtitle', 'btn-add-text-body', 'btn-add-rect', 'btn-add-circle', 'btn-add-triangle', 'btn-add-line', 'btn-save', 'btn-cancel', 'btn-save-template', 'btn-apply-template-bulk', 'btn-delete-template', 'btn-undo-template'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.disabled = !enabled;
             });
+            if (enabled) {
+                updateTemplateActionButtons();
+            }
             if (!enabled) onObjectCleared();
         }
 
@@ -2759,17 +2760,16 @@
         }
 
         function deleteTemplate() {
-            const selectEl = document.getElementById("select-templates");
-            const tplId = selectEl.value;
-            if (!tplId) {
+            if (!selectedTemplateId) {
                 alert("삭제할 템플릿을 먼저 선택해주세요.");
                 return;
             }
             if (confirm("정말로 이 템플릿을 삭제하시겠습니까?")) {
                 ws.send(JSON.stringify({
                     type: "DELETE_TEMPLATE",
-                    templateId: tplId
+                    templateId: selectedTemplateId
                 }));
+                selectedTemplateId = null;
             }
         }
 
@@ -2829,9 +2829,7 @@
         }
 
         function applyTemplateBulk() {
-            const selectEl = document.getElementById("select-templates");
-            const tplId = selectEl.value;
-            if (!tplId) {
+            if (!selectedTemplateId) {
                 alert("적용할 템플릿을 먼저 선택해주세요.");
                 return;
             }
@@ -2851,9 +2849,7 @@
         }
 
         function confirmApplyTemplate() {
-            const selectEl = document.getElementById("select-templates");
-            const tplId = selectEl.value;
-            if (!tplId) {
+            if (!selectedTemplateId) {
                 alert("적용할 템플릿을 선택해주세요.");
                 return;
             }
@@ -2867,7 +2863,7 @@
             ws.send(JSON.stringify({
                 type: "APPLY_TEMPLATE_BULK",
                 slideIds: modalSelectedSlideIds,
-                templateId: tplId
+                templateId: selectedTemplateId
             }));
 
             closeApplyModal();
@@ -2885,63 +2881,90 @@
             }
         }
 
-        function renderTemplates() {
-            const selectEl = document.getElementById("select-templates");
-            if (!selectEl) return;
-            const currentVal = selectEl.value;
-            selectEl.innerHTML = '<option value="">-- 템플릿 선택 --</option>';
-            if (!projectData || !projectData.templates) {
-                updateTemplatePreview();
-                return;
+        let selectedTemplateId = null;
+
+        function selectTemplate(tplId) {
+            if (selectedTemplateId === tplId) {
+                selectedTemplateId = null;
+            } else {
+                selectedTemplateId = tplId;
             }
-            projectData.templates.forEach(tpl => {
-                const opt = document.createElement("option");
-                opt.value = tpl.id;
-                opt.innerText = tpl.name;
-                selectEl.appendChild(opt);
+            
+            const items = document.querySelectorAll(".template-grid-item");
+            items.forEach(item => {
+                const itemId = item.getAttribute("data-id");
+                if (itemId === selectedTemplateId) {
+                    item.style.border = "1.5px solid var(--primary)";
+                    item.style.backgroundColor = "rgba(99, 102, 241, 0.15)";
+                    item.style.boxShadow = "0 0 0 2px var(--primary-glow)";
+                } else {
+                    item.style.border = "1px solid var(--panel-border)";
+                    item.style.backgroundColor = "rgba(0, 0, 0, 0.2)";
+                    item.style.boxShadow = "none";
+                }
             });
             
-            if (currentVal && projectData.templates.some(t => t.id === currentVal)) {
-                selectEl.value = currentVal;
-            }
-            
-            updateTemplatePreview();
+            updateTemplateActionButtons();
         }
 
-        function updateTemplatePreview() {
-            const selectEl = document.getElementById("select-templates");
-            const previewContainer = document.getElementById("template-preview-container");
-            const previewImg = document.getElementById("template-preview-img");
-            const placeholder = document.getElementById("template-preview-placeholder");
+        function updateTemplateActionButtons() {
+            const applyBtn = document.getElementById("btn-apply-template-bulk");
+            const deleteBtn = document.getElementById("btn-delete-template");
             
-            if (!selectEl || !previewContainer) return;
-            
-            const tplId = selectEl.value;
-            if (!tplId) {
-                previewContainer.style.display = "none";
-                return;
-            }
-            
-            if (!projectData || !projectData.templates) {
-                previewContainer.style.display = "none";
-                return;
-            }
-            
-            const tpl = projectData.templates.find(t => t.id === tplId);
-            if (tpl) {
-                previewContainer.style.display = "block";
-                if (tpl.thumbnail) {
-                    previewImg.src = tpl.thumbnail;
-                    previewImg.style.display = "block";
-                    placeholder.style.display = "none";
-                } else {
-                    previewImg.style.display = "none";
-                    placeholder.style.display = "block";
-                    placeholder.innerText = "미리보기 없음";
-                }
+            if (selectedTemplateId) {
+                if (applyBtn) applyBtn.disabled = false;
+                if (deleteBtn) deleteBtn.disabled = false;
             } else {
-                previewContainer.style.display = "none";
+                if (applyBtn) applyBtn.disabled = true;
+                if (deleteBtn) deleteBtn.disabled = true;
             }
+        }
+
+        function renderTemplates() {
+            const gridEl = document.getElementById("templates-grid-list");
+            if (!gridEl) return;
+            
+            gridEl.innerHTML = "";
+            
+            if (selectedTemplateId && (!projectData || !projectData.templates || !projectData.templates.some(t => t.id === selectedTemplateId))) {
+                selectedTemplateId = null;
+            }
+            
+            if (!projectData || !projectData.templates || projectData.templates.length === 0) {
+                gridEl.innerHTML = '<div style="grid-column: span 2; text-align: center; padding: 16px; font-size: 0.7rem; color: var(--text-muted);">저장된 템플릿이 없습니다.</div>';
+                updateTemplateActionButtons();
+                return;
+            }
+            
+            projectData.templates.forEach(tpl => {
+                const item = document.createElement("div");
+                item.className = "template-grid-item";
+                item.setAttribute("data-id", tpl.id);
+                
+                const isSelected = tpl.id === selectedTemplateId;
+                item.style.border = isSelected ? "1.5px solid var(--primary)" : "1px solid var(--panel-border)";
+                item.style.backgroundColor = isSelected ? "rgba(99, 102, 241, 0.15)" : "rgba(0, 0, 0, 0.2)";
+                item.style.boxShadow = isSelected ? "0 0 0 2px var(--primary-glow)" : "none";
+                item.style.borderRadius = "var(--radius-sm)";
+                item.style.overflow = "hidden";
+                item.style.cursor = "pointer";
+                item.style.transition = "all 0.2s";
+                item.style.position = "relative";
+                
+                item.innerHTML = `
+                    <div style="width: 100%; aspect-ratio: 16/9; background: #000; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                        ${tpl.thumbnail ? `<img src="${tpl.thumbnail}" style="width: 100%; height: 100%; object-fit: contain;">` : `<span style="font-size: 0.6rem; color: var(--text-muted);">미리보기 없음</span>`}
+                    </div>
+                    <div style="padding: 4px; font-size: 0.7rem; color: #fff; text-align: center; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" title="${tpl.name}">
+                        ${tpl.name}
+                    </div>
+                `;
+                
+                item.onclick = () => selectTemplate(tpl.id);
+                gridEl.appendChild(item);
+            });
+            
+            updateTemplateActionButtons();
         }
 
         function connectWebSocket() {
