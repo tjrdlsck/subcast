@@ -2406,7 +2406,34 @@
             canvas.on('selection:created', (e) => { onObjectSelected(e); updateLayerList(); });
             canvas.on('selection:updated', (e) => { onObjectSelected(e); updateLayerList(); });
             canvas.on('selection:cleared', (e) => { onObjectCleared(e); updateLayerList(); });
-            canvas.on('object:moving', (e) => { onObjectModified(e); updateInspectorCoords(); });
+            // 드래그 시작 시점의 위치 기록
+            canvas.on('before:transform', function(opt) {
+                const obj = opt.transform ? opt.transform.target : null;
+                if (obj) {
+                    obj._dragStartX = obj.left;
+                    obj._dragStartY = obj.top;
+                }
+            });
+
+            canvas.on('object:moving', (e) => { 
+                const obj = e.target;
+                if (obj) {
+                    // Shift 키 드래그 락 직선 정렬 제한
+                    const isShift = e.e && e.e.shiftKey;
+                    if (isShift && obj._dragStartX !== undefined && obj._dragStartY !== undefined) {
+                        const dx = Math.abs(obj.left - obj._dragStartX);
+                        const dy = Math.abs(obj.top - obj._dragStartY);
+
+                        if (dx > dy) {
+                            obj.set('top', obj._dragStartY);
+                        } else {
+                            obj.set('left', obj._dragStartX);
+                        }
+                    }
+                }
+                onObjectModified(e); 
+                updateInspectorCoords(); 
+            });
             canvas.on('object:scaling', (e) => { onObjectModified(e); updateInspectorCoords(); });
             canvas.on('object:added', () => { saveStateToHistory(); updateLayerList(); });
             canvas.on('object:removed', () => { saveStateToHistory(); updateLayerList(); });
@@ -4616,6 +4643,33 @@
             window.addEventListener('keydown', (e) => {
                 if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT' || document.activeElement.tagName === 'TEXTAREA') {
                     return;
+                }
+
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                    const activeObj = canvas.getActiveObject();
+                    if (activeObj) {
+                        e.preventDefault();
+                        const step = e.shiftKey ? 10 : 1;
+                        switch (e.key) {
+                            case 'ArrowUp':
+                                activeObj.set('top', activeObj.top - step);
+                                break;
+                            case 'ArrowDown':
+                                activeObj.set('top', activeObj.top + step);
+                                break;
+                            case 'ArrowLeft':
+                                activeObj.set('left', activeObj.left - step);
+                                break;
+                            case 'ArrowRight':
+                                activeObj.set('left', activeObj.left + step);
+                                break;
+                        }
+                        activeObj.setCoords();
+                        canvas.renderAll();
+                        updateInspectorCoords();
+                        saveStateToHistory();
+                        return;
+                    }
                 }
                 
                 if (e.key === 'Delete') {
