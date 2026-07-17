@@ -1031,34 +1031,32 @@
             document.getElementById("btn-prev").onclick = () => navigateSlide('prev');
             document.getElementById("btn-next").onclick = () => navigateSlide('next');
 
-            // 해상도 조절 버튼 리스너
+            // 해상도 및 배경 모드 전송 버튼 리스너
             document.getElementById("btn-apply-res").onclick = () => {
                 const w = parseInt(document.getElementById("width-input").value) || 1920;
                 const h = parseInt(document.getElementById("height-input").value) || 1080;
+                
                 if (ws && ws.readyState === WebSocket.OPEN) {
+                    // 1. 해상도 설정 전송
                     ws.send(JSON.stringify({
                         type: "UPDATE_RESOLUTION",
                         width: w,
                         height: h
                     }));
+
+                    // 2. 크로마키 배경 설정 전송
+                    const checkedRadio = document.querySelector('input[name="bg-mode"]:checked');
+                    if (checkedRadio) {
+                        ws.send(JSON.stringify({
+                            type: "SET_BACKGROUND_MODE",
+                            mode: checkedRadio.value
+                        }));
+                    }
                 }
                 if (modal) {
                     modal.classList.remove("active");
                 }
             };
-
-            // 배경 모드 라디오 버튼 리스너
-            document.querySelectorAll('input[name="bg-mode"]').forEach(radio => {
-                radio.onchange = (e) => {
-                    const mode = e.target.value;
-                    if (ws && ws.readyState === WebSocket.OPEN) {
-                        ws.send(JSON.stringify({
-                            type: "SET_BACKGROUND_MODE",
-                            mode: mode
-                        }));
-                    }
-                };
-            });
 
             // 키보드 단축키
             window.onkeydown = (e) => {
