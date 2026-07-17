@@ -1727,7 +1727,8 @@
                     
                     const dataUrl = tempCanvas.toDataURL({
                         format: 'jpeg',
-                        quality: 0.4
+                        quality: 0.4,
+                        backgroundColor: '#111827'
                     });
                     
                     tempCanvas.dispose();
@@ -2859,7 +2860,17 @@
                 if (message.type === 'INITIAL_SYNC') { 
                     projectData = message.data; 
                     if (message.lockedSlides) {
-                        lockedSlides = message.lockedSlides;
+                        lockedSlides = {};
+                        for (const [slideId, val] of Object.entries(message.lockedSlides)) {
+                            if (typeof val === 'string') {
+                                lockedSlides[slideId] = {
+                                    ownerId: val,
+                                    editorName: val === myEditorId ? (document.getElementById("editor-name")?.value || "편집자") : "다른 편집자"
+                                };
+                              } else if (val && typeof val === 'object') {
+                                lockedSlides[slideId] = val;
+                            }
+                        }
                     }
                     
                     // 활성화된 슬라이드가 서버 데이터에 존재하는지 검증하고 방어적으로 처리
