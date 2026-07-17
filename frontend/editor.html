@@ -5733,41 +5733,7 @@
                 textWidth = 85.6;
             }
 
-            // 3. 헤더/제목 표시
-            // 가사 위치에 충돌하지 않도록 반대편 또는 가사 바로 위에 작게 배치
-            let headerY = 5.0;
-            if (styleOptions.position === "top") {
-                headerY = 82.0; // 가사가 위에 있으면 제목은 아래로 배치해 간섭 최소화
-            } else if (styleOptions.position === "bottom") {
-                headerY = 70.0; // 가사 바로 위에 작게 붙임
-            }
-
-            // 투명 배경일 때 글자의 시인성을 위해 외곽선 처리 추가 (Pydantic int 검증 대응을 위해 정수값 매핑)
-            const isTransparent = styleOptions.backgroundType === "transparent";
-            const fontStrokeColor = isTransparent ? "#000000" : "transparent";
-            const fontStrokeWidth = isTransparent ? 2 : 0;
-
-            // 제목 헤더 요소
-            elements.push({
-                id: "elem_praise_h_" + Math.random().toString(36).substr(2, 9),
-                type: "text",
-                content: header,
-                x: textX,
-                y: headerY,
-                width: textWidth,
-                height: 5.0,
-                style: {
-                    fontSize: "1.4vw",
-                    fontColor: styleOptions.fontColor === "#ffffff" ? "#10b981" : "#4b5563", // 조화로운 대비색 매핑
-                    fontFamily: "Inter",
-                    fontWeight: "600",
-                    textAlign: styleOptions.textAlign,
-                    strokeColor: fontStrokeColor,
-                    strokeWidth: fontStrokeWidth
-                }
-            });
-
-            // 가사 본문 텍스트 요소
+            // 가사 본문 텍스트 요소 (제목 헤더 표시 부분 전면 제거됨)
             elements.push({
                 id: "elem_praise_c_" + Math.random().toString(36).substr(2, 9),
                 type: "text",
