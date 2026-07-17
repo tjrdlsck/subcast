@@ -5233,15 +5233,17 @@
                 selectedBibleVerses = [];
                 updateBibleExpectedSlides();
             } else if (tempPraiseSlidesToAdd.length > 0) {
-                document.getElementById("input-praise-title").value = "";
-                document.getElementById("textarea-praise-lyrics").value = "";
-                document.getElementById("val-praise-char-count").textContent = "0";
-                document.getElementById("val-praise-expected-slides").textContent = "0";
-                const addBtn = document.getElementById("btn-add-praise-slides");
-                if (addBtn) {
-                    addBtn.disabled = true;
-                    addBtn.style.opacity = "0.5";
-                    addBtn.style.cursor = "not-allowed";
+                // 선택 초기화 및 세부 제어창 닫기
+                activeSelectedPraiseSong = null;
+                const selectionControl = document.getElementById("praise-selection-control");
+                if (selectionControl) {
+                    selectionControl.style.display = "none";
+                }
+                // 검색창 비우기 및 전체 리스트 새로고침
+                const searchInput = document.getElementById("input-praise-search");
+                if (searchInput) {
+                    searchInput.value = "";
+                    fetchPraiseSongs("");
                 }
                 alert("🎉 찬양 슬라이드가 성공적으로 추가되었습니다.");
             }
