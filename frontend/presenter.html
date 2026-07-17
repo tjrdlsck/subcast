@@ -650,6 +650,14 @@
         let targetWidth = 1920;
         let targetHeight = 1080;
 
+        // 전역 XSS 방어 유틸리티
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>'"]/g, match => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            })[match]);
+        }
+
         // 백그라운드에서 썸네일을 자동 생성하는 함수
         function autoGenerateThumbnail(slide) {
             if (slide.thumbnail) return Promise.resolve(slide.thumbnail);
@@ -842,8 +850,15 @@
                 }
 
                 const isLocked = lockedSlides[slide.id] !== undefined;
+                let lockName = "다른 편집자";
                 if (isLocked) {
                     item.classList.add("locked");
+                    const lockOwner = lockedSlides[slide.id];
+                    if (typeof lockOwner === 'object' && lockOwner.editorName) {
+                        lockName = lockOwner.editorName;
+                    } else if (typeof lockOwner === 'string') {
+                        lockName = lockOwner;
+                    }
                 }
 
                 item.innerHTML = `
@@ -852,9 +867,9 @@
                     </div>
                     <div class="slide-info-row">
                         <span class="slide-index-label">${String(index + 1).padStart(2, '0')}</span>
-                        <span class="slide-title-label" title="${slide.name}">${slide.name}</span>
+                        <span class="slide-title-label" title="${escapeHTML(slide.name)}">${escapeHTML(slide.name)}</span>
                     </div>
-                    <div class="slide-lock-indicator">🔒 ${lockedSlides[slide.id] || ''} 편집 중</div>
+                    <div class="slide-lock-indicator">🔒 ${escapeHTML(lockName)} 편집 중</div>
                 `;
 
                 // 클릭 시 해당 슬라이드로 즉시 전환

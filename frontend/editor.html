@@ -2198,6 +2198,14 @@
     </div>
 
     <script>
+        // 전역 XSS 방어 유틸리티
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>'"]/g, match => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            })[match]);
+        }
+
         // CanvasTextBaseline 패치: 브라우저 확장 프로그램 등에서 'alphabetical'을 넣어 발생하는 경고 우회
         (function() {
             if (typeof CanvasRenderingContext2D !== 'undefined') {
@@ -2492,9 +2500,9 @@
                 let lockName = "다른 편집자";
                 if (lockOwner) {
                     if (typeof lockOwner === 'object' && lockOwner.editorName) {
-                        lockName = lockOwner.editorName;
+                        lockName = escapeHTML(lockOwner.editorName);
                     } else if (typeof lockOwner === 'string') {
-                        lockName = lockOwner === myEditorId ? (document.getElementById("editor-name")?.value || "편집자") : "다른 편집자";
+                        lockName = lockOwner === myEditorId ? escapeHTML(document.getElementById("editor-name")?.value || "편집자") : "다른 편집자";
                     }
                 }
                 
@@ -5397,8 +5405,8 @@
                 div.innerHTML = `
                     <input type="checkbox" class="bible-item-checkbox" data-index="${index}" style="margin-top: 4px; pointer-events: none;">
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
-                        <span class="bible-result-item-header">${shortBook} ${item.chapter}:${item.verse}</span>
-                        <span class="bible-result-item-content">${item.content}</span>
+                        <span class="bible-result-item-header">${escapeHTML(shortBook)} ${item.chapter}:${item.verse}</span>
+                        <span class="bible-result-item-content">${escapeHTML(item.content)}</span>
                     </div>
                 `;
 
@@ -5942,7 +5950,7 @@
                 span.style.lineHeight = "1.2";
                 
                 // 가사 내용 줄바꿈 표현 지원 ( [1장] 표시 제거 )
-                const escapedText = block.replace(/\n/g, "<br>");
+                const escapedText = escapeHTML(block).replace(/\n/g, "<br>");
                 span.innerHTML = escapedText;
 
                 itemDiv.onclick = (e) => {
@@ -6121,7 +6129,7 @@
                     if (textElements.length === 1) {
                         container.style.display = "none";
                         const locName = getGeometricLocationName(textElements[0].x, textElements[0].y);
-                        selectBox.innerHTML = `<option value="${textElements[0].id}">${textElements[0].content || "텍스트 영역 1"} [${locName}] (${textElements[0].id})</option>`;
+                        selectBox.innerHTML = `<option value="${textElements[0].id}">${escapeHTML(textElements[0].content || "텍스트 영역 1")} [${locName}] (${textElements[0].id})</option>`;
                     } else {
                         container.style.display = "flex";
                         selectBox.innerHTML = "";
@@ -6343,8 +6351,8 @@
                 const previewText = lines.length > 0 ? lines[0] : "";
 
                 div.innerHTML = `
-                    <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">${song.title}</span>
-                    <span style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${previewText}</span>
+                    <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">${escapeHTML(song.title)}</span>
+                    <span style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(previewText)}</span>
                 `;
                 div.onclick = () => {
                     const isAlreadySelected = (activeSelectedPraiseSong && activeSelectedPraiseSong.title === song.title);
