@@ -4404,11 +4404,21 @@
             if (!selectBook || !bibleBooksList) return;
             
             const cleanQuery = query.trim().toLowerCase();
-            const filtered = bibleBooksList.filter(book => 
-                book.book_name.toLowerCase().includes(cleanQuery) || 
-                convertToShortBookName(book.book_name).toLowerCase().includes(cleanQuery) ||
-                book.book_code.toLowerCase().includes(cleanQuery)
-            );
+            
+            // 기존에 선택되어 있던 값 백업
+            const currentSelectedValue = selectBook.value;
+
+            let filtered = [];
+            if (cleanQuery === "") {
+                // 아무것도 안 치면 66권 전체 목록 복원
+                filtered = [...bibleBooksList];
+            } else {
+                filtered = bibleBooksList.filter(book => 
+                    book.book_name.toLowerCase().includes(cleanQuery) || 
+                    convertToShortBookName(book.book_name).toLowerCase().includes(cleanQuery) ||
+                    book.book_code.toLowerCase().includes(cleanQuery)
+                );
+            }
 
             selectBook.innerHTML = "";
             
@@ -4424,9 +4434,17 @@
                     opt.textContent = book.book_name;
                     selectBook.appendChild(opt);
                 });
+
+                // 기존 선택값이 필터링된 결과에도 존재한다면 선택 상태 유지
+                const hasPreviousValue = filtered.some(book => book.book_code === currentSelectedValue);
+                if (hasPreviousValue) {
+                    selectBook.value = currentSelectedValue;
+                } else {
+                    selectBook.selectedIndex = 0;
+                }
             }
 
-            // 첫 필터링 결과 기준 정보 갱신
+            // 첫 필터링 결과 혹은 선택 변경 사항 기준으로 최대 장/절 갱신
             onBibleBookChange();
         }
 
