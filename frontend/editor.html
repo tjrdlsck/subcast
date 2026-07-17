@@ -5742,10 +5742,10 @@
                 headerY = 70.0; // 가사 바로 위에 작게 붙임
             }
 
-            // 투명 배경일 때 글자의 시인성을 위해 외곽선 처리 추가
+            // 투명 배경일 때 글자의 시인성을 위해 외곽선 처리 추가 (Pydantic int 검증 대응을 위해 정수값 매핑)
             const isTransparent = styleOptions.backgroundType === "transparent";
             const fontStrokeColor = isTransparent ? "#000000" : "transparent";
-            const fontStrokeWidth = isTransparent ? 1.5 : 0;
+            const fontStrokeWidth = isTransparent ? 2 : 0;
 
             // 제목 헤더 요소
             elements.push({
@@ -5782,9 +5782,9 @@
                     fontFamily: "Inter",
                     fontWeight: "700",
                     textAlign: styleOptions.textAlign,
-                    // 가독성을 위한 외곽선(특히 투명 배경 오버레이 시 극대화)
+                    // 가독성을 위한 외곽선(특히 투명 배경 오버레이 시 극대화, 정수 검증 준수)
                     strokeColor: styleOptions.fontColor === "#ffffff" ? "#000000" : "transparent",
-                    strokeWidth: styleOptions.fontColor === "#ffffff" ? 2.5 : 0
+                    strokeWidth: styleOptions.fontColor === "#ffffff" ? 3 : 0
                 }
             });
 
