@@ -2519,94 +2519,120 @@
                     </div>
                 `;
                 
-                // 드래그 앤 드롭 이벤트 핸들러 바인딩
-                item.addEventListener("dragstart", (e) => {
-                    e.dataTransfer.setData("text/plain", index);
-                    item.classList.add("dragging");
-                });
-
-                item.addEventListener("dragover", (e) => {
-                    e.preventDefault();
-                    const rect = item.getBoundingClientRect();
-                    const relativeY = e.clientY - rect.top;
-                    if (relativeY < rect.height / 2) {
-                        item.style.borderTop = "3px solid var(--primary)";
-                        item.style.borderBottom = "";
-                    } else {
-                        item.style.borderTop = "";
-                        item.style.borderBottom = "3px solid var(--primary)";
-                    }
-                });
-
-                item.addEventListener("dragleave", () => {
-                    item.style.borderTop = "";
-                    item.style.borderBottom = "";
-                });
-
-                item.addEventListener("drop", (e) => {
-                    e.preventDefault();
-                    item.style.borderTop = "";
-                    item.style.borderBottom = "";
-                    
-                    const fromIndex = parseInt(e.dataTransfer.getData("text/plain"));
-                    let toIndex = parseInt(item.dataset.index);
-                    
-                    if (fromIndex === toIndex) return;
-
-                    const rect = item.getBoundingClientRect();
-                    const relativeY = e.clientY - rect.top;
-                    
-                    // 드롭하는 위치에 따라 앞 또는 뒤 정렬 보정
-                    if (relativeY >= rect.height / 2) {
-                        if (fromIndex > toIndex) {
-                            toIndex = toIndex + 1;
-                        }
-                    } else {
-                        if (fromIndex < toIndex) {
-                            toIndex = toIndex - 1;
-                        }
-                    }
-
-                    const draggedSlide = projectData.slides[fromIndex];
-                    projectData.slides.splice(fromIndex, 1);
-                    projectData.slides.splice(toIndex, 0, draggedSlide);
-
-                    // 서버 정렬 동기화 메시지 발송
-                    const updatedSlideIds = projectData.slides.map(s => s.id);
-                    ws.send(JSON.stringify({ type: "REORDER_SLIDES", slideIds: updatedSlideIds }));
-
-                    renderSlides();
-                });
-
-                item.addEventListener("dragend", () => {
-                    item.classList.remove("dragging");
-                    item.style.borderTop = "";
-                    item.style.borderBottom = "";
-                });
-
-                if (!isLockedByOthers) {
-                    item.onclick = (e) => {
-                        if (e.shiftKey) {
-                            const activeIndex = projectData.slides.findIndex(s => s.id === activeSlideId);
-                            const clickedIndex = index;
-                            if (activeIndex !== -1) {
-                                const start = Math.min(activeIndex, clickedIndex);
-                                const end = Math.max(activeIndex, clickedIndex);
-                                selectedSlideIds = [];
-                                for (let i = start; i <= end; i++) {
-                                    selectedSlideIds.push(projectData.slides[i].id);
-                                }
-                            }
-                        } else {
-                            selectedSlideIds = [slide.id];
-                        }
-                        selectSlideForEdit(slide.id);
-                        renderSlides();
-                    };
-                }
                 listEl.appendChild(item);
             });
         }
+
+        // 이벤트 위임(Event Delegation)을 통한 슬라이드 리스트 이벤트 처리 (성능 최적화 - Phase 2)
+        document.addEventListener('DOMContentLoaded', () => {
+            const listEl = document.getElementById("slide-list");
+            if (!listEl) return;
+
+            listEl.addEventListener("dragstart", (e) => {
+                const item = e.target.closest('.slide-item');
+                if (!item) return;
+                const index = parseInt(item.dataset.index);
+                e.dataTransfer.setData("text/plain", index);
+                item.classList.add("dragging");
+            });
+
+            listEl.addEventListener("dragover", (e) => {
+                const item = e.target.closest('.slide-item');
+                if (!item) return;
+                e.preventDefault();
+                const rect = item.getBoundingClientRect();
+                const relativeY = e.clientY - rect.top;
+                if (relativeY < rect.height / 2) {
+                    item.style.borderTop = "3px solid var(--primary)";
+                    item.style.borderBottom = "";
+                } else {
+                    item.style.borderTop = "";
+                    item.style.borderBottom = "3px solid var(--primary)";
+                }
+            });
+
+            listEl.addEventListener("dragleave", (e) => {
+                const item = e.target.closest('.slide-item');
+                if (!item) return;
+                item.style.borderTop = "";
+                item.style.borderBottom = "";
+            });
+
+            listEl.addEventListener("drop", (e) => {
+                const item = e.target.closest('.slide-item');
+                if (!item) return;
+                e.preventDefault();
+                item.style.borderTop = "";
+                item.style.borderBottom = "";
+                
+                const data = e.dataTransfer.getData("text/plain");
+                if (!data) return;
+                const fromIndex = parseInt(data);
+                let toIndex = parseInt(item.dataset.index);
+                
+                if (fromIndex === toIndex) return;
+
+                const rect = item.getBoundingClientRect();
+                const relativeY = e.clientY - rect.top;
+                
+                // 드롭하는 위치에 따라 앞 또는 뒤 정렬 보정
+                if (relativeY >= rect.height / 2) {
+                    if (fromIndex > toIndex) {
+                        toIndex = toIndex + 1;
+                    }
+                } else {
+                    if (fromIndex < toIndex) {
+                        toIndex = toIndex - 1;
+                    }
+                }
+
+                const draggedSlide = projectData.slides[fromIndex];
+                projectData.slides.splice(fromIndex, 1);
+                projectData.slides.splice(toIndex, 0, draggedSlide);
+
+                // 서버 정렬 동기화 메시지 발송
+                const updatedSlideIds = projectData.slides.map(s => s.id);
+                ws.send(JSON.stringify({ type: "REORDER_SLIDES", slideIds: updatedSlideIds }));
+
+                renderSlides();
+            });
+
+            listEl.addEventListener("dragend", (e) => {
+                const item = e.target.closest('.slide-item');
+                if (!item) return;
+                item.classList.remove("dragging");
+                item.style.borderTop = "";
+                item.style.borderBottom = "";
+            });
+
+            listEl.addEventListener("click", (e) => {
+                const item = e.target.closest('.slide-item');
+                if (!item) return;
+                
+                const slideId = item.id.replace('slide-item-', '');
+                const index = parseInt(item.dataset.index);
+                const isLockedByOthers = item.classList.contains("locked");
+
+                if (!isLockedByOthers) {
+                    if (e.shiftKey) {
+                        const activeIndex = projectData.slides.findIndex(s => s.id === activeSlideId);
+                        const clickedIndex = index;
+                        if (activeIndex !== -1) {
+                            const start = Math.min(activeIndex, clickedIndex);
+                            const end = Math.max(activeIndex, clickedIndex);
+                            selectedSlideIds = [];
+                            for (let i = start; i <= end; i++) {
+                                selectedSlideIds.push(projectData.slides[i].id);
+                            }
+                        }
+                    } else {
+                        selectedSlideIds = [slideId];
+                    }
+                    selectSlideForEdit(slideId);
+                    renderSlides();
+                }
+            });
+        });
 
         function selectSlideForEdit(slideId, force = false) {
             if (activeSlideId === slideId && !force) {
