@@ -1851,6 +1851,56 @@
                             <div style="font-size: 0.75rem; color: var(--text-main); font-weight: 600;">
                                 선택된 곡: <span id="lbl-selected-praise-title" style="color: var(--primary); font-weight: bold;">없음</span>
                             </div>
+                            
+                            <!-- ⚙️ 디자인 프리셋 및 커스터마이징 영역 -->
+                            <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 8px; margin-top: 2px;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                                    <span style="font-size: 0.7rem; color: var(--text-main); font-weight: 500;">디자인 프리셋</span>
+                                    <select id="select-praise-design-preset" style="padding: 4px 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.7rem;">
+                                        <option value="type-a">타입 A (하단 좌측형)</option>
+                                        <option value="type-b">타입 B (상단 중앙형)</option>
+                                        <option value="type-black">블랙 채우기 (성경형)</option>
+                                        <option value="custom">상세 커스텀</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- 세부 커스텀 컨트롤 패널 -->
+                                <div id="praise-custom-style-panel" style="display: none; flex-direction: column; gap: 8px; border-top: 1px dashed var(--panel-border); padding-top: 8px; margin-top: 2px;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                                        <span style="font-size: 0.65rem; color: var(--text-muted);">글자 색상</span>
+                                        <input type="color" id="input-praise-font-color" value="#ffffff" style="border: 1px solid var(--panel-border); background: none; width: 28px; height: 20px; cursor: pointer; padding: 0;">
+                                    </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                        <span style="font-size: 0.65rem; color: var(--text-muted);">글자 크기 (<span id="lbl-praise-font-size-val">3.5</span>vw)</span>
+                                        <input type="range" id="input-praise-font-size" min="1.5" max="6.0" step="0.1" value="3.5" style="flex: 1; height: 4px; cursor: pointer;">
+                                    </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                                        <span style="font-size: 0.65rem; color: var(--text-muted);">글자 정렬</span>
+                                        <select id="select-praise-text-align" style="padding: 3px 6px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-xs); font-size: 0.65rem;">
+                                            <option value="left">왼쪽 정렬</option>
+                                            <option value="center" selected>가운데 정렬</option>
+                                            <option value="right">오른쪽 정렬</option>
+                                        </select>
+                                    </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                                        <span style="font-size: 0.65rem; color: var(--text-muted);">자막 위치</span>
+                                        <select id="select-praise-position" style="padding: 3px 6px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-xs); font-size: 0.65rem;">
+                                            <option value="top">상단형 (Top)</option>
+                                            <option value="middle">중앙형 (Middle)</option>
+                                            <option value="bottom" selected>하단형 (Bottom)</option>
+                                        </select>
+                                    </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                                        <span style="font-size: 0.65rem; color: var(--text-muted);">배경 스타일</span>
+                                        <select id="select-praise-bg-type" style="padding: 3px 6px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-xs); font-size: 0.65rem;">
+                                            <option value="transparent" selected>투명 배경</option>
+                                            <option value="black">블랙 단색 채우기</option>
+                                            <option value="bar">반투명 자막 바(Band)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- 예상 슬라이드 개수 실시간 피드백 컴포넌트 -->
                             <div id="praise-generation-status" style="font-size: 0.72rem; color: var(--text-muted); background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 6px 10px; display: flex; align-items: center; justify-content: space-between;">
                                 <span>가사 글자수: <strong id="val-praise-char-count" style="color: var(--primary);">0</strong>자</span>
@@ -5387,6 +5437,16 @@
             const modalCancelBtn = document.getElementById("btn-praise-modal-cancel");
             const modalSaveBtn = document.getElementById("btn-praise-modal-save");
 
+            // 디자인 컨트롤러 요소들
+            const presetSelect = document.getElementById("select-praise-design-preset");
+            const customPanel = document.getElementById("praise-custom-style-panel");
+            const fontColorInput = document.getElementById("input-praise-font-color");
+            const fontSizeInput = document.getElementById("input-praise-font-size");
+            const fontSizeVal = document.getElementById("lbl-praise-font-size-val");
+            const textAlignSelect = document.getElementById("select-praise-text-align");
+            const positionSelect = document.getElementById("select-praise-position");
+            const bgTypeSelect = document.getElementById("select-praise-bg-type");
+
             if (!searchInput || !songsList || !openAddModalBtn || !addSlidesBtn || !addModal) return;
 
             // 1) 최초 로드 시 DB 내 전체 찬양 목록 렌더링
@@ -5447,7 +5507,61 @@
                 };
             }
 
-            // 5) 슬라이드 추가 모달 오픈 연동
+            // 5) 디자인 프리셋 선택 반응형 이벤트 리스너
+            if (presetSelect && customPanel) {
+                // 최초 1회 동기화 실행
+                syncPresetValues(presetSelect.value);
+
+                presetSelect.onchange = (e) => {
+                    syncPresetValues(e.target.value);
+                };
+
+                function syncPresetValues(preset) {
+                    if (preset === "custom") {
+                        customPanel.style.display = "flex";
+                        // 커스텀 상태일 때는 모든 제어 폼 활성화
+                        fontColorInput.disabled = false;
+                        fontSizeInput.disabled = false;
+                        textAlignSelect.disabled = false;
+                        positionSelect.disabled = false;
+                        bgTypeSelect.disabled = false;
+                    } else {
+                        customPanel.style.display = "none";
+                        if (preset === "type-a") {
+                            // 타입 A: 하단 좌측형, 투명배경, 흰색글자
+                            fontColorInput.value = "#ffffff";
+                            fontSizeInput.value = "3.5";
+                            textAlignSelect.value = "left";
+                            positionSelect.value = "bottom";
+                            bgTypeSelect.value = "transparent";
+                        } else if (preset === "type-b") {
+                            // 타입 B: 상단 중앙형, 투명배경, 차콜글자
+                            fontColorInput.value = "#222222";
+                            fontSizeInput.value = "3.5";
+                            textAlignSelect.value = "center";
+                            positionSelect.value = "top";
+                            bgTypeSelect.value = "transparent";
+                        } else if (preset === "type-black") {
+                            // 블랙 채우기: 중앙 정렬, 검은배경, 흰색글자
+                            fontColorInput.value = "#ffffff";
+                            fontSizeInput.value = "3.5";
+                            textAlignSelect.value = "center";
+                            positionSelect.value = "middle";
+                            bgTypeSelect.value = "black";
+                        }
+                        if (fontSizeVal) fontSizeVal.textContent = fontSizeInput.value;
+                    }
+                }
+            }
+
+            // 글자 크기 슬라이더 밸류 동적 라벨 표시
+            if (fontSizeInput && fontSizeVal) {
+                fontSizeInput.oninput = (e) => {
+                    fontSizeVal.textContent = e.target.value;
+                };
+            }
+
+            // 6) 슬라이드 추가 모달 오픈 연동 (수정된 디자인 옵션 주입)
             addSlidesBtn.onclick = () => {
                 if (!activeSelectedPraiseSong) return;
 
@@ -5455,10 +5569,19 @@
                 const lyrics = activeSelectedPraiseSong.lyrics;
                 const blocks = lyrics.split(/\n\s*\n/).map(s => s.trim()).filter(s => s !== "");
                 
+                // 현재 디자인 옵션 수집
+                const styleOptions = {
+                    fontColor: fontColorInput.value,
+                    fontSize: fontSizeInput.value + "vw",
+                    textAlign: textAlignSelect.value,
+                    position: positionSelect.value,
+                    backgroundType: bgTypeSelect.value
+                };
+
                 tempPraiseSlidesToAdd = [];
                 blocks.forEach((block, idx) => {
                     const headerText = `${title} (${idx + 1}/${blocks.length})`;
-                    tempPraiseSlidesToAdd.push(createPraiseSlideObject(headerText, block));
+                    tempPraiseSlidesToAdd.push(createPraiseSlideObject(headerText, block, styleOptions));
                 });
 
                 if (tempPraiseSlidesToAdd.length > 0) {
@@ -5545,62 +5668,130 @@
             });
         }
 
-        // 찬양용 슬라이드 데이터 빌더
-        function createPraiseSlideObject(header, content) {
+        // 찬양용 슬라이드 데이터 빌더 (커스텀 디자인 매핑 규격)
+        function createPraiseSlideObject(header, content, styleOptions) {
             const slideId = "slide_praise_" + Math.random().toString(36).substr(2, 8);
+            const elements = [];
+
+            // 1. 배경 설정
+            if (styleOptions.backgroundType === "black") {
+                // 블랙 단색 채우기
+                elements.push({
+                    id: "elem_praise_bg_" + Math.random().toString(36).substr(2, 9),
+                    type: "rect",
+                    content: "",
+                    x: 0.0,
+                    y: 0.0,
+                    width: 100.0,
+                    height: 100.0,
+                    style: {
+                        fillColor: "#000000",
+                        strokeColor: "transparent",
+                        strokeWidth: 0,
+                        cornerRadius: 0,
+                        opacity: 1.0
+                    }
+                });
+            } else if (styleOptions.backgroundType === "bar") {
+                // 자막 바 (Band) 배치 - 하단 또는 상단 글자 위치에 맞춤
+                let barY = 38.0; // middle
+                if (styleOptions.position === "top") barY = 6.0;
+                if (styleOptions.position === "bottom") barY = 70.0;
+
+                elements.push({
+                    id: "elem_praise_bg_bar_" + Math.random().toString(36).substr(2, 9),
+                    type: "rect",
+                    content: "",
+                    x: 0.0,
+                    y: barY,
+                    width: 100.0,
+                    height: 24.0,
+                    style: {
+                        fillColor: "#000000",
+                        strokeColor: "transparent",
+                        strokeWidth: 0,
+                        cornerRadius: 0,
+                        opacity: 0.65 // 반투명 65% 바
+                    }
+                });
+            }
+
+            // 2. 가사 텍스트 기하학적 Y축 좌표 및 정렬 연산
+            let textY = 38.0; // middle default
+            let textX = 7.2;
+            let textWidth = 85.6;
+
+            if (styleOptions.position === "top") {
+                textY = 12.0;
+            } else if (styleOptions.position === "bottom") {
+                textY = 76.0;
+            }
+
+            // 타입 A 좌측 정렬인 경우 레이아웃 좌측 편향 여백 연산
+            if (styleOptions.textAlign === "left") {
+                textX = 7.2;
+                textWidth = 85.6;
+            }
+
+            // 3. 헤더/제목 표시
+            // 가사 위치에 충돌하지 않도록 반대편 또는 가사 바로 위에 작게 배치
+            let headerY = 5.0;
+            if (styleOptions.position === "top") {
+                headerY = 82.0; // 가사가 위에 있으면 제목은 아래로 배치해 간섭 최소화
+            } else if (styleOptions.position === "bottom") {
+                headerY = 70.0; // 가사 바로 위에 작게 붙임
+            }
+
+            // 투명 배경일 때 글자의 시인성을 위해 외곽선 처리 추가
+            const isTransparent = styleOptions.backgroundType === "transparent";
+            const fontStrokeColor = isTransparent ? "#000000" : "transparent";
+            const fontStrokeWidth = isTransparent ? 1.5 : 0;
+
+            // 제목 헤더 요소
+            elements.push({
+                id: "elem_praise_h_" + Math.random().toString(36).substr(2, 9),
+                type: "text",
+                content: header,
+                x: textX,
+                y: headerY,
+                width: textWidth,
+                height: 5.0,
+                style: {
+                    fontSize: "1.4vw",
+                    fontColor: styleOptions.fontColor === "#ffffff" ? "#10b981" : "#4b5563", // 조화로운 대비색 매핑
+                    fontFamily: "Inter",
+                    fontWeight: "600",
+                    textAlign: styleOptions.textAlign,
+                    strokeColor: fontStrokeColor,
+                    strokeWidth: fontStrokeWidth
+                }
+            });
+
+            // 가사 본문 텍스트 요소
+            elements.push({
+                id: "elem_praise_c_" + Math.random().toString(36).substr(2, 9),
+                type: "text",
+                content: content,
+                x: textX,
+                y: textY,
+                width: textWidth,
+                height: 20.0,
+                style: {
+                    fontSize: styleOptions.fontSize,
+                    fontColor: styleOptions.fontColor,
+                    fontFamily: "Inter",
+                    fontWeight: "700",
+                    textAlign: styleOptions.textAlign,
+                    // 가독성을 위한 외곽선(특히 투명 배경 오버레이 시 극대화)
+                    strokeColor: styleOptions.fontColor === "#ffffff" ? "#000000" : "transparent",
+                    strokeWidth: styleOptions.fontColor === "#ffffff" ? 2.5 : 0
+                }
+            });
+
             return {
                 id: slideId,
                 name: `찬양: ${header}`,
-                elements: [
-                    {
-                        id: "elem_praise_bg_" + Math.random().toString(36).substr(2, 9),
-                        type: "rect",
-                        content: "",
-                        x: 0.0,
-                        y: 0.0,
-                        width: 100.0,
-                        height: 100.0,
-                        style: {
-                            fillColor: "#000000",
-                            strokeColor: "transparent",
-                            strokeWidth: 0,
-                            cornerRadius: 0,
-                            opacity: 1.0
-                        }
-                    },
-                    {
-                        id: "elem_praise_h_" + Math.random().toString(36).substr(2, 9),
-                        type: "text",
-                        content: header,
-                        x: 7.2,
-                        y: 12.0,
-                        width: 85.0,
-                        height: 5.0,
-                        style: {
-                            fontSize: "2.0vw",
-                            fontColor: "#34d399",
-                            fontFamily: "Inter",
-                            fontWeight: "600",
-                            textAlign: "center"
-                        }
-                    },
-                    {
-                        id: "elem_praise_c_" + Math.random().toString(36).substr(2, 9),
-                        type: "text",
-                        content: content,
-                        x: 7.2,
-                        y: 20.0,
-                        width: 85.6,
-                        height: 60.0,
-                        style: {
-                            fontSize: "3.5vw",
-                            fontColor: "#ffffff",
-                            fontFamily: "Inter",
-                            fontWeight: "700",
-                            textAlign: "center"
-                        }
-                    }
-                ]
+                elements: elements
             };
         }
     </script>
