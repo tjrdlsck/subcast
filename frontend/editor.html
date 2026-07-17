@@ -1670,6 +1670,20 @@
         let redoStack = [];
         let isUndoingRedoing = false;
 
+        function checkIsLockedByOthers(slideId) {
+            if (!lockedSlides || !slideId) return false;
+            const lock = lockedSlides[slideId];
+            if (!lock) return false;
+            
+            let ownerId = null;
+            if (typeof lock === 'string') {
+                ownerId = lock;
+            } else if (lock && typeof lock === 'object') {
+                ownerId = lock.ownerId;
+            }
+            return ownerId !== null && myEditorId !== null && ownerId !== myEditorId;
+        }
+
         // 줌 배율 제어를 위한 상수 및 변수
         let canvasZoom = 1.0;
         let userZoomFactor = 1.0;
@@ -1715,8 +1729,14 @@
                 tempCanvasEl.width = BASE_WIDTH;
                 tempCanvasEl.height = BASE_HEIGHT;
                 
+                // HTML5 Canvas 2D 컨텍스트를 활용해 배경을 강제 검은색(#111827)으로 도포
+                const ctx = tempCanvasEl.getContext('2d');
+                ctx.fillStyle = '#111827';
+                ctx.fillRect(0, 0, BASE_WIDTH, BASE_HEIGHT);
+                
                 const tempCanvas = new fabric.StaticCanvas(tempCanvasEl);
                 
+                // 배경색이 보존된 상태로 렌더링 스케줄링을 연계
                 tempCanvas.setBackgroundColor('#111827', () => {
                     slide.elements.forEach(elem => {
                         const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
@@ -1875,9 +1895,18 @@
                 item.dataset.index = index;
                 if (slide.id === activeSlideId) item.classList.add("editing");
                 if (selectedSlideIds.includes(slide.id)) item.classList.add("selected-multi");
-                const lockOwner = lockedSlides[slide.id];
-                const isLockedByOthers = lockOwner !== undefined && lockOwner.ownerId !== myEditorId;
+                const isLockedByOthers = checkIsLockedByOthers(slide.id);
                 if (isLockedByOthers) item.classList.add("locked");
+                
+                const lockOwner = lockedSlides[slide.id];
+                let lockName = "다른 편집자";
+                if (lockOwner) {
+                    if (typeof lockOwner === 'object' && lockOwner.editorName) {
+                        lockName = lockOwner.editorName;
+                    } else if (typeof lockOwner === 'string') {
+                        lockName = lockOwner === myEditorId ? (document.getElementById("editor-name")?.value || "편집자") : "다른 편집자";
+                    }
+                }
                 
                 item.innerHTML = `
                     <!-- 슬라이드 순번 배지 (카드 자체의 왼쪽 위 모서리에 배치) -->
@@ -1888,7 +1917,7 @@
                         <div class="slide-thumbnail-wrapper" style="margin-top: 0;">
                             ${slide.thumbnail ? `<img src="${slide.thumbnail}">` : `<span style="font-size: 0.7rem; color: var(--text-muted);">미리보기 없음</span>`}
                         </div>
-                        ${isLockedByOthers ? `<div class="lock-owner-text" style="font-size: 0.75rem; color: var(--accent-live); margin-top: 4px;">🔒 ${lockOwner.editorName}님이 편집 중</div>` : ''}
+                        ${isLockedByOthers ? `<div class="lock-owner-text" style="font-size: 0.75rem; color: var(--accent-live); margin-top: 4px;">🔒 ${lockName}님이 편집 중</div>` : ''}
                     </div>
                 `;
                 
@@ -2956,7 +2985,7 @@
                 else if (message.type === 'SLIDE_UPDATED') {
                     const idx = projectData.slides.findIndex(s => s.id === message.slideId);
                     if (idx !== -1) projectData.slides[idx] = message.slide;
-                    if (activeSlideId === message.slideId && lockedSlides[activeSlideId]?.ownerId !== myEditorId) {
+                    if (message.slideId === activeSlideId && checkIsLockedByOthers(activeSlideId)) {
                         loadSlideToCanvas(activeSlideId);
                     }
                     renderSlides();
