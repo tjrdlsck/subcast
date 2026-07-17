@@ -4419,14 +4419,25 @@
             };
             filterInput.onkeydown = (e) => {
                 if (e.key === "Enter") {
-                    if (lastFilteredBooks.length === 1) {
+                    const popup = document.getElementById("bible-book-dropdown-popup");
+                    // 1) 자동완성 결과가 1개이고 팝업이 노출 중인 경우 즉각 선택 및 팝업 닫기
+                    if (lastFilteredBooks.length === 1 && popup && popup.style.display !== "none") {
                         e.preventDefault();
                         const book = lastFilteredBooks[0];
                         filterInput.value = book.book_name;
                         const selectBook = document.getElementById("select-bible-book");
                         selectBook.value = book.book_code;
                         onBibleBookChange();
-                        document.getElementById("bible-book-dropdown-popup").style.display = "none";
+                        popup.style.display = "none";
+                    }
+                    // 2) 팝업이 닫혀 있고 현재 입력한 값이 올바른 책 이름과 일치할 시 즉각 조회 및 본문 로드 실행
+                    else if (popup && popup.style.display === "none") {
+                        const currentVal = filterInput.value.trim();
+                        const matchedBook = bibleBooksList.find(b => b.book_name === currentVal);
+                        if (matchedBook) {
+                            e.preventDefault();
+                            fetchBibleCoordinates();
+                        }
                     }
                 }
             };
