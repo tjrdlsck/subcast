@@ -304,11 +304,12 @@
             if (slide.thumbnail) return Promise.resolve(slide.thumbnail);
             
             return new Promise((resolve) => {
-                const tempCanvasEl = document.createElement('canvas');
-                tempCanvasEl.width = 768;
-                tempCanvasEl.height = 432;
+                // 1. fabric.StaticCanvas용 임시 캔버스 생성 및 요소 렌더링
+                const fabricCanvasEl = document.createElement('canvas');
+                fabricCanvasEl.width = 768;
+                fabricCanvasEl.height = 432;
                 
-                const tempCanvas = new fabric.StaticCanvas(tempCanvasEl, {
+                const tempCanvas = new fabric.StaticCanvas(fabricCanvasEl, {
                     backgroundColor: '#000000'
                 });
                 
@@ -319,11 +320,17 @@
                 
                 tempCanvas.renderAll();
                 
-                const dataUrl = tempCanvas.toDataURL({
-                    format: 'jpeg',
-                    quality: 0.4,
-                    backgroundColor: '#000000'
-                });
+                // 2. 최종 출력용 캔버스에 검정 배경을 먼저 확실히 칠한 뒤
+                //    fabric 렌더링 결과를 그 위에 합성 (fabric의 backgroundColor 미적용 버그 방지)
+                const outputCanvasEl = document.createElement('canvas');
+                outputCanvasEl.width = 768;
+                outputCanvasEl.height = 432;
+                const ctx = outputCanvasEl.getContext('2d');
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, 768, 432);
+                ctx.drawImage(fabricCanvasEl, 0, 0);
+                
+                const dataUrl = outputCanvasEl.toDataURL('image/jpeg', 0.4);
                 
                 tempCanvas.dispose();
                 slide.thumbnail = dataUrl;
@@ -471,7 +478,7 @@
 
                 item.innerHTML = `
                     <h3 style="margin: 0 0 8px 0; font-size: 0.95rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 40px;">${index + 1}. ${slide.name}</h3>
-                    <div class="slide-thumbnail-wrapper" style="width: 100%; height: 90px; background: #0b0f19; border-radius: 8px; overflow: hidden; border: 1px solid var(--panel-border); display: flex; align-items: center; justify-content: center; margin-bottom: 8px;">
+                    <div class="slide-thumbnail-wrapper" style="width: 100%; height: 90px; background: #000000; border-radius: 8px; overflow: hidden; border: 1px solid var(--panel-border); display: flex; align-items: center; justify-content: center; margin-bottom: 8px;">
                         ${slide.thumbnail ? `<img src="${slide.thumbnail}" style="width: 100%; height: 100%; object-fit: contain;">` : `<span style="font-size: 0.72rem; color: var(--text-muted);">미리보기 없음</span>`}
                     </div>
                     <div class="slide-lock-indicator" style="margin-top: 4px;">🔒 ${lockedSlides[slide.id] || ''}님이 편집 중</div>

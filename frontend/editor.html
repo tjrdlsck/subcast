@@ -1725,12 +1725,12 @@
             if (slide.thumbnail) return Promise.resolve(slide.thumbnail);
             
             return new Promise((resolve) => {
-                const tempCanvasEl = document.createElement('canvas');
-                tempCanvasEl.width = BASE_WIDTH;
-                tempCanvasEl.height = BASE_HEIGHT;
+                // 1. fabric.StaticCanvas용 임시 캔버스 생성 및 요소 렌더링
+                const fabricCanvasEl = document.createElement('canvas');
+                fabricCanvasEl.width = BASE_WIDTH;
+                fabricCanvasEl.height = BASE_HEIGHT;
                 
-                // 생성자에서 직접 배경색을 설정하여 콜백 타이밍 이슈를 방지
-                const tempCanvas = new fabric.StaticCanvas(tempCanvasEl, {
+                const tempCanvas = new fabric.StaticCanvas(fabricCanvasEl, {
                     backgroundColor: '#000000'
                 });
                 
@@ -1741,11 +1741,17 @@
                 
                 tempCanvas.renderAll();
                 
-                const dataUrl = tempCanvas.toDataURL({
-                    format: 'jpeg',
-                    quality: 0.4,
-                    backgroundColor: '#000000'
-                });
+                // 2. 최종 출력용 캔버스에 검정 배경을 먼저 확실히 칠한 뒤
+                //    fabric 렌더링 결과를 그 위에 합성 (fabric의 backgroundColor 미적용 버그 방지)
+                const outputCanvasEl = document.createElement('canvas');
+                outputCanvasEl.width = BASE_WIDTH;
+                outputCanvasEl.height = BASE_HEIGHT;
+                const ctx = outputCanvasEl.getContext('2d');
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, BASE_WIDTH, BASE_HEIGHT);
+                ctx.drawImage(fabricCanvasEl, 0, 0);
+                
+                const dataUrl = outputCanvasEl.toDataURL('image/jpeg', 0.4);
                 
                 tempCanvas.dispose();
                 slide.thumbnail = dataUrl;
@@ -2155,10 +2161,10 @@
 
             const prevZoom = canvasZoom;
             setCanvasZoom(1.0);
+            if (!canvas.backgroundColor) canvas.backgroundColor = '#000000';
             const thumbnailData = canvas.toDataURL({
                 format: 'jpeg',
-                quality: 0.4,
-                backgroundColor: '#000000'
+                quality: 0.4
             });
             setCanvasZoom(prevZoom);
 
@@ -2247,6 +2253,7 @@
 
         function applyStateToCanvas(state) {
             canvas.clear();
+            canvas.backgroundColor = '#000000';
             if (state && Array.isArray(state)) {
                 state.forEach(elem => {
                     const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
@@ -2671,10 +2678,10 @@
             const prevZoom = canvasZoom;
             setCanvasZoom(1.0);
 
+            if (!canvas.backgroundColor) canvas.backgroundColor = '#000000';
             const thumbnailData = canvas.toDataURL({
                 format: 'jpeg',
-                quality: 0.4,
-                backgroundColor: '#000000'
+                quality: 0.4
             });
             
             // 캡처 후 이전 사용하던 줌 배율로 원복
@@ -2714,10 +2721,10 @@
             // 템플릿용 썸네일도 1.0배율로 안정적으로 추출
             const prevZoom = canvasZoom;
             setCanvasZoom(1.0);
+            if (!canvas.backgroundColor) canvas.backgroundColor = '#000000';
             const thumbnailData = canvas.toDataURL({
                 format: 'jpeg',
-                quality: 0.4,
-                backgroundColor: '#000000'
+                quality: 0.4
             });
             setCanvasZoom(prevZoom);
             
