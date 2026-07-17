@@ -183,10 +183,25 @@ FastAPI(`backend/main.py`)에 신규로 추가할 REST API 엔드포인트 명�
 
 ## 5. 프론트엔드 UI/UX 설계 (Frontend UI/UX Design)
 
-프론트엔드 편집기(`editor.html`)의 좌측 탭 메뉴에 "성경" 탭을 추가하고 하위 인터페이스를 레이아웃합니다.
+프론트엔드 편집기(`editor.html`)의 좌측 내비게이션 탭 메뉴에 "성경" 탭을 추가하고, 드로어 패널의 세부 스타일 및 클라이언트 사이드 인터랙션(Client-side Interaction) 흐름을 다음과 같이 설계합니다.
 
-### 5.1 드로어 패널 구조 (`panel-bible`)
-기존 `.left-sub-panel` 내부에 신규 사이드바 패널을 선언합니다.
+### 5.1 사이드바 탭 버튼 구성 (`left-nav-sidebar`)
+기존 좌측 아이콘 메뉴 바(`left-nav-sidebar`)에 아래와 같이 성경 전용 탭 버튼을 삽입합니다.
+
+```html
+<!-- 성경 탭 버튼 (left-nav-sidebar 내부) -->
+<button class="nav-tab-btn" data-target="panel-bible" onclick="switchLeftTab('panel-bible')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <!-- 책(Book) 모양의 미니멀 아이콘 리소스 -->
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+    </svg>
+    <span>성경</span>
+</button>
+```
+
+### 5.2 드로어 패널 상세 마크업 (`panel-bible`)
+드로어 패널 내부에서 탭 이동, 유효성 검증 및 옵션 선택이 가능하도록 마크업을 구조화합니다.
 
 ```html
 <!-- 성경 탭 패널 -->
@@ -194,67 +209,210 @@ FastAPI(`backend/main.py`)에 신규로 추가할 REST API 엔드포인트 명�
     <div class="panel-header">
         <h3>성경 구절 검색</h3>
     </div>
-    <div class="panel-body" style="display: flex; flex-direction: column; overflow: hidden; gap: 12px;">
-        <!-- 검색 모드 선택 (세그먼트 탭) -->
-        <div class="search-mode-tabs" style="display: flex; background: rgba(255,255,255,0.05); border-radius: var(--radius-sm); padding: 2px;">
-            <button class="mode-tab-btn active" id="btn-mode-coord" style="flex: 1; text-align: center; padding: 6px; font-size: 0.75rem; border: none; background: transparent; color: var(--text-muted); cursor: pointer;">장/절 검색</button>
-            <button class="mode-tab-btn" id="btn-mode-keyword" style="flex: 1; text-align: center; padding: 6px; font-size: 0.75rem; border: none; background: transparent; color: var(--text-muted); cursor: pointer;">키워드 검색</button>
+    
+    <div class="panel-body" style="display: flex; flex-direction: column; overflow: hidden; gap: 14px; height: 100%;">
+        <!-- 검색 모드 선택 (Segmented Control) -->
+        <div class="search-mode-tabs" style="display: flex; background: var(--bg-dark); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 2px; flex-shrink: 0;">
+            <button class="mode-tab-btn active" id="btn-mode-coord" style="flex: 1; text-align: center; padding: 6px 12px; font-size: 0.78rem; border: none; border-radius: var(--radius-xs); background: transparent; color: var(--text-muted); cursor: pointer; font-weight: 500; transition: all 0.2s ease;">장/절 검색</button>
+            <button class="mode-tab-btn" id="btn-mode-keyword" style="flex: 1; text-align: center; padding: 6px 12px; font-size: 0.78rem; border: none; border-radius: var(--radius-xs); background: transparent; color: var(--text-muted); cursor: pointer; font-weight: 500; transition: all 0.2s ease;">본문 키워드 검색</button>
         </div>
 
-        <!-- 1) 장/절 검색 폼 -->
-        <div id="form-coord-search" style="display: flex; flex-direction: column; gap: 8px;">
-            <div style="display: flex; gap: 6px;">
-                <select id="select-bible-book" style="flex: 2; padding: 6px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem;"></select>
-                <input type="number" id="input-bible-chapter" placeholder="장" min="1" style="flex: 1; width: 50px; padding: 6px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; text-align: center;">
+        <!-- 1) 장/절 검색 입력 그룹 -->
+        <div id="form-coord-search" style="display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;">
+            <div style="display: flex; gap: 8px;">
+                <div style="display: flex; flex-direction: column; flex: 2; gap: 4px;">
+                    <label style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600;">성경 권 선택</label>
+                    <select id="select-bible-book" style="width: 100%; padding: 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; height: 36px;"></select>
+                </div>
+                <div style="display: flex; flex-direction: column; flex: 1; gap: 4px;">
+                    <label style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600;">장 (Chapter)</label>
+                    <input type="number" id="input-bible-chapter" placeholder="1" min="1" style="width: 100%; padding: 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; text-align: center; height: 36px;">
+                </div>
             </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="display: flex; flex-direction: column; flex: 1; gap: 4px;">
+                    <label style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600;">시작 절</label>
+                    <input type="number" id="input-bible-start-verse" placeholder="1" min="1" style="width: 100%; padding: 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; text-align: center; height: 36px;">
+                </div>
+                <span style="color: var(--text-muted); margin-top: 18px; font-weight: 500;">~</span>
+                <div style="display: flex; flex-direction: column; flex: 1; gap: 4px;">
+                    <label style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600;">끝 절</label>
+                    <input type="number" id="input-bible-end-verse" placeholder="1" min="1" style="width: 100%; padding: 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; text-align: center; height: 36px;">
+                </div>
+            </div>
+            <button class="btn-template-action" id="btn-bible-fetch" style="background: var(--primary); border: none; width: 100%; height: 36px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600; cursor: pointer; transition: background 0.15s;">
+                <span>조회 및 본문 로드</span>
+            </button>
+        </div>
+
+        <!-- 2) 본문 키워드 검색 입력 그룹 -->
+        <div id="form-keyword-search" style="display: none; flex-direction: column; gap: 8px; flex-shrink: 0;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600;">성경 본문 검색</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="input-bible-keyword" placeholder="키워드 입력 (예: 천지, 태초에)" style="flex: 1; padding: 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; height: 36px;">
+                    <button class="btn-template-action" id="btn-bible-search" style="background: var(--primary); border: none; width: auto; padding: 0 16px; margin-top: 0; font-weight: 600; height: 36px; cursor: pointer; transition: background 0.15s;">검색</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 검색 결과 헤더 영역 -->
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--panel-border); padding-top: 10px; flex-shrink: 0;">
+            <label id="lbl-result-count" style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">검색 결과 (0건)</label>
             <div style="display: flex; align-items: center; gap: 6px;">
-                <input type="number" id="input-bible-start-verse" placeholder="시작 절" min="1" style="flex: 1; padding: 6px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; text-align: center;">
-                <span style="color: var(--text-muted);">~</span>
-                <input type="number" id="input-bible-end-verse" placeholder="끝 절" min="1" style="flex: 1; padding: 6px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; text-align: center;">
-            </div>
-            <button class="btn-template-action" id="btn-bible-fetch" style="background: var(--primary); border: none; width: 100%;">구절 가져오기</button>
-        </div>
-
-        <!-- 2) 키워드 검색 폼 -->
-        <div id="form-keyword-search" style="display: none; flex-direction: column; gap: 8px;">
-            <div style="display: flex; gap: 6px;">
-                <input type="text" id="input-bible-keyword" placeholder="검색할 키워드 입력 (예: 태초에)" style="flex: 1; padding: 6px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem;">
-                <button class="btn-template-action" id="btn-bible-search" style="background: var(--primary); border: none; width: auto; padding: 6px 12px; margin-top: 0;">검색</button>
+                <input type="checkbox" id="chk-select-all-bible" style="cursor: pointer; width: 14px; height: 14px;">
+                <label for="chk-select-all-bible" style="font-size: 0.72rem; color: var(--text-muted); cursor: pointer; user-select: none;">전체 선택</label>
             </div>
         </div>
 
-        <!-- 결과 리스트 헤더 & 옵션 -->
-        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--panel-border); padding-top: 8px; flex-shrink: 0;">
-            <label style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">검색 결과</label>
-            <div style="display: flex; align-items: center; gap: 4px;">
-                <input type="checkbox" id="chk-select-all-bible" style="cursor: pointer;">
-                <span style="font-size: 0.72rem; color: var(--text-muted); cursor: pointer;" id="lbl-select-all-bible">전체 선택</span>
-            </div>
+        <!-- 검색 결과 가상 스크롤 뷰 -->
+        <div id="bible-results-list" class="custom-scrollbar" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; min-height: 120px; border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 8px; background: rgba(0,0,0,0.15);">
+            <!-- 검색 결과 아이템 동적 주입 -->
+            <div style="color: var(--text-muted); font-size: 0.78rem; text-align: center; margin: auto; padding: 20px 0;">성경 장/절 혹은 키워드를 검색해 주세요.</div>
         </div>
 
-        <!-- 검색 결과 리스트 컨테이너 -->
-        <div id="bible-results-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; min-height: 150px; border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 6px; background: rgba(0,0,0,0.2);">
-            <!-- 검색 결과 아이템들이 동적 렌더링됨 -->
-            <div style="color: var(--text-muted); font-size: 0.78rem; text-align: center; margin: auto;">검색어를 입력하고 조회하세요.</div>
-        </div>
-
-        <!-- 슬라이드 생성 및 옵션 제어 패널 -->
-        <div class="bible-generation-options" style="border-top: 1px solid var(--panel-border); padding-top: 8px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;">
+        <!-- 슬라이드 생성 설정 및 실시간 예측 알림 -->
+        <div class="bible-generation-options" style="border-top: 1px solid var(--panel-border); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;">
             <div style="display: flex; align-items: center; justify-content: space-between;">
-                <span style="font-size: 0.75rem; color: var(--text-main);">슬라이드당 절 수</span>
-                <select id="select-bible-split-mode" style="padding: 4px 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.75rem;">
+                <span style="font-size: 0.75rem; color: var(--text-main); font-weight: 500;">슬라이드당 절 수</span>
+                <select id="select-bible-split-mode" style="padding: 6px 12px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.75rem;">
                     <option value="1">1절씩 분할</option>
                     <option value="2">2절씩 묶기</option>
                     <option value="all">선택 구절 전체 합쳐서 1장</option>
-                    <option value="auto">글자 수 기준 자동 분할</option>
+                    <option value="auto">글자 수 기준 자동 분할 (80자)</option>
                 </select>
             </div>
-            <button class="btn-template-action" id="btn-add-bible-slides" style="background: #10b981; border: none; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 6px;" disabled>
+            
+            <!-- 슬라이드 생성 개수 실시간 피드백 컴포넌트 -->
+            <div id="bible-generation-status" style="font-size: 0.72rem; color: var(--text-muted); background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 6px 10px; min-height: 28px; display: flex; align-items: center; justify-content: space-between;">
+                <span>선택된 구절: <strong id="val-selected-count" style="color: var(--primary);">0</strong>개</span>
+                <span>예상 생성 슬라이드: <strong id="val-expected-slides" style="color: #10b981;">0</strong>장</span>
+            </div>
+            
+            <button class="btn-template-action" id="btn-add-bible-slides" style="background: #10b981; border: none; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 6px; height: 38px; font-weight: 600; cursor: not-allowed; opacity: 0.5;" disabled>
                 <span>➕ 선택 구절 슬라이드 추가</span>
             </button>
         </div>
     </div>
 </div>
+
+### 5.3 컴포넌트별 CSS 스타일링 가이드 (CSS Specifications)
+다크 테마 환경 및 실시간 피드백을 극대화하기 위해 다음과 같은 전용 CSS 토큰(Token)과 효과를 `index.css` 혹은 `editor.html` 스타일 블록에 정의합니다.
+
+```css
+/* 1. 세그먼트 탭 스타일 */
+.search-mode-tabs .mode-tab-btn.active {
+    background: var(--primary) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.search-mode-tabs .mode-tab-btn:hover:not(.active) {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* 2. 성경 구절 검색 결과 아이템 스타일 */
+.bible-result-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+}
+
+.bible-result-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateX(2px);
+}
+
+.bible-result-item.selected {
+    background: rgba(16, 185, 129, 0.08);
+    border-color: #10b981;
+}
+
+.bible-result-item-header {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--primary);
+    background: rgba(79, 70, 229, 0.1);
+    padding: 2px 6px;
+    border-radius: var(--radius-xs);
+    white-space: nowrap;
+    margin-top: 1px;
+}
+
+.bible-result-item-content {
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: var(--text-main);
+    word-break: keep-all;
+}
+
+/* 3. 로딩 상태 스피너 (Spinner) */
+.btn-loading-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top: 2px solid #ffffff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 4. 부드러운 스크롤바 커스텀 */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+```
+
+### 5.4 사용자 경험 및 데이터 연동 흐름 (UX & Data Flow Logic)
+
+#### A. 세그먼트 스위칭 인터랙션
+* **장/절 검색** 버튼 클릭 시: `#form-coord-search` 노출, `#form-keyword-search` 비활성(숨김).
+* **본문 키워드 검색** 버튼 클릭 시: `#form-keyword-search` 노출, `#form-coord-search` 비활성(숨김).
+
+#### B. 성경 권/장 동적 바인딩 및 데이터 정합성 보장
+1. **최대 장 수 자동 매핑**:
+   * 사용자가 성경 권 콤보박스(`#select-bible-book`)를 변경하면, 해당 도서 객체의 `max_chapter` 정보를 조회하여 `#input-bible-chapter` 입력 필드의 `max` 속성을 동적으로 대입합니다.
+   * 사용자가 범위를 넘어선 장 값을 강제 기입할 경우, `blur` 혹은 `input` 시점에 강제로 최대치로 교정(Clamp) 처리합니다.
+2. **시작/끝 절 바인딩 흐름**:
+   * 사용자가 장 값을 기입하면 해당 권/장에 해당하는 전체 절 수를 데이터베이스에서 최초 1회 질의하여, 시작 절 및 끝 절 입력창의 `max` 속성으로 대입합니다.
+
+#### C. 검색 실행 시 비동기 로딩 상태
+* 조회 버튼 클릭 즉시 버튼 활성 상태를 변경합니다.
+  * 버튼 텍스트 변경: `구절 가져오기` $\rightarrow$ `조회 중...` (또는 스피너 탑재)
+  * 버튼 `disabled = true` 처리 및 검색 폼 내 모든 입력 필드 비활성 처리로 연속 요청을 제어합니다.
+  * 비동기 패치(`fetch`)가 종료되면 즉시 폼 입력창 및 버튼 상태를 정상으로 복구시킵니다.
+
+#### D. 체크박스 및 아이템 클릭 트리거
+* 각 성경 구절 행(`.bible-result-item`)의 체크박스를 직접 체크하는 조작 외에도, 해당 구절 컨테이너 영역 중 아무 곳이나 클릭하면 체크박스가 알아서 토글(Toggle)되고 클래스(`.selected`)가 갱신됩니다.
+* 개별 구절 클릭 또는 체크 상태가 변경될 때마다 하단의 '선택된 구절 개수'와 '예상 생성 슬라이드' 예측 UI가 실시간으로 변하여 사용자에게 동적 시각 피드백을 전달합니다.
+
+#### E. 실시간 캔버스 미리보기 (Live Preview Layout)
+* **기능 상세**: 사용자가 추가하기 직전, 실제 송출 화면에 어떻게 렌더링될지 보여주는 미리보기 기능입니다.
+* **동작**: 검색 결과 구절 아이템을 더블클릭(Double-Click)하거나 마우스 오버 시, 편집기 중앙의 주 작업용 Fabric.js 캔버스 영역의 배경을 흐리게 처리(Overlay Mask)하고, 그 위에 이미지 템플릿과 100% 동일한 비율의 "실시간 성경 자막 오버레이 미리보기 컴포넌트"를 팝업 형태로 화면 한 켠에 정밀하게 띄워 시각화해 줍니다.
+* **종료**: 마우스가 구절 밖으로 나가거나 더블클릭 팝업 창의 닫기(X) 버튼을 누르면 즉시 미리보기 요소가 제거되고 작업 캔버스로 복구됩니다.
+
 ```
 
 ---
