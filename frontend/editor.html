@@ -3423,7 +3423,10 @@
         }
 
         function addSlide() {
-            ws.send(JSON.stringify({ type: "ADD_SLIDE" }));
+            ws.send(JSON.stringify({ 
+                type: "ADD_SLIDE",
+                afterSlideId: activeSlideId || null
+            }));
         }
 
         function saveAsTemplate() {

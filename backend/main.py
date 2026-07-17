@@ -432,14 +432,27 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                 new_id = f"slide_{uuid.uuid4().hex[:8]}"
                 slide_num = len(manager.project_data.slides) + 1
                 new_slide = Slide(id=new_id, name=f"새 슬라이드 {slide_num}", elements=[])
-                manager.project_data.slides.append(new_slide)
+                
+                after_slide_id = message.get("afterSlideId")
+                insert_idx = -1
+                if after_slide_id:
+                    for idx, s in enumerate(manager.project_data.slides):
+                        if s.id == after_slide_id:
+                            insert_idx = idx + 1
+                            break
+                            
+                if insert_idx != -1:
+                    manager.project_data.slides.insert(insert_idx, new_slide)
+                else:
+                    manager.project_data.slides.append(new_slide)
+                    
                 await save_project_data(manager.project_data)
                 await manager.broadcast({
                     "type": "INITIAL_SYNC",
                     "data": manager.project_data.model_dump(),
                     "lockedSlides": manager.locked_slides
                 })
-                logger.info(f"New slide added: {new_id}")
+                logger.info(f"New slide added: {new_id} (inserted after {after_slide_id if insert_idx != -1 else 'end'})")
 
             elif msg_type == "SAVE_TEMPLATE":
                 tpl_data = message.get("template")
