@@ -3,6 +3,7 @@ import asyncio
 from fastapi.testclient import TestClient
 from backend.main import app, manager
 from backend.schemas import SlideTemplate
+from backend.storage import save_project_data
 
 client = TestClient(app)
 
@@ -78,3 +79,7 @@ def test_template_bulk_apply_and_undo():
         # 슬라이드 1의 요소 개수가 원래대로 복구되었는지 검증
         restored_slide_1 = next(s for s in manager.project_data.slides if s.id == "slide_1")
         assert len(restored_slide_1.elements) == orig_elements_count
+
+    # 6. 사후 정리 (Tear-down): 주입했던 임시 테스트 템플릿 제거 및 디스크 저장
+    manager.project_data.templates = [t for t in manager.project_data.templates if t.id != "tpl_test_undo"]
+    asyncio.run(save_project_data(manager.project_data))
