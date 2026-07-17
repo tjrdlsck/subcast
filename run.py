@@ -5,9 +5,9 @@ import uvicorn
 from threading import Timer
 
 if __name__ == "__main__":
-    # PyInstaller 임시 폴더 경로 대응
-    if hasattr(sys, '_MEIPASS'):
-        os.chdir(sys._MEIPASS)
+    # PyInstaller 임시 폴더 혹은 실행 파일 폴더 경로 대응
+    if getattr(sys, 'frozen', False):
+        os.chdir(os.path.dirname(sys.executable))
 
     # 브라우저 자동 오픈
     def open_browser():
