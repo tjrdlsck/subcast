@@ -526,18 +526,34 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
 
             elif msg_type == "ADD_SLIDES_BULK":
                 slides_data = message.get("slides", [])
+                insert_after_id = message.get("insertAfterId")
                 if slides_data:
-                    for s_data in slides_data:
-                        from backend.schemas import Slide
-                        new_slide = Slide.model_validate(s_data)
-                        manager.project_data.slides.append(new_slide)
+                    from backend.schemas import Slide
+                    new_slides = [Slide.model_validate(s_data) for s_data in slides_data]
+                    
+                    insert_idx = -1
+                    if insert_after_id:
+                        for idx, s in enumerate(manager.project_data.slides):
+                            if s.id == insert_after_id:
+                                insert_idx = idx
+                                break
+                                
+                    if insert_idx != -1:
+                        manager.project_data.slides = (
+                            manager.project_data.slides[:insert_idx + 1] + 
+                            new_slides + 
+                            manager.project_data.slides[insert_idx + 1:]
+                        )
+                    else:
+                        manager.project_data.slides.extend(new_slides)
+                        
                     await save_project_data(manager.project_data)
                     await manager.broadcast({
                         "type": "INITIAL_SYNC",
                         "data": manager.project_data.model_dump(),
                         "lockedSlides": manager.locked_slides
                     })
-                    logger.info(f"Bulk slides added: {len(slides_data)} slides")
+                    logger.info(f"Bulk slides added: {len(slides_data)} slides after {insert_after_id}")
 
             elif msg_type == "SAVE_SLIDE":
                 # 슬라이드 내용 저장 및 방송 상태 동기화 처리
