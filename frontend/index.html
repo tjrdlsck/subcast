@@ -266,6 +266,10 @@
         <header>
             <h1>Subcast</h1>
             <p>다중 마스터 실시간 동기화와 편집 잠금 메커니즘을 지원하는 생방송 오버레이 자막 관리 플랫폼</p>
+            <div id="update-banner" style="display: none; margin-top: 20px; padding: 10px; background: rgba(79, 70, 229, 0.2); border: 1px solid var(--primary); border-radius: 12px;">
+                <span id="version-text" style="margin-right: 15px; font-weight: 600;"></span>
+                <button id="update-btn" class="btn" style="background-color: var(--primary); color: #fff; cursor: pointer; border: none;">지금 업데이트</button>
+            </div>
         </header>
 
         <main class="grid">
@@ -295,8 +299,57 @@
         </main>
 
         <footer>
-            <p>© 2026 Subcast. All rights reserved.</p>
+            <p>© 2026 Subcast. All rights reserved. <span id="current-version-footer"></span></p>
         </footer>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // 1. Get local version
+                const localRes = await fetch('/api/version');
+                const localData = await localRes.json();
+                const localVersion = localData.version || 'v1.0.0';
+                document.getElementById('current-version-footer').textContent = `(현재: ${localVersion})`;
+
+                // 2. Check Github latest release
+                const githubRes = await fetch('https://api.github.com/repos/tjrdlsck/subcast/releases/latest');
+                if (githubRes.ok) {
+                    const githubData = await githubRes.json();
+                    const latestVersion = githubData.tag_name;
+                    
+                    if (latestVersion && latestVersion !== localVersion) {
+                        const zipUrl = githubData.assets.length > 0 ? githubData.assets[0].browser_download_url : githubData.zipball_url;
+                        
+                        const banner = document.getElementById('update-banner');
+                        const vText = document.getElementById('version-text');
+                        const updateBtn = document.getElementById('update-btn');
+                        
+                        banner.style.display = 'inline-block';
+                        vText.textContent = `새 업데이트 가능: ${latestVersion}`;
+                        
+                        updateBtn.addEventListener('click', async () => {
+                            updateBtn.textContent = '다운로드 중...';
+                            updateBtn.disabled = true;
+                            try {
+                                const updateRes = await fetch('/api/update', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ zip_url: zipUrl })
+                                });
+                                // 백엔드가 os._exit(0) 로 죽으면 연결이 끊기며 catch 블록으로 갈 수 있음
+                            } catch (e) {
+                                console.log('Update server restarting...');
+                            }
+                            updateBtn.textContent = '업데이트 적용 중 (잠시 후 새로고침 됩니다)';
+                            setTimeout(() => window.location.reload(), 5000);
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error("업데이트 체크 실패", err);
+            }
+        });
+    </script>
 </body>
 </html>

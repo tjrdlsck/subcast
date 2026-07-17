@@ -347,6 +347,62 @@ async def search_bible(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+class UpdateRequest(BaseModel):
+    zip_url: str
+
+@app.get("/api/version")
+async def get_version():
+    try:
+        import json
+        with open("version.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return {"version": data.get("version", "v1.0.0")}
+    except Exception:
+        return {"version": "v1.0.0"}
+
+@app.post("/api/update")
+async def apply_update(req: UpdateRequest):
+    try:
+        import httpx
+        import tempfile
+        import os
+        import sys
+        import subprocess
+        
+        temp_dir = tempfile.gettempdir()
+        zip_path = os.path.join(temp_dir, "subcast_update.zip")
+        
+        logger.info(f"Downloading update from {req.zip_url}")
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            resp = await client.get(req.zip_url)
+            resp.raise_for_status()
+            with open(zip_path, "wb") as f:
+                f.write(resp.content)
+                
+        # PyInstaller 빌드 시 sys.executable은 subcast.exe, 아니면 python.exe
+        app_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.getcwd()
+        bat_path = os.path.join(temp_dir, "subcast_updater.bat")
+        
+        bat_script = f"""@echo off
+timeout /t 2 /nobreak > nul
+tar -xf "{zip_path}" -C "{app_dir}"
+start "" "{app_dir}\\subcast.exe"
+del "{zip_path}"
+del "%~0"
+"""
+        with open(bat_path, "w", encoding="utf-8") as f:
+            f.write(bat_script)
+            
+        logger.info(f"Running updater script at {bat_path} for app dir {app_dir}")
+        subprocess.Popen([bat_path], creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0)
+        
+        import os
+        os._exit(0)
+        
+    except Exception as e:
+        logger.error(f"Update failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/")
 async def get_index():
     # frontend/index.html이 있으면 응답하고 없으면 Redirect 또는 HTML 텍스트 응답
