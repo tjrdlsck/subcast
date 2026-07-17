@@ -1675,6 +1675,7 @@
                             <div style="display: flex; gap: 8px;">
                                 <div style="display: flex; flex-direction: column; flex: 2; gap: 4px;">
                                     <label style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600;">성경 권 선택</label>
+                                    <input type="text" id="input-bible-book-filter" placeholder="검색 (예: 마태, 창)" style="width: 100%; padding: 6px 10px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.78rem; height: 28px; margin-bottom: 4px; outline: none; transition: border-color 0.2s;">
                                     <select id="select-bible-book" style="width: 100%; padding: 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; height: 36px;"></select>
                                 </div>
                                 <div style="display: flex; flex-direction: column; flex: 1; gap: 4px;">
@@ -4386,6 +4387,9 @@
 
             // 책 선택 변경 시 최대 장 수 조절
             document.getElementById("select-bible-book").onchange = onBibleBookChange;
+
+            // 도서 검색 필터 리스너 연동
+            document.getElementById("input-bible-book-filter").oninput = (e) => filterBibleBooks(e.target.value);
             
             // 전체 선택 체크박스
             document.getElementById("chk-select-all-bible").onchange = toggleSelectAllBible;
@@ -4393,6 +4397,37 @@
             // 분할 모드 변경 및 슬라이드 추가 버튼 바인딩
             document.getElementById("select-bible-split-mode").onchange = updateBibleExpectedSlides;
             document.getElementById("btn-add-bible-slides").onclick = addBibleSlidesToProject;
+        }
+
+        function filterBibleBooks(query) {
+            const selectBook = document.getElementById("select-bible-book");
+            if (!selectBook || !bibleBooksList) return;
+            
+            const cleanQuery = query.trim().toLowerCase();
+            const filtered = bibleBooksList.filter(book => 
+                book.book_name.toLowerCase().includes(cleanQuery) || 
+                convertToShortBookName(book.book_name).toLowerCase().includes(cleanQuery) ||
+                book.book_code.toLowerCase().includes(cleanQuery)
+            );
+
+            selectBook.innerHTML = "";
+            
+            if (filtered.length === 0) {
+                const opt = document.createElement("option");
+                opt.value = "";
+                opt.textContent = "검색 결과 없음";
+                selectBook.appendChild(opt);
+            } else {
+                filtered.forEach(book => {
+                    const opt = document.createElement("option");
+                    opt.value = book.book_code;
+                    opt.textContent = book.book_name;
+                    selectBook.appendChild(opt);
+                });
+            }
+
+            // 첫 필터링 결과 기준 정보 갱신
+            onBibleBookChange();
         }
 
         function switchBibleSearchMode(mode) {
