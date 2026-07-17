@@ -219,16 +219,21 @@ class PraiseDatabaseHelper:
     def search_songs(self, query_str: str, limit: int = 50):
         conn = self.get_connection()
         cursor = conn.cursor()
-        sql = """
-            SELECT title, lyrics 
-            FROM praise_songs 
-            WHERE title LIKE ? OR lyrics LIKE ?
-            ORDER BY title ASC
-            LIMIT ?
-        """
-        try:
+        if not query_str.strip():
+            sql = "SELECT title, lyrics FROM praise_songs ORDER BY title ASC LIMIT ?"
+            params = (limit,)
+        else:
+            sql = """
+                SELECT title, lyrics 
+                FROM praise_songs 
+                WHERE title LIKE ? OR lyrics LIKE ?
+                ORDER BY title ASC
+                LIMIT ?
+            """
             param = f"%{query_str}%"
-            cursor.execute(sql, (param, param, limit))
+            params = (param, param, limit)
+        try:
+            cursor.execute(sql, params)
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
         finally:
