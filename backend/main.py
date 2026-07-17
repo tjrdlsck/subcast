@@ -506,7 +506,11 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                         traverse(elems)
                         return longest_id
 
-                    tpl_longest_id = find_longest_text_element_id(target_tpl.elements)
+                    target_element_id = message.get("targetElementId")
+                    if target_element_id:
+                        tpl_longest_id = target_element_id
+                    else:
+                        tpl_longest_id = find_longest_text_element_id(target_tpl.elements)
 
                     for idx, s in enumerate(manager.project_data.slides):
                         if s.id in slide_ids:

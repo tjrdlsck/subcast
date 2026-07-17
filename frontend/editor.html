@@ -3495,6 +3495,29 @@
             // 격자 렌더링
             renderModalSlides();
 
+            // 텍스트 상자 매핑 드롭다운 세팅
+            const targetTpl = projectData && projectData.templates ? projectData.templates.find(t => t.id === selectedTemplateIds[0]) : null;
+            const textElements = targetTpl ? targetTpl.elements.filter(el => el.type === "text") : [];
+            const textboxContainer = document.getElementById("modal-template-textbox-container");
+            const textboxSelect = document.getElementById("select-modal-target-textbox");
+            
+            if (textboxContainer && textboxSelect) {
+                if (textElements.length >= 2) {
+                    textboxContainer.style.display = "flex";
+                    textboxSelect.innerHTML = "";
+                    textElements.forEach((el, index) => {
+                        const previewText = el.content ? el.content.substring(0, 15) : `텍스트 상자 ${index + 1}`;
+                        const opt = document.createElement("option");
+                        opt.value = el.id;
+                        opt.textContent = `[상자 ${index + 1}] ${previewText}`;
+                        textboxSelect.appendChild(opt);
+                    });
+                } else {
+                    textboxContainer.style.display = "none";
+                    textboxSelect.innerHTML = "";
+                }
+            }
+
             // 모달 오픈
             document.getElementById("template-apply-modal").style.display = "flex";
         }
@@ -3510,11 +3533,15 @@
                 return;
             }
 
+            const selectBox = document.getElementById("select-modal-target-textbox");
+            const targetElementId = selectBox ? selectBox.value : "";
+
             // 웹소켓 전송
             ws.send(JSON.stringify({
                 type: "APPLY_TEMPLATE_BULK",
                 slideIds: modalSelectedSlideIds,
-                templateId: selectedTemplateIds[0]
+                templateId: selectedTemplateIds[0],
+                targetElementId: targetElementId
             }));
 
             closeApplyModal();
@@ -6174,6 +6201,14 @@
                 <div id="modal-slide-grid" class="modal-slide-grid-container">
                     <!-- JavaScript를 통해 슬라이드 목록이 격자로 렌더링됨 -->
                 </div>
+                
+                <!-- 대입할 텍스트 상자 선택 영역 -->
+                <div id="modal-template-textbox-container" style="margin-top: 14px; display: none; align-items: center; gap: 8px;">
+                    <span style="font-size: 0.8rem; color: var(--text-main); font-weight: 500; min-width: 140px;">대입할 텍스트 상자 선택:</span>
+                    <select id="select-modal-target-textbox" style="padding: 6px 10px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; flex: 1; outline: none;">
+                    </select>
+                </div>
+
                 <div class="modal-warning-box" style="margin-top: 16px;">
                     <p style="margin: 0; color: #ef4444; font-size: 0.8rem; font-weight: 600; line-height: 1.4;">
                         ※ 주의: 적용 시 대상 슬라이드의 기존 자막 및 디자인 요소는 완전히 대체되어 유실됩니다.
