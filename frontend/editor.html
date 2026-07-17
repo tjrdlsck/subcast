@@ -1729,40 +1729,35 @@
                 tempCanvasEl.width = BASE_WIDTH;
                 tempCanvasEl.height = BASE_HEIGHT;
                 
-                // HTML5 Canvas 2D 컨텍스트를 활용해 배경을 강제 검은색(#000000)으로 도포
-                const ctx = tempCanvasEl.getContext('2d');
-                ctx.fillStyle = '#000000';
-                ctx.fillRect(0, 0, BASE_WIDTH, BASE_HEIGHT);
-                
-                const tempCanvas = new fabric.StaticCanvas(tempCanvasEl);
-                
-                // 배경색이 보존된 상태로 렌더링 스케줄링을 연계
-                tempCanvas.setBackgroundColor('#000000', () => {
-                    slide.elements.forEach(elem => {
-                        const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
-                        if (obj) tempCanvas.add(obj);
-                    });
-                    
-                    tempCanvas.renderAll();
-                    
-                    const dataUrl = tempCanvas.toDataURL({
-                        format: 'jpeg',
-                        quality: 0.4,
-                        backgroundColor: '#000000'
-                    });
-                    
-                    tempCanvas.dispose();
-                    slide.thumbnail = dataUrl;
-                    
-                    if (ws && ws.readyState === WebSocket.OPEN) {
-                        ws.send(JSON.stringify({
-                            type: "SAVE_SLIDE",
-                            slide: slide
-                        }));
-                    }
-                    
-                    resolve(dataUrl);
+                // 생성자에서 직접 배경색을 설정하여 콜백 타이밍 이슈를 방지
+                const tempCanvas = new fabric.StaticCanvas(tempCanvasEl, {
+                    backgroundColor: '#000000'
                 });
+                
+                slide.elements.forEach(elem => {
+                    const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
+                    if (obj) tempCanvas.add(obj);
+                });
+                
+                tempCanvas.renderAll();
+                
+                const dataUrl = tempCanvas.toDataURL({
+                    format: 'jpeg',
+                    quality: 0.4,
+                    backgroundColor: '#000000'
+                });
+                
+                tempCanvas.dispose();
+                slide.thumbnail = dataUrl;
+                
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: "SAVE_SLIDE",
+                        slide: slide
+                    }));
+                }
+                
+                resolve(dataUrl);
             });
         }
 
@@ -2162,7 +2157,8 @@
             setCanvasZoom(1.0);
             const thumbnailData = canvas.toDataURL({
                 format: 'jpeg',
-                quality: 0.4
+                quality: 0.4,
+                backgroundColor: '#000000'
             });
             setCanvasZoom(prevZoom);
 
@@ -2677,7 +2673,8 @@
 
             const thumbnailData = canvas.toDataURL({
                 format: 'jpeg',
-                quality: 0.4
+                quality: 0.4,
+                backgroundColor: '#000000'
             });
             
             // 캡처 후 이전 사용하던 줌 배율로 원복
@@ -2719,7 +2716,8 @@
             setCanvasZoom(1.0);
             const thumbnailData = canvas.toDataURL({
                 format: 'jpeg',
-                quality: 0.4
+                quality: 0.4,
+                backgroundColor: '#000000'
             });
             setCanvasZoom(prevZoom);
             

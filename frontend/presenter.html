@@ -309,7 +309,7 @@
                 tempCanvasEl.height = 432;
                 
                 const tempCanvas = new fabric.StaticCanvas(tempCanvasEl, {
-                    backgroundColor: '#111827'
+                    backgroundColor: '#000000'
                 });
                 
                 slide.elements.forEach(elem => {
@@ -321,7 +321,8 @@
                 
                 const dataUrl = tempCanvas.toDataURL({
                     format: 'jpeg',
-                    quality: 0.4
+                    quality: 0.4,
+                    backgroundColor: '#000000'
                 });
                 
                 tempCanvas.dispose();
