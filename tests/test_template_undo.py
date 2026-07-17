@@ -39,9 +39,10 @@ def test_template_bulk_apply_and_undo():
     if not any(t.id == "tpl_test_undo" for t in manager.project_data.templates):
         manager.project_data.templates.append(SlideTemplate.model_validate(test_tpl))
     
-    # 원본 슬라이드 1의 요소 개수 보관 (복구 검증용)
+    # 원본 슬라이드 1의 요소 개수 및 텍스트 보관 (복구 검증용)
     slide_1_orig = next(s for s in manager.project_data.slides if s.id == "slide_1")
     orig_elements_count = len(slide_1_orig.elements)
+    orig_text = next((el.content for el in slide_1_orig.elements if el.type == "text"), "")
     
     with client.websocket_connect("/ws?role=editor") as ws:
         # 최초 동기화 버림
@@ -62,7 +63,7 @@ def test_template_bulk_apply_and_undo():
         # 슬라이드 1의 요소가 템플릿 요소로 교체되었는지 검증
         slide_1 = next(s for s in manager.project_data.slides if s.id == "slide_1")
         assert len(slide_1.elements) == 1
-        assert slide_1.elements[0].content == "템플릿 텍스트"
+        assert slide_1.elements[0].content == orig_text
         
         # 4. 되돌리기 (UNDO_BULK_ACTION) 요청 발송
         ws.send_json({

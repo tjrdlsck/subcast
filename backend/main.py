@@ -490,19 +490,54 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                     # 일괄 적용 전 현재 프로젝트 상태 백업
                     manager.push_history()
 
-                    def clone_elements(elems):
-                        cloned = []
-                        for el in elems:
-                            el_dict = el.model_dump()
-                            el_dict["id"] = f"elem_{uuid.uuid4().hex[:9]}"
-                            if "children" in el_dict and el_dict["children"]:
-                                el_dict["children"] = clone_elements(el.children)
-                            from backend.schemas import Element
-                            cloned.append(Element.model_validate(el_dict))
-                        return cloned
+                    def find_longest_text_element_id(elems):
+                        longest_id = None
+                        longest_len = -1
+                        def traverse(el_list):
+                            nonlocal longest_id, longest_len
+                            for el in el_list:
+                                if el.type == "text":
+                                    content_len = len(el.content or "")
+                                    if content_len > longest_len:
+                                        longest_len = content_len
+                                        longest_id = el.id
+                                elif el.type == "group" and el.children:
+                                    traverse(el.children)
+                        traverse(elems)
+                        return longest_id
+
+                    tpl_longest_id = find_longest_text_element_id(target_tpl.elements)
 
                     for idx, s in enumerate(manager.project_data.slides):
                         if s.id in slide_ids:
+                            orig_longest_text = ""
+                            orig_longest_len = -1
+                            def traverse_orig(el_list):
+                                nonlocal orig_longest_text, orig_longest_len
+                                for el in el_list:
+                                    if el.type == "text":
+                                        content_len = len(el.content or "")
+                                        if content_len > orig_longest_len:
+                                            orig_longest_len = content_len
+                                            orig_longest_text = el.content or ""
+                                    elif el.type == "group" and el.children:
+                                        traverse_orig(el.children)
+                            traverse_orig(s.elements)
+
+                            def clone_elements(elems):
+                                cloned = []
+                                for el in elems:
+                                    el_dict = el.model_dump()
+                                    orig_el_id = el.id
+                                    el_dict["id"] = f"elem_{uuid.uuid4().hex[:9]}"
+                                    if el.type == "text" and orig_el_id == tpl_longest_id:
+                                        el_dict["content"] = orig_longest_text
+                                    if "children" in el_dict and el_dict["children"]:
+                                        el_dict["children"] = clone_elements(el.children)
+                                    from backend.schemas import Element
+                                    cloned.append(Element.model_validate(el_dict))
+                                return cloned
+
                             manager.project_data.slides[idx].elements = clone_elements(target_tpl.elements)
                             manager.project_data.slides[idx].thumbnail = None
 
