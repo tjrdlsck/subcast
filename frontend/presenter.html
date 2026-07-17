@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Subcast - 송출 제어기 (Presenter)</title>
     <!-- Google Fonts: Inter & Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,260 +12,610 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
     <style>
         :root {
-            --bg-color: #121212;
+            --bg-color: #0d0d11;
             --panel-bg: rgba(255, 255, 255, 0.03);
             --panel-border: rgba(255, 255, 255, 0.08);
             --panel-blur: blur(24px);
-            --primary: #007aff;
-            --primary-glow: rgba(0, 122, 255, 0.3);
-            --accent-live: #ff3b30;
-            --accent-live-glow: rgba(255, 59, 48, 0.4);
-            --text-main: #ffffff;
-            --text-muted: #8e8e93;
-            --green-online: #34c759;
-            --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 16px;
-            --radius-xl: 24px;
-            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
-            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.2);
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --primary-glow: rgba(79, 70, 229, 0.3);
+            --accent-live: #ef4444;
+            --accent-live-glow: rgba(239, 68, 68, 0.4);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --green-online: #10b981;
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --radius-xl: 20px;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
+            --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.7);
         }
 
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             background-color: var(--bg-color);
-            background-image: radial-gradient(circle at top right, rgba(0, 122, 255, 0.05) 0%, transparent 40%),
-                              radial-gradient(circle at bottom left, rgba(255, 59, 48, 0.05) 0%, transparent 40%);
+            background-image: radial-gradient(circle at top right, rgba(79, 70, 229, 0.06) 0%, transparent 45%),
+                              radial-gradient(circle at bottom left, rgba(239, 68, 68, 0.04) 0%, transparent 40%);
             color: var(--text-main);
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            overflow-x: hidden;
+            overflow: hidden;
         }
 
+        /* 헤더 스타일 고도화 */
         header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 16px 32px;
-            background: rgba(18, 18, 18, 0.7);
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            padding: 12px 24px;
+            background: rgba(13, 13, 17, 0.75);
             backdrop-filter: var(--panel-blur);
             -webkit-backdrop-filter: var(--panel-blur);
             border-bottom: 1px solid var(--panel-border);
             position: sticky; top: 0; z-index: 100;
         }
 
+        .header-logo-group {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
         header h1 {
             font-family: 'Outfit', sans-serif;
-            font-size: 1.5rem; font-weight: 700;
+            font-size: 1.3rem; 
+            font-weight: 700;
             letter-spacing: -0.5px;
-            background: linear-gradient(135deg, #fff 30%, var(--text-muted) 100%);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background: linear-gradient(135deg, #fff 40%, var(--text-muted) 100%);
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* 미니 송출 미리보기 영역 */
+        .mini-preview-container {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-md);
+            padding: 6px 12px;
+        }
+
+        .mini-preview-label {
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: var(--accent-live);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .mini-preview-label .pulse-dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--accent-live);
+            border-radius: 50%;
+            animation: pulse-glow 1.5s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .preview-screen {
+            width: 140px; 
+            aspect-ratio: 16/9; 
+            background: #000;
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            border-radius: var(--radius-sm);
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* 퀵 컨트롤러 */
+        .quick-nav-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-quick-nav {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border);
+            color: #fff;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 0.72rem;
+        }
+        .btn-quick-nav:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 0 8px var(--primary-glow);
+        }
+        .btn-quick-nav:active {
+            transform: scale(0.95);
+        }
+
+        .slide-indicator-badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            min-width: 44px;
+            text-align: center;
+        }
+
+        .header-right-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-settings-trigger {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border);
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .btn-settings-trigger:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
         }
 
         .status-badge {
             display: flex; align-items: center; gap: 8px;
-            font-size: 0.8rem; font-weight: 600;
-            padding: 8px 16px; border-radius: 20px;
+            font-size: 0.75rem; font-weight: 600;
+            padding: 8px 14px; border-radius: var(--radius-sm);
             background: var(--panel-bg); border: 1px solid var(--panel-border);
-            backdrop-filter: var(--panel-blur); box-shadow: var(--shadow-sm);
         }
 
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; background-color: var(--accent-live); }
-        .status-badge.connected .status-dot { background-color: var(--green-online); box-shadow: 0 0 8px var(--green-online); }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; background-color: var(--accent-live); }
+        .status-badge.connected .status-dot { background-color: var(--green-online); box-shadow: 0 0 6px var(--green-online); }
 
-        .workspace { flex: 1; display: grid; grid-template-columns: 320px 1fr; height: calc(100vh - 70px); }
-
-        .deck-panel {
-            background: rgba(18, 18, 18, 0.5); backdrop-filter: var(--panel-blur);
-            border-right: 1px solid var(--panel-border);
-            display: flex; flex-direction: column; overflow: hidden;
+        /* 메인 레이아웃 및 5x4 Grid */
+        .workspace { 
+            flex: 1; 
+            padding: 24px;
+            overflow-y: auto; 
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
         }
 
-        .panel-header {
-            padding: 24px 20px 12px 20px; font-weight: 600; font-size: 1rem; color: var(--text-main);
-            display: flex; justify-content: space-between; align-items: center;
+        .deck-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
         }
 
-        .slide-list {
-            flex: 1; overflow-y: auto; padding: 12px 20px;
-            display: flex; flex-direction: column; gap: 12px;
+        .deck-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            font-family: 'Outfit', sans-serif;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
+        .deck-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 18px;
+            padding-bottom: 40px;
+        }
+
+        /* 슬라이드 썸네일 카드 디자인 */
         .slide-item {
-            background: var(--panel-bg); border: 1px solid transparent;
-            border-radius: var(--radius-md); padding: 16px; cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            position: relative; user-select: none; box-shadow: var(--shadow-sm);
+            background: rgba(255, 255, 255, 0.02); 
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-md); 
+            padding: 10px; 
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative; 
+            user-select: none; 
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
-        .slide-item:hover { background: rgba(255, 255, 255, 0.08); transform: translateY(-2px); }
+        .slide-item:hover { 
+            background: rgba(255, 255, 255, 0.05); 
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateY(-3px); 
+            box-shadow: var(--shadow-md);
+        }
 
         .slide-item.live {
-            border-color: var(--accent-live); background: rgba(255, 59, 48, 0.1);
-            box-shadow: 0 0 15px var(--accent-live-glow);
+            border-color: var(--accent-live); 
+            background: rgba(239, 68, 68, 0.05);
+            box-shadow: 0 0 16px var(--accent-live-glow);
         }
-        .slide-item.live::before {
-            content: 'LIVE'; position: absolute; top: 12px; right: 12px;
-            background: var(--accent-live); color: white;
-            font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;
-            padding: 4px 8px; border-radius: 6px;
+        .slide-item.live::after {
+            content: 'LIVE'; 
+            position: absolute; 
+            top: 14px; 
+            right: 14px;
+            background: var(--accent-live); 
+            color: white;
+            font-size: 0.6rem; 
+            font-weight: 800; 
+            letter-spacing: 0.5px;
+            padding: 3px 6px; 
+            border-radius: 4px;
+            box-shadow: 0 2px 6px var(--accent-live-glow);
         }
-        .slide-item h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 6px; padding-right: 40px; }
-        
-        .slide-item-preview-img {
-            width: 100%; aspect-ratio: 16/9; object-fit: contain; background: #000;
-            border-radius: 6px; margin-bottom: 8px; border: 1px solid var(--panel-border);
+
+        .slide-thumbnail-wrapper {
+            width: 100%; 
+            aspect-ratio: 16/9; 
+            background: #000000; 
+            border-radius: var(--radius-sm); 
+            overflow: hidden; 
+            border: 1px solid rgba(255, 255, 255, 0.06); 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
         }
-        .slide-preview-text { font-size: 0.8rem; color: var(--text-muted); }
+
+        .slide-thumbnail-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .slide-info-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .slide-index-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .slide-item.live .slide-index-label {
+            color: var(--accent-live);
+            background: rgba(239, 68, 68, 0.15);
+        }
+
+        .slide-title-label {
+            font-size: 0.82rem; 
+            font-weight: 600; 
+            color: var(--text-main);
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            white-space: nowrap; 
+            flex: 1;
+            margin-left: 6px;
+        }
 
         .slide-lock-indicator {
-            display: none; align-items: center; gap: 4px; font-size: 0.75rem;
-            color: #ff6b6b; margin-top: 8px; font-weight: 500;
+            display: none; 
+            align-items: center; 
+            gap: 4px; 
+            font-size: 0.7rem;
+            color: #f87171; 
+            font-weight: 500;
+            margin-top: 2px;
         }
         .slide-item.locked .slide-lock-indicator { display: flex; }
 
-        .control-panel {
-            padding: 40px; display: flex; flex-direction: column;
-            gap: 32px; overflow-y: auto; margin: 0 auto; width: 100%; max-width: 1200px;
+        /* 모달창 (Settings Modal) 디자인 */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(5, 5, 8, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+        
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
         }
 
-        .live-preview-card {
-            background: var(--panel-bg); backdrop-filter: var(--panel-blur);
-            border: 1px solid var(--panel-border); border-radius: var(--radius-xl);
-            padding: 32px; position: relative; box-shadow: var(--shadow-md);
-        }
-        .card-title {
-            font-family: 'Outfit', sans-serif; font-size: 1.2rem; font-weight: 600;
-            margin-bottom: 24px; display: flex; align-items: center; gap: 12px; color: var(--text-main);
+        .modal-container {
+            background: #121216;
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-lg);
+            width: 460px;
+            max-width: 90%;
+            box-shadow: var(--shadow-lg);
+            transform: scale(0.92);
+            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            overflow: hidden;
         }
 
-        .preview-screen {
-            aspect-ratio: 16/9; background: #1e1e1e;
-            border: 1px solid var(--panel-border); border-radius: var(--radius-md);
-            display: flex; align-items: center; justify-content: center; position: relative;
-            overflow: hidden; box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+        .modal-overlay.active .modal-container {
+            transform: scale(1);
         }
-        .preview-screen-live-text { color: #fff; font-size: 2rem; text-align: center; font-weight: bold; padding: 20px; }
 
-        .action-controls { display: flex; gap: 20px; }
-        .btn-control {
-            flex: 1; padding: 16px 24px; font-size: 1.05rem; font-weight: 600;
-            border-radius: var(--radius-lg); border: 1px solid var(--panel-border);
-            cursor: pointer; transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
-            display: flex; align-items: center; justify-content: center; gap: 10px;
-            background: rgba(255, 255, 255, 0.05); color: white; box-shadow: var(--shadow-sm);
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--panel-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        .btn-prev:hover { background: rgba(255, 255, 255, 0.1); transform: translateY(-2px); }
-        .btn-next { background: var(--primary); border-color: var(--primary); }
-        .btn-next:hover { background: #0062cc; transform: translateY(-2px); box-shadow: 0 6px 20px var(--primary-glow); }
-        .btn-control:active { transform: translateY(1px); }
 
-        .settings-card {
-            background: var(--panel-bg); border: 1px solid var(--panel-border);
-            border-radius: var(--radius-xl); padding: 32px; backdrop-filter: var(--panel-blur);
+        .modal-header h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fff;
         }
-        .settings-form { display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; margin-top: 20px; }
-        .form-group { display: flex; flex-direction: column; gap: 10px; }
-        .form-group label { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
+
+        .modal-close-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+        .modal-close-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .modal-body {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .settings-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .settings-group h3 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .settings-form-row {
+            display: flex;
+            gap: 16px;
+        }
+
+        .form-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .form-field label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
         .form-input {
-            background: rgba(0, 0, 0, 0.2); border: 1px solid var(--panel-border);
-            border-radius: var(--radius-sm); padding: 10px 16px; color: white;
-            font-size: 0.9rem; width: 140px; outline: none; transition: all 0.2s;
+            background: rgba(0, 0, 0, 0.3); 
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-sm); 
+            padding: 10px 14px; 
+            color: white;
+            font-size: 0.88rem; 
+            outline: none; 
+            transition: all 0.2s;
+            width: 100%;
         }
-        .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+        .form-input:focus { 
+            border-color: var(--primary); 
+            box-shadow: 0 0 0 3px var(--primary-glow); 
+        }
+
         .btn-save-settings {
+            background: var(--primary);
+            border: none;
+            color: #fff;
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 10px;
+            box-shadow: 0 4px 12px var(--primary-glow);
+        }
+        .btn-save-settings:hover {
+            background: var(--primary-hover);
+        }
+
+        .bg-mode-wrapper {
+            display: flex;
+            gap: 16px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+        }
+
+        .bg-mode-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: var(--text-main);
+            flex: 1;
+        }
+
+        .bg-mode-option input {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+            accent-color: var(--primary);
+        }
+
+        .shortcut-info-box {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
 
         .shortcut-key {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
             border-radius: 4px;
-            padding: 2px 6px;
+            padding: 1px 5px;
             font-family: monospace;
             color: #fff;
+            margin: 0 2px;
         }
     </style>
 </head>
 <body>
     <header>
-        <h1>Subcast Presenter</h1>
-        <div class="status-badge" id="status-badge">
-            <span class="status-dot"></span>
-            <span id="status-text">Disconnected</span>
+        <div class="header-logo-group">
+            <h1>Subcast Presenter</h1>
+            <!-- 미니 송출 미리보기 영역 -->
+            <div class="mini-preview-container">
+                <div class="mini-preview-label">
+                    <span class="pulse-dot"></span>LIVE 송출
+                </div>
+                <div class="preview-screen">
+                    <canvas id="presenter-preview-canvas"></canvas>
+                </div>
+                <!-- 퀵 컨트롤러 -->
+                <div class="quick-nav-controls">
+                    <button class="btn-quick-nav" id="btn-prev" title="이전 슬라이드 [←]">◀</button>
+                    <span class="slide-indicator-badge" id="slide-indicator">0 / 0</span>
+                    <button class="btn-quick-nav" id="btn-next" title="다음 슬라이드 [→]">▶</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="header-right-group">
+            <button class="btn-settings-trigger" id="btn-open-settings">⚙ 설정</button>
+            <div class="status-badge" id="status-badge">
+                <span class="status-dot"></span>
+                <span id="status-text">Disconnected</span>
+            </div>
         </div>
     </header>
 
     <div class="workspace">
-        <!-- 왼쪽: 슬라이드 덱 리스트 -->
-        <div class="deck-panel">
-            <div class="panel-header">
-                <span>슬라이드 덱 목록</span>
-                <span style="font-size: 0.8rem; color: var(--text-muted);" id="slide-count">0 Slide</span>
-            </div>
-            <div class="slide-list" id="slide-list">
-                <!-- 동적으로 추가됨 -->
-            </div>
+        <div class="deck-header">
+            <div class="deck-title">📺 슬라이드 격자 보드</div>
+            <span style="font-size: 0.8rem; color: var(--text-muted);" id="slide-count">0 Slide</span>
         </div>
+        <!-- 5열 격자 그리드 -->
+        <div class="deck-grid" id="slide-list">
+            <!-- 동적으로 추가됨 -->
+        </div>
+    </div>
 
-        <!-- 오른쪽: 제어 및 모니터링 -->
-        <div class="control-panel">
-            <!-- 라이브 송출 프리뷰 -->
-            <div class="live-preview-card">
-                <div class="card-title">
-                    <span style="color: var(--accent-live); font-size: 1.5rem;">●</span> LIVE 송출 모니터링 (16:9 비율 프리뷰)
-                </div>
-                <div class="preview-screen" style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-                    <canvas id="presenter-preview-canvas"></canvas>
-                </div>
+    <!-- 설정 모달창 -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>⚙ 송출 및 해상도 설정</h2>
+                <button class="modal-close-btn" id="btn-close-settings">&times;</button>
             </div>
-
-            <!-- 전환 제어 컨트롤 -->
-            <div class="action-controls">
-                <button class="btn-control btn-prev" id="btn-prev">◀ 이전 슬라이드 [←]</button>
-                <button class="btn-control btn-next" id="btn-next">다음 슬라이드 [→] ▶</button>
-            </div>
-
-            <!-- 해상도 설정 -->
-            <div class="settings-card">
-                <h3 style="font-family: 'Outfit'; font-size: 1.1rem; font-weight: 600;">OBS target 해상도 설정</h3>
-                <div class="settings-form">
-                    <div class="form-group">
-                        <label for="width-input">가로 해상도 (Width)</label>
-                        <input type="number" id="width-input" class="form-input" value="1920">
+            <div class="modal-body">
+                <!-- 해상도 설정 -->
+                <div class="settings-group">
+                    <h3>OBS target 해상도 설정</h3>
+                    <div class="settings-form-row">
+                        <div class="form-field">
+                            <label for="width-input">가로 해상도 (Width)</label>
+                            <input type="number" id="width-input" class="form-input" value="1920">
+                        </div>
+                        <div class="form-field">
+                            <label for="height-input">세로 해상도 (Height)</label>
+                            <input type="number" id="height-input" class="form-input" value="1080">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="height-input">세로 해상도 (Height)</label>
-                        <input type="number" id="height-input" class="form-input" value="1080">
+                </div>
+
+                <!-- 배경 모드 설정 -->
+                <div class="settings-group">
+                    <h3>Chroma Key 배경 설정</h3>
+                    <div class="bg-mode-wrapper">
+                        <label class="bg-mode-option">
+                            <input type="radio" name="bg-mode" id="bg-transparent" value="transparent" checked>
+                            <span>투명 배경 (OBS)</span>
+                        </label>
+                        <label class="bg-mode-option">
+                            <input type="radio" name="bg-mode" id="bg-chromakey" value="chromakey">
+                            <span>녹색 크로마키 (믹서)</span>
+                        </label>
                     </div>
-                    <button class="btn-save-settings" id="btn-apply-res">해상도 전송</button>
                 </div>
-            </div>
 
-            <!-- 배경 모드 설정 -->
-            <div class="settings-card">
-                <h3 style="font-family: 'Outfit'; font-size: 1.1rem; font-weight: 600;">송출 배경 설정 (Chroma Key)</h3>
-                <div class="settings-form" style="display: flex; gap: 24px; align-items: center; margin-top: 15px;">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.95rem;">
-                        <input type="radio" name="bg-mode" id="bg-transparent" value="transparent" checked style="cursor: pointer; width: 16px; height: 16px;">
-                        투명 배경 (OBS 오버레이)
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.95rem;">
-                        <input type="radio" name="bg-mode" id="bg-chromakey" value="chromakey" style="cursor: pointer; width: 16px; height: 16px;">
-                        녹색 크로마키 (물리 믹서)
-                    </label>
+                <!-- 단축키 정보 -->
+                <div class="settings-group">
+                    <h3>단축키 안내</h3>
+                    <div class="shortcut-info-box">
+                        • 다음 슬라이드: <span class="shortcut-key">→</span> <span class="shortcut-key">Space</span> <span class="shortcut-key">PageDown</span><br>
+                        • 이전 슬라이드: <span class="shortcut-key">←</span> <span class="shortcut-key">Backspace</span> <span class="shortcut-key">PageUp</span>
+                    </div>
                 </div>
-            </div>
 
-            <!-- 단축키 설명 -->
-            <div class="shortcut-info">
-                <strong>💡 마스터 단축키 안내</strong>
-                <p style="margin-top: 6px;">
-                    다음 슬라이드: <span class="shortcut-key">Right Arrow (→)</span> / <span class="shortcut-key">Space</span> / <span class="shortcut-key">PageDown</span><br>
-                    이전 슬라이드: <span class="shortcut-key">Left Arrow (←)</span> / <span class="shortcut-key">Backspace</span> / <span class="shortcut-key">PageUp</span>
-                </p>
+                <button class="btn-save-settings" id="btn-apply-res">해상도 및 설정 전송</button>
             </div>
         </div>
     </div>
@@ -496,11 +847,14 @@
                 }
 
                 item.innerHTML = `
-                    <h3 style="margin: 0 0 8px 0; font-size: 0.95rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 40px;">${index + 1}. ${slide.name}</h3>
-                    <div class="slide-thumbnail-wrapper" style="width: 100%; height: 90px; background: #000000; border-radius: 8px; overflow: hidden; border: 1px solid var(--panel-border); display: flex; align-items: center; justify-content: center; margin-bottom: 8px;">
-                        ${slide.thumbnail ? `<img src="${slide.thumbnail}" style="width: 100%; height: 100%; object-fit: contain;">` : `<span style="font-size: 0.72rem; color: var(--text-muted);">미리보기 없음</span>`}
+                    <div class="slide-thumbnail-wrapper">
+                        ${slide.thumbnail ? `<img src="${slide.thumbnail}">` : `<span style="font-size: 0.72rem; color: var(--text-muted);">미리보기 없음</span>`}
                     </div>
-                    <div class="slide-lock-indicator" style="margin-top: 4px;">🔒 ${lockedSlides[slide.id] || ''}님이 편집 중</div>
+                    <div class="slide-info-row">
+                        <span class="slide-index-label">${String(index + 1).padStart(2, '0')}</span>
+                        <span class="slide-title-label" title="${slide.name}">${slide.name}</span>
+                    </div>
+                    <div class="slide-lock-indicator">🔒 ${lockedSlides[slide.id] || ''} 편집 중</div>
                 `;
 
                 // 클릭 시 해당 슬라이드로 즉시 전환
@@ -510,6 +864,12 @@
 
                 listEl.appendChild(item);
             });
+
+            // 상단 퀵 네비게이션 인디케이터 업데이트
+            const indicatorEl = document.getElementById("slide-indicator");
+            if (indicatorEl) {
+                indicatorEl.innerText = `${currentLiveIndex !== -1 ? String(currentLiveIndex + 1).padStart(2, '0') : '00'} / ${String(projectData.slides.length).padStart(2, '0')}`;
+            }
 
             // 피어 스크롤 동기화 (활성 슬라이드로 자동 스크롤)
             const activeItem = document.querySelector(".slide-item.live");
@@ -648,6 +1008,25 @@
         window.onload = () => {
             connectWebSocket();
 
+            // 설정 모달 제어 이벤트 바인딩
+            const modal = document.getElementById("settings-modal");
+            const openBtn = document.getElementById("btn-open-settings");
+            const closeBtn = document.getElementById("btn-close-settings");
+
+            if (openBtn && modal) {
+                openBtn.onclick = () => modal.classList.add("active");
+            }
+            if (closeBtn && modal) {
+                closeBtn.onclick = () => modal.classList.remove("active");
+            }
+            if (modal) {
+                modal.onclick = (e) => {
+                    if (e.target === modal) {
+                        modal.classList.remove("active");
+                    }
+                };
+            }
+
             // 이전/다음 버튼 리스너
             document.getElementById("btn-prev").onclick = () => navigateSlide('prev');
             document.getElementById("btn-next").onclick = () => navigateSlide('next');
@@ -662,6 +1041,9 @@
                         width: w,
                         height: h
                     }));
+                }
+                if (modal) {
+                    modal.classList.remove("active");
                 }
             };
 
