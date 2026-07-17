@@ -6415,10 +6415,32 @@
                 const previewText = lines.length > 0 ? lines[0] : "";
 
                 div.innerHTML = `
-                    <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">${escapeHTML(song.title)}</span>
-                    <span style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(previewText)}</span>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-main); flex: 1;">${escapeHTML(song.title)}</span>
+                        <span class="btn-delete-praise" style="font-size: 0.8rem; cursor: pointer; padding: 2px 4px; margin-left: 8px; opacity: 0.6; transition: opacity 0.2s;" title="삭제" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">🗑️</span>
+                    </div>
+                    <span style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px;">${escapeHTML(previewText)}</span>
                 `;
-                div.onclick = () => {
+                div.onclick = async (e) => {
+                    if (e.target.closest('.btn-delete-praise')) {
+                        e.stopPropagation();
+                        if (confirm(`'${song.title}' 찬양을 정말 삭제하시겠습니까?`)) {
+                            try {
+                                const response = await fetch(`/api/praise/delete?title=${encodeURIComponent(song.title)}`, { method: 'DELETE' });
+                                if (!response.ok) throw new Error("삭제 실패");
+                                if (activeSelectedPraiseSong && activeSelectedPraiseSong.title === song.title) {
+                                    activeSelectedPraiseSong = null;
+                                    adjustPraisePanelLayout(false);
+                                }
+                                fetchPraiseSongs(document.getElementById("praise-search-input").value);
+                            } catch (err) {
+                                console.error(err);
+                                alert("찬양 삭제 중 오류가 발생했습니다.");
+                            }
+                        }
+                        return;
+                    }
+
                     const isAlreadySelected = (activeSelectedPraiseSong && activeSelectedPraiseSong.title === song.title);
 
                     const prevSel = songsList.querySelector(".bible-result-item.selected");

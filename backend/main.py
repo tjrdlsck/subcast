@@ -260,6 +260,15 @@ class PraiseDatabaseHelper:
         finally:
             conn.close()
 
+    def delete_song(self, title: str):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("DELETE FROM praise_songs WHERE title = ?", (title,))
+            conn.commit()
+        finally:
+            conn.close()
+
 praise_db = PraiseDatabaseHelper("GAE_Bible.db")
 
 from pydantic import BaseModel
@@ -280,6 +289,16 @@ async def save_praise_song(req: PraiseSongSaveRequest):
         if not req.title.strip() or not req.lyrics.strip():
             raise HTTPException(status_code=400, detail="제목과 가사를 모두 입력해 주세요.")
         praise_db.save_song(req.title.strip(), req.lyrics.strip())
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/praise/delete")
+async def delete_praise_song(title: str = Query(...)):
+    try:
+        if not title.strip():
+            raise HTTPException(status_code=400, detail="제목을 입력해 주세요.")
+        praise_db.delete_song(title.strip())
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
