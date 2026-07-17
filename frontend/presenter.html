@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Subcast - 송출 제어기 (Presenter)</title>
+    <!-- Google Fonts: Inter & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Fabric.js 안정 버전 5.3.0 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-bg: rgba(255, 255, 255, 0.03);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --panel-blur: blur(24px);
+            --primary: #007aff;
+            --primary-glow: rgba(0, 122, 255, 0.3);
+            --accent-live: #ff3b30;
+            --accent-live-glow: rgba(255, 59, 48, 0.4);
+            --text-main: #ffffff;
+            --text-muted: #8e8e93;
+            --green-online: #34c759;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at top right, rgba(0, 122, 255, 0.05) 0%, transparent 40%),
+                              radial-gradient(circle at bottom left, rgba(255, 59, 48, 0.05) 0%, transparent 40%);
+            color: var(--text-main);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 32px;
+            background: rgba(18, 18, 18, 0.7);
+            backdrop-filter: var(--panel-blur);
+            -webkit-backdrop-filter: var(--panel-blur);
+            border-bottom: 1px solid var(--panel-border);
+            position: sticky; top: 0; z-index: 100;
+        }
+
+        header h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem; font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #fff 30%, var(--text-muted) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .status-badge {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.8rem; font-weight: 600;
+            padding: 8px 16px; border-radius: 20px;
+            background: var(--panel-bg); border: 1px solid var(--panel-border);
+            backdrop-filter: var(--panel-blur); box-shadow: var(--shadow-sm);
+        }
+
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background-color: var(--accent-live); }
+        .status-badge.connected .status-dot { background-color: var(--green-online); box-shadow: 0 0 8px var(--green-online); }
+
+        .workspace { flex: 1; display: grid; grid-template-columns: 320px 1fr; height: calc(100vh - 70px); }
+
+        .deck-panel {
+            background: rgba(18, 18, 18, 0.5); backdrop-filter: var(--panel-blur);
+            border-right: 1px solid var(--panel-border);
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 24px 20px 12px 20px; font-weight: 600; font-size: 1rem; color: var(--text-main);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .slide-list {
+            flex: 1; overflow-y: auto; padding: 12px 20px;
+            display: flex; flex-direction: column; gap: 12px;
+        }
+
+        .slide-item {
+            background: var(--panel-bg); border: 1px solid transparent;
+            border-radius: var(--radius-md); padding: 16px; cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            position: relative; user-select: none; box-shadow: var(--shadow-sm);
+        }
+        .slide-item:hover { background: rgba(255, 255, 255, 0.08); transform: translateY(-2px); }
+
+        .slide-item.live {
+            border-color: var(--accent-live); background: rgba(255, 59, 48, 0.1);
+            box-shadow: 0 0 15px var(--accent-live-glow);
+        }
+        .slide-item.live::before {
+            content: 'LIVE'; position: absolute; top: 12px; right: 12px;
+            background: var(--accent-live); color: white;
+            font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;
+            padding: 4px 8px; border-radius: 6px;
+        }
+        .slide-item h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 6px; padding-right: 40px; }
+        
+        .slide-item-preview-img {
+            width: 100%; aspect-ratio: 16/9; object-fit: contain; background: #000;
+            border-radius: 6px; margin-bottom: 8px; border: 1px solid var(--panel-border);
+        }
+        .slide-preview-text { font-size: 0.8rem; color: var(--text-muted); }
+
+        .slide-lock-indicator {
+            display: none; align-items: center; gap: 4px; font-size: 0.75rem;
+            color: #ff6b6b; margin-top: 8px; font-weight: 500;
+        }
+        .slide-item.locked .slide-lock-indicator { display: flex; }
+
+        .control-panel {
+            padding: 40px; display: flex; flex-direction: column;
+            gap: 32px; overflow-y: auto; margin: 0 auto; width: 100%; max-width: 1200px;
+        }
+
+        .live-preview-card {
+            background: var(--panel-bg); backdrop-filter: var(--panel-blur);
+            border: 1px solid var(--panel-border); border-radius: var(--radius-xl);
+            padding: 32px; position: relative; box-shadow: var(--shadow-md);
+        }
+        .card-title {
+            font-family: 'Outfit', sans-serif; font-size: 1.2rem; font-weight: 600;
+            margin-bottom: 24px; display: flex; align-items: center; gap: 12px; color: var(--text-main);
+        }
+
+        .preview-screen {
+            aspect-ratio: 16/9; background: #1e1e1e;
+            border: 1px solid var(--panel-border); border-radius: var(--radius-md);
+            display: flex; align-items: center; justify-content: center; position: relative;
+            overflow: hidden; box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        .preview-screen-live-text { color: #fff; font-size: 2rem; text-align: center; font-weight: bold; padding: 20px; }
+
+        .action-controls { display: flex; gap: 20px; }
+        .btn-control {
+            flex: 1; padding: 16px 24px; font-size: 1.05rem; font-weight: 600;
+            border-radius: var(--radius-lg); border: 1px solid var(--panel-border);
+            cursor: pointer; transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            background: rgba(255, 255, 255, 0.05); color: white; box-shadow: var(--shadow-sm);
+        }
+        .btn-prev:hover { background: rgba(255, 255, 255, 0.1); transform: translateY(-2px); }
+        .btn-next { background: var(--primary); border-color: var(--primary); }
+        .btn-next:hover { background: #0062cc; transform: translateY(-2px); box-shadow: 0 6px 20px var(--primary-glow); }
+        .btn-control:active { transform: translateY(1px); }
+
+        .settings-card {
+            background: var(--panel-bg); border: 1px solid var(--panel-border);
+            border-radius: var(--radius-xl); padding: 32px; backdrop-filter: var(--panel-blur);
+        }
+        .settings-form { display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; margin-top: 20px; }
+        .form-group { display: flex; flex-direction: column; gap: 10px; }
+        .form-group label { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
+        .form-input {
+            background: rgba(0, 0, 0, 0.2); border: 1px solid var(--panel-border);
+            border-radius: var(--radius-sm); padding: 10px 16px; color: white;
+            font-size: 0.9rem; width: 140px; outline: none; transition: all 0.2s;
+        }
+        .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+        .btn-save-settings {
+
+        .shortcut-key {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-family: monospace;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Subcast Presenter</h1>
+        <div class="status-badge" id="status-badge">
+            <span class="status-dot"></span>
+            <span id="status-text">Disconnected</span>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <!-- 왼쪽: 슬라이드 덱 리스트 -->
+        <div class="deck-panel">
+            <div class="panel-header">
+                <span>슬라이드 덱 목록</span>
+                <span style="font-size: 0.8rem; color: var(--text-muted);" id="slide-count">0 Slide</span>
+            </div>
+            <div class="slide-list" id="slide-list">
+                <!-- 동적으로 추가됨 -->
+            </div>
+        </div>
+
+        <!-- 오른쪽: 제어 및 모니터링 -->
+        <div class="control-panel">
+            <!-- 라이브 송출 프리뷰 -->
+            <div class="live-preview-card">
+                <div class="card-title">
+                    <span style="color: var(--accent-live); font-size: 1.5rem;">●</span> LIVE 송출 모니터링 (16:9 비율 프리뷰)
+                </div>
+                <div class="preview-screen" style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                    <canvas id="presenter-preview-canvas"></canvas>
+                </div>
+            </div>
+
+            <!-- 전환 제어 컨트롤 -->
+            <div class="action-controls">
+                <button class="btn-control btn-prev" id="btn-prev">◀ 이전 슬라이드 [←]</button>
+                <button class="btn-control btn-next" id="btn-next">다음 슬라이드 [→] ▶</button>
+            </div>
+
+            <!-- 해상도 설정 -->
+            <div class="settings-card">
+                <h3 style="font-family: 'Outfit'; font-size: 1.1rem; font-weight: 600;">OBS target 해상도 설정</h3>
+                <div class="settings-form">
+                    <div class="form-group">
+                        <label for="width-input">가로 해상도 (Width)</label>
+                        <input type="number" id="width-input" class="form-input" value="1920">
+                    </div>
+                    <div class="form-group">
+                        <label for="height-input">세로 해상도 (Height)</label>
+                        <input type="number" id="height-input" class="form-input" value="1080">
+                    </div>
+                    <button class="btn-save-settings" id="btn-apply-res">해상도 전송</button>
+                </div>
+            </div>
+
+            <!-- 배경 모드 설정 -->
+            <div class="settings-card">
+                <h3 style="font-family: 'Outfit'; font-size: 1.1rem; font-weight: 600;">송출 배경 설정 (Chroma Key)</h3>
+                <div class="settings-form" style="display: flex; gap: 24px; align-items: center; margin-top: 15px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.95rem;">
+                        <input type="radio" name="bg-mode" id="bg-transparent" value="transparent" checked style="cursor: pointer; width: 16px; height: 16px;">
+                        투명 배경 (OBS 오버레이)
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.95rem;">
+                        <input type="radio" name="bg-mode" id="bg-chromakey" value="chromakey" style="cursor: pointer; width: 16px; height: 16px;">
+                        녹색 크로마키 (물리 믹서)
+                    </label>
+                </div>
+            </div>
+
+            <!-- 단축키 설명 -->
+            <div class="shortcut-info">
+                <strong>💡 마스터 단축키 안내</strong>
+                <p style="margin-top: 6px;">
+                    다음 슬라이드: <span class="shortcut-key">Right Arrow (→)</span> / <span class="shortcut-key">Space</span> / <span class="shortcut-key">PageDown</span><br>
+                    이전 슬라이드: <span class="shortcut-key">Left Arrow (←)</span> / <span class="shortcut-key">Backspace</span> / <span class="shortcut-key">PageUp</span>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // CanvasTextBaseline 패치: 브라우저 확장 프로그램 등에서 'alphabetical'을 넣어 발생하는 경고 우회
+        (function() {
+            if (typeof CanvasRenderingContext2D !== 'undefined') {
+                const descriptor = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, 'textBaseline');
+                if (descriptor && descriptor.set) {
+                    const originalSet = descriptor.set;
+                    Object.defineProperty(CanvasRenderingContext2D.prototype, 'textBaseline', {
+                        set: function(value) {
+                            if (value === 'alphabetical') {
+                                value = 'alphabetic';
+                            }
+                            originalSet.call(this, value);
+                        },
+                        get: descriptor.get,
+                        enumerable: descriptor.enumerable,
+                        configurable: descriptor.configurable
+                    });
+                }
+            }
+        })();
+
+        let ws = null;
+        let projectData = null;
+        let lockedSlides = {};
+        let currentLiveIndex = -1;
+        let canvas = null;
+        let targetWidth = 1920;
+        let targetHeight = 1080;
+
+        // 백그라운드에서 썸네일을 자동 생성하는 함수
+        function autoGenerateThumbnail(slide) {
+            if (slide.thumbnail) return Promise.resolve(slide.thumbnail);
+            
+            return new Promise((resolve) => {
+                // 1. fabric.StaticCanvas용 임시 캔버스 생성 및 요소 렌더링
+                const fabricCanvasEl = document.createElement('canvas');
+                fabricCanvasEl.width = 768;
+                fabricCanvasEl.height = 432;
+                
+                const tempCanvas = new fabric.StaticCanvas(fabricCanvasEl, {
+                    backgroundColor: '#000000'
+                });
+                
+                slide.elements.forEach(elem => {
+                    const obj = deserializeElement(elem, 768, 432);
+                    if (obj) tempCanvas.add(obj);
+                });
+                
+                tempCanvas.renderAll();
+                
+                // 2. 최종 출력용 캔버스에 검정 배경을 먼저 확실히 칠한 뒤
+                //    fabric 렌더링 결과를 그 위에 합성 (fabric의 backgroundColor 미적용 버그 방지)
+                const outputCanvasEl = document.createElement('canvas');
+                outputCanvasEl.width = 768;
+                outputCanvasEl.height = 432;
+                const ctx = outputCanvasEl.getContext('2d');
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, 768, 432);
+                ctx.drawImage(fabricCanvasEl, 0, 0);
+                
+                const dataUrl = outputCanvasEl.toDataURL('image/jpeg', 0.4);
+                
+                tempCanvas.dispose();
+                slide.thumbnail = dataUrl;
+                
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: "SAVE_SLIDE",
+                        slide: slide
+                    }));
+                }
+                
+                resolve(dataUrl);
+            });
+        }
+
+        // 캔버스 초기화
+        function initCanvas() {
+            if (canvas) {
+                canvas.dispose();
+            }
+            
+            // 프리뷰는 상호작용이 없는 StaticCanvas를 사용
+            canvas = new fabric.StaticCanvas('presenter-preview-canvas', {
+                width: 480,
+                height: 270,
+                backgroundColor: '#000000'
+            });
+            
+            updateCanvasDimensions();
+        }
+
+        // 창 크기나 프리뷰 영역 크기에 맞춰 캔버스 크기 조정
+        function updateCanvasDimensions() {
+            if (!canvas) return;
+
+            const previewScreen = document.querySelector(".preview-screen");
+            if (!previewScreen) return;
+
+            const rect = previewScreen.getBoundingClientRect();
+            // 종횡비 유지를 위해 width 기준으로 height 조절하거나 16:9 비율 유지
+            const w = rect.width;
+            const h = rect.width * (9 / 16);
+
+            canvas.setWidth(w);
+            canvas.setHeight(h);
+
+            // 캔버스 요소를 중앙에 정렬하기 위해 컨테이너 마진 설정
+            const canvasEl = canvas.getElement().parentNode;
+            if (canvasEl) {
+                canvasEl.style.width = `${w}px`;
+                canvasEl.style.height = `${h}px`;
+            }
+
+            renderCurrentLiveSlide();
+        }
+
+        // 공용 역직렬화 (Deserialize) 함수: 백분율 데이터를 Fabric 객체로 변환
+        function deserializeElement(elem, canvasWidth, canvasHeight, isInsideGroup = false, groupW = 1, groupH = 1) {
+            let x, y, w, h;
+            if (isInsideGroup) {
+                x = (elem.x / 100) * groupW;
+                y = (elem.y / 100) * groupH;
+                w = (elem.width / 100) * groupW;
+                h = (elem.height / 100) * groupH;
+            } else {
+                x = (elem.x / 100) * canvasWidth;
+                y = (elem.y / 100) * canvasHeight;
+                w = (elem.width / 100) * canvasWidth;
+                h = (elem.height / 100) * canvasHeight;
+            }
+            let obj = null;
+            const opacity = elem.style?.opacity !== undefined ? elem.style.opacity : 1.0;
+            if (elem.type === 'text') {
+                let fontSize = 20;
+                if (elem.style?.fontSize) {
+                    const match = elem.style.fontSize.match(/^(\d+(?:\.\d+)?)\s*vw$/);
+                    fontSize = match ? (parseFloat(match[1]) / 100) * (isInsideGroup ? groupW : canvasWidth) : parseInt(elem.style.fontSize) || 20;
+                }
+                obj = new fabric.Text(elem.content, { left: x, top: y, width: w, fontSize: fontSize, fill: elem.style?.fontColor || '#ffffff', fontFamily: elem.style?.fontFamily || 'Inter', fontWeight: elem.style?.fontWeight || 'normal', fontStyle: elem.style?.fontStyle || 'normal', textAlign: elem.style?.textAlign || 'left', opacity: opacity, selectable: false });
+            } else if (elem.type === 'rect') {
+                obj = new fabric.Rect({ left: x, top: y, width: w, height: h, rx: elem.style?.cornerRadius || 0, ry: elem.style?.cornerRadius || 0, fill: elem.style?.fillColor || '#4f46e5', stroke: elem.style?.strokeColor || 'transparent', strokeWidth: elem.style?.strokeWidth !== undefined ? (elem.style.strokeWidth / 1920) * canvasWidth : 0, opacity: opacity, selectable: false });
+            } else if (elem.type === 'circle') {
+                obj = new fabric.Circle({ left: x, top: y, radius: w / 2 || 30, fill: elem.style?.fillColor || '#06b6d4', stroke: elem.style?.strokeColor || 'transparent', strokeWidth: elem.style?.strokeWidth !== undefined ? (elem.style.strokeWidth / 1920) * canvasWidth : 0, opacity: opacity, selectable: false });
+            } else if (elem.type === 'triangle') {
+                obj = new fabric.Triangle({ left: x, top: y, width: w, height: h, fill: elem.style?.fillColor || '#10b981', stroke: elem.style?.strokeColor || 'transparent', strokeWidth: elem.style?.strokeWidth !== undefined ? (elem.style.strokeWidth / 1920) * canvasWidth : 0, opacity: opacity, selectable: false });
+            } else if (elem.type === 'line') {
+                obj = new fabric.Line([x, y, x + w, y], { stroke: elem.style?.fillColor || elem.style?.strokeColor || '#f59e0b', strokeWidth: elem.style?.strokeWidth !== undefined && elem.style?.strokeWidth > 0 ? (elem.style.strokeWidth / 1920) * canvasWidth : 4, opacity: opacity, selectable: false });
+            } else if (elem.type === 'group' && elem.children) {
+                const members = elem.children.map(child => deserializeElement(child, canvasWidth, canvasHeight, true, w, h));
+                obj = new fabric.Group(members, { left: x, top: y, opacity: opacity, selectable: false });
+            }
+            return obj;
+        }
+
+        // 현재 라이브 슬라이드 그리기
+        function renderCurrentLiveSlide() {
+            if (!canvas || !projectData) return;
+
+            canvas.clear();
+
+            const currentLiveSlideId = projectData.settings?.currentLiveSlideId;
+            if (!currentLiveSlideId) return;
+
+            const currentSlide = projectData.slides.find(s => s.id === currentLiveSlideId);
+            if (!currentSlide) return;
+
+            // 절대 해상도(targetWidth, targetHeight)를 기준으로 렌더링하고 setZoom으로 배율을 맞춥니다.
+            const scale = canvas.getWidth() / targetWidth;
+            canvas.setZoom(scale);
+
+            currentSlide.elements.forEach(elem => {
+                const obj = deserializeElement(elem, targetWidth, targetHeight);
+                if (obj) {
+                    canvas.add(obj);
+                }
+            });
+
+            canvas.renderAll();
+        }
+
+        // UI 갱신
+        function renderDeck() {
+            const listEl = document.getElementById("slide-list");
+            listEl.innerHTML = "";
+
+            if (!projectData || !projectData.slides) return;
+
+            document.getElementById("slide-count").innerText = `${projectData.slides.length} Slides`;
+
+            projectData.slides.forEach((slide, index) => {
+                const item = document.createElement("div");
+                item.className = "slide-item";
+                item.id = `slide-item-${slide.id}`;
+                
+                const isLive = slide.id === projectData.settings.currentLiveSlideId;
+                if (isLive) {
+                    item.classList.add("live");
+                    currentLiveIndex = index;
+                }
+
+                const isLocked = lockedSlides[slide.id] !== undefined;
+                if (isLocked) {
+                    item.classList.add("locked");
+                }
+
+                item.innerHTML = `
+                    <h3 style="margin: 0 0 8px 0; font-size: 0.95rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 40px;">${index + 1}. ${slide.name}</h3>
+                    <div class="slide-thumbnail-wrapper" style="width: 100%; height: 90px; background: #000000; border-radius: 8px; overflow: hidden; border: 1px solid var(--panel-border); display: flex; align-items: center; justify-content: center; margin-bottom: 8px;">
+                        ${slide.thumbnail ? `<img src="${slide.thumbnail}" style="width: 100%; height: 100%; object-fit: contain;">` : `<span style="font-size: 0.72rem; color: var(--text-muted);">미리보기 없음</span>`}
+                    </div>
+                    <div class="slide-lock-indicator" style="margin-top: 4px;">🔒 ${lockedSlides[slide.id] || ''}님이 편집 중</div>
+                `;
+
+                // 클릭 시 해당 슬라이드로 즉시 전환
+                item.onclick = () => {
+                    changeSlide(slide.id);
+                };
+
+                listEl.appendChild(item);
+            });
+
+            // 피어 스크롤 동기화 (활성 슬라이드로 자동 스크롤)
+            const activeItem = document.querySelector(".slide-item.live");
+            if (activeItem) {
+                activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+
+            // 라이브 프리뷰 업데이트
+            renderCurrentLiveSlide();
+        }
+
+        // 슬라이드 전환 명령 송신
+        function changeSlide(slideId) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            ws.send(JSON.stringify({
+                type: "SLIDE_CHANGE",
+                slideId: slideId
+            }));
+        }
+
+        // 이전/다음 슬라이드 전환
+        function navigateSlide(direction) {
+            if (!projectData || !projectData.slides) return;
+            const len = projectData.slides.length;
+            if (len === 0) return;
+
+            let nextIdx = currentLiveIndex;
+            if (direction === 'next') {
+                nextIdx = (currentLiveIndex + 1) % len;
+            } else if (direction === 'prev') {
+                nextIdx = (currentLiveIndex - 1 + len) % len;
+            }
+
+            changeSlide(projectData.slides[nextIdx].id);
+        }
+
+        // 웹소켓 연결
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws?role=presenter`;
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                const badge = document.getElementById("status-badge");
+                badge.classList.add("connected");
+                document.getElementById("status-text").innerText = "Connected (Presenter)";
+            };
+
+            ws.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+
+                if (message.type === 'INITIAL_SYNC') {
+                    projectData = message.data;
+                    lockedSlides = message.lockedSlides || {};
+                    
+                    if (projectData.settings) {
+                        document.getElementById("width-input").value = projectData.settings.targetWidth || 1920;
+                        document.getElementById("height-input").value = projectData.settings.targetHeight || 1080;
+                        targetWidth = projectData.settings.targetWidth || 1920;
+                        targetHeight = projectData.settings.targetHeight || 1080;
+                        
+                        const bgMode = projectData.settings.backgroundMode || "transparent";
+                        const radioEl = document.getElementById(`bg-${bgMode}`);
+                        if (radioEl) radioEl.checked = true;
+                    }
+                    initCanvas();
+                    renderDeck();
+
+                    // 썸네일이 없는 슬라이드가 있다면 순차적으로 자동 생성하여 반영 및 서버 동기화
+                    let needsUpdate = false;
+                    const promises = projectData.slides.map(slide => {
+                        if (!slide.thumbnail) {
+                            needsUpdate = true;
+                            return autoGenerateThumbnail(slide);
+                        }
+                        return Promise.resolve();
+                    });
+                    
+                    if (needsUpdate) {
+                        Promise.all(promises).then(() => {
+                            renderDeck();
+                        });
+                    }
+                }
+                else if (message.type === 'SET_BACKGROUND_MODE') {
+                    if (projectData && projectData.settings) {
+                        projectData.settings.backgroundMode = message.mode;
+                    }
+                    const radioEl = document.getElementById(`bg-${message.mode}`);
+                    if (radioEl) radioEl.checked = true;
+                }
+                else if (message.type === 'SLIDE_CHANGE') {
+                    if (projectData) {
+                        projectData.settings.currentLiveSlideId = message.slideId;
+                        renderDeck();
+                    }
+                }
+                else if (message.type === 'UPDATE_RESOLUTION') {
+                    document.getElementById("width-input").value = message.width;
+                    document.getElementById("height-input").value = message.height;
+                    targetWidth = message.width;
+                    targetHeight = message.height;
+                    updateCanvasDimensions();
+                }
+                else if (message.type === 'SLIDE_LOCKED') {
+                    lockedSlides[message.slideId] = message.editorName;
+                    renderDeck();
+                }
+                else if (message.type === 'SLIDE_UNLOCKED') {
+                    delete lockedSlides[message.slideId];
+                    renderDeck();
+                }
+                else if (message.type === 'SLIDE_UPDATED') {
+                    // 슬라이드 데이터 변경 감지 (Presenter 화면에서도 미리보기 조용히 갱신)
+                    if (projectData) {
+                        const idx = projectData.slides.findIndex(s => s.id === message.slideId);
+                        if (idx !== -1) {
+                            projectData.slides[idx] = message.slide;
+                        } else {
+                            projectData.slides.push(message.slide);
+                        }
+                        renderDeck();
+                    }
+                }
+            };
+
+            ws.onclose = () => {
+                const badge = document.getElementById("status-badge");
+                badge.classList.remove("connected");
+                document.getElementById("status-text").innerText = "Disconnected";
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        window.onload = () => {
+            connectWebSocket();
+
+            // 이전/다음 버튼 리스너
+            document.getElementById("btn-prev").onclick = () => navigateSlide('prev');
+            document.getElementById("btn-next").onclick = () => navigateSlide('next');
+
+            // 해상도 조절 버튼 리스너
+            document.getElementById("btn-apply-res").onclick = () => {
+                const w = parseInt(document.getElementById("width-input").value) || 1920;
+                const h = parseInt(document.getElementById("height-input").value) || 1080;
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: "UPDATE_RESOLUTION",
+                        width: w,
+                        height: h
+                    }));
+                }
+            };
+
+            // 배경 모드 라디오 버튼 리스너
+            document.querySelectorAll('input[name="bg-mode"]').forEach(radio => {
+                radio.onchange = (e) => {
+                    const mode = e.target.value;
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({
+                            type: "SET_BACKGROUND_MODE",
+                            mode: mode
+                        }));
+                    }
+                };
+            });
+
+            // 키보드 단축키
+            window.onkeydown = (e) => {
+                const activeEl = document.activeElement;
+                if (activeEl && activeEl.tagName === 'INPUT') return; // 입력 필드 조작 중인 경우 무시
+
+                if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+                    e.preventDefault();
+                    navigateSlide('next');
+                } else if (e.key === 'ArrowLeft' || e.key === 'Backspace' || e.key === 'PageUp') {
+                    e.preventDefault();
+                    navigateSlide('prev');
+                }
+            };
+
+            // 리사이즈 이벤트 연결
+            window.addEventListener('resize', updateCanvasDimensions);
+        };
+    </script>
+</body>
+</html>

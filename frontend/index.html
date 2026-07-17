@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subcast - 실시간 방송 자막/슬라이드 송출 시스템</title>
+    <!-- Google Fonts: Outfit & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --primary: #4f46e5;
+            --primary-glow: rgba(79, 70, 229, 0.4);
+            --secondary: #06b6d4;
+            --secondary-glow: rgba(6, 182, 212, 0.4);
+            --accent: #f43f5e;
+            --accent-glow: rgba(244, 63, 94, 0.4);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* 백그라운드 그라데이션 오라 효과 */
+        body::before {
+            content: '';
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%);
+            top: -200px;
+            left: -200px;
+            z-index: -1;
+            filter: blur(80px);
+        }
+
+        body::after {
+            content: '';
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--secondary-glow) 0%, transparent 70%);
+            bottom: -200px;
+            right: -200px;
+            z-index: -1;
+            filter: blur(80px);
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            padding: 40px 20px;
+            text-align: center;
+            z-index: 1;
+        }
+
+        header {
+            margin-bottom: 60px;
+        }
+
+        header h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 3.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff 30%, var(--text-muted) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.05em;
+            margin-bottom: 16px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* 카드 그리드 */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 60px;
+        }
+
+        /* 글래스모피즘 카드 */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 24px;
+            padding: 40px 30px;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        /* 역할별 고유 보더/글로우 스타일 */
+        .card.presenter:hover {
+            box-shadow: 0 0 30px var(--primary-glow);
+            border-color: var(--primary);
+        }
+
+        .card.editor:hover {
+            box-shadow: 0 0 30px var(--secondary-glow);
+            border-color: var(--secondary);
+        }
+
+        .card.viewer:hover {
+            box-shadow: 0 0 30px var(--accent-glow);
+            border-color: var(--accent);
+        }
+
+        .icon-wrapper {
+            width: 80px;
+            height: 80px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2rem;
+            margin-bottom: 24px;
+            transition: transform 0.4s ease;
+        }
+
+        .card:hover .icon-wrapper {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .presenter .icon-wrapper {
+            background: linear-gradient(135deg, var(--primary) 0%, #312e81 100%);
+            box-shadow: 0 8px 20px var(--primary-glow);
+        }
+
+        .editor .icon-wrapper {
+            background: linear-gradient(135deg, var(--secondary) 0%, #0891b2 100%);
+            box-shadow: 0 8px 20px var(--secondary-glow);
+        }
+
+        .viewer .icon-wrapper {
+            background: linear-gradient(135deg, var(--accent) 0%, #9f1239 100%);
+            box-shadow: 0 8px 20px var(--accent-glow);
+        }
+
+        .card h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+        }
+
+        .card p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .presenter .btn {
+            background-color: var(--primary);
+            color: #fff;
+        }
+        .presenter:hover .btn {
+            background-color: #fff;
+            color: var(--primary);
+        }
+
+        .editor .btn {
+            background-color: var(--secondary);
+            color: #fff;
+        }
+        .editor:hover .btn {
+            background-color: #fff;
+            color: var(--secondary);
+        }
+
+        .viewer .btn {
+            background-color: var(--accent);
+            color: #fff;
+        }
+        .viewer:hover .btn {
+            background-color: #fff;
+            color: var(--accent);
+        }
+
+        footer {
+            color: rgba(255, 255, 255, 0.2);
+            font-size: 0.85rem;
+        }
+
+        /* 반응형 디자인 */
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2.5rem;
+            }
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Subcast</h1>
+            <p>다중 마스터 실시간 동기화와 편집 잠금 메커니즘을 지원하는 생방송 오버레이 자막 관리 플랫폼</p>
+        </header>
+
+        <main class="grid">
+            <!-- Presenter Card -->
+            <a href="/static/presenter.html" class="card presenter" id="link-presenter">
+                <div class="icon-wrapper">🚀</div>
+                <h2>송출 제어기</h2>
+                <p>슬라이드 전환(Prev/Next) 및 현재 송출 상태를 마스터 제어합니다. 다중 제어자 간의 자동 동기화를 지원합니다.</p>
+                <span class="btn">Presenter 진입</span>
+            </a>
+
+            <!-- Editor Card -->
+            <a href="/static/editor.html" class="card editor" id="link-editor">
+                <div class="icon-wrapper">✍️</div>
+                <h2>실시간 편집기</h2>
+                <p>방송 흐름 방해 없이 대기 중인 슬라이드의 글씨, 위치 등을 Fabric.js 기반 에디터로 실시간 수정/잠금할 수 있습니다.</p>
+                <span class="btn">Editor 진입</span>
+            </a>
+
+            <!-- Viewer Card -->
+            <a href="/static/viewer.html" class="card viewer" id="link-viewer">
+                <div class="icon-wrapper">📺</div>
+                <h2>OBS 뷰어</h2>
+                <p>투명 배경의 그래픽 결과물 송출 전용 뷰어. 네트워크 연결 두절 감지 시 오버레이 화면을 완전 투명화합니다.</p>
+                <span class="btn">Viewer 진입</span>
+            </a>
+        </main>
+
+        <footer>
+            <p>© 2026 Subcast. All rights reserved.</p>
+        </footer>
+    </div>
+</body>
+</html>
