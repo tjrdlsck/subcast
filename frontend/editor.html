@@ -1868,7 +1868,11 @@
                                 <div id="praise-custom-style-panel" style="display: none; flex-direction: column; gap: 8px; border-top: 1px dashed var(--panel-border); padding-top: 8px; margin-top: 2px;">
                                     <div style="display: flex; align-items: center; justify-content: space-between;">
                                         <span style="font-size: 0.65rem; color: var(--text-muted);">글자 색상</span>
-                                        <input type="color" id="input-praise-font-color" value="#ffffff" style="border: 1px solid var(--panel-border); background: none; width: 28px; height: 20px; cursor: pointer; padding: 0;">
+                                        <div style="display: flex; align-items: center; gap: 4px;">
+                                            <input type="color" id="input-praise-font-color" value="#ffffff" style="border: 1px solid var(--panel-border); background: none; width: 28px; height: 20px; cursor: pointer; padding: 0;">
+                                            <input type="range" id="input-praise-font-opacity" min="0" max="100" value="100" style="width: 45px; height: 3px; cursor: pointer;" title="글자 투명도">
+                                            <span id="input-praise-font-opacity-val" style="font-size: 0.6rem; color: var(--text-muted); min-width: 22px;">100%</span>
+                                        </div>
                                     </div>
                                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                                         <span style="font-size: 0.65rem; color: var(--text-muted);">글자 크기 (<span id="lbl-praise-font-size-val">3.5</span>vw)</span>
@@ -1992,6 +1996,10 @@
                             <div class="color-picker-wrapper">
                                 <input type="color" id="fontcolor-editor" class="fontColor-input" value="#ffffff" disabled>
                                 <input type="text" class="color-hex-val" id="fontcolor-hex" value="#FFFFFF" maxlength="7" style="width: 70px; background: transparent; border: 1px solid var(--panel-border); border-radius: 4px; color: #fff; text-align: center; font-size: 0.72rem; height: 20px; outline: none;" disabled>
+                                <div style="display: flex; align-items: center; gap: 2px; margin-left: 6px;" title="투명도(Alpha)">
+                                    <input type="range" id="fontcolor-opacity" min="0" max="100" value="100" style="width: 45px; height: 3px; cursor: pointer;" disabled>
+                                    <span id="fontcolor-opacity-val" style="font-size: 0.6rem; color: var(--text-muted); min-width: 22px;">100%</span>
+                                </div>
                             </div>
                         </div>
                         <div class="property-row">
@@ -2011,6 +2019,10 @@
                                 <div class="color-picker-wrapper">
                                     <input type="color" id="text-strokecolor" class="fontColor-input" value="#000000" disabled>
                                     <input type="text" class="color-hex-val" id="text-strokecolor-hex" value="TRANSPARENT" maxlength="7" style="width: 70px; background: transparent; border: 1px solid var(--panel-border); border-radius: 4px; color: #fff; text-align: center; font-size: 0.72rem; height: 20px; outline: none;" disabled>
+                                    <div style="display: flex; align-items: center; gap: 2px; margin-left: 6px;" title="투명도(Alpha)">
+                                        <input type="range" id="text-strokecolor-opacity" min="0" max="100" value="100" style="width: 45px; height: 3px; cursor: pointer;" disabled>
+                                        <span id="text-strokecolor-opacity-val" style="font-size: 0.6rem; color: var(--text-muted); min-width: 22px;">100%</span>
+                                    </div>
                                 </div>
                             </div>
                             <div class="property-col" style="max-width: 100px;">
@@ -2030,6 +2042,10 @@
                                         <div class="color-picker-wrapper">
                                             <input type="color" id="text-shadow-color" class="fontColor-input" value="#000000" disabled>
                                             <input type="text" class="color-hex-val" id="text-shadow-color-hex" value="#000000" maxlength="7" style="width: 70px; background: transparent; border: 1px solid var(--panel-border); border-radius: 4px; color: #fff; text-align: center; font-size: 0.72rem; height: 20px; outline: none;" disabled>
+                                            <div style="display: flex; align-items: center; gap: 2px; margin-left: 6px;" title="투명도(Alpha)">
+                                                <input type="range" id="text-shadow-color-opacity" min="0" max="100" value="100" style="width: 45px; height: 3px; cursor: pointer;" disabled>
+                                                <span id="text-shadow-color-opacity-val" style="font-size: 0.6rem; color: var(--text-muted); min-width: 22px;">100%</span>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="property-col" style="max-width: 100px;">
@@ -2060,6 +2076,10 @@
                                 <div class="color-picker-wrapper">
                                     <input type="color" id="shape-fillcolor" class="fontColor-input" value="#4f46e5" disabled>
                                     <input type="text" class="color-hex-val" id="shape-fillcolor-hex" value="#4F46E5" maxlength="7" style="width: 70px; background: transparent; border: 1px solid var(--panel-border); border-radius: 4px; color: #fff; text-align: center; font-size: 0.72rem; height: 20px; outline: none;" disabled>
+                                    <div style="display: flex; align-items: center; gap: 2px; margin-left: 6px;" title="투명도(Alpha)">
+                                        <input type="range" id="shape-fillcolor-opacity" min="0" max="100" value="100" style="width: 45px; height: 3px; cursor: pointer;" disabled>
+                                        <span id="shape-fillcolor-opacity-val" style="font-size: 0.6rem; color: var(--text-muted); min-width: 22px;">100%</span>
+                                    </div>
                                 </div>
                             </div>
                             <div class="property-col">
@@ -2067,6 +2087,10 @@
                                 <div class="color-picker-wrapper">
                                     <input type="color" id="shape-strokecolor" class="fontColor-input" value="#ffffff" disabled>
                                     <input type="text" class="color-hex-val" id="shape-strokecolor-hex" value="#FFFFFF" maxlength="7" style="width: 70px; background: transparent; border: 1px solid var(--panel-border); border-radius: 4px; color: #fff; text-align: center; font-size: 0.72rem; height: 20px; outline: none;" disabled>
+                                    <div style="display: flex; align-items: center; gap: 2px; margin-left: 6px;" title="투명도(Alpha)">
+                                        <input type="range" id="shape-strokecolor-opacity" min="0" max="100" value="100" style="width: 45px; height: 3px; cursor: pointer;" disabled>
+                                        <span id="shape-strokecolor-opacity-val" style="font-size: 0.6rem; color: var(--text-muted); min-width: 22px;">100%</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2996,22 +3020,28 @@
                 textSection.style.display = "block";
                 shapeSection.style.display = "none";
 
-                ['text-editor', 'fontfamily-editor', 'fontsize-editor', 'fontcolor-editor', 'btn-bold', 'btn-italic', 'btn-align-left', 'btn-align-center', 'btn-align-right', 'custom-font-input', 'btn-add-custom-font', 'fontcolor-hex', 'text-strokecolor', 'text-strokecolor-hex', 'text-strokewidth', 'text-shadow-enabled'].forEach(id => {
+                ['text-editor', 'fontfamily-editor', 'fontsize-editor', 'fontcolor-editor', 'fontcolor-opacity', 'btn-bold', 'btn-italic', 'btn-align-left', 'btn-align-center', 'btn-align-right', 'custom-font-input', 'btn-add-custom-font', 'fontcolor-hex', 'text-strokecolor', 'text-strokecolor-opacity', 'text-strokecolor-hex', 'text-strokewidth', 'text-shadow-enabled'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.disabled = false;
                 });
                 document.getElementById("text-editor").value = activeObj.text || "";
                 document.getElementById("fontsize-editor").value = parseFloat(activeObj.originalVwSize) || 3.0;
                 
-                // Fabric fill을 input[type=color] 포맷에 맞춰 안전하게 대입
+                // Fabric fill을 input[type=color] 포맷에 맞춰 안전하게 대입 및 투명도 복원
                 const fontColor = colorToHex(activeObj.fill);
+                const fontOpacity = colorToOpacity(activeObj.fill);
                 document.getElementById("fontcolor-editor").value = fontColor;
                 document.getElementById("fontcolor-hex").value = fontColor.toUpperCase();
+                document.getElementById("fontcolor-opacity").value = fontOpacity;
+                document.getElementById("fontcolor-opacity-val").textContent = fontOpacity + "%";
 
-                // 텍스트 테두리 매핑
+                // 텍스트 테두리 매핑 및 투명도 복원
                 const strokeColor = activeObj.stroke ? colorToHex(activeObj.stroke) : 'transparent';
+                const strokeOpacity = activeObj.stroke ? colorToOpacity(activeObj.stroke) : 100;
                 document.getElementById("text-strokecolor").value = strokeColor === 'transparent' ? '#000000' : strokeColor;
                 document.getElementById("text-strokecolor-hex").value = strokeColor.toUpperCase();
+                document.getElementById("text-strokecolor-opacity").value = strokeOpacity;
+                document.getElementById("text-strokecolor-opacity-val").textContent = strokeOpacity + "%";
                 document.getElementById("text-strokewidth").value = activeObj.strokeWidth || 0;
 
                 // 텍스트 그림자 매핑
@@ -3024,14 +3054,17 @@
                     shadowControls.style.opacity = "1";
                     shadowControls.style.pointerEvents = "auto";
                     
-                    ['text-shadow-color', 'text-shadow-color-hex', 'text-shadow-blur', 'text-shadow-offsetx', 'text-shadow-offsety'].forEach(id => {
+                    ['text-shadow-color', 'text-shadow-color-hex', 'text-shadow-color-opacity', 'text-shadow-blur', 'text-shadow-offsetx', 'text-shadow-offsety'].forEach(id => {
                         const el = document.getElementById(id);
                         if (el) el.disabled = false;
                     });
                     
                     const sColor = shadow.color ? colorToHex(shadow.color) : '#000000';
+                    const sOpacity = shadow.color ? colorToOpacity(shadow.color) : 100;
                     document.getElementById("text-shadow-color").value = sColor;
                     document.getElementById("text-shadow-color-hex").value = sColor.toUpperCase();
+                    document.getElementById("text-shadow-color-opacity").value = sOpacity;
+                    document.getElementById("text-shadow-color-opacity-val").textContent = sOpacity + "%";
                     document.getElementById("text-shadow-blur").value = shadow.blur || 0;
                     document.getElementById("text-shadow-offsetx").value = shadow.offsetX || 0;
                     document.getElementById("text-shadow-offsety").value = shadow.offsetY || 0;
@@ -3066,20 +3099,26 @@
                 textSection.style.display = "none";
                 shapeSection.style.display = "block";
 
-                ['shape-fillcolor', 'shape-fillcolor-hex', 'shape-strokecolor', 'shape-strokecolor-hex', 'shape-strokewidth'].forEach(id => {
+                ['shape-fillcolor', 'shape-fillcolor-opacity', 'shape-fillcolor-hex', 'shape-strokecolor', 'shape-strokecolor-opacity', 'shape-strokecolor-hex', 'shape-strokewidth'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.disabled = false;
                 });
                 
-                // Fabric fill을 input[type=color] 포맷에 맞춰 안전하게 대입
+                // Fabric fill을 input[type=color] 포맷에 맞춰 안전하게 대입 및 투명도 복원
                 const fillColor = colorToHex(activeObj.fill);
+                const fillOpacity = colorToOpacity(activeObj.fill);
                 document.getElementById("shape-fillcolor").value = fillColor;
                 document.getElementById("shape-fillcolor-hex").value = fillColor.toUpperCase();
+                document.getElementById("shape-fillcolor-opacity").value = fillOpacity;
+                document.getElementById("shape-fillcolor-opacity-val").textContent = fillOpacity + "%";
 
-                // Fabric stroke를 input[type=color] 포맷에 맞춰 안전하게 대입
+                // Fabric stroke를 input[type=color] 포맷에 맞춰 안전하게 대입 및 투명도 복원
                 const strokeColor = colorToHex(activeObj.stroke);
+                const strokeOpacity = colorToOpacity(activeObj.stroke);
                 document.getElementById("shape-strokecolor").value = strokeColor;
                 document.getElementById("shape-strokecolor-hex").value = strokeColor.toUpperCase();
+                document.getElementById("shape-strokecolor-opacity").value = strokeOpacity;
+                document.getElementById("shape-strokecolor-opacity-val").textContent = strokeOpacity + "%";
 
                 document.getElementById("shape-strokewidth").value = activeObj.strokeWidth || 0;
 
@@ -3115,7 +3154,7 @@
             document.getElementById("inspector-common-section").style.display = "none";
 
             document.getElementById("element-opacity").disabled = true;
-            ['btn-layer-up', 'btn-layer-down', 'btn-layer-front', 'btn-layer-back', 'btn-delete', 'btn-group', 'btn-ungroup', 'custom-font-input', 'btn-add-custom-font', 'fontcolor-hex', 'shape-fillcolor-hex', 'shape-strokecolor-hex', 'text-strokecolor', 'text-strokecolor-hex', 'text-strokewidth', 'text-shadow-enabled', 'text-shadow-color', 'text-shadow-color-hex', 'text-shadow-blur', 'text-shadow-offsetx', 'text-shadow-offsety'].forEach(id => {
+            ['btn-layer-up', 'btn-layer-down', 'btn-layer-front', 'btn-layer-back', 'btn-delete', 'btn-group', 'btn-ungroup', 'custom-font-input', 'btn-add-custom-font', 'fontcolor-hex', 'fontcolor-opacity', 'shape-fillcolor-opacity', 'shape-strokecolor-opacity', 'shape-fillcolor-hex', 'shape-strokecolor-hex', 'text-strokecolor', 'text-strokecolor-opacity', 'text-strokecolor-hex', 'text-strokewidth', 'text-shadow-enabled', 'text-shadow-color', 'text-shadow-color-opacity', 'text-shadow-color-hex', 'text-shadow-blur', 'text-shadow-offsetx', 'text-shadow-offsety'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.disabled = true;
             });
@@ -3594,6 +3633,45 @@
             updateTemplateActionButtons();
         }
 
+        // 컬러 문자열(HEX, rgba, rgb)로부터 투명도(Alpha) 비율 0~100 획득
+        function colorToOpacity(colorVal) {
+            if (!colorVal) return 100;
+            if (colorVal === 'transparent') return 0;
+            
+            const str = colorVal.toString().trim();
+            if (str.startsWith('rgba')) {
+                const parts = str.split(',');
+                if (parts.length === 4) {
+                    const alpha = parseFloat(parts[3].replace(')', ''));
+                    return isNaN(alpha) ? 100 : Math.round(alpha * 100);
+                }
+            } else if (str.startsWith('#') && str.length === 9) {
+                const alphaHex = str.substring(7, 9);
+                const alphaVal = parseInt(alphaHex, 16) / 255;
+                return isNaN(alphaVal) ? 100 : Math.round(alphaVal * 100);
+            }
+            return 100;
+        }
+
+        // HEX 색상코드와 opacity 비율(0~100)을 받아서 rgba() 문자열 조립
+        function hexAndOpacityToRgba(hex, opacityPercent) {
+            if (!hex) return 'transparent';
+            if (hex.toUpperCase() === 'TRANSPARENT') return 'transparent';
+            
+            let cleanHex = hex.trim().replace('#', '');
+            if (cleanHex.length === 3) {
+                cleanHex = cleanHex.split('').map(c => c + c).join('');
+            }
+            if (cleanHex.length !== 6) return hex;
+            
+            const r = parseInt(cleanHex.substring(0, 2), 16);
+            const g = parseInt(cleanHex.substring(2, 4), 16);
+            const b = parseInt(cleanHex.substring(4, 6), 16);
+            const a = (opacityPercent / 100).toFixed(2);
+            
+            return `rgba(${r}, ${g}, ${b}, ${a})`;
+        }
+
         function connectWebSocket() {
             ws = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws?role=editor`);
             ws.onmessage = (event) => {
@@ -3982,40 +4060,145 @@
                 };
             }
 
-            document.getElementById("fontcolor-editor").oninput = (e) => {
+            // 텍스트 글자색 및 투명도 실시간 조절
+            const updateTextFillColor = () => {
                 if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
-                    const val = e.target.value;
-                    currentEditingElement.set('fill', val);
-                    document.getElementById("fontcolor-hex").value = val.toUpperCase();
+                    const color = document.getElementById("fontcolor-editor").value;
+                    const opacity = document.getElementById("fontcolor-opacity").value;
+                    const rgba = hexAndOpacityToRgba(color, opacity);
+                    currentEditingElement.set('fill', rgba);
                     canvas.renderAll();
                 }
             };
-            document.getElementById("fontcolor-editor").onchange = () => {
-                saveStateToHistory();
+            document.getElementById("fontcolor-editor").oninput = (e) => {
+                const val = e.target.value;
+                document.getElementById("fontcolor-hex").value = val.toUpperCase();
+                updateTextFillColor();
             };
+            document.getElementById("fontcolor-opacity").oninput = (e) => {
+                document.getElementById("fontcolor-opacity-val").textContent = e.target.value + "%";
+                updateTextFillColor();
+            };
+            document.getElementById("fontcolor-editor").onchange = () => saveStateToHistory();
+            document.getElementById("fontcolor-opacity").onchange = () => saveStateToHistory();
 
             document.getElementById("fontcolor-hex").oninput = (e) => {
                 let val = e.target.value.trim();
-                if (val && !val.startsWith('#')) {
-                    val = '#' + val;
-                }
+                if (val && !val.startsWith('#')) val = '#' + val;
                 const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
                 if (hexPattern.test(val)) {
                     if (val.length === 4) {
                         val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
                     }
                     document.getElementById("fontcolor-editor").value = val;
-                    if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
-                        currentEditingElement.set('fill', val);
-                        canvas.renderAll();
-                    }
+                    updateTextFillColor();
                 }
             };
             document.getElementById("fontcolor-hex").onchange = (e) => {
                 let val = e.target.value.trim();
-                if (val && !val.startsWith('#')) {
-                    val = '#' + val;
+                if (val && !val.startsWith('#')) val = '#' + val;
+                const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+                if (hexPattern.test(val)) {
+                    if (val.length === 4) {
+                        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+                    }
+                    e.target.value = val.toUpperCase();
+                    saveStateToHistory();
                 }
+            };
+
+            // 텍스트 테두리 색상 및 투명도 실시간 조절
+            const updateTextStrokeColor = () => {
+                if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
+                    const color = document.getElementById("text-strokecolor").value;
+                    const opacity = document.getElementById("text-strokecolor-opacity").value;
+                    const rgba = hexAndOpacityToRgba(color, opacity);
+                    currentEditingElement.set('stroke', rgba);
+                    canvas.renderAll();
+                }
+            };
+            document.getElementById("text-strokecolor").oninput = (e) => {
+                const val = e.target.value;
+                document.getElementById("text-strokecolor-hex").value = val.toUpperCase();
+                updateTextStrokeColor();
+            };
+            document.getElementById("text-strokecolor-opacity").oninput = (e) => {
+                document.getElementById("text-strokecolor-opacity-val").textContent = e.target.value + "%";
+                updateTextStrokeColor();
+            };
+            document.getElementById("text-strokecolor").onchange = () => saveStateToHistory();
+            document.getElementById("text-strokecolor-opacity").onchange = () => saveStateToHistory();
+
+            document.getElementById("text-strokecolor-hex").oninput = (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) val = '#' + val;
+                const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+                if (hexPattern.test(val)) {
+                    if (val.length === 4) {
+                        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+                    }
+                    document.getElementById("text-strokecolor").value = val;
+                    updateTextStrokeColor();
+                }
+            };
+            document.getElementById("text-strokecolor-hex").onchange = (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) val = '#' + val;
+                const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+                if (hexPattern.test(val)) {
+                    if (val.length === 4) {
+                        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+                    }
+                    e.target.value = val.toUpperCase();
+                    saveStateToHistory();
+                }
+            };
+
+            // 텍스트 그림자 색상 및 투명도 실시간 조절
+            const updateTextShadowColor = () => {
+                if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
+                    if (!currentEditingElement.shadow) {
+                        currentEditingElement.setShadow({
+                            color: 'rgba(0,0,0,1)',
+                            blur: parseInt(document.getElementById("text-shadow-blur").value) || 5,
+                            offsetX: parseInt(document.getElementById("text-shadow-offsetx").value) || 3,
+                            offsetY: parseInt(document.getElementById("text-shadow-offsety").value) || 3
+                        });
+                    }
+                    const color = document.getElementById("text-shadow-color").value;
+                    const opacity = document.getElementById("text-shadow-color-opacity").value;
+                    const rgba = hexAndOpacityToRgba(color, opacity);
+                    currentEditingElement.shadow.color = rgba;
+                    canvas.renderAll();
+                }
+            };
+            document.getElementById("text-shadow-color").oninput = (e) => {
+                const val = e.target.value;
+                document.getElementById("text-shadow-color-hex").value = val.toUpperCase();
+                updateTextShadowColor();
+            };
+            document.getElementById("text-shadow-color-opacity").oninput = (e) => {
+                document.getElementById("text-shadow-color-opacity-val").textContent = e.target.value + "%";
+                updateTextShadowColor();
+            };
+            document.getElementById("text-shadow-color").onchange = () => saveStateToHistory();
+            document.getElementById("text-shadow-color-opacity").onchange = () => saveStateToHistory();
+
+            document.getElementById("text-shadow-color-hex").oninput = (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) val = '#' + val;
+                const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+                if (hexPattern.test(val)) {
+                    if (val.length === 4) {
+                        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+                    }
+                    document.getElementById("text-shadow-color").value = val;
+                    updateTextShadowColor();
+                }
+            };
+            document.getElementById("text-shadow-color-hex").onchange = (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) val = '#' + val;
                 const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
                 if (hexPattern.test(val)) {
                     if (val.length === 4) {
@@ -4062,40 +4245,43 @@
             document.getElementById("btn-align-right").onclick = () => setAlign('right');
 
             // 도형 서식 리스너들
-            document.getElementById("shape-fillcolor").oninput = (e) => {
+            // 도형 채우기 색상 및 투명도 실시간 조절
+            const updateShapeFillColor = () => {
                 if (currentEditingElement && currentEditingElement.type !== 'textbox' && currentEditingElement.type !== 'text') {
-                    const val = e.target.value;
-                    currentEditingElement.set('fill', val);
-                    document.getElementById("shape-fillcolor-hex").value = val.toUpperCase();
+                    const color = document.getElementById("shape-fillcolor").value;
+                    const opacity = document.getElementById("shape-fillcolor-opacity").value;
+                    const rgba = hexAndOpacityToRgba(color, opacity);
+                    currentEditingElement.set('fill', rgba);
                     canvas.renderAll();
                 }
             };
-            document.getElementById("shape-fillcolor").onchange = () => {
-                saveStateToHistory();
+            document.getElementById("shape-fillcolor").oninput = (e) => {
+                const val = e.target.value;
+                document.getElementById("shape-fillcolor-hex").value = val.toUpperCase();
+                updateShapeFillColor();
             };
+            document.getElementById("shape-fillcolor-opacity").oninput = (e) => {
+                document.getElementById("shape-fillcolor-opacity-val").textContent = e.target.value + "%";
+                updateShapeFillColor();
+            };
+            document.getElementById("shape-fillcolor").onchange = () => saveStateToHistory();
+            document.getElementById("shape-fillcolor-opacity").onchange = () => saveStateToHistory();
 
             document.getElementById("shape-fillcolor-hex").oninput = (e) => {
                 let val = e.target.value.trim();
-                if (val && !val.startsWith('#')) {
-                    val = '#' + val;
-                }
+                if (val && !val.startsWith('#')) val = '#' + val;
                 const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
                 if (hexPattern.test(val)) {
                     if (val.length === 4) {
                         val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
                     }
                     document.getElementById("shape-fillcolor").value = val;
-                    if (currentEditingElement && currentEditingElement.type !== 'textbox' && currentEditingElement.type !== 'text') {
-                        currentEditingElement.set('fill', val);
-                        canvas.renderAll();
-                    }
+                    updateShapeFillColor();
                 }
             };
             document.getElementById("shape-fillcolor-hex").onchange = (e) => {
                 let val = e.target.value.trim();
-                if (val && !val.startsWith('#')) {
-                    val = '#' + val;
-                }
+                if (val && !val.startsWith('#')) val = '#' + val;
                 const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
                 if (hexPattern.test(val)) {
                     if (val.length === 4) {
@@ -4106,40 +4292,43 @@
                 }
             };
 
-            document.getElementById("shape-strokecolor").oninput = (e) => {
+            // 도형 테두리 색상 및 투명도 실시간 조절
+            const updateShapeStrokeColor = () => {
                 if (currentEditingElement && currentEditingElement.type !== 'textbox' && currentEditingElement.type !== 'text') {
-                    const val = e.target.value;
-                    currentEditingElement.set('stroke', val);
-                    document.getElementById("shape-strokecolor-hex").value = val.toUpperCase();
+                    const color = document.getElementById("shape-strokecolor").value;
+                    const opacity = document.getElementById("shape-strokecolor-opacity").value;
+                    const rgba = hexAndOpacityToRgba(color, opacity);
+                    currentEditingElement.set('stroke', rgba);
                     canvas.renderAll();
                 }
             };
-            document.getElementById("shape-strokecolor").onchange = () => {
-                saveStateToHistory();
+            document.getElementById("shape-strokecolor").oninput = (e) => {
+                const val = e.target.value;
+                document.getElementById("shape-strokecolor-hex").value = val.toUpperCase();
+                updateShapeStrokeColor();
             };
+            document.getElementById("shape-strokecolor-opacity").oninput = (e) => {
+                document.getElementById("shape-strokecolor-opacity-val").textContent = e.target.value + "%";
+                updateShapeStrokeColor();
+            };
+            document.getElementById("shape-strokecolor").onchange = () => saveStateToHistory();
+            document.getElementById("shape-strokecolor-opacity").onchange = () => saveStateToHistory();
 
             document.getElementById("shape-strokecolor-hex").oninput = (e) => {
                 let val = e.target.value.trim();
-                if (val && !val.startsWith('#')) {
-                    val = '#' + val;
-                }
+                if (val && !val.startsWith('#')) val = '#' + val;
                 const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
                 if (hexPattern.test(val)) {
                     if (val.length === 4) {
                         val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
                     }
                     document.getElementById("shape-strokecolor").value = val;
-                    if (currentEditingElement && currentEditingElement.type !== 'textbox' && currentEditingElement.type !== 'text') {
-                        currentEditingElement.set('stroke', val);
-                        canvas.renderAll();
-                    }
+                    updateShapeStrokeColor();
                 }
             };
             document.getElementById("shape-strokecolor-hex").onchange = (e) => {
                 let val = e.target.value.trim();
-                if (val && !val.startsWith('#')) {
-                    val = '#' + val;
-                }
+                if (val && !val.startsWith('#')) val = '#' + val;
                 const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
                 if (hexPattern.test(val)) {
                     if (val.length === 4) {
@@ -5508,6 +5697,9 @@
             }
 
             // 5) 디자인 프리셋 선택 반응형 이벤트 리스너
+            const fontOpacityInput = document.getElementById("input-praise-font-opacity");
+            const fontOpacityVal = document.getElementById("input-praise-font-opacity-val");
+
             if (presetSelect && customPanel) {
                 // 최초 1회 동기화 실행
                 syncPresetValues(presetSelect.value);
@@ -5521,6 +5713,7 @@
                         customPanel.style.display = "flex";
                         // 커스텀 상태일 때는 모든 제어 폼 활성화
                         fontColorInput.disabled = false;
+                        if (fontOpacityInput) fontOpacityInput.disabled = false;
                         fontSizeInput.disabled = false;
                         textAlignSelect.disabled = false;
                         positionSelect.disabled = false;
@@ -5530,6 +5723,7 @@
                         if (preset === "type-a") {
                             // 타입 A: 하단 좌측형, 투명배경, 흰색글자
                             fontColorInput.value = "#ffffff";
+                            if (fontOpacityInput) fontOpacityInput.value = "100";
                             fontSizeInput.value = "3.5";
                             textAlignSelect.value = "left";
                             positionSelect.value = "bottom";
@@ -5537,6 +5731,7 @@
                         } else if (preset === "type-b") {
                             // 타입 B: 상단 중앙형, 투명배경, 차콜글자
                             fontColorInput.value = "#222222";
+                            if (fontOpacityInput) fontOpacityInput.value = "100";
                             fontSizeInput.value = "3.5";
                             textAlignSelect.value = "center";
                             positionSelect.value = "top";
@@ -5544,12 +5739,14 @@
                         } else if (preset === "type-black") {
                             // 블랙 채우기: 중앙 정렬, 검은배경, 흰색글자
                             fontColorInput.value = "#ffffff";
+                            if (fontOpacityInput) fontOpacityInput.value = "100";
                             fontSizeInput.value = "3.5";
                             textAlignSelect.value = "center";
                             positionSelect.value = "middle";
                             bgTypeSelect.value = "black";
                         }
                         if (fontSizeVal) fontSizeVal.textContent = fontSizeInput.value;
+                        if (fontOpacityInput && fontOpacityVal) fontOpacityVal.textContent = fontOpacityInput.value + "%";
                     }
                 }
             }
@@ -5561,6 +5758,13 @@
                 };
             }
 
+            // 글자 투명도 슬라이더 밸류 동적 라벨 표시
+            if (fontOpacityInput && fontOpacityVal) {
+                fontOpacityInput.oninput = (e) => {
+                    fontOpacityVal.textContent = e.target.value + "%";
+                };
+            }
+
             // 6) 슬라이드 추가 모달 오픈 연동 (수정된 디자인 옵션 주입)
             addSlidesBtn.onclick = () => {
                 if (!activeSelectedPraiseSong) return;
@@ -5569,9 +5773,12 @@
                 const lyrics = activeSelectedPraiseSong.lyrics;
                 const blocks = lyrics.split(/\n\s*\n/).map(s => s.trim()).filter(s => s !== "");
                 
-                // 현재 디자인 옵션 수집
+                // 현재 디자인 옵션 수집 (RGBA 색상 변환 적용)
+                const opacityVal = fontOpacityInput ? fontOpacityInput.value : 100;
+                const fontColorRgba = hexAndOpacityToRgba(fontColorInput.value, opacityVal);
+                
                 const styleOptions = {
-                    fontColor: fontColorInput.value,
+                    fontColor: fontColorRgba,
                     fontSize: fontSizeInput.value + "vw",
                     textAlign: textAlignSelect.value,
                     position: positionSelect.value,
