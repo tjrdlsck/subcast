@@ -4389,6 +4389,7 @@
         // ==========================================================================
         let selectedBibleVerses = [];
         let bibleBooksList = [];
+        let lastFilteredBooks = [];
 
         function initBibleFeature() {
             // 성경 책 목록 가져오기
@@ -4415,6 +4416,19 @@
             filterInput.oninput = (e) => filterBibleBooks(e.target.value);
             filterInput.onfocus = () => {
                 filterBibleBooks(filterInput.value);
+            };
+            filterInput.onkeydown = (e) => {
+                if (e.key === "Enter") {
+                    if (lastFilteredBooks.length === 1) {
+                        e.preventDefault();
+                        const book = lastFilteredBooks[0];
+                        filterInput.value = book.book_name;
+                        const selectBook = document.getElementById("select-bible-book");
+                        selectBook.value = book.book_code;
+                        onBibleBookChange();
+                        document.getElementById("bible-book-dropdown-popup").style.display = "none";
+                    }
+                }
             };
 
             // 바깥 영역 클릭 시 자동완성 팝업 닫기
@@ -4565,6 +4579,9 @@
                     convertToShortBookName(book.book_name).toLowerCase().includes(translatedQuery)
                 );
             }
+
+            // 검색 결과 캐시 보관 (엔터 키 입력 시 자동완성 판단용)
+            lastFilteredBooks = filtered;
 
             popup.innerHTML = "";
             popup.style.display = "block";
