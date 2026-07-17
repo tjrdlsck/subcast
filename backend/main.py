@@ -37,8 +37,8 @@ class ConnectionManager:
             "viewer": set()
         }
         # 슬라이드 편집 락 상태 관리: slide_id -> client_unique_id (또는 문자열)
-        self.locked_slides: Dict[str, str] = {}
-        # 서버 메모리 상의 프로젝트 데이터 캐시
+        self.active_connections: List[WebSocket] = []
+        self.locked_slides: Dict[str, dict] = {}
         self.project_data: ProjectData = None
         # 디자인 템플릿 일괄 적용 이전 히스토리 스냅샷 저장 스택 (최대 5개)
         self.project_history: List[dict] = []
@@ -79,7 +79,8 @@ class ConnectionManager:
         # 편의상 websocket 메모리 주소나 해시값을 식별자로 활용할 수 있음
         ws_id = str(id(websocket))
         released_slides = []
-        for slide_id, owner_id in list(self.locked_slides.items()):
+        for slide_id, lock_info in list(self.locked_slides.items()):
+            owner_id = lock_info.get("id") if isinstance(lock_info, dict) else lock_info
             if owner_id == ws_id:
                 del self.locked_slides[slide_id]
                 released_slides.append(slide_id)
@@ -397,7 +398,9 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                 editor_name = message.get("editorName", "편집자")
                 
                 # 이미 다른 세션에 의해 락이 걸려있는지 확인
-                if slide_id in manager.locked_slides and manager.locked_slides[slide_id] != ws_id:
+                current_lock = manager.locked_slides.get(slide_id)
+                current_owner = current_lock.get("id") if isinstance(current_lock, dict) else current_lock
+                if current_lock and current_owner != ws_id:
                     # 락 획득 실패 알림
                     await websocket.send_text(json.dumps({
                         "type": "LOCK_FAILED",
@@ -405,7 +408,7 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                         "reason": "다른 편집자가 편집 중입니다."
                     }))
                 else:
-                    manager.locked_slides[slide_id] = ws_id
+                    manager.locked_slides[slide_id] = {"id": ws_id, "editorName": editor_name}
                     # 락 성공 사실 전파
                     await manager.broadcast({
                         "type": "SLIDE_LOCKED",
@@ -418,7 +421,9 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
             elif msg_type == "UNLOCK_SLIDE":
                 # 슬라이드 편집 락 해제
                 slide_id = message.get("slideId")
-                if slide_id in manager.locked_slides and manager.locked_slides[slide_id] == ws_id:
+                current_lock = manager.locked_slides.get(slide_id)
+                current_owner = current_lock.get("id") if isinstance(current_lock, dict) else current_lock
+                if current_lock and current_owner == ws_id:
                     del manager.locked_slides[slide_id]
                     # 락 해제 사실 전파
                     await manager.broadcast({

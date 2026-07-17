@@ -2198,6 +2198,14 @@
     </div>
 
     <script>
+        // 전역 XSS 방어 유틸리티
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>'"]/g, match => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            })[match]);
+        }
+
         // CanvasTextBaseline 패치: 브라우저 확장 프로그램 등에서 'alphabetical'을 넣어 발생하는 경고 우회
         (function() {
             if (typeof CanvasRenderingContext2D !== 'undefined') {
@@ -2475,30 +2483,57 @@
 
         function renderSlides() {
             const listEl = document.getElementById("slide-list");
-            listEl.innerHTML = "";
             if (!projectData || !projectData.slides) return;
+
+            // 1. 기존 DOM 노드 보존 (재사용 목적)
+            const existingNodes = new Map();
+            Array.from(listEl.children).forEach(node => {
+                if (node.id.startsWith('slide-item-')) {
+                    const slideId = node.id.replace('slide-item-', '');
+                    existingNodes.set(slideId, node);
+                }
+            });
+
+            const fragment = document.createDocumentFragment();
+
             projectData.slides.forEach((slide, index) => {
-                const item = document.createElement("div");
-                item.className = "slide-item";
-                item.id = `slide-item-${slide.id}`;
-                item.setAttribute("draggable", "true");
+                let item = existingNodes.get(slide.id);
+                
+                // 노드가 없으면 새로 생성
+                if (!item) {
+                    item = document.createElement("div");
+                    item.className = "slide-item";
+                    item.id = `slide-item-${slide.id}`;
+                    item.setAttribute("draggable", "true");
+                } else {
+                    // 이미 존재하는 노드면 Map에서 제거 (삭제 대상에서 제외)
+                    existingNodes.delete(slide.id);
+                }
+
+                // 상태 업데이트 (클래스 및 dataset)
                 item.dataset.index = index;
                 if (slide.id === activeSlideId) item.classList.add("editing");
+                else item.classList.remove("editing");
+                
                 if (selectedSlideIds.includes(slide.id)) item.classList.add("selected-multi");
+                else item.classList.remove("selected-multi");
+
                 const isLockedByOthers = checkIsLockedByOthers(slide.id);
                 if (isLockedByOthers) item.classList.add("locked");
+                else item.classList.remove("locked");
                 
                 const lockOwner = lockedSlides[slide.id];
                 let lockName = "다른 편집자";
                 if (lockOwner) {
                     if (typeof lockOwner === 'object' && lockOwner.editorName) {
-                        lockName = lockOwner.editorName;
+                        lockName = escapeHTML(lockOwner.editorName);
                     } else if (typeof lockOwner === 'string') {
-                        lockName = lockOwner === myEditorId ? (document.getElementById("editor-name")?.value || "편집자") : "다른 편집자";
+                        lockName = lockOwner === myEditorId ? escapeHTML(document.getElementById("editor-name")?.value || "편집자") : "다른 편집자";
                     }
                 }
                 
-                item.innerHTML = `
+                // 콘텐츠 갱신 (불필요한 DOM 파싱을 막기 위해 텍스트 비교 후 변경 시에만 업데이트)
+                const newHTML = `
                     <!-- 슬라이드 순번 배지 (카드 자체의 왼쪽 위 모서리에 배치) -->
                     <div style="position: absolute; top: -8px; left: -8px; background: var(--primary); color: #fff; font-size: 0.7rem; font-weight: 800; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1.5px solid var(--bg-color); z-index: 20; font-family: 'Outfit', sans-serif; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
                         ${index + 1}
@@ -2510,95 +2545,132 @@
                         ${isLockedByOthers ? `<div class="lock-owner-text" style="font-size: 0.75rem; color: var(--accent-live); margin-top: 4px;">🔒 ${lockName}님이 편집 중</div>` : ''}
                     </div>
                 `;
+
+                if (item.innerHTML !== newHTML) {
+                    item.innerHTML = newHTML;
+                }
+
+                // Fragment에 순서대로 추가 (이 과정에서 기존 DOM에 있던 요소는 자동으로 이동됨)
+                fragment.appendChild(item);
+            });
+
+            // 사용되지 않는 구형 노드들 일괄 제거
+            existingNodes.forEach(node => node.remove());
+
+            // 변경된 Fragment를 실제 DOM에 일괄 반영
+            listEl.appendChild(fragment);
+        }
+
+        // 이벤트 위임(Event Delegation)을 통한 슬라이드 리스트 이벤트 처리 (성능 최적화 - Phase 2)
+        document.addEventListener('DOMContentLoaded', () => {
+            const listEl = document.getElementById("slide-list");
+            if (!listEl) return;
+
+            listEl.addEventListener("dragstart", (e) => {
+                const item = e.target.closest('.slide-item');
+                if (!item) return;
+                const index = parseInt(item.dataset.index);
+                e.dataTransfer.setData("text/plain", index);
+                item.classList.add("dragging");
+            });
+
+            listEl.addEventListener("dragover", (e) => {
+                const item = e.target.closest('.slide-item');
+                if (!item) return;
+                e.preventDefault();
+                const rect = item.getBoundingClientRect();
+                const relativeY = e.clientY - rect.top;
+                if (relativeY < rect.height / 2) {
+                    item.style.borderTop = "3px solid var(--primary)";
+                    item.style.borderBottom = "";
+                } else {
+                    item.style.borderTop = "";
+                    item.style.borderBottom = "3px solid var(--primary)";
+                }
+            });
+
+            listEl.addEventListener("dragleave", (e) => {
+                const item = e.target.closest('.slide-item');
+                if (!item) return;
+                item.style.borderTop = "";
+                item.style.borderBottom = "";
+            });
+
+            listEl.addEventListener("drop", (e) => {
+                const item = e.target.closest('.slide-item');
+                if (!item) return;
+                e.preventDefault();
+                item.style.borderTop = "";
+                item.style.borderBottom = "";
                 
-                // 드래그 앤 드롭 이벤트 핸들러 바인딩
-                item.addEventListener("dragstart", (e) => {
-                    e.dataTransfer.setData("text/plain", index);
-                    item.classList.add("dragging");
-                });
+                const data = e.dataTransfer.getData("text/plain");
+                if (!data) return;
+                const fromIndex = parseInt(data);
+                let toIndex = parseInt(item.dataset.index);
+                
+                if (fromIndex === toIndex) return;
 
-                item.addEventListener("dragover", (e) => {
-                    e.preventDefault();
-                    const rect = item.getBoundingClientRect();
-                    const relativeY = e.clientY - rect.top;
-                    if (relativeY < rect.height / 2) {
-                        item.style.borderTop = "3px solid var(--primary)";
-                        item.style.borderBottom = "";
-                    } else {
-                        item.style.borderTop = "";
-                        item.style.borderBottom = "3px solid var(--primary)";
+                const rect = item.getBoundingClientRect();
+                const relativeY = e.clientY - rect.top;
+                
+                // 드롭하는 위치에 따라 앞 또는 뒤 정렬 보정
+                if (relativeY >= rect.height / 2) {
+                    if (fromIndex > toIndex) {
+                        toIndex = toIndex + 1;
                     }
-                });
-
-                item.addEventListener("dragleave", () => {
-                    item.style.borderTop = "";
-                    item.style.borderBottom = "";
-                });
-
-                item.addEventListener("drop", (e) => {
-                    e.preventDefault();
-                    item.style.borderTop = "";
-                    item.style.borderBottom = "";
-                    
-                    const fromIndex = parseInt(e.dataTransfer.getData("text/plain"));
-                    let toIndex = parseInt(item.dataset.index);
-                    
-                    if (fromIndex === toIndex) return;
-
-                    const rect = item.getBoundingClientRect();
-                    const relativeY = e.clientY - rect.top;
-                    
-                    // 드롭하는 위치에 따라 앞 또는 뒤 정렬 보정
-                    if (relativeY >= rect.height / 2) {
-                        if (fromIndex > toIndex) {
-                            toIndex = toIndex + 1;
-                        }
-                    } else {
-                        if (fromIndex < toIndex) {
-                            toIndex = toIndex - 1;
-                        }
+                } else {
+                    if (fromIndex < toIndex) {
+                        toIndex = toIndex - 1;
                     }
+                }
 
-                    const draggedSlide = projectData.slides[fromIndex];
-                    projectData.slides.splice(fromIndex, 1);
-                    projectData.slides.splice(toIndex, 0, draggedSlide);
+                const draggedSlide = projectData.slides[fromIndex];
+                projectData.slides.splice(fromIndex, 1);
+                projectData.slides.splice(toIndex, 0, draggedSlide);
 
-                    // 서버 정렬 동기화 메시지 발송
-                    const updatedSlideIds = projectData.slides.map(s => s.id);
-                    ws.send(JSON.stringify({ type: "REORDER_SLIDES", slideIds: updatedSlideIds }));
+                // 서버 정렬 동기화 메시지 발송
+                const updatedSlideIds = projectData.slides.map(s => s.id);
+                ws.send(JSON.stringify({ type: "REORDER_SLIDES", slideIds: updatedSlideIds }));
 
-                    renderSlides();
-                });
+                renderSlides();
+            });
 
-                item.addEventListener("dragend", () => {
-                    item.classList.remove("dragging");
-                    item.style.borderTop = "";
-                    item.style.borderBottom = "";
-                });
+            listEl.addEventListener("dragend", (e) => {
+                const item = e.target.closest('.slide-item');
+                if (!item) return;
+                item.classList.remove("dragging");
+                item.style.borderTop = "";
+                item.style.borderBottom = "";
+            });
+
+            listEl.addEventListener("click", (e) => {
+                const item = e.target.closest('.slide-item');
+                if (!item) return;
+                
+                const slideId = item.id.replace('slide-item-', '');
+                const index = parseInt(item.dataset.index);
+                const isLockedByOthers = item.classList.contains("locked");
 
                 if (!isLockedByOthers) {
-                    item.onclick = (e) => {
-                        if (e.shiftKey) {
-                            const activeIndex = projectData.slides.findIndex(s => s.id === activeSlideId);
-                            const clickedIndex = index;
-                            if (activeIndex !== -1) {
-                                const start = Math.min(activeIndex, clickedIndex);
-                                const end = Math.max(activeIndex, clickedIndex);
-                                selectedSlideIds = [];
-                                for (let i = start; i <= end; i++) {
-                                    selectedSlideIds.push(projectData.slides[i].id);
-                                }
+                    if (e.shiftKey) {
+                        const activeIndex = projectData.slides.findIndex(s => s.id === activeSlideId);
+                        const clickedIndex = index;
+                        if (activeIndex !== -1) {
+                            const start = Math.min(activeIndex, clickedIndex);
+                            const end = Math.max(activeIndex, clickedIndex);
+                            selectedSlideIds = [];
+                            for (let i = start; i <= end; i++) {
+                                selectedSlideIds.push(projectData.slides[i].id);
                             }
-                        } else {
-                            selectedSlideIds = [slide.id];
                         }
-                        selectSlideForEdit(slide.id);
-                        renderSlides();
-                    };
+                    } else {
+                        selectedSlideIds = [slideId];
+                    }
+                    selectSlideForEdit(slideId);
+                    renderSlides();
                 }
-                listEl.appendChild(item);
             });
-        }
+        });
 
         function selectSlideForEdit(slideId, force = false) {
             if (activeSlideId === slideId && !force) {
@@ -5397,8 +5469,8 @@
                 div.innerHTML = `
                     <input type="checkbox" class="bible-item-checkbox" data-index="${index}" style="margin-top: 4px; pointer-events: none;">
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
-                        <span class="bible-result-item-header">${shortBook} ${item.chapter}:${item.verse}</span>
-                        <span class="bible-result-item-content">${item.content}</span>
+                        <span class="bible-result-item-header">${escapeHTML(shortBook)} ${item.chapter}:${item.verse}</span>
+                        <span class="bible-result-item-content">${escapeHTML(item.content)}</span>
                     </div>
                 `;
 
@@ -5942,7 +6014,7 @@
                 span.style.lineHeight = "1.2";
                 
                 // 가사 내용 줄바꿈 표현 지원 ( [1장] 표시 제거 )
-                const escapedText = block.replace(/\n/g, "<br>");
+                const escapedText = escapeHTML(block).replace(/\n/g, "<br>");
                 span.innerHTML = escapedText;
 
                 itemDiv.onclick = (e) => {
@@ -6121,7 +6193,7 @@
                     if (textElements.length === 1) {
                         container.style.display = "none";
                         const locName = getGeometricLocationName(textElements[0].x, textElements[0].y);
-                        selectBox.innerHTML = `<option value="${textElements[0].id}">${textElements[0].content || "텍스트 영역 1"} [${locName}] (${textElements[0].id})</option>`;
+                        selectBox.innerHTML = `<option value="${textElements[0].id}">${escapeHTML(textElements[0].content || "텍스트 영역 1")} [${locName}] (${textElements[0].id})</option>`;
                     } else {
                         container.style.display = "flex";
                         selectBox.innerHTML = "";
@@ -6343,8 +6415,8 @@
                 const previewText = lines.length > 0 ? lines[0] : "";
 
                 div.innerHTML = `
-                    <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">${song.title}</span>
-                    <span style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${previewText}</span>
+                    <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">${escapeHTML(song.title)}</span>
+                    <span style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(previewText)}</span>
                 `;
                 div.onclick = () => {
                     const isAlreadySelected = (activeSelectedPraiseSong && activeSelectedPraiseSong.title === song.title);

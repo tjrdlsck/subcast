@@ -650,6 +650,14 @@
         let targetWidth = 1920;
         let targetHeight = 1080;
 
+        // 전역 XSS 방어 유틸리티
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>'"]/g, match => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            })[match]);
+        }
+
         // 백그라운드에서 썸네일을 자동 생성하는 함수
         function autoGenerateThumbnail(slide) {
             if (slide.thumbnail) return Promise.resolve(slide.thumbnail);
@@ -821,49 +829,84 @@
             canvas.renderAll();
         }
 
-        // UI 갱신
+        // UI 갱신 (Virtual DOM 방식의 렌더링 최적화 적용)
         function renderDeck() {
             const listEl = document.getElementById("slide-list");
-            listEl.innerHTML = "";
 
             if (!projectData || !projectData.slides) return;
 
             document.getElementById("slide-count").innerText = `${projectData.slides.length} Slides`;
 
+            // 1. 기존 DOM 노드 보존 (재사용 목적)
+            const existingNodes = new Map();
+            Array.from(listEl.children).forEach(node => {
+                if (node.id.startsWith('slide-item-')) {
+                    const slideId = node.id.replace('slide-item-', '');
+                    existingNodes.set(slideId, node);
+                }
+            });
+
+            const fragment = document.createDocumentFragment();
+
             projectData.slides.forEach((slide, index) => {
-                const item = document.createElement("div");
-                item.className = "slide-item";
-                item.id = `slide-item-${slide.id}`;
+                let item = existingNodes.get(slide.id);
                 
+                // 노드가 없으면 새로 생성
+                if (!item) {
+                    item = document.createElement("div");
+                    item.className = "slide-item";
+                    item.id = `slide-item-${slide.id}`;
+                } else {
+                    // 이미 존재하는 노드면 Map에서 제거
+                    existingNodes.delete(slide.id);
+                }
+
                 const isLive = slide.id === projectData.settings.currentLiveSlideId;
                 if (isLive) {
                     item.classList.add("live");
                     currentLiveIndex = index;
+                } else {
+                    item.classList.remove("live");
                 }
 
                 const isLocked = lockedSlides[slide.id] !== undefined;
+                let lockName = "다른 편집자";
                 if (isLocked) {
                     item.classList.add("locked");
+                    const lockOwner = lockedSlides[slide.id];
+                    if (typeof lockOwner === 'object' && lockOwner.editorName) {
+                        lockName = lockOwner.editorName;
+                    } else if (typeof lockOwner === 'string') {
+                        lockName = lockOwner;
+                    }
+                } else {
+                    item.classList.remove("locked");
                 }
 
-                item.innerHTML = `
+                const newHTML = `
                     <div class="slide-thumbnail-wrapper">
                         ${slide.thumbnail ? `<img src="${slide.thumbnail}">` : `<span style="font-size: 0.72rem; color: var(--text-muted);">미리보기 없음</span>`}
                     </div>
                     <div class="slide-info-row">
                         <span class="slide-index-label">${String(index + 1).padStart(2, '0')}</span>
-                        <span class="slide-title-label" title="${slide.name}">${slide.name}</span>
+                        <span class="slide-title-label" title="${escapeHTML(slide.name)}">${escapeHTML(slide.name)}</span>
                     </div>
-                    <div class="slide-lock-indicator">🔒 ${lockedSlides[slide.id] || ''} 편집 중</div>
+                    <div class="slide-lock-indicator">🔒 ${escapeHTML(lockName)} 편집 중</div>
                 `;
 
-                // 클릭 시 해당 슬라이드로 즉시 전환
-                item.onclick = () => {
-                    changeSlide(slide.id);
-                };
+                if (item.innerHTML !== newHTML) {
+                    item.innerHTML = newHTML;
+                }
 
-                listEl.appendChild(item);
+                // Fragment에 순서대로 추가 (자동으로 DOM 이동됨)
+                fragment.appendChild(item);
             });
+
+            // 사용되지 않는 구형 노드들 일괄 제거
+            existingNodes.forEach(node => node.remove());
+
+            // 변경된 Fragment를 실제 DOM에 일괄 반영
+            listEl.appendChild(fragment);
 
             // 상단 퀵 네비게이션 인디케이터 업데이트
             const indicatorEl = document.getElementById("slide-indicator");
@@ -876,6 +919,19 @@
             if (activeItem) {
                 activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
+
+        // 이벤트 위임(Event Delegation)을 통한 슬라이드 클릭 이벤트 처리 (성능 최적화 - Phase 2)
+        document.addEventListener('DOMContentLoaded', () => {
+            const listEl = document.getElementById("slide-list");
+            if (!listEl) return;
+            
+            listEl.addEventListener("click", (e) => {
+                const item = e.target.closest('.slide-item');
+                if (!item) return;
+                const slideId = item.id.replace('slide-item-', '');
+                changeSlide(slideId);
+            });
+        });
 
             // 라이브 프리뷰 업데이트
             renderCurrentLiveSlide();
