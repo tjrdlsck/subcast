@@ -606,7 +606,16 @@
 
         /* 템플릿 패널 스타일 */
         .template-actions {
-            margin-bottom: 16px;
+            margin-bottom: 10px;
+        }
+        .template-actions .btn-template-action {
+            height: 22px;
+            padding: 2px 8px;
+            font-size: 0.72rem;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .btn-template-action {
@@ -669,13 +678,18 @@
         
         .template-buttons {
             display: flex;
-            gap: 6px;
+            gap: 4px;
             margin-top: 4px;
         }
         
         .template-buttons .btn-template-action {
-            padding: 5px 8px;
-            font-size: 0.75rem;
+            height: 20px;
+            padding: 2px 6px;
+            font-size: 0.68rem;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .template-buttons .btn-apply {
@@ -692,7 +706,13 @@
             background: rgba(239, 68, 68, 0.1);
             border-color: rgba(239, 68, 68, 0.2);
             color: #fca5a5;
-            padding: 5px 8px;
+            height: 20px;
+            padding: 2px 6px;
+            font-size: 0.68rem;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
         .template-buttons .btn-delete-tpl:hover:not(:disabled) {
             background: rgba(239, 68, 68, 0.2);
@@ -1388,11 +1408,11 @@
                                 💾 현재 디자인을 템플릿으로 저장
                             </button>
                         </div>
-                        <div class="template-selector-group" style="margin-top: 12px; border-top: 1px solid var(--panel-border); padding-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+                        <div class="template-selector-group" style="margin-top: 12px; border-top: 1px solid var(--panel-border); padding-top: 12px; display: flex; flex-direction: column; gap: 6px;">
                             <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">템플릿 보관함</label>
                             
-                            <!-- 모든 템플릿을 격자형 미리보기로 표시하는 영역 -->
-                            <div id="templates-grid-list" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; max-height: 240px; overflow-y: auto; padding-right: 4px;">
+                            <!-- 모든 템플릿을 1열 미리보기로 표시하는 영역 -->
+                            <div id="templates-grid-list" style="display: grid; grid-template-columns: 1fr; gap: 6px; max-height: 240px; overflow-y: auto; padding-right: 4px;">
                                 <!-- 템플릿 아이템들이 동적으로 여기에 렌더링됨 -->
                             </div>
 
@@ -2931,7 +2951,7 @@
             }
             
             if (!projectData || !projectData.templates || projectData.templates.length === 0) {
-                gridEl.innerHTML = '<div style="grid-column: span 2; text-align: center; padding: 16px; font-size: 0.7rem; color: var(--text-muted);">저장된 템플릿이 없습니다.</div>';
+                gridEl.innerHTML = '<div style="grid-column: span 1; text-align: center; padding: 16px; font-size: 0.7rem; color: var(--text-muted);">저장된 템플릿이 없습니다.</div>';
                 updateTemplateActionButtons();
                 return;
             }
@@ -2946,17 +2966,19 @@
                 item.style.backgroundColor = isSelected ? "rgba(99, 102, 241, 0.15)" : "rgba(0, 0, 0, 0.2)";
                 item.style.boxShadow = isSelected ? "0 0 0 2px var(--primary-glow)" : "none";
                 item.style.borderRadius = "var(--radius-sm)";
-                item.style.overflow = "hidden";
+                item.style.padding = "2px 6px";
                 item.style.cursor = "pointer";
                 item.style.transition = "all 0.2s";
                 item.style.position = "relative";
                 
                 item.innerHTML = `
-                    <div style="width: 100%; aspect-ratio: 16/9; background: #000; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; overflow: hidden;">
-                        ${tpl.thumbnail ? `<img src="${tpl.thumbnail}" style="width: 100%; height: 100%; object-fit: contain;">` : `<span style="font-size: 0.6rem; color: var(--text-muted);">미리보기 없음</span>`}
-                    </div>
-                    <div style="padding: 4px; font-size: 0.7rem; color: #fff; text-align: center; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" title="${tpl.name}">
-                        ${tpl.name}
+                    <div style="display: flex; align-items: center; gap: 8px; width: 100%; height: 38px;">
+                        <div style="width: 60px; height: 34px; background: #000; border-radius: var(--radius-xs); overflow: hidden; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.05);">
+                            ${tpl.thumbnail ? `<img src="${tpl.thumbnail}" style="width: 100%; height: 100%; object-fit: contain;">` : `<span style="font-size: 0.5rem; color: var(--text-muted);">No Img</span>`}
+                        </div>
+                        <div style="font-size: 0.75rem; color: #fff; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; font-weight: 500;" title="${tpl.name}">
+                            ${tpl.name}
+                        </div>
                     </div>
                 `;
                 
