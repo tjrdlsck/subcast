@@ -620,15 +620,15 @@
         
         .btn-template-action {
             width: 100%;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--panel-border);
-            border-radius: var(--radius-sm);
-            color: white;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 6px;
+            color: #f5f5f7;
             padding: 6px 10px;
             font-size: 0.8rem;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: background-color 0.2s, border-color 0.2s, transform 0.1s, opacity 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -636,10 +636,14 @@
         }
         
         .btn-template-action:hover:not(:disabled) {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.24);
+        }
+        .btn-template-action:active:not(:disabled) {
+            transform: scale(0.97);
         }
         .btn-template-action:disabled {
-            opacity: 0.3;
+            opacity: 0.35;
             cursor: not-allowed;
         }
         
@@ -678,47 +682,51 @@
         
         .template-buttons {
             display: flex;
-            gap: 6px;
-            margin-top: 4px;
+            gap: 4px;
+            margin-top: 0;
         }
         
         .template-buttons .btn-template-action {
             width: auto;
             height: 20px;
-            padding: 2px 10px;
+            padding: 2px 8px;
             font-size: 0.68rem;
             line-height: 1;
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            border-radius: 4px;
         }
         
         .template-buttons .btn-apply {
             flex: none;
             width: auto;
-            background: rgba(99, 102, 241, 0.15);
-            border-color: rgba(99, 102, 241, 0.3);
-            color: #a5b4fc;
+            background: rgba(10, 132, 255, 0.15);
+            border-color: rgba(10, 132, 255, 0.3);
+            color: #409eff;
         }
         .template-buttons .btn-apply:hover:not(:disabled) {
-            background: rgba(99, 102, 241, 0.25);
+            background: rgba(10, 132, 255, 0.25);
+            border-color: rgba(10, 132, 255, 0.5);
         }
         
         .template-buttons .btn-delete-tpl {
-            background: rgba(239, 68, 68, 0.1);
-            border-color: rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
+            background: rgba(255, 69, 58, 0.1);
+            border-color: rgba(255, 69, 58, 0.25);
+            color: #ff6961;
             width: auto;
             height: 20px;
-            padding: 2px 10px;
+            padding: 2px 8px;
             font-size: 0.68rem;
             line-height: 1;
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            border-radius: 4px;
         }
         .template-buttons .btn-delete-tpl:hover:not(:disabled) {
-            background: rgba(239, 68, 68, 0.2);
+            background: rgba(255, 69, 58, 0.25);
+            border-color: rgba(255, 69, 58, 0.45);
         }
 
         /* 텍스트 삽입 패널 스타일 */
@@ -1411,24 +1419,26 @@
                                 💾 현재 디자인을 템플릿으로 저장
                             </button>
                         </div>
-                        <div class="template-selector-group" style="margin-top: 12px; border-top: 1px solid var(--panel-border); padding-top: 12px; display: flex; flex-direction: column; gap: 6px;">
-                            <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">템플릿 보관함</label>
-                            
-                            <!-- 모든 템플릿을 1열 미리보기로 표시하는 영역 -->
-                            <div id="templates-grid-list" style="display: grid; grid-template-columns: 1fr; gap: 6px; max-height: 240px; overflow-y: auto; padding-right: 4px;">
-                                <!-- 템플릿 아이템들이 동적으로 여기에 렌더링됨 -->
+                        <div class="template-selector-group" style="margin-top: 12px; border-top: 1px solid var(--panel-border); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; height: calc(100% - 60px);">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
+                                <label style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">템플릿 보관함</label>
+                                
+                                <div class="template-buttons" style="margin-top: 0;">
+                                    <button class="btn-template-action btn-apply" id="btn-apply-template-bulk" disabled>
+                                        일괄 적용
+                                    </button>
+                                    <button class="btn-template-action btn-delete-tpl" id="btn-delete-template" disabled>
+                                        삭제
+                                    </button>
+                                    <button class="btn-template-action" id="btn-undo-template" disabled>
+                                        되돌리기
+                                    </button>
+                                </div>
                             </div>
-
-                            <div class="template-buttons">
-                                <button class="btn-template-action btn-apply" id="btn-apply-template-bulk" disabled>
-                                    일괄 적용
-                                </button>
-                                <button class="btn-template-action btn-delete-tpl" id="btn-delete-template" disabled>
-                                    삭제
-                                </button>
-                                <button class="btn-template-action" id="btn-undo-template" disabled style="background: var(--bg-hover); border-color: rgba(255,255,255,0.1);">
-                                    되돌리기
-                                </button>
+                            
+                            <!-- 모든 템플릿을 1열 미리보기로 표시하는 영역 (max-height를 시원하게 늘림) -->
+                            <div id="templates-grid-list" style="display: grid; grid-template-columns: 1fr; gap: 8px; max-height: 480px; overflow-y: auto; padding-right: 4px; flex: 1;">
+                                <!-- 템플릿 아이템들이 동적으로 여기에 렌더링됨 -->
                             </div>
                         </div>
                     </div>
