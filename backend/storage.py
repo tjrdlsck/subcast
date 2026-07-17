@@ -68,6 +68,16 @@ async def load_project_data() -> ProjectData:
 async def save_project_data(data: ProjectData) -> None:
     """프로젝트 데이터를 JSON 파일에 저장합니다."""
     DATA_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    async with aiofiles.open(DATA_FILE_PATH, mode="w", encoding="utf-8") as f:
-        # Pydantic v2 model_dump_json 사용
-        await f.write(data.model_dump_json(indent=2))
+    temp_path = DATA_FILE_PATH.with_suffix('.json.tmp')
+    try:
+        async with aiofiles.open(temp_path, mode="w", encoding="utf-8") as f:
+            # Pydantic v2 model_dump_json 사용
+            await f.write(data.model_dump_json(indent=2))
+        os.replace(temp_path, DATA_FILE_PATH)
+    except Exception as e:
+        if temp_path.exists():
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+        raise e

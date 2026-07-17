@@ -1,7 +1,6 @@
 import json
 import logging
 import uuid
-import random
 from typing import Dict, List, Set
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPException
