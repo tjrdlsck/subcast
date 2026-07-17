@@ -1594,6 +1594,50 @@
                                 <button class="btn-toggle" id="btn-align-right" title="오른쪽 정렬" disabled>R</button>
                             </div>
                         </div>
+                        <div class="property-row inline" style="border-top: 1px solid var(--panel-border); padding-top: 12px; margin-top: 12px;">
+                            <div class="property-col">
+                                <label>글자 테두리 색상</label>
+                                <div class="color-picker-wrapper">
+                                    <input type="color" id="text-strokecolor" class="fontColor-input" value="#transparent" disabled>
+                                    <input type="text" class="color-hex-val" id="text-strokecolor-hex" value="TRANSPARENT" maxlength="7" style="width: 70px; background: transparent; border: 1px solid var(--panel-border); border-radius: 4px; color: #fff; text-align: center; font-size: 0.72rem; height: 20px; outline: none;" disabled>
+                                </div>
+                            </div>
+                            <div class="property-col" style="max-width: 100px;">
+                                <label for="text-strokewidth">테두리 두께</label>
+                                <input type="number" id="text-strokewidth" class="fontSize-input" value="0" min="0" max="10" step="0.5" disabled>
+                            </div>
+                        </div>
+                        <div class="property-row" style="border-top: 1px solid var(--panel-border); padding-top: 12px; margin-top: 12px;">
+                            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+                                <input type="checkbox" id="text-shadow-enabled" style="cursor: pointer;" disabled>
+                                <label for="text-shadow-enabled" style="font-size: 0.75rem; color: var(--text-main); font-weight: 500; cursor: pointer; text-transform: none;">글자 그림자 효과 적용</label>
+                            </div>
+                            <div id="text-shadow-controls" style="display: flex; flex-direction: column; gap: 8px; opacity: 0.5; pointer-events: none; transition: opacity 0.2s;">
+                                <div class="property-row inline" style="margin-top: 0;">
+                                    <div class="property-col">
+                                        <label>그림자 색상</label>
+                                        <div class="color-picker-wrapper">
+                                            <input type="color" id="text-shadow-color" class="fontColor-input" value="#000000" disabled>
+                                            <input type="text" class="color-hex-val" id="text-shadow-color-hex" value="#000000" maxlength="7" style="width: 70px; background: transparent; border: 1px solid var(--panel-border); border-radius: 4px; color: #fff; text-align: center; font-size: 0.72rem; height: 20px; outline: none;" disabled>
+                                        </div>
+                                    </div>
+                                    <div class="property-col" style="max-width: 100px;">
+                                        <label for="text-shadow-blur">블러 (px)</label>
+                                        <input type="number" id="text-shadow-blur" class="fontSize-input" value="5" min="0" max="30" step="1" disabled>
+                                    </div>
+                                </div>
+                                <div class="property-row inline" style="margin-top: 0;">
+                                    <div class="property-col">
+                                        <label for="text-shadow-offsetx">이동 X (px)</label>
+                                        <input type="number" id="text-shadow-offsetx" class="fontSize-input" value="3" min="-30" max="30" step="1" disabled>
+                                    </div>
+                                    <div class="property-col">
+                                        <label for="text-shadow-offsety">이동 Y (px)</label>
+                                        <input type="number" id="text-shadow-offsety" class="fontSize-input" value="3" min="-30" max="30" step="1" disabled>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- 도형 속성 설정 섹션 -->
@@ -2503,7 +2547,7 @@
                 textSection.style.display = "block";
                 shapeSection.style.display = "none";
 
-                ['text-editor', 'fontfamily-editor', 'fontsize-editor', 'fontcolor-editor', 'btn-bold', 'btn-italic', 'btn-align-left', 'btn-align-center', 'btn-align-right', 'custom-font-input', 'btn-add-custom-font', 'fontcolor-hex'].forEach(id => {
+                ['text-editor', 'fontfamily-editor', 'fontsize-editor', 'fontcolor-editor', 'btn-bold', 'btn-italic', 'btn-align-left', 'btn-align-center', 'btn-align-right', 'custom-font-input', 'btn-add-custom-font', 'fontcolor-hex', 'text-strokecolor', 'text-strokecolor-hex', 'text-strokewidth', 'text-shadow-enabled'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.disabled = false;
                 });
@@ -2514,6 +2558,50 @@
                 const fontColor = colorToHex(activeObj.fill);
                 document.getElementById("fontcolor-editor").value = fontColor;
                 document.getElementById("fontcolor-hex").value = fontColor.toUpperCase();
+
+                // 텍스트 테두리 매핑
+                const strokeColor = activeObj.stroke ? colorToHex(activeObj.stroke) : 'transparent';
+                document.getElementById("text-strokecolor").value = strokeColor === 'transparent' ? '#000000' : strokeColor;
+                document.getElementById("text-strokecolor-hex").value = strokeColor.toUpperCase();
+                document.getElementById("text-strokewidth").value = activeObj.strokeWidth || 0;
+
+                // 텍스트 그림자 매핑
+                const shadow = activeObj.shadow;
+                const shadowEnabledInput = document.getElementById("text-shadow-enabled");
+                const shadowControls = document.getElementById("text-shadow-controls");
+                
+                if (shadow) {
+                    shadowEnabledInput.checked = true;
+                    shadowControls.style.opacity = "1";
+                    shadowControls.style.pointerEvents = "auto";
+                    
+                    ['text-shadow-color', 'text-shadow-color-hex', 'text-shadow-blur', 'text-shadow-offsetx', 'text-shadow-offsety'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.disabled = false;
+                    });
+                    
+                    const sColor = shadow.color ? colorToHex(shadow.color) : '#000000';
+                    document.getElementById("text-shadow-color").value = sColor;
+                    document.getElementById("text-shadow-color-hex").value = sColor.toUpperCase();
+                    document.getElementById("text-shadow-blur").value = shadow.blur || 0;
+                    document.getElementById("text-shadow-offsetx").value = shadow.offsetX || 0;
+                    document.getElementById("text-shadow-offsety").value = shadow.offsetY || 0;
+                } else {
+                    shadowEnabledInput.checked = false;
+                    shadowControls.style.opacity = "0.5";
+                    shadowControls.style.pointerEvents = "none";
+                    
+                    ['text-shadow-color', 'text-shadow-color-hex', 'text-shadow-blur', 'text-shadow-offsetx', 'text-shadow-offsety'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.disabled = true;
+                    });
+                    
+                    document.getElementById("text-shadow-color").value = "#000000";
+                    document.getElementById("text-shadow-color-hex").value = "#000000";
+                    document.getElementById("text-shadow-blur").value = 5;
+                    document.getElementById("text-shadow-offsetx").value = 3;
+                    document.getElementById("text-shadow-offsety").value = 3;
+                }
 
                 // 텍스트 정렬 상태 표시
                 const align = activeObj.textAlign || 'left';
@@ -2578,10 +2666,15 @@
             document.getElementById("inspector-common-section").style.display = "none";
 
             document.getElementById("element-opacity").disabled = true;
-            ['btn-layer-up', 'btn-layer-down', 'btn-layer-front', 'btn-layer-back', 'btn-delete', 'btn-group', 'btn-ungroup', 'custom-font-input', 'btn-add-custom-font', 'fontcolor-hex', 'shape-fillcolor-hex', 'shape-strokecolor-hex'].forEach(id => {
+            ['btn-layer-up', 'btn-layer-down', 'btn-layer-front', 'btn-layer-back', 'btn-delete', 'btn-group', 'btn-ungroup', 'custom-font-input', 'btn-add-custom-font', 'fontcolor-hex', 'shape-fillcolor-hex', 'shape-strokecolor-hex', 'text-strokecolor', 'text-strokecolor-hex', 'text-strokewidth', 'text-shadow-enabled', 'text-shadow-color', 'text-shadow-color-hex', 'text-shadow-blur', 'text-shadow-offsetx', 'text-shadow-offsety'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.disabled = true;
             });
+            const shadowControls = document.getElementById("text-shadow-controls");
+            if (shadowControls) {
+                shadowControls.style.opacity = "0.5";
+                shadowControls.style.pointerEvents = "none";
+            }
 
             // X, Y, 너비, 높이, 중앙정렬 버튼 비활성화 및 초기화
             const leftInput = document.getElementById("element-left");
