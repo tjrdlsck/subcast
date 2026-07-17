@@ -1861,6 +1861,21 @@
                                         <option value="type-b">타입 B (상단 중앙형)</option>
                                         <option value="type-black">블랙 채우기 (성경형)</option>
                                         <option value="custom">상세 커스텀</option>
+                                        <option value="template">🎨 사용자 템플릿 적용</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- 템플릿 선택기 영역 -->
+                                <div id="praise-template-select-container" style="display: none; align-items: center; justify-content: space-between; gap: 6px; border-top: 1px dashed var(--panel-border); padding-top: 8px; margin-top: 2px;">
+                                    <span style="font-size: 0.65rem; color: var(--text-muted);">디자인 템플릿</span>
+                                    <select id="select-praise-user-template" style="padding: 4px 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.7rem; flex: 1; max-width: 150px;">
+                                    </select>
+                                </div>
+                                
+                                <!-- 대입 타겟 텍스트 박스 선택기 영역 -->
+                                <div id="praise-textbox-select-container" style="display: none; align-items: center; justify-content: space-between; gap: 6px; border-top: 1px dashed var(--panel-border); padding-top: 8px; margin-top: 2px;">
+                                    <span style="font-size: 0.65rem; color: var(--text-muted);">대입할 텍스트 상자</span>
+                                    <select id="select-praise-target-textbox" style="padding: 4px 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.7rem; flex: 1; max-width: 150px;">
                                     </select>
                                 </div>
                                 
@@ -5710,8 +5725,89 @@
                     syncPresetValues(e.target.value);
                 };
 
+                function updatePraiseTemplateOptions() {
+                    const selectTpl = document.getElementById("select-praise-user-template");
+                    if (!selectTpl || !projectData) return;
+                    selectTpl.innerHTML = "";
+                    if (!projectData.templates || projectData.templates.length === 0) {
+                        const opt = document.createElement("option");
+                        opt.value = "";
+                        opt.textContent = "(등록된 템플릿 없음)";
+                        selectTpl.appendChild(opt);
+                        const selectBox = document.getElementById("select-praise-target-textbox");
+                        if (selectBox) selectBox.innerHTML = "";
+                        const container = document.getElementById("praise-textbox-select-container");
+                        if (container) container.style.display = "none";
+                        return;
+                    }
+                    projectData.templates.forEach(t => {
+                        const opt = document.createElement("option");
+                        opt.value = t.id;
+                        opt.textContent = t.name;
+                        selectTpl.appendChild(opt);
+                    });
+                    
+                    // 첫 템플릿 기준으로 텍스트 상자 옵션 로드
+                    const firstTpl = projectData.templates[0];
+                    updatePraiseTextboxOptions(firstTpl);
+                }
+
+                function updatePraiseTextboxOptions(targetTemplate) {
+                    const selectBox = document.getElementById("select-praise-target-textbox");
+                    const container = document.getElementById("praise-textbox-select-container");
+                    if (!selectBox || !container) return;
+
+                    const textElements = targetTemplate.elements.filter(el => el.type === "text");
+
+                    if (textElements.length === 0) {
+                        alert("선택한 디자인 템플릿에 자막 텍스트를 대입할 수 있는 텍스트 상자가 존재하지 않습니다. 다른 템플릿을 선택해 주세요.");
+                        container.style.display = "none";
+                        selectBox.innerHTML = "";
+                        return;
+                    }
+
+                    if (textElements.length === 1) {
+                        container.style.display = "none";
+                        selectBox.innerHTML = `<option value="${textElements[0].id}">${textElements[0].content || "텍스트 상자 1"}</option>`;
+                    } else {
+                        container.style.display = "flex";
+                        selectBox.innerHTML = "";
+                        textElements.forEach((el, index) => {
+                            const previewText = el.content ? el.content.substring(0, 15) : `텍스트 상자 ${index + 1}`;
+                            const opt = document.createElement("option");
+                            opt.value = el.id;
+                            opt.textContent = `[상자 ${index + 1}] ${previewText}`;
+                            selectBox.appendChild(opt);
+                        });
+                    }
+                }
+
+                const selectTpl = document.getElementById("select-praise-user-template");
+                if (selectTpl) {
+                    selectTpl.onchange = (e) => {
+                        const tplId = e.target.value;
+                        const targetTpl = projectData && projectData.templates ? projectData.templates.find(t => t.id === tplId) : null;
+                        if (targetTpl) {
+                            updatePraiseTextboxOptions(targetTpl);
+                        }
+                    };
+                }
+
                 function syncPresetValues(preset) {
-                    if (preset === "custom") {
+                    const tplContainer = document.getElementById("praise-template-select-container");
+                    const boxContainer = document.getElementById("praise-textbox-select-container");
+                    
+                    if (tplContainer) {
+                        tplContainer.style.display = (preset === "template") ? "flex" : "none";
+                    }
+                    if (boxContainer && preset !== "template") {
+                        boxContainer.style.display = "none";
+                    }
+
+                    if (preset === "template") {
+                        customPanel.style.display = "none";
+                        updatePraiseTemplateOptions();
+                    } else if (preset === "custom") {
                         customPanel.style.display = "flex";
                         // 커스텀 상태일 때는 모든 제어 폼 활성화
                         fontColorInput.disabled = false;
@@ -5775,23 +5871,48 @@
                 const lyrics = activeSelectedPraiseSong.lyrics;
                 const blocks = lyrics.split(/\n\s*\n/).map(s => s.trim()).filter(s => s !== "");
                 
-                // 현재 디자인 옵션 수집 (RGBA 색상 변환 적용)
-                const opacityVal = fontOpacityInput ? fontOpacityInput.value : 100;
-                const fontColorRgba = hexAndOpacityToRgba(fontColorInput.value, opacityVal);
-                
-                const styleOptions = {
-                    fontColor: fontColorRgba,
-                    fontSize: fontSizeInput.value + "vw",
-                    textAlign: textAlignSelect.value,
-                    position: positionSelect.value,
-                    backgroundType: bgTypeSelect.value
-                };
-
                 tempPraiseSlidesToAdd = [];
-                blocks.forEach((block, idx) => {
-                    const headerText = `${title} (${idx + 1}/${blocks.length})`;
-                    tempPraiseSlidesToAdd.push(createPraiseSlideObject(headerText, block, styleOptions));
-                });
+
+                if (presetSelect && presetSelect.value === "template") {
+                    const selectTpl = document.getElementById("select-praise-user-template");
+                    const tplId = selectTpl ? selectTpl.value : "";
+                    const targetTpl = projectData && projectData.templates ? projectData.templates.find(t => t.id === tplId) : null;
+                    
+                    if (!targetTpl) {
+                        alert("적용할 디자인 템플릿을 선택하거나 먼저 등록해 주세요.");
+                        return;
+                    }
+                    
+                    const selectBox = document.getElementById("select-praise-target-textbox");
+                    const targetElementId = selectBox ? selectBox.value : "";
+                    
+                    if (!targetElementId) {
+                        alert("선택한 디자인 템플릿에 자막 텍스트를 대입할 수 있는 텍스트 상자가 존재하지 않습니다. 다른 템플릿을 선택해 주세요.");
+                        return;
+                    }
+                    
+                    blocks.forEach((block, idx) => {
+                        const headerText = `${title} (${idx + 1}/${blocks.length})`;
+                        tempPraiseSlidesToAdd.push(createSlideFromTemplateExplicit(targetTpl, headerText, block, targetElementId));
+                    });
+                } else {
+                    // 현재 디자인 옵션 수집 (RGBA 색상 변환 적용)
+                    const opacityVal = fontOpacityInput ? fontOpacityInput.value : 100;
+                    const fontColorRgba = hexAndOpacityToRgba(fontColorInput.value, opacityVal);
+                    
+                    const styleOptions = {
+                        fontColor: fontColorRgba,
+                        fontSize: fontSizeInput.value + "vw",
+                        textAlign: textAlignSelect.value,
+                        position: positionSelect.value,
+                        backgroundType: bgTypeSelect.value
+                    };
+
+                    blocks.forEach((block, idx) => {
+                        const headerText = `${title} (${idx + 1}/${blocks.length})`;
+                        tempPraiseSlidesToAdd.push(createPraiseSlideObject(headerText, block, styleOptions));
+                    });
+                }
 
                 if (tempPraiseSlidesToAdd.length > 0) {
                     targetInsertAfterSlideId = null;
@@ -5967,6 +6088,28 @@
                 id: slideId,
                 name: `찬양: ${header}`,
                 elements: elements
+            };
+        }
+
+        function createSlideFromTemplateExplicit(tpl, header, contentBlock, targetElementId) {
+            const slideId = "slide_praise_" + Math.random().toString(36).substr(2, 8);
+            const clonedElements = JSON.parse(JSON.stringify(tpl.elements));
+            
+            clonedElements.forEach(elem => {
+                const oldId = elem.id;
+                // 복사 후 ID 고유값 충돌 방지
+                elem.id = "elem_praise_" + Math.random().toString(36).substr(2, 9);
+                
+                // 사용자가 지정한 본래 템플릿의 엘리먼트 ID와 일치할 때 가사 대입
+                if (elem.type === "text" && oldId === targetElementId) {
+                    elem.content = contentBlock;
+                }
+            });
+
+            return {
+                id: slideId,
+                name: `자막(템): ${header}`,
+                elements: clonedElements
             };
         }
     </script>
