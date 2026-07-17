@@ -1,7 +1,6 @@
 import json
 import logging
 import uuid
-import random
 from typing import Dict, List, Set
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPException
@@ -113,6 +112,221 @@ manager = ConnectionManager()
 # 프론트엔드 정적 파일 서빙 등록
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
+import sqlite3
+
+class BibleDatabaseHelper:
+    def __init__(self, db_path="GAE_Bible.db"):
+        self.db_path = db_path
+
+    def get_connection(self):
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def get_books(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        query = """
+            SELECT DISTINCT book_name, book_code
+            FROM bible 
+            ORDER BY id ASC
+        """
+        try:
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            books_map = {}
+            for row in rows:
+                books_map[row["book_code"]] = {
+                    "book_code": row["book_code"],
+                    "book_name": row["book_name"],
+                    "max_chapter": 0
+                }
+            
+            cursor.execute("SELECT book_code, MAX(chapter) as max_c FROM bible GROUP BY book_code")
+            for row in cursor.fetchall():
+                if row["book_code"] in books_map:
+                    books_map[row["book_code"]]["max_chapter"] = row["max_c"]
+            
+            return list(books_map.values())
+        finally:
+            conn.close()
+
+    def get_chapter(self, book_code: str, chapter: int, start_verse: int = 1, end_verse: int = 999):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        query = """
+            SELECT verse, content, title, book_name
+            FROM bible 
+            WHERE book_code = ? AND chapter = ? AND verse >= ? AND verse <= ?
+            ORDER BY verse ASC
+        """
+        try:
+            cursor.execute(query, (book_code, chapter, start_verse, end_verse))
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            conn.close()
+
+    def search_keyword(self, keyword: str, limit: int = 50):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        query = """
+            SELECT book_name, book_code, chapter, verse, content 
+            FROM bible 
+            WHERE content LIKE ?
+            ORDER BY id ASC
+            LIMIT ?
+        """
+        try:
+            search_param = f"%{keyword}%"
+            cursor.execute(query, (search_param, limit))
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            conn.close()
+
+db_helper = BibleDatabaseHelper("GAE_Bible.db")
+
+class PraiseDatabaseHelper:
+    def __init__(self, db_path="GAE_Bible.db"):
+        self.db_path = db_path
+        self.init_table()
+
+    def get_connection(self):
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def init_table(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS praise_songs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    lyrics TEXT NOT NULL,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_praise_title ON praise_songs(title)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_praise_lyrics ON praise_songs(lyrics)")
+            conn.commit()
+        finally:
+            conn.close()
+
+    def search_songs(self, query_str: str, limit: int = 50):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        if not query_str.strip():
+            sql = "SELECT title, lyrics FROM praise_songs ORDER BY title ASC LIMIT ?"
+            params = (limit,)
+        else:
+            sql = """
+                SELECT title, lyrics 
+                FROM praise_songs 
+                WHERE title LIKE ? OR lyrics LIKE ?
+                ORDER BY title ASC
+                LIMIT ?
+            """
+            param = f"%{query_str}%"
+            params = (param, param, limit)
+        try:
+            cursor.execute(sql, params)
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            conn.close()
+
+    def save_song(self, title: str, lyrics: str):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT id FROM praise_songs WHERE title = ?", (title,))
+            row = cursor.fetchone()
+            if row:
+                cursor.execute("""
+                    UPDATE praise_songs 
+                    SET lyrics = ?, updated_at = CURRENT_TIMESTAMP 
+                    WHERE id = ?
+                """, (lyrics, row["id"]))
+            else:
+                cursor.execute("""
+                    INSERT INTO praise_songs (title, lyrics) 
+                    VALUES (?, ?)
+                """, (title, lyrics))
+            conn.commit()
+        finally:
+            conn.close()
+
+praise_db = PraiseDatabaseHelper("GAE_Bible.db")
+
+from pydantic import BaseModel
+class PraiseSongSaveRequest(BaseModel):
+    title: str
+    lyrics: str
+
+@app.get("/api/praise/search")
+async def search_praise_songs(query: str = Query("")):
+    try:
+        return praise_db.search_songs(query)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/praise/save")
+async def save_praise_song(req: PraiseSongSaveRequest):
+    try:
+        if not req.title.strip() or not req.lyrics.strip():
+            raise HTTPException(status_code=400, detail="제목과 가사를 모두 입력해 주세요.")
+        praise_db.save_song(req.title.strip(), req.lyrics.strip())
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/bible/books")
+async def get_bible_books():
+    try:
+        return db_helper.get_books()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/bible/read")
+async def read_bible(
+    book_code: str,
+    chapter: int,
+    start_verse: int = Query(1),
+    end_verse: int = Query(999)
+):
+    try:
+        verses = db_helper.get_chapter(book_code, chapter, start_verse, end_verse)
+        if not verses:
+            return {"book_name": "", "book_code": book_code, "chapter": chapter, "verses": []}
+        return {
+            "book_name": verses[0]["book_name"],
+            "book_code": book_code,
+            "chapter": chapter,
+            "verses": [{"verse": v["verse"], "content": v["content"], "title": v["title"]} for v in verses]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/bible/search")
+async def search_bible(
+    query: str,
+    limit: int = Query(50)
+):
+    if len(query.strip()) < 2:
+        raise HTTPException(status_code=400, detail="검색어는 공백 제외 2글자 이상 입력해 주세요.")
+    try:
+        results = db_helper.search_keyword(query.strip(), limit)
+        return {
+            "query": query,
+            "total_results": len(results),
+            "results": results
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/")
 async def get_index():
     # frontend/index.html이 있으면 응답하고 없으면 Redirect 또는 HTML 텍스트 응답
@@ -217,14 +431,27 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                 new_id = f"slide_{uuid.uuid4().hex[:8]}"
                 slide_num = len(manager.project_data.slides) + 1
                 new_slide = Slide(id=new_id, name=f"새 슬라이드 {slide_num}", elements=[])
-                manager.project_data.slides.append(new_slide)
+                
+                after_slide_id = message.get("afterSlideId")
+                insert_idx = -1
+                if after_slide_id:
+                    for idx, s in enumerate(manager.project_data.slides):
+                        if s.id == after_slide_id:
+                            insert_idx = idx + 1
+                            break
+                            
+                if insert_idx != -1:
+                    manager.project_data.slides.insert(insert_idx, new_slide)
+                else:
+                    manager.project_data.slides.append(new_slide)
+                    
                 await save_project_data(manager.project_data)
                 await manager.broadcast({
                     "type": "INITIAL_SYNC",
                     "data": manager.project_data.model_dump(),
                     "lockedSlides": manager.locked_slides
                 })
-                logger.info(f"New slide added: {new_id}")
+                logger.info(f"New slide added: {new_id} (inserted after {after_slide_id if insert_idx != -1 else 'end'})")
 
             elif msg_type == "SAVE_TEMPLATE":
                 tpl_data = message.get("template")
@@ -275,19 +502,58 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                     # 일괄 적용 전 현재 프로젝트 상태 백업
                     manager.push_history()
 
-                    def clone_elements(elems):
-                        cloned = []
-                        for el in elems:
-                            el_dict = el.model_dump()
-                            el_dict["id"] = f"elem_{uuid.uuid4().hex[:9]}"
-                            if "children" in el_dict and el_dict["children"]:
-                                el_dict["children"] = clone_elements(el.children)
-                            from backend.schemas import Element
-                            cloned.append(Element.model_validate(el_dict))
-                        return cloned
+                    def find_longest_text_element_id(elems):
+                        longest_id = None
+                        longest_len = -1
+                        def traverse(el_list):
+                            nonlocal longest_id, longest_len
+                            for el in el_list:
+                                if el.type == "text":
+                                    content_len = len(el.content or "")
+                                    if content_len > longest_len:
+                                        longest_len = content_len
+                                        longest_id = el.id
+                                elif el.type == "group" and el.children:
+                                    traverse(el.children)
+                        traverse(elems)
+                        return longest_id
+
+                    target_element_id = message.get("targetElementId")
+                    if target_element_id:
+                        tpl_longest_id = target_element_id
+                    else:
+                        tpl_longest_id = find_longest_text_element_id(target_tpl.elements)
 
                     for idx, s in enumerate(manager.project_data.slides):
                         if s.id in slide_ids:
+                            orig_longest_text = ""
+                            orig_longest_len = -1
+                            def traverse_orig(el_list):
+                                nonlocal orig_longest_text, orig_longest_len
+                                for el in el_list:
+                                    if el.type == "text":
+                                        content_len = len(el.content or "")
+                                        if content_len > orig_longest_len:
+                                            orig_longest_len = content_len
+                                            orig_longest_text = el.content or ""
+                                    elif el.type == "group" and el.children:
+                                        traverse_orig(el.children)
+                            traverse_orig(s.elements)
+
+                            def clone_elements(elems):
+                                cloned = []
+                                for el in elems:
+                                    el_dict = el.model_dump()
+                                    orig_el_id = el.id
+                                    el_dict["id"] = f"elem_{uuid.uuid4().hex[:9]}"
+                                    if el.type == "text" and orig_el_id == tpl_longest_id:
+                                        el_dict["content"] = orig_longest_text
+                                    if "children" in el_dict and el_dict["children"]:
+                                        el_dict["children"] = clone_elements(el.children)
+                                    from backend.schemas import Element
+                                    cloned.append(Element.model_validate(el_dict))
+                                return cloned
+
                             manager.project_data.slides[idx].elements = clone_elements(target_tpl.elements)
                             manager.project_data.slides[idx].thumbnail = None
 
@@ -404,6 +670,36 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                         "lockedSlides": manager.locked_slides
                     })
                     logger.info(f"Slides deleted: {slide_ids}")
+
+            elif msg_type == "ADD_SLIDES_BULK":
+                slides_data = message.get("slides", [])
+                insert_after_id = message.get("insertAfterId")
+                if slides_data:
+                    new_slides = [Slide.model_validate(s_data) for s_data in slides_data]
+                    
+                    insert_idx = -1
+                    if insert_after_id:
+                        for idx, s in enumerate(manager.project_data.slides):
+                            if s.id == insert_after_id:
+                                insert_idx = idx
+                                break
+                                
+                    if insert_idx != -1:
+                        manager.project_data.slides = (
+                            manager.project_data.slides[:insert_idx + 1] + 
+                            new_slides + 
+                            manager.project_data.slides[insert_idx + 1:]
+                        )
+                    else:
+                        manager.project_data.slides.extend(new_slides)
+                        
+                    await save_project_data(manager.project_data)
+                    await manager.broadcast({
+                        "type": "INITIAL_SYNC",
+                        "data": manager.project_data.model_dump(),
+                        "lockedSlides": manager.locked_slides
+                    })
+                    logger.info(f"Bulk slides added: {len(slides_data)} slides after {insert_after_id}")
 
             elif msg_type == "SAVE_SLIDE":
                 # 슬라이드 내용 저장 및 방송 상태 동기화 처리
