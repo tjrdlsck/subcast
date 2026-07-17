@@ -247,7 +247,17 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
 
             elif msg_type == "DELETE_TEMPLATE":
                 tpl_id = message.get("templateId")
-                if tpl_id:
+                tpl_ids = message.get("templateIds")
+                if tpl_ids:
+                    manager.project_data.templates = [t for t in manager.project_data.templates if t.id not in tpl_ids]
+                    await save_project_data(manager.project_data)
+                    await manager.broadcast({
+                        "type": "INITIAL_SYNC",
+                        "data": manager.project_data.model_dump(),
+                        "lockedSlides": manager.locked_slides
+                    })
+                    logger.info(f"Templates deleted (bulk): {tpl_ids}")
+                elif tpl_id:
                     manager.project_data.templates = [t for t in manager.project_data.templates if t.id != tpl_id]
                     await save_project_data(manager.project_data)
                     await manager.broadcast({
@@ -287,6 +297,67 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                         "data": manager.project_data.model_dump(),
                         "lockedSlides": manager.locked_slides
                     })
+
+            elif msg_type == "ADD_CUSTOM_FONT":
+                family = message.get("family")
+                url = message.get("url")
+                orig_css = message.get("originalCssCode")
+                
+                if family and url:
+                    import os
+                    import httpx
+                    import urllib.parse
+                    import hashlib
+                    import re
+                    from backend.schemas import CustomFont
+                    
+                    fonts_dir = os.path.join("frontend", "fonts")
+                    os.makedirs(fonts_dir, exist_ok=True)
+                    
+                    parsed_url = urllib.parse.urlparse(url)
+                    orig_filename = os.path.basename(parsed_url.path)
+                    ext = os.path.splitext(orig_filename)[1] or ".woff2"
+                    
+                    url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()[:8]
+                    safe_family = "".join([c for c in family if c.isalnum() or c in ("-", "_")])
+                    filename = f"{safe_family}_{url_hash}{ext}"
+                    filepath = os.path.join(fonts_dir, filename)
+                    local_url = f"/static/fonts/{filename}"
+                    
+                    download_success = True
+                    if not os.path.exists(filepath):
+                        try:
+                            logger.info(f"Downloading custom font: {url} -> {filepath}")
+                            async with httpx.AsyncClient() as client:
+                                response = await client.get(url, timeout=15.0)
+                                if response.status_code == 200:
+                                    with open(filepath, "wb") as f:
+                                        f.write(response.content)
+                                else:
+                                    logger.error(f"Failed to download font: status {response.status_code}")
+                                    download_success = False
+                        except Exception as e:
+                            logger.error(f"Error downloading font: {e}")
+                            download_success = False
+                    
+                    if download_success:
+                        local_css = re.sub(r'url\s*\(\s*[\'"]?([^\'")]+)[\'"]?\s*\)', f"url('{local_url}')", orig_css)
+                        new_font = CustomFont(family=family, cssCode=local_css)
+                        
+                        for idx, f in enumerate(manager.project_data.customFonts):
+                            if f.family.lower() == family.lower():
+                                manager.project_data.customFonts[idx] = new_font
+                                break
+                        else:
+                            manager.project_data.customFonts.append(new_font)
+                            
+                        await save_project_data(manager.project_data)
+                        await manager.broadcast({
+                            "type": "INITIAL_SYNC",
+                            "data": manager.project_data.model_dump(),
+                            "lockedSlides": manager.locked_slides
+                        })
+                        logger.info(f"Custom font registered: {family} -> {local_url}")
 
             elif msg_type == "UNDO_BULK_ACTION":
                 if manager.project_history:

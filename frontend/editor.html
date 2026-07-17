@@ -1413,14 +1413,14 @@
                     <div class="panel-header">
                         <h3>디자인 템플릿</h3>
                     </div>
-                    <div class="panel-body">
-                        <div class="template-actions">
+                    <div class="panel-body" style="display: flex; flex-direction: column; overflow: hidden;">
+                        <div class="template-actions" style="flex-shrink: 0;">
                             <button class="btn-template-action" id="btn-save-template" disabled>
                                 💾 현재 디자인을 템플릿으로 저장
                             </button>
                         </div>
-                        <div class="template-selector-group" style="margin-top: 12px; border-top: 1px solid var(--panel-border); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; height: calc(100% - 60px);">
-                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
+                        <div class="template-selector-group" style="margin-top: 12px; border-top: 1px solid var(--panel-border); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; flex-shrink: 0;">
                                 <label style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">템플릿 보관함</label>
                                 
                                 <div class="template-buttons" style="margin-top: 0;">
@@ -1437,7 +1437,7 @@
                             </div>
                             
                             <!-- 모든 템플릿을 1열 미리보기로 표시하는 영역 (max-height 제거하여 가용 공간 전체 활용) -->
-                            <div id="templates-grid-list" style="display: grid; grid-template-columns: 1fr; grid-auto-rows: max-content; align-content: start; gap: 8px; padding-right: 4px; flex: 1;">
+                            <div id="templates-grid-list" style="display: grid; grid-template-columns: 1fr; grid-auto-rows: max-content; align-content: start; gap: 8px; padding-right: 4px; flex: 1; overflow-y: auto;">
                                 <!-- 템플릿 아이템들이 동적으로 여기에 렌더링됨 -->
                             </div>
                         </div>
@@ -1570,11 +1570,17 @@
                                 <input type="number" id="fontsize-editor" class="fontSize-input" value="3" min="0.5" max="20" step="0.1" disabled>
                             </div>
                         </div>
+                        <div class="property-row" style="margin-top: -4px;">
+                            <div style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                                <textarea id="custom-font-input" class="text-area-field" placeholder="예: @font-face { font-family: 'Pretendard'; src: url('...'); }" style="font-size: 0.65rem; height: 50px; resize: none; font-family: monospace;" disabled></textarea>
+                                <button id="btn-add-custom-font" class="btn-template-action" style="width: 100%; height: 26px; font-size: 0.72rem;" disabled>웹 폰트 추가 (Ctrl+Enter)</button>
+                            </div>
+                        </div>
                         <div class="property-row">
                             <label>글자 색상</label>
                             <div class="color-picker-wrapper">
                                 <input type="color" id="fontcolor-editor" class="fontColor-input" value="#ffffff" disabled>
-                                <span class="color-hex-val" id="fontcolor-hex">#FFFFFF</span>
+                                <input type="text" class="color-hex-val" id="fontcolor-hex" value="#FFFFFF" maxlength="7" style="width: 70px; background: transparent; border: 1px solid var(--panel-border); border-radius: 4px; color: #fff; text-align: center; font-size: 0.72rem; height: 20px; outline: none;" disabled>
                             </div>
                         </div>
                         <div class="property-row">
@@ -1598,14 +1604,14 @@
                                 <label>채우기 색상</label>
                                 <div class="color-picker-wrapper">
                                     <input type="color" id="shape-fillcolor" class="fontColor-input" value="#4f46e5" disabled>
-                                    <span class="color-hex-val" id="shape-fillcolor-hex">#4F46E5</span>
+                                    <input type="text" class="color-hex-val" id="shape-fillcolor-hex" value="#4F46E5" maxlength="7" style="width: 70px; background: transparent; border: 1px solid var(--panel-border); border-radius: 4px; color: #fff; text-align: center; font-size: 0.72rem; height: 20px; outline: none;" disabled>
                                 </div>
                             </div>
                             <div class="property-col">
                                 <label>테두리 색상</label>
                                 <div class="color-picker-wrapper">
                                     <input type="color" id="shape-strokecolor" class="fontColor-input" value="#ffffff" disabled>
-                                    <span class="color-hex-val" id="shape-strokecolor-hex">#FFFFFF</span>
+                                    <input type="text" class="color-hex-val" id="shape-strokecolor-hex" value="#FFFFFF" maxlength="7" style="width: 70px; background: transparent; border: 1px solid var(--panel-border); border-radius: 4px; color: #fff; text-align: center; font-size: 0.72rem; height: 20px; outline: none;" disabled>
                                 </div>
                             </div>
                         </div>
@@ -2398,7 +2404,7 @@
                     </div>
                     <div class="layer-actions">
                         <button class="layer-action-btn btn-summon" title="화면 중앙으로 소환">🎯</button>
-                        <button class="layer-action-btn btn-delete" title="개체 삭제">🗑</button>
+                        <button class="layer-action-btn btn-delete" title="개체 삭제">x</button>
                     </div>
                 `;
 
@@ -2497,14 +2503,17 @@
                 textSection.style.display = "block";
                 shapeSection.style.display = "none";
 
-                ['text-editor', 'fontfamily-editor', 'fontsize-editor', 'fontcolor-editor', 'btn-bold', 'btn-italic', 'btn-align-left', 'btn-align-center', 'btn-align-right'].forEach(id => document.getElementById(id).disabled = false);
+                ['text-editor', 'fontfamily-editor', 'fontsize-editor', 'fontcolor-editor', 'btn-bold', 'btn-italic', 'btn-align-left', 'btn-align-center', 'btn-align-right', 'custom-font-input', 'btn-add-custom-font', 'fontcolor-hex'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.disabled = false;
+                });
                 document.getElementById("text-editor").value = activeObj.text || "";
                 document.getElementById("fontsize-editor").value = parseFloat(activeObj.originalVwSize) || 3.0;
                 
                 // Fabric fill을 input[type=color] 포맷에 맞춰 안전하게 대입
                 const fontColor = colorToHex(activeObj.fill);
                 document.getElementById("fontcolor-editor").value = fontColor;
-                document.getElementById("fontcolor-hex").innerText = fontColor.toUpperCase();
+                document.getElementById("fontcolor-hex").value = fontColor.toUpperCase();
 
                 // 텍스트 정렬 상태 표시
                 const align = activeObj.textAlign || 'left';
@@ -2520,17 +2529,20 @@
                 textSection.style.display = "none";
                 shapeSection.style.display = "block";
 
-                ['shape-fillcolor', 'shape-strokecolor', 'shape-strokewidth'].forEach(id => document.getElementById(id).disabled = false);
+                ['shape-fillcolor', 'shape-fillcolor-hex', 'shape-strokecolor', 'shape-strokecolor-hex', 'shape-strokewidth'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.disabled = false;
+                });
                 
                 // Fabric fill을 input[type=color] 포맷에 맞춰 안전하게 대입
                 const fillColor = colorToHex(activeObj.fill);
                 document.getElementById("shape-fillcolor").value = fillColor;
-                document.getElementById("shape-fillcolor-hex").innerText = fillColor.toUpperCase();
+                document.getElementById("shape-fillcolor-hex").value = fillColor.toUpperCase();
 
                 // Fabric stroke를 input[type=color] 포맷에 맞춰 안전하게 대입
                 const strokeColor = colorToHex(activeObj.stroke);
                 document.getElementById("shape-strokecolor").value = strokeColor;
-                document.getElementById("shape-strokecolor-hex").innerText = strokeColor.toUpperCase();
+                document.getElementById("shape-strokecolor-hex").value = strokeColor.toUpperCase();
 
                 document.getElementById("shape-strokewidth").value = activeObj.strokeWidth || 0;
 
@@ -2566,7 +2578,10 @@
             document.getElementById("inspector-common-section").style.display = "none";
 
             document.getElementById("element-opacity").disabled = true;
-            ['btn-layer-up', 'btn-layer-down', 'btn-layer-front', 'btn-layer-back', 'btn-delete', 'btn-group', 'btn-ungroup'].forEach(id => document.getElementById(id).disabled = true);
+            ['btn-layer-up', 'btn-layer-down', 'btn-layer-front', 'btn-layer-back', 'btn-delete', 'btn-group', 'btn-ungroup', 'custom-font-input', 'btn-add-custom-font', 'fontcolor-hex', 'shape-fillcolor-hex', 'shape-strokecolor-hex'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.disabled = true;
+            });
 
             // X, Y, 너비, 높이, 중앙정렬 버튼 비활성화 및 초기화
             const leftInput = document.getElementById("element-left");
@@ -2793,16 +2808,21 @@
         }
 
         function deleteTemplate() {
-            if (!selectedTemplateId) {
+            if (selectedTemplateIds.length === 0) {
                 alert("삭제할 템플릿을 먼저 선택해주세요.");
                 return;
             }
-            if (confirm("정말로 이 템플릿을 삭제하시겠습니까?")) {
+            const confirmMsg = selectedTemplateIds.length === 1 
+                ? "정말로 이 템플릿을 삭제하시겠습니까?" 
+                : `정말로 선택한 ${selectedTemplateIds.length}개의 템플릿을 삭제하시겠습니까?`;
+                
+            if (confirm(confirmMsg)) {
                 ws.send(JSON.stringify({
                     type: "DELETE_TEMPLATE",
-                    templateId: selectedTemplateId
+                    templateIds: selectedTemplateIds
                 }));
-                selectedTemplateId = null;
+                selectedTemplateIds = [];
+                lastSelectedTemplateId = null;
             }
         }
 
@@ -2862,8 +2882,8 @@
         }
 
         function applyTemplateBulk() {
-            if (!selectedTemplateId) {
-                alert("적용할 템플릿을 먼저 선택해주세요.");
+            if (selectedTemplateIds.length !== 1) {
+                alert("일괄 적용할 템플릿을 하나만 선택해주세요.");
                 return;
             }
 
@@ -2882,8 +2902,8 @@
         }
 
         function confirmApplyTemplate() {
-            if (!selectedTemplateId) {
-                alert("적용할 템플릿을 선택해주세요.");
+            if (selectedTemplateIds.length !== 1) {
+                alert("적용할 템플릿을 하나만 선택해주세요.");
                 return;
             }
 
@@ -2896,7 +2916,7 @@
             ws.send(JSON.stringify({
                 type: "APPLY_TEMPLATE_BULK",
                 slideIds: modalSelectedSlideIds,
-                templateId: selectedTemplateId
+                templateId: selectedTemplateIds[0]
             }));
 
             closeApplyModal();
@@ -2914,19 +2934,46 @@
             }
         }
 
-        let selectedTemplateId = null;
+        let selectedTemplateIds = [];
+        let lastSelectedTemplateId = null;
 
-        function selectTemplate(tplId) {
-            if (selectedTemplateId === tplId) {
-                selectedTemplateId = null;
+        function selectTemplate(tplId, event) {
+            const templates = (projectData && projectData.templates) || [];
+            const currentIndex = templates.findIndex(t => t.id === tplId);
+            const lastIndex = templates.findIndex(t => t.id === lastSelectedTemplateId);
+
+            if (event && event.shiftKey && lastSelectedTemplateId !== null && lastIndex !== -1 && currentIndex !== -1) {
+                const start = Math.min(currentIndex, lastIndex);
+                const end = Math.max(currentIndex, lastIndex);
+                
+                for (let i = start; i <= end; i++) {
+                    const id = templates[i].id;
+                    if (!selectedTemplateIds.includes(id)) {
+                        selectedTemplateIds.push(id);
+                    }
+                }
+            } else if (event && (event.ctrlKey || event.metaKey)) {
+                const idx = selectedTemplateIds.indexOf(tplId);
+                if (idx > -1) {
+                    selectedTemplateIds.splice(idx, 1);
+                } else {
+                    selectedTemplateIds.push(tplId);
+                }
+                lastSelectedTemplateId = tplId;
             } else {
-                selectedTemplateId = tplId;
+                if (selectedTemplateIds.length === 1 && selectedTemplateIds[0] === tplId) {
+                    selectedTemplateIds = [];
+                    lastSelectedTemplateId = null;
+                } else {
+                    selectedTemplateIds = [tplId];
+                    lastSelectedTemplateId = tplId;
+                }
             }
-            
+
             const items = document.querySelectorAll(".template-grid-item");
             items.forEach(item => {
                 const itemId = item.getAttribute("data-id");
-                if (itemId === selectedTemplateId) {
+                if (selectedTemplateIds.includes(itemId)) {
                     item.style.border = "1.5px solid var(--primary)";
                     item.style.backgroundColor = "rgba(99, 102, 241, 0.15)";
                     item.style.boxShadow = "0 0 0 2px var(--primary-glow)";
@@ -2944,12 +2991,11 @@
             const applyBtn = document.getElementById("btn-apply-template-bulk");
             const deleteBtn = document.getElementById("btn-delete-template");
             
-            if (selectedTemplateId) {
-                if (applyBtn) applyBtn.disabled = false;
-                if (deleteBtn) deleteBtn.disabled = false;
-            } else {
-                if (applyBtn) applyBtn.disabled = true;
-                if (deleteBtn) deleteBtn.disabled = true;
+            if (applyBtn) {
+                applyBtn.disabled = (selectedTemplateIds.length !== 1);
+            }
+            if (deleteBtn) {
+                deleteBtn.disabled = (selectedTemplateIds.length === 0);
             }
         }
 
@@ -2959,8 +3005,13 @@
             
             gridEl.innerHTML = "";
             
-            if (selectedTemplateId && (!projectData || !projectData.templates || !projectData.templates.some(t => t.id === selectedTemplateId))) {
-                selectedTemplateId = null;
+            if (selectedTemplateIds.length > 0) {
+                selectedTemplateIds = selectedTemplateIds.filter(id => 
+                    projectData && projectData.templates && projectData.templates.some(t => t.id === id)
+                );
+                if (selectedTemplateIds.length === 0) {
+                    lastSelectedTemplateId = null;
+                }
             }
             
             if (!projectData || !projectData.templates || projectData.templates.length === 0) {
@@ -2974,7 +3025,7 @@
                 item.className = "template-grid-item";
                 item.setAttribute("data-id", tpl.id);
                 
-                const isSelected = tpl.id === selectedTemplateId;
+                const isSelected = selectedTemplateIds.includes(tpl.id);
                 item.style.border = isSelected ? "1.5px solid var(--primary)" : "1px solid var(--panel-border)";
                 item.style.backgroundColor = isSelected ? "rgba(99, 102, 241, 0.15)" : "rgba(0, 0, 0, 0.2)";
                 item.style.boxShadow = isSelected ? "0 0 0 2px var(--primary-glow)" : "none";
@@ -2994,7 +3045,7 @@
                     </div>
                 `;
                 
-                item.onclick = () => selectTemplate(tpl.id);
+                item.onclick = (e) => selectTemplate(tpl.id, e);
                 gridEl.appendChild(item);
             });
             
@@ -3034,6 +3085,37 @@
                         }
                     }
                     
+                    // 커스텀 폰트 동적 로드 및 셀렉트 박스 갱신
+                    if (projectData.customFonts && projectData.customFonts.length > 0) {
+                        const selectEl = document.getElementById("fontfamily-editor");
+                        projectData.customFonts.forEach(font => {
+                            const styleId = `custom-style-${font.family.replace(/\s+/g, '-')}`;
+                            if (!document.getElementById(styleId)) {
+                                const styleEl = document.createElement("style");
+                                styleEl.id = styleId;
+                                styleEl.textContent = font.cssCode;
+                                document.head.appendChild(styleEl);
+                            }
+                            
+                            if (selectEl) {
+                                let exists = false;
+                                for (let i = 0; i < selectEl.options.length; i++) {
+                                    if (selectEl.options[i].value.toLowerCase() === font.family.toLowerCase()) {
+                                        exists = true;
+                                        break;
+                                    }
+                                }
+                                if (!exists) {
+                                    const optionEl = document.createElement("option");
+                                    optionEl.value = font.family;
+                                    optionEl.text = font.family;
+                                    selectEl.add(optionEl);
+                                }
+                            }
+                        });
+                        canvas.requestRenderAll();
+                    }
+
                     renderSlides(); 
                     renderTemplates();
 
@@ -3296,16 +3378,104 @@
                 saveStateToHistory();
             };
 
+            function addCustomFont() {
+                const textareaEl = document.getElementById("custom-font-input");
+                if (!textareaEl) return;
+                const cssCode = textareaEl.value.trim();
+                if (!cssCode) {
+                    alert("@font-face 정의 코드를 입력해 주세요.");
+                    return;
+                }
+
+                // 1. font-family 명칭 추출 정규식
+                const fontFamilyRegex = /font-family\s*:\s*['"]?([^'";\s]+)['"]?/i;
+                const match = cssCode.match(fontFamilyRegex);
+                
+                if (!match || !match[1]) {
+                    alert("입력한 CSS 코드에서 font-family 설정을 찾을 수 없습니다. 올바른 @font-face 코드를 입력해 주세요.");
+                    return;
+                }
+                
+                const fontName = match[1].trim();
+
+                // 2. url 추출 정규식
+                const urlRegex = /url\s*\(\s*[\'"]?([^\'")]+)[\'"]?\s*\)/i;
+                const urlMatch = cssCode.match(urlRegex);
+                if (!urlMatch || !urlMatch[1]) {
+                    alert("CSS 코드에서 폰트 파일 주소(url)를 찾을 수 없습니다.");
+                    return;
+                }
+                const fontUrl = urlMatch[1];
+
+                // 3. 백엔드로 다운로드 및 등록 요청 송신
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: "ADD_CUSTOM_FONT",
+                        family: fontName,
+                        url: fontUrl,
+                        originalCssCode: cssCode
+                    }));
+                } else {
+                    alert("서버 연결이 원활하지 않아 폰트를 다운로드할 수 없습니다.");
+                }
+
+                textareaEl.value = "";
+            }
+
+            const btnAddFont = document.getElementById("btn-add-custom-font");
+            if (btnAddFont) btnAddFont.onclick = addCustomFont;
+            const inputFont = document.getElementById("custom-font-input");
+            if (inputFont) {
+                inputFont.onkeydown = (e) => {
+                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        addCustomFont();
+                    }
+                };
+            }
+
             document.getElementById("fontcolor-editor").oninput = (e) => {
                 if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
                     const val = e.target.value;
                     currentEditingElement.set('fill', val);
-                    document.getElementById("fontcolor-hex").innerText = val.toUpperCase();
+                    document.getElementById("fontcolor-hex").value = val.toUpperCase();
                     canvas.renderAll();
                 }
             };
             document.getElementById("fontcolor-editor").onchange = () => {
                 saveStateToHistory();
+            };
+
+            document.getElementById("fontcolor-hex").oninput = (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) {
+                    val = '#' + val;
+                }
+                const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+                if (hexPattern.test(val)) {
+                    if (val.length === 4) {
+                        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+                    }
+                    document.getElementById("fontcolor-editor").value = val;
+                    if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
+                        currentEditingElement.set('fill', val);
+                        canvas.renderAll();
+                    }
+                }
+            };
+            document.getElementById("fontcolor-hex").onchange = (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) {
+                    val = '#' + val;
+                }
+                const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+                if (hexPattern.test(val)) {
+                    if (val.length === 4) {
+                        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+                    }
+                    e.target.value = val.toUpperCase();
+                    saveStateToHistory();
+                }
             };
 
             document.getElementById("btn-bold").onclick = () => {
@@ -3348,7 +3518,7 @@
                 if (currentEditingElement && currentEditingElement.type !== 'textbox' && currentEditingElement.type !== 'text') {
                     const val = e.target.value;
                     currentEditingElement.set('fill', val);
-                    document.getElementById("shape-fillcolor-hex").innerText = val.toUpperCase();
+                    document.getElementById("shape-fillcolor-hex").value = val.toUpperCase();
                     canvas.renderAll();
                 }
             };
@@ -3356,16 +3526,80 @@
                 saveStateToHistory();
             };
 
+            document.getElementById("shape-fillcolor-hex").oninput = (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) {
+                    val = '#' + val;
+                }
+                const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+                if (hexPattern.test(val)) {
+                    if (val.length === 4) {
+                        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+                    }
+                    document.getElementById("shape-fillcolor").value = val;
+                    if (currentEditingElement && currentEditingElement.type !== 'textbox' && currentEditingElement.type !== 'text') {
+                        currentEditingElement.set('fill', val);
+                        canvas.renderAll();
+                    }
+                }
+            };
+            document.getElementById("shape-fillcolor-hex").onchange = (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) {
+                    val = '#' + val;
+                }
+                const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+                if (hexPattern.test(val)) {
+                    if (val.length === 4) {
+                        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+                    }
+                    e.target.value = val.toUpperCase();
+                    saveStateToHistory();
+                }
+            };
+
             document.getElementById("shape-strokecolor").oninput = (e) => {
                 if (currentEditingElement && currentEditingElement.type !== 'textbox' && currentEditingElement.type !== 'text') {
                     const val = e.target.value;
                     currentEditingElement.set('stroke', val);
-                    document.getElementById("shape-strokecolor-hex").innerText = val.toUpperCase();
+                    document.getElementById("shape-strokecolor-hex").value = val.toUpperCase();
                     canvas.renderAll();
                 }
             };
             document.getElementById("shape-strokecolor").onchange = () => {
                 saveStateToHistory();
+            };
+
+            document.getElementById("shape-strokecolor-hex").oninput = (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) {
+                    val = '#' + val;
+                }
+                const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+                if (hexPattern.test(val)) {
+                    if (val.length === 4) {
+                        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+                    }
+                    document.getElementById("shape-strokecolor").value = val;
+                    if (currentEditingElement && currentEditingElement.type !== 'textbox' && currentEditingElement.type !== 'text') {
+                        currentEditingElement.set('stroke', val);
+                        canvas.renderAll();
+                    }
+                }
+            };
+            document.getElementById("shape-strokecolor-hex").onchange = (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) {
+                    val = '#' + val;
+                }
+                const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+                if (hexPattern.test(val)) {
+                    if (val.length === 4) {
+                        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+                    }
+                    e.target.value = val.toUpperCase();
+                    saveStateToHistory();
+                }
             };
 
             document.getElementById("shape-strokewidth").oninput = (e) => {
@@ -3482,8 +3716,12 @@
                 
                 if (e.key === 'Delete') {
                     const activeObj = canvas.getActiveObject();
+                    const isTemplateTabActive = document.getElementById('panel-templates')?.classList.contains('active');
+                    
                     if (activeObj || currentEditingElement) {
                         deleteElement();
+                    } else if (isTemplateTabActive && selectedTemplateIds.length > 0) {
+                        deleteTemplate();
                     } else if (selectedSlideIds.length > 0) {
                         if (confirm(`선택한 ${selectedSlideIds.length}개의 슬라이드를 삭제하시겠습니까?`)) {
                             deleteSlides(selectedSlideIds);

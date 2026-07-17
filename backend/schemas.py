@@ -41,6 +41,10 @@ class SlideTemplate(BaseModel):
     thumbnail: Optional[str] = None
     elements: List[Element] = Field(default_factory=list)
 
+class CustomFont(BaseModel):
+    family: str
+    cssCode: str
+
 class SystemSettings(BaseModel):
     targetWidth: int = 1920
     targetHeight: int = 1080
@@ -51,3 +55,4 @@ class ProjectData(BaseModel):
     settings: SystemSettings = Field(default_factory=SystemSettings)
     slides: List[Slide] = Field(default_factory=list)
     templates: List[SlideTemplate] = Field(default_factory=list)
+    customFonts: List[CustomFont] = Field(default_factory=list)
