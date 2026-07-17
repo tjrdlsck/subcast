@@ -409,7 +409,10 @@
                     const match = elem.style.fontSize.match(/^(\d+(?:\.\d+)?)\s*vw$/);
                     fontSize = match ? (parseFloat(match[1]) / 100) * (isInsideGroup ? groupW : canvasWidth) : parseInt(elem.style.fontSize) || 20;
                 }
-                obj = new fabric.Text(elem.content, { left: x, top: y, width: w, fontSize: fontSize, fill: elem.style?.fontColor || '#ffffff', fontFamily: elem.style?.fontFamily || 'Inter', fontWeight: elem.style?.fontWeight || 'normal', fontStyle: elem.style?.fontStyle || 'normal', textAlign: elem.style?.textAlign || 'left', opacity: opacity, selectable: false });
+                // Textbox를 사용하여 w 너비 기준 자동 줄바꿈(Word Wrap) 지원
+                obj = isInsideGroup ? 
+                    new fabric.Text(elem.content, { left: x, top: y, width: w, fontSize: fontSize, fill: elem.style?.fontColor || '#ffffff', fontFamily: elem.style?.fontFamily || 'Inter', fontWeight: elem.style?.fontWeight || 'normal', fontStyle: elem.style?.fontStyle || 'normal', textAlign: elem.style?.textAlign || 'left', opacity: opacity, selectable: false }) : 
+                    new fabric.Textbox(elem.content, { left: x, top: y, width: w, fontSize: fontSize, fill: elem.style?.fontColor || '#ffffff', fontFamily: elem.style?.fontFamily || 'Inter', fontWeight: elem.style?.fontWeight || 'normal', fontStyle: elem.style?.fontStyle || 'normal', textAlign: elem.style?.textAlign || 'left', opacity: opacity, selectable: false, splitByGrapheme: false });
             } else if (elem.type === 'rect') {
                 obj = new fabric.Rect({ left: x, top: y, width: w, height: h, rx: elem.style?.cornerRadius || 0, ry: elem.style?.cornerRadius || 0, fill: elem.style?.fillColor || '#4f46e5', stroke: elem.style?.strokeColor || 'transparent', strokeWidth: elem.style?.strokeWidth !== undefined ? (elem.style.strokeWidth / 1920) * canvasWidth : 0, opacity: opacity, selectable: false });
             } else if (elem.type === 'circle') {
