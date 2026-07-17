@@ -624,7 +624,6 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                 slides_data = message.get("slides", [])
                 insert_after_id = message.get("insertAfterId")
                 if slides_data:
-                    from backend.schemas import Slide
                     new_slides = [Slide.model_validate(s_data) for s_data in slides_data]
                     
                     insert_idx = -1
