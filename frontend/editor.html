@@ -1457,6 +1457,27 @@
             color: #ffffff; /* 흰색 글자 */
             padding: 8px;
         }
+
+        /* 애플 스타일 자동완성 드롭다운 팝업 아이템 디자인 */
+        .bible-book-dropdown-item {
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: background 0.1s, color 0.1s;
+            text-align: left;
+        }
+
+        .bible-book-dropdown-item:hover {
+            background: var(--primary);
+            color: #ffffff;
+        }
+
+        .bible-book-dropdown-item.active {
+            background: rgba(0, 122, 255, 0.2);
+            font-weight: 600;
+            color: #ffffff;
+        }
     </style>
 </head>
 <body>
@@ -1673,10 +1694,11 @@
                         <!-- 1) 장/절 검색 입력 그룹 -->
                         <div id="form-coord-search" style="display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;">
                             <div style="display: flex; gap: 8px;">
-                                <div style="display: flex; flex-direction: column; flex: 2; gap: 4px;">
+                                <div style="display: flex; flex-direction: column; flex: 2; gap: 4px; position: relative;" id="bible-book-search-wrapper">
                                     <label style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600;">성경 권 선택</label>
-                                    <input type="text" id="input-bible-book-filter" placeholder="검색 (예: 마태, 창)" style="width: 100%; padding: 6px 10px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.78rem; height: 28px; margin-bottom: 4px; outline: none; transition: border-color 0.2s;">
-                                    <select id="select-bible-book" style="width: 100%; padding: 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; height: 36px;"></select>
+                                    <input type="text" id="input-bible-book-filter" placeholder="성경 검색 (예: 창, 마태)" style="width: 100%; padding: 8px 12px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; height: 36px; outline: none; transition: border-color 0.2s;" autocomplete="off">
+                                    <div id="bible-book-dropdown-popup" class="custom-scrollbar" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; max-height: 200px; overflow-y: auto; background: #1e1e1e; border: 1px solid var(--panel-border); border-radius: var(--radius-sm); z-index: 1001; box-shadow: 0 4px 12px rgba(0,0,0,0.5); margin-top: 4px; padding: 4px 0;"></div>
+                                    <select id="select-bible-book" style="display: none;"></select>
                                 </div>
                                 <div style="display: flex; flex-direction: column; flex: 1; gap: 4px;">
                                     <label style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600;">장 (Chapter)</label>
@@ -4388,8 +4410,21 @@
             // 책 선택 변경 시 최대 장 수 조절
             document.getElementById("select-bible-book").onchange = onBibleBookChange;
 
-            // 도서 검색 필터 리스너 연동
-            document.getElementById("input-bible-book-filter").oninput = (e) => filterBibleBooks(e.target.value);
+            // 도서 검색 필터 및 팝업 제어 리스너 연동
+            const filterInput = document.getElementById("input-bible-book-filter");
+            filterInput.oninput = (e) => filterBibleBooks(e.target.value);
+            filterInput.onfocus = () => {
+                filterBibleBooks(filterInput.value);
+            };
+
+            // 바깥 영역 클릭 시 자동완성 팝업 닫기
+            document.addEventListener("mousedown", (e) => {
+                const wrapper = document.getElementById("bible-book-search-wrapper");
+                const popup = document.getElementById("bible-book-dropdown-popup");
+                if (wrapper && popup && !wrapper.contains(e.target)) {
+                    popup.style.display = "none";
+                }
+            });
             
             // 전체 선택 체크박스
             document.getElementById("chk-select-all-bible").onchange = toggleSelectAllBible;
@@ -4400,17 +4435,15 @@
         }
 
         function filterBibleBooks(query) {
+            const popup = document.getElementById("bible-book-dropdown-popup");
             const selectBook = document.getElementById("select-bible-book");
-            if (!selectBook || !bibleBooksList) return;
+            if (!popup || !selectBook || !bibleBooksList) return;
             
             const cleanQuery = query.trim().toLowerCase();
-            
-            // 기존에 선택되어 있던 값 백업
             const currentSelectedValue = selectBook.value;
 
             let filtered = [];
             if (cleanQuery === "") {
-                // 아무것도 안 치면 66권 전체 목록 복원
                 filtered = [...bibleBooksList];
             } else {
                 filtered = bibleBooksList.filter(book => 
@@ -4420,32 +4453,36 @@
                 );
             }
 
-            selectBook.innerHTML = "";
+            popup.innerHTML = "";
+            popup.style.display = "block";
             
             if (filtered.length === 0) {
-                const opt = document.createElement("option");
-                opt.value = "";
-                opt.textContent = "검색 결과 없음";
-                selectBook.appendChild(opt);
+                const div = document.createElement("div");
+                div.className = "bible-book-dropdown-item";
+                div.style.color = "var(--text-muted)";
+                div.style.cursor = "default";
+                div.textContent = "검색 결과 없음";
+                popup.appendChild(div);
             } else {
                 filtered.forEach(book => {
-                    const opt = document.createElement("option");
-                    opt.value = book.book_code;
-                    opt.textContent = book.book_name;
-                    selectBook.appendChild(opt);
+                    const div = document.createElement("div");
+                    div.className = "bible-book-dropdown-item";
+                    if (book.book_code === currentSelectedValue) {
+                        div.classList.add("active");
+                    }
+                    div.textContent = book.book_name;
+                    div.onclick = (e) => {
+                        e.stopPropagation();
+                        // 텍스트 필드 값 입력
+                        document.getElementById("input-bible-book-filter").value = book.book_name;
+                        // 숨김 select 값 지정
+                        selectBook.value = book.book_code;
+                        onBibleBookChange();
+                        popup.style.display = "none";
+                    };
+                    popup.appendChild(div);
                 });
-
-                // 기존 선택값이 필터링된 결과에도 존재한다면 선택 상태 유지
-                const hasPreviousValue = filtered.some(book => book.book_code === currentSelectedValue);
-                if (hasPreviousValue) {
-                    selectBook.value = currentSelectedValue;
-                } else {
-                    selectBook.selectedIndex = 0;
-                }
             }
-
-            // 첫 필터링 결과 혹은 선택 변경 사항 기준으로 최대 장/절 갱신
-            onBibleBookChange();
         }
 
         function switchBibleSearchMode(mode) {
@@ -4472,6 +4509,11 @@
                     opt.textContent = book.book_name;
                     selectBook.appendChild(opt);
                 });
+
+                // 초기 선택을 첫 번째 책(창세기)으로 인풋에 채움
+                if (bibleBooksList.length > 0) {
+                    document.getElementById("input-bible-book-filter").value = bibleBooksList[0].book_name;
+                }
 
                 // 초기 설정 호출
                 onBibleBookChange();
