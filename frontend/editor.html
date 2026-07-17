@@ -4434,6 +4434,113 @@
             document.getElementById("btn-add-bible-slides").onclick = addBibleSlidesToProject;
         }
 
+        // 영타 오타 한글 자동 변환기 (Keyboard Layout Translation)
+        function engTypeToKor(eng) {
+            if (!/^[a-zA-Z\s]+$/.test(eng)) {
+                return eng; // 영문 알파벳만 있을 때만 오타로 취급하여 한글 변환 수행
+            }
+
+            const choMap = {'r':0,'R':1,'s':2,'e':3,'E':4,'f':5,'a':6,'q':7,'Q':8,'t':9,'T':10,'d':11,'w':12,'W':13,'c':14,'z':15,'x':16,'v':17,'g':18};
+            const jungMap = {'k':0,'o':1,'i':2,'O':3,'j':4,'p':5,'u':6,'P':7,'h':8,'y':12,'n':13,'b':17,'m':18,'l':20};
+            
+            const doubleJung = {'hk':9, 'ho':10, 'hl':11, 'nj':14, 'np':15, 'nl':16, 'ml':19};
+            const doubleJong = {'rt':3, 'sw':5, 'sg':6, 'fr':9, 'fa':10, 'fq':11, 'ft':12, 'fx':13, 'fv':14, 'fg':15, 'qt':18};
+            
+            const singleJongMap = {'r':1,'R':2,'s':4,'e':7,'f':8,'a':16,'q':17,'t':19,'T':20,'d':21,'w':22,'c':23,'z':24,'x':25,'v':26,'g':27};
+            const engToKorCharMap = {
+                'r':'ㄱ', 'R':'ㄲ', 's':'ㄴ', 'e':'ㄷ', 'E':'ㄸ', 'f':'ㄹ', 'a':'ㅁ', 'q':'ㅂ', 'Q':'ㅃ', 't':'ㅅ', 'T':'ㅆ', 'd':'ㅇ', 'w':'ㅈ', 'W':'ㅉ', 'c':'ㅊ', 'z':'ㅋ', 'x':'ㅌ', 'v':'ㅍ', 'g':'ㅎ',
+                'k':'ㅏ', 'o':'ㅐ', 'i':'랴', 'O':'ㅒ', 'j':'ㅓ', 'p':'ㅔ', 'u':'ㅕ', 'P':'ㅖ', 'h':'ㅗ', 'y':'ㅛ', 'n':'ㅜ', 'b':'ㅠ', 'm':'ㅡ', 'l':'ㅣ'
+            };
+
+            let result = "";
+            let i = 0;
+
+            while (i < eng.length) {
+                let c = eng[i];
+                let choCode = choMap[c];
+                
+                if (choCode === undefined) {
+                    result += engToKorCharMap[c] || c;
+                    i++;
+                    continue;
+                }
+                
+                let step = 1;
+                
+                // 모음 확인
+                if (i + 1 < eng.length) {
+                    let nextC = eng[i + 1];
+                    let jungCode = jungMap[nextC];
+                    
+                    if (jungCode !== undefined) {
+                        step = 2;
+                        
+                        // 이중 모음 여부 검증
+                        if (i + 2 < eng.length) {
+                            let possibleDoubleJung = nextC + eng[i + 2];
+                            if (doubleJung[possibleDoubleJung] !== undefined) {
+                                jungCode = doubleJung[possibleDoubleJung];
+                                step = 3;
+                            }
+                        }
+                        
+                        // 종성(받침) 판단
+                        let jongCode = 0;
+                        if (i + step < eng.length) {
+                            let finalC = eng[i + step];
+                            let singleJong = singleJongMap[finalC];
+                            
+                            if (singleJong !== undefined) {
+                                // 다음 글자의 모음 시작 가능성 확인
+                                let isNextVowel = false;
+                                if (i + step + 1 < eng.length) {
+                                    let nextV = eng[i + step + 1];
+                                    if (jungMap[nextV] !== undefined) {
+                                        isNextVowel = true;
+                                    }
+                                }
+                                
+                                if (!isNextVowel) {
+                                    jongCode = singleJong;
+                                    let addStep = 1;
+                                    
+                                    // 이중 받침 확인
+                                    if (i + step + 1 < eng.length) {
+                                        let possibleDoubleJong = finalC + eng[i + step + 1];
+                                        if (doubleJong[possibleDoubleJong] !== undefined) {
+                                            let isNextNextVowel = false;
+                                            if (i + step + 2 < eng.length) {
+                                                let nextNV = eng[i + step + 2];
+                                                if (jungMap[nextNV] !== undefined) {
+                                                    isNextNextVowel = true;
+                                                }
+                                            }
+                                            if (!isNextNextVowel) {
+                                                jongCode = doubleJong[possibleDoubleJong];
+                                                addStep = 2;
+                                            }
+                                        }
+                                    }
+                                    step += addStep;
+                                }
+                            }
+                        }
+                        
+                        // 조합형 한글 생성 (초성*21 + 중성)*28 + 종성 + 0xAC00
+                        result += String.fromCharCode((choCode * 21 + jungCode) * 28 + jongCode + 44032);
+                        i += step;
+                        continue;
+                    }
+                }
+                
+                // 단독 자음
+                result += engToKorCharMap[c] || c;
+                i += step;
+            }
+            
+            return result;
+        }
+
         function filterBibleBooks(query) {
             const popup = document.getElementById("bible-book-dropdown-popup");
             const selectBook = document.getElementById("select-bible-book");
@@ -4442,6 +4549,9 @@
             const cleanQuery = query.trim().toLowerCase();
             const currentSelectedValue = selectBook.value;
 
+            // 영어 오타일 가능성을 열고 한글 번역 수행
+            const translatedQuery = engTypeToKor(query).trim().toLowerCase();
+
             let filtered = [];
             if (cleanQuery === "") {
                 filtered = [...bibleBooksList];
@@ -4449,7 +4559,10 @@
                 filtered = bibleBooksList.filter(book => 
                     book.book_name.toLowerCase().includes(cleanQuery) || 
                     convertToShortBookName(book.book_name).toLowerCase().includes(cleanQuery) ||
-                    book.book_code.toLowerCase().includes(cleanQuery)
+                    book.book_code.toLowerCase().includes(cleanQuery) ||
+                    // 오타 대응 매핑
+                    book.book_name.toLowerCase().includes(translatedQuery) ||
+                    convertToShortBookName(book.book_name).toLowerCase().includes(translatedQuery)
                 );
             }
 
