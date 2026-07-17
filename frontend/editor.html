@@ -4760,6 +4760,23 @@
                 id: slideId,
                 name: `성경: ${header}`,
                 elements: [
+                    // 검정 사각형 배경 요소 추가 (전체 화면 꽉 참)
+                    {
+                        id: "elem_bible_bg_" + Math.random().toString(36).substr(2, 9),
+                        type: "rect",
+                        content: "",
+                        x: 0.0,
+                        y: 0.0,
+                        width: 100.0,
+                        height: 100.0,
+                        style: {
+                            fillColor: "#000000",
+                            strokeColor: "transparent",
+                            strokeWidth: 0,
+                            cornerRadius: 0,
+                            opacity: 1.0
+                        }
+                    },
                     {
                         id: "elem_bible_h_" + Math.random().toString(36).substr(2, 9),
                         type: "text",
