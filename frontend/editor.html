@@ -1920,10 +1920,22 @@
                                 </div>
                             </div>
 
+                            <!-- 찬양 가사 분해 미리보기 (Slide Preview List) -->
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--panel-border); padding-top: 8px; margin-top: 4px;">
+                                <label style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">분할 슬라이드 미리보기</label>
+                                <div style="display: flex; align-items: center; gap: 4px;">
+                                    <input type="checkbox" id="chk-select-all-praise" style="cursor: pointer; width: 12px; height: 12px;" checked>
+                                    <label for="chk-select-all-praise" style="font-size: 0.65rem; color: var(--text-muted); cursor: pointer; user-select: none;">전체 선택</label>
+                                </div>
+                            </div>
+                            <div id="praise-preview-list" class="custom-scrollbar" style="max-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 4px; border: 1px solid var(--panel-border); border-radius: var(--radius-sm); background: rgba(0,0,0,0.2); font-size: 0.7rem; margin-top: 2px;">
+                                <div style="color: var(--text-muted); font-size: 0.7rem; text-align: center; padding: 10px 0;">곡을 선택하면 분해 결과가 표시됩니다.</div>
+                            </div>
+
                             <!-- 예상 슬라이드 개수 실시간 피드백 컴포넌트 -->
-                            <div id="praise-generation-status" style="font-size: 0.72rem; color: var(--text-muted); background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 6px 10px; display: flex; align-items: center; justify-content: space-between;">
+                            <div id="praise-generation-status" style="font-size: 0.72rem; color: var(--text-muted); background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 6px 10px; display: flex; align-items: center; justify-content: space-between; margin-top: 4px;">
                                 <span>가사 글자수: <strong id="val-praise-char-count" style="color: var(--primary);">0</strong>자</span>
-                                <span>예상 슬라이드: <strong id="val-praise-expected-slides" style="color: #10b981;">0</strong>장</span>
+                                <span>선택 슬라이드: <strong id="val-praise-expected-slides" style="color: #10b981;">0</strong>장</span>
                             </div>
                             
                             <button class="btn-template-action" id="btn-add-praise-slides" style="background: #10b981; border: none; height: 38px; font-weight: 600; cursor: pointer; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%;">
@@ -5660,6 +5672,79 @@
         let tempPraiseSlidesToAdd = [];
         let activeSelectedPraiseSong = null;
 
+        function updatePraiseExpectedCount() {
+            const previewList = document.getElementById("praise-preview-list");
+            const valExpected = document.getElementById("val-praise-expected-slides");
+            const chkAllPraise = document.getElementById("chk-select-all-praise");
+            if (!previewList || !valExpected) return;
+
+            const checkboxes = previewList.querySelectorAll(".praise-preview-item-chk");
+            const checkedCount = Array.from(checkboxes).filter(chk => chk.checked).length;
+            valExpected.textContent = checkedCount;
+
+            if (chkAllPraise && checkboxes.length > 0) {
+                chkAllPraise.checked = (checkedCount === checkboxes.length);
+            }
+        }
+
+        function renderPraisePreview(song) {
+            const previewList = document.getElementById("praise-preview-list");
+            const chkAllPraise = document.getElementById("chk-select-all-praise");
+            if (!previewList) return;
+
+            previewList.innerHTML = "";
+            if (chkAllPraise) chkAllPraise.checked = true;
+
+            const blocks = song.lyrics.split(/\n\s*\n/).map(s => s.trim()).filter(s => s !== "");
+            if (blocks.length === 0) {
+                previewList.innerHTML = `<div style="color: var(--text-muted); font-size: 0.7rem; text-align: center; padding: 10px 0;">분해된 가사가 없습니다.</div>`;
+                return;
+            }
+
+            blocks.forEach((block, idx) => {
+                const itemDiv = document.createElement("div");
+                itemDiv.style.display = "flex";
+                itemDiv.style.alignItems = "flex-start";
+                itemDiv.style.gap = "6px";
+                itemDiv.style.padding = "4px 2px";
+                itemDiv.style.borderBottom = "1px dashed rgba(255,255,255,0.05)";
+
+                const chk = document.createElement("input");
+                chk.type = "checkbox";
+                chk.className = "praise-preview-item-chk";
+                chk.style.cursor = "pointer";
+                chk.style.marginTop = "2px";
+                chk.checked = true;
+                chk.dataset.index = idx;
+                
+                chk.onchange = () => {
+                    updatePraiseExpectedCount();
+                };
+
+                const span = document.createElement("span");
+                span.style.color = "var(--text-main)";
+                span.style.wordBreak = "break-all";
+                span.style.lineHeight = "1.2";
+                
+                // 가사 내용 줄바꿈 표현 지원
+                const escapedText = block.replace(/\n/g, "<br>");
+                span.innerHTML = `<strong style="color: var(--primary); font-size: 0.65rem; margin-right: 4px;">[${idx + 1}장]</strong> ${escapedText}`;
+
+                // 클릭 시 체크박스 토글
+                span.style.cursor = "pointer";
+                span.onclick = () => {
+                    chk.checked = !chk.checked;
+                    updatePraiseExpectedCount();
+                };
+
+                itemDiv.appendChild(chk);
+                itemDiv.appendChild(span);
+                previewList.appendChild(itemDiv);
+            });
+
+            updatePraiseExpectedCount();
+        }
+
         function initPraiseFeature() {
             const searchInput = document.getElementById("input-praise-search");
             const songsList = document.getElementById("praise-songs-list");
@@ -5670,6 +5755,19 @@
             const modalCloseBtn = document.getElementById("btn-praise-modal-close");
             const modalCancelBtn = document.getElementById("btn-praise-modal-cancel");
             const modalSaveBtn = document.getElementById("btn-praise-modal-save");
+
+            const chkAllPraise = document.getElementById("chk-select-all-praise");
+            const previewList = document.getElementById("praise-preview-list");
+
+            if (chkAllPraise && previewList) {
+                chkAllPraise.onchange = (e) => {
+                    const checkboxes = previewList.querySelectorAll(".praise-preview-item-chk");
+                    checkboxes.forEach(chk => {
+                        chk.checked = e.target.checked;
+                    });
+                    updatePraiseExpectedCount();
+                };
+            }
 
             // 디자인 컨트롤러 요소들
             const presetSelect = document.getElementById("select-praise-design-preset");
@@ -5901,6 +5999,17 @@
                 const lyrics = activeSelectedPraiseSong.lyrics;
                 const blocks = lyrics.split(/\n\s*\n/).map(s => s.trim()).filter(s => s !== "");
                 
+                // 선택된 슬라이드 인덱스 추출
+                const previewChks = document.querySelectorAll(".praise-preview-item-chk");
+                const checkedIndices = Array.from(previewChks)
+                    .filter(chk => chk.checked)
+                    .map(chk => parseInt(chk.dataset.index));
+
+                if (checkedIndices.length === 0) {
+                    alert("추가할 슬라이드를 선택해 주세요.");
+                    return;
+                }
+
                 tempPraiseSlidesToAdd = [];
 
                 if (presetSelect && presetSelect.value === "template") {
@@ -5922,6 +6031,7 @@
                     }
                     
                     blocks.forEach((block, idx) => {
+                        if (!checkedIndices.includes(idx)) return;
                         const headerText = `${title} (${idx + 1}/${blocks.length})`;
                         tempPraiseSlidesToAdd.push(createSlideFromTemplateExplicit(targetTpl, headerText, block, targetElementId));
                     });
@@ -5939,6 +6049,7 @@
                     };
 
                     blocks.forEach((block, idx) => {
+                        if (!checkedIndices.includes(idx)) return;
                         const headerText = `${title} (${idx + 1}/${blocks.length})`;
                         tempPraiseSlidesToAdd.push(createPraiseSlideObject(headerText, block, styleOptions));
                     });
@@ -6004,7 +6115,6 @@
                     <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">${song.title}</span>
                     <span style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${previewText}</span>
                 `;
-
                 div.onclick = () => {
                     const prevSel = songsList.querySelector(".bible-result-item.selected");
                     if (prevSel) prevSel.classList.remove("selected");
@@ -6018,9 +6128,8 @@
                         document.getElementById("lbl-selected-praise-title").textContent = song.title;
                         document.getElementById("val-praise-char-count").textContent = song.lyrics.length;
 
-                        // 빈 줄(\n\n) 기준 분할 수량 계산
-                        const blocks = song.lyrics.split(/\n\s*\n/).map(s => s.trim()).filter(s => s !== "");
-                        document.getElementById("val-praise-expected-slides").textContent = blocks.length;
+                        // 빈 줄(\n\n) 기준 분해 리스트 렌더링 및 개수 갱신
+                        renderPraisePreview(song);
                     }
                 };
 
