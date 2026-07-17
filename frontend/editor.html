@@ -1310,6 +1310,128 @@
             color: #ef4444;
             background: rgba(239, 68, 68, 0.1);
         }
+        /* ==========================================================================
+           Bible Search Feature Styles
+           ========================================================================== */
+        .search-mode-tabs .mode-tab-btn.active {
+            background: var(--primary) !important;
+            color: #ffffff !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .search-mode-tabs .mode-tab-btn:hover:not(.active) {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .bible-result-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 8px 10px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.15s ease-in-out;
+            margin-bottom: 4px;
+        }
+
+        .bible-result-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateX(2px);
+        }
+
+        .bible-result-item.selected {
+            background: rgba(16, 185, 129, 0.08);
+            border-color: #10b981;
+        }
+
+        .bible-result-item-header {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--primary);
+            background: rgba(79, 70, 229, 0.1);
+            padding: 2px 6px;
+            border-radius: var(--radius-xs);
+            white-space: nowrap;
+            margin-top: 1px;
+        }
+
+        .bible-result-item-content {
+            font-size: 0.78rem;
+            line-height: 1.4;
+            color: var(--text-main);
+            word-break: keep-all;
+            text-align: left;
+        }
+
+        .btn-loading-spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid #ffffff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        /* 실시간 미니 프리뷰 팝업 스타일 */
+        .bible-preview-overlay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            height: 180px;
+            background: #000000;
+            border: 2px solid var(--primary);
+            border-radius: var(--radius-md);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: flex-start;
+            padding: 12px;
+            box-sizing: border-box;
+            pointer-events: none;
+            opacity: 0.95;
+        }
+        
+        .bible-preview-header {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 6px;
+        }
+        
+        .bible-preview-content {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #ffffff;
+            line-height: 1.4;
+            text-align: left;
+            word-break: keep-all;
+        }
     </style>
 </head>
 <body>
@@ -1389,6 +1511,13 @@
                         <polyline points="2 12 12 17 22 12" />
                     </svg>
                     <span>레이어</span>
+                </button>
+                <button class="nav-tab-btn" data-target="panel-bible" onclick="switchLeftTab('panel-bible')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                    <span>성경</span>
                 </button>
             </aside>
 
@@ -1719,6 +1848,98 @@
                         </div>
                         <div class="property-row" style="margin-top: 16px;">
                             <button class="btn-delete-element" id="btn-delete" disabled>개체 삭제</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6) 성경 탭 패널 -->
+                <div class="sidebar-panel" id="panel-bible">
+                    <div class="panel-header">
+                        <h3>성경 구절 검색</h3>
+                    </div>
+                    
+                    <div class="panel-body" style="display: flex; flex-direction: column; overflow: hidden; gap: 14px; height: 100%;">
+                        <!-- 검색 모드 선택 (Segmented Control) -->
+                        <div class="search-mode-tabs" style="display: flex; background: var(--bg-dark); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 2px; flex-shrink: 0;">
+                            <button class="mode-tab-btn active" id="btn-mode-coord" style="flex: 1; text-align: center; padding: 6px 12px; font-size: 0.78rem; border: none; border-radius: var(--radius-xs); background: transparent; color: var(--text-muted); cursor: pointer; font-weight: 500; transition: all 0.2s ease;">장/절 검색</button>
+                            <button class="mode-tab-btn" id="btn-mode-keyword" style="flex: 1; text-align: center; padding: 6px 12px; font-size: 0.78rem; border: none; border-radius: var(--radius-xs); background: transparent; color: var(--text-muted); cursor: pointer; font-weight: 500; transition: all 0.2s ease;">본문 키워드 검색</button>
+                        </div>
+
+                        <!-- 1) 장/절 검색 입력 그룹 -->
+                        <div id="form-coord-search" style="display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;">
+                            <div style="display: flex; gap: 8px;">
+                                <div style="display: flex; flex-direction: column; flex: 2; gap: 4px;">
+                                    <label style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600;">성경 권 선택</label>
+                                    <select id="select-bible-book" style="width: 100%; padding: 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; height: 36px;"></select>
+                                </div>
+                                <div style="display: flex; flex-direction: column; flex: 1; gap: 4px;">
+                                    <label style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600;">장 (Chapter)</label>
+                                    <input type="number" id="input-bible-chapter" placeholder="1" min="1" style="width: 100%; padding: 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; text-align: center; height: 36px;">
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div style="display: flex; flex-direction: column; flex: 1; gap: 4px;">
+                                    <label style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600;">시작 절</label>
+                                    <input type="number" id="input-bible-start-verse" placeholder="1" min="1" style="width: 100%; padding: 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; text-align: center; height: 36px;">
+                                </div>
+                                <span style="color: var(--text-muted); margin-top: 18px; font-weight: 500;">~</span>
+                                <div style="display: flex; flex-direction: column; flex: 1; gap: 4px;">
+                                    <label style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600;">끝 절</label>
+                                    <input type="number" id="input-bible-end-verse" placeholder="1" min="1" style="width: 100%; padding: 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; text-align: center; height: 36px;">
+                                </div>
+                            </div>
+                            <button class="btn-template-action" id="btn-bible-fetch" style="background: var(--primary); border: none; width: 100%; height: 36px; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600; cursor: pointer; transition: background 0.15s;">
+                                <span>조회 및 본문 로드</span>
+                            </button>
+                        </div>
+
+                        <!-- 2) 본문 키워드 검색 입력 그룹 -->
+                        <div id="form-keyword-search" style="display: none; flex-direction: column; gap: 8px; flex-shrink: 0;">
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <label style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600;">성경 본문 검색</label>
+                                <div style="display: flex; gap: 8px;">
+                                    <input type="text" id="input-bible-keyword" placeholder="키워드 입력 (예: 천지, 태초에)" style="flex: 1; padding: 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; height: 36px;">
+                                    <button class="btn-template-action" id="btn-bible-search" style="background: var(--primary); border: none; width: auto; padding: 0 16px; margin-top: 0; font-weight: 600; height: 36px; cursor: pointer; transition: background 0.15s;">검색</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 검색 결과 헤더 영역 -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--panel-border); padding-top: 10px; flex-shrink: 0;">
+                            <label id="lbl-result-count" style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">검색 결과 (0건)</label>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" id="chk-select-all-bible" style="cursor: pointer; width: 14px; height: 14px;">
+                                <label for="chk-select-all-bible" style="font-size: 0.72rem; color: var(--text-muted); cursor: pointer; user-select: none;">전체 선택</label>
+                            </div>
+                        </div>
+
+                        <!-- 검색 결과 가상 스크롤 뷰 -->
+                        <div id="bible-results-list" class="custom-scrollbar" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; min-height: 120px; border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 8px; background: rgba(0,0,0,0.15);">
+                            <!-- 검색 결과 아이템 동적 주입 -->
+                            <div style="color: var(--text-muted); font-size: 0.78rem; text-align: center; margin: auto; padding: 20px 0;">성경 장/절 혹은 키워드를 검색해 주세요.</div>
+                        </div>
+
+                        <!-- 슬라이드 생성 설정 및 실시간 예측 알림 -->
+                        <div class="bible-generation-options" style="border-top: 1px solid var(--panel-border); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <span style="font-size: 0.75rem; color: var(--text-main); font-weight: 500;">슬라이드당 절 수</span>
+                                <select id="select-bible-split-mode" style="padding: 6px 12px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.75rem;">
+                                    <option value="1">1절씩 분할</option>
+                                    <option value="2">2절씩 묶기</option>
+                                    <option value="all">선택 구절 전체 합쳐서 1장</option>
+                                    <option value="auto">글자 수 기준 자동 분할 (80자)</option>
+                                </select>
+                            </div>
+                            
+                            <!-- 슬라이드 생성 개수 실시간 피드백 컴포넌트 -->
+                            <div id="bible-generation-status" style="font-size: 0.72rem; color: var(--text-muted); background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 6px 10px; min-height: 28px; display: flex; align-items: center; justify-content: space-between;">
+                                <span>선택된 구절: <strong id="val-selected-count" style="color: var(--primary);">0</strong>개</span>
+                                <span>예상 생성 슬라이드: <strong id="val-expected-slides" style="color: #10b981;">0</strong>장</span>
+                            </div>
+                            
+                            <button class="btn-template-action" id="btn-add-bible-slides" style="background: #10b981; border: none; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 6px; height: 38px; font-weight: 600; cursor: not-allowed; opacity: 0.5;" disabled>
+                                <span>➕ 선택 구절 슬라이드 추가</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -3400,6 +3621,9 @@
             // 슬라이드 추가 버튼
             document.getElementById("btn-add-slide").onclick = addSlide;
 
+            // 성경 구절 연동 기능 초기화
+            initBibleFeature();
+
             // 템플릿 제어 버튼
             document.getElementById("btn-save-template").onclick = saveAsTemplate;
             document.getElementById("btn-apply-template-bulk").onclick = applyTemplateBulk;
@@ -4109,6 +4333,469 @@
                     canvas.renderAll();
                     saveStateToHistory();
                 });
+            };
+        }
+
+            renderSlides();
+        }
+
+        // ==========================================================================
+        // Bible Search & Integration Feature Logic
+        // ==========================================================================
+        let selectedBibleVerses = [];
+        let bibleBooksList = [];
+
+        function initBibleFeature() {
+            // 성경 책 목록 가져오기
+            fetchBibleBooks();
+
+            // 검색 모드 전환 핸들러
+            document.getElementById("btn-mode-coord").onclick = () => switchBibleSearchMode("coord");
+            document.getElementById("btn-mode-keyword").onclick = () => switchBibleSearchMode("keyword");
+
+            // 장/절 조회 버튼
+            document.getElementById("btn-bible-fetch").onclick = fetchBibleCoordinates;
+            
+            // 키워드 검색 버튼
+            document.getElementById("btn-bible-search").onclick = searchBibleKeywords;
+            document.getElementById("input-bible-keyword").onkeydown = (e) => {
+                if (e.key === "Enter") searchBibleKeywords();
+            };
+
+            // 책 선택 변경 시 최대 장 수 조절
+            document.getElementById("select-bible-book").onchange = onBibleBookChange;
+            
+            // 전체 선택 체크박스
+            document.getElementById("chk-select-all-bible").onchange = toggleSelectAllBible;
+
+            // 분할 모드 변경 및 슬라이드 추가 버튼 바인딩
+            document.getElementById("select-bible-split-mode").onchange = updateBibleExpectedSlides;
+            document.getElementById("btn-add-bible-slides").onclick = addBibleSlidesToProject;
+        }
+
+        function switchBibleSearchMode(mode) {
+            const isCoord = mode === "coord";
+            document.getElementById("btn-mode-coord").classList.toggle("active", isCoord);
+            document.getElementById("btn-mode-keyword").classList.toggle("active", !isCoord);
+            
+            document.getElementById("form-coord-search").style.display = isCoord ? "flex" : "none";
+            document.getElementById("form-keyword-search").style.display = isCoord ? "none" : "flex";
+        }
+
+        async function fetchBibleBooks() {
+            try {
+                const response = await fetch("/api/bible/books");
+                if (!response.ok) throw new Error("성경 책 목록 로드 실패");
+                bibleBooksList = await response.json();
+                
+                const selectBook = document.getElementById("select-bible-book");
+                selectBook.innerHTML = "";
+                
+                bibleBooksList.forEach(book => {
+                    const opt = document.createElement("option");
+                    opt.value = book.book_code;
+                    opt.textContent = book.book_name;
+                    selectBook.appendChild(opt);
+                });
+
+                // 초기 설정 호출
+                onBibleBookChange();
+            } catch (err) {
+                console.error("Bible books load error:", err);
+            }
+        }
+
+        function onBibleBookChange() {
+            const selectBook = document.getElementById("select-bible-book");
+            const selectedCode = selectBook.value;
+            const bookInfo = bibleBooksList.find(b => b.book_code === selectedCode);
+            
+            const inputChapter = document.getElementById("input-bible-chapter");
+            if (bookInfo) {
+                inputChapter.max = bookInfo.max_chapter;
+                inputChapter.min = 1;
+                inputChapter.value = 1;
+            }
+            
+            // 장이 바뀌면 절 번호도 기본 1로 제어
+            document.getElementById("input-bible-start-verse").value = 1;
+            document.getElementById("input-bible-end-verse").value = "";
+        }
+
+        async function fetchBibleCoordinates() {
+            const selectBook = document.getElementById("select-bible-book");
+            const bookCode = selectBook.value;
+            const chapter = parseInt(document.getElementById("input-bible-chapter").value);
+            const startVerseVal = document.getElementById("input-bible-start-verse").value;
+            const endVerseVal = document.getElementById("input-bible-end-verse").value;
+            
+            if (!chapter || chapter < 1) {
+                alert("올바른 장 번호를 입력하세요.");
+                return;
+            }
+
+            const startVerse = startVerseVal ? parseInt(startVerseVal) : 1;
+            const endVerse = endVerseVal ? parseInt(endVerseVal) : 999;
+
+            if (startVerse > endVerse) {
+                alert("시작 절은 끝 절보다 작거나 같아야 합니다.");
+                return;
+            }
+
+            setBibleLoadingState(true, "btn-bible-fetch");
+            try {
+                const response = await fetch(`/api/bible/read?book_code=${bookCode}&chapter=${chapter}&start_verse=${startVerse}&end_verse=${endVerse}`);
+                if (!response.ok) throw new Error("성경 구절 패치 실패");
+                const data = await response.json();
+                
+                renderBibleResults(data.verses.map(v => ({
+                    book_name: data.book_name,
+                    book_code: data.book_code,
+                    chapter: data.chapter,
+                    verse: v.verse,
+                    content: v.content
+                })));
+            } catch (err) {
+                alert("오류 발생: " + err.message);
+            } finally {
+                setBibleLoadingState(false, "btn-bible-fetch");
+            }
+        }
+
+        async function searchBibleKeywords() {
+            const query = document.getElementById("input-bible-keyword").value.trim();
+            if (query.length < 2) {
+                alert("검색어는 공백 제외 2글자 이상 입력해 주세요.");
+                return;
+            }
+
+            setBibleLoadingState(true, "btn-bible-search");
+            try {
+                const response = await fetch(`/api/bible/search?query=${encodeURIComponent(query)}`);
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.detail || "검색 실패");
+                }
+                const data = await response.json();
+                renderBibleResults(data.results);
+            } catch (err) {
+                alert("오류 발생: " + err.message);
+            } finally {
+                setBibleLoadingState(false, "btn-bible-search");
+            }
+        }
+
+        function setBibleLoadingState(isLoading, buttonId) {
+            const btn = document.getElementById(buttonId);
+            if (isLoading) {
+                btn.disabled = true;
+                btn.dataset.originalHtml = btn.innerHTML;
+                btn.innerHTML = `<span class="btn-loading-spinner"></span> <span>조회 중...</span>`;
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = btn.dataset.originalHtml;
+            }
+        }
+
+        function renderBibleResults(results) {
+            const container = document.getElementById("bible-results-list");
+            container.innerHTML = "";
+            
+            document.getElementById("lbl-result-count").textContent = `검색 결과 (${results.length}건)`;
+            document.getElementById("chk-select-all-bible").checked = false;
+            selectedBibleVerses = [];
+            updateBibleExpectedSlides();
+
+            if (results.length === 0) {
+                container.innerHTML = `<div style="color: var(--text-muted); font-size: 0.78rem; text-align: center; margin: auto; padding: 20px 0;">일치하는 구절이 없습니다.</div>`;
+                return;
+            }
+
+            results.forEach((item, index) => {
+                const div = document.createElement("div");
+                div.className = "bible-result-item";
+                
+                // 방송용 약칭 맵 적용
+                const shortBook = convertToShortBookName(item.book_name);
+                
+                div.innerHTML = `
+                    <input type="checkbox" class="bible-item-checkbox" data-index="${index}" style="margin-top: 4px; pointer-events: none;">
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                        <span class="bible-result-item-header">${shortBook} ${item.chapter}:${item.verse}</span>
+                        <span class="bible-result-item-content">${item.content}</span>
+                    </div>
+                `;
+
+                // 메모리 참조를 위해 데이터 보관
+                div.dataset.verseData = JSON.stringify(item);
+
+                // 클릭 인터랙션
+                div.onclick = (e) => {
+                    const chk = div.querySelector(".bible-item-checkbox");
+                    chk.checked = !chk.checked;
+                    div.classList.toggle("selected", chk.checked);
+                    
+                    updateSelectedVersesMemory();
+                };
+
+                // 실시간 미리보기 마우스 오버/아웃 인터랙션
+                div.onmouseenter = () => showBibleLivePreview(item);
+                div.onmouseleave = () => hideBibleLivePreview();
+
+                container.appendChild(div);
+            });
+        }
+
+        function updateSelectedVersesMemory() {
+            selectedBibleVerses = [];
+            const items = document.querySelectorAll(".bible-result-item");
+            items.forEach(div => {
+                const chk = div.querySelector(".bible-item-checkbox");
+                if (chk && chk.checked) {
+                    selectedBibleVerses.push(JSON.parse(div.dataset.verseData));
+                }
+            });
+
+            // 전체 선택 체크박스 상태 갱신
+            const allCheckboxes = document.querySelectorAll(".bible-item-checkbox");
+            const allChecked = allCheckboxes.length > 0 && Array.from(allCheckboxes).every(c => c.checked);
+            document.getElementById("chk-select-all-bible").checked = allChecked;
+
+            updateBibleExpectedSlides();
+        }
+
+        function toggleSelectAllBible() {
+            const state = document.getElementById("chk-select-all-bible").checked;
+            const items = document.querySelectorAll(".bible-result-item");
+            items.forEach(div => {
+                const chk = div.querySelector(".bible-item-checkbox");
+                if (chk) {
+                    chk.checked = state;
+                    div.classList.toggle("selected", state);
+                }
+            });
+            updateSelectedVersesMemory();
+        }
+
+        function updateBibleExpectedSlides() {
+            const count = selectedBibleVerses.length;
+            const mode = document.getElementById("select-bible-split-mode").value;
+            let expected = 0;
+
+            if (count > 0) {
+                if (mode === "1") {
+                    expected = count;
+                } else if (mode === "2") {
+                    expected = Math.ceil(count / 2);
+                } else if (mode === "all") {
+                    expected = 1;
+                } else if (mode === "auto") {
+                    // 80자 기준 분할 예측
+                    let tempSlides = 0;
+                    selectedBibleVerses.forEach(v => {
+                        tempSlides += Math.ceil(v.content.length / 80);
+                    });
+                    expected = tempSlides;
+                }
+            }
+
+            document.getElementById("val-selected-count").textContent = count;
+            document.getElementById("val-expected-slides").textContent = expected;
+
+            const btn = document.getElementById("btn-add-bible-slides");
+            if (count > 0) {
+                btn.disabled = false;
+                btn.style.cursor = "pointer";
+                btn.style.opacity = "1";
+            } else {
+                btn.disabled = true;
+                btn.style.cursor = "not-allowed";
+                btn.style.opacity = "0.5";
+            }
+        }
+
+        // 방송용 약칭 치환 함수
+        function convertToShortBookName(fullName) {
+            const nameMap = {
+                "창세기": "창", "출애굽기": "출", "레위기": "레", "민수기": "민", "신명기": "신",
+                "여호수아": "수", "사사기": "사", "룻기": "룻", "사무엘상": "삼상", "사무엘하": "삼하",
+                "열왕기상": "왕상", "열왕기하": "왕하", "역대상": "대상", "역대하": "대하", "에스라": "스",
+                "느헤미야": "느", "에스더": "에", "욥기": "욥", "시편": "시", "잠언": "잠",
+                "전도서": "전", "아가": "아", "이사야": "사", "예레미야": "렘", "예레미야애가": "애",
+                "에스겔": "겔", "다니엘": "단", "호세아": "호", "요엘": "욜", "아모스": "암",
+                "오바댜": "옵", "요나": "욘", "미가": "미", "나훔": "나", "하박국": "합",
+                "스바냐": "습", "학개": "학", "스가랴": "슥", "말라기": "말", "마태복음": "마",
+                "마가복음": "막", "누가복음": "눅", "요한복음": "요", "사도행전": "행", "로마서": "롬",
+                "고린도전서": "고전", "고린도후서": "고후", "갈라디아서": "갈", "에베소서": "엡", "빌립보서": "빌",
+                "골로새서": "골", "데살로니가전서": "살전", "데살로니가후서": "살후", "디모데전서": "딤전", "디모데후서": "딤후",
+                "디도서": "딛", "빌레몬서": "몬", "히브리서": "히", "야고보서": "약", "베드로전서": "벧전",
+                "베드로후서": "벧후", "요한1서": "요일", "요한2서": "요이", "요한3서": "요삼", "유다서": "유",
+                "요한계시록": "계"
+            };
+            return nameMap[fullName] || fullName;
+        }
+
+        // 실시간 미리보기 팝업 노출
+        let previewEl = null;
+        function showBibleLivePreview(item) {
+            if (previewEl) hideBibleLivePreview();
+
+            const workspace = document.querySelector(".workspace");
+            if (!workspace) return;
+
+            previewEl = document.createElement("div");
+            previewEl.className = "bible-preview-overlay";
+            
+            const shortBook = convertToShortBookName(item.book_name);
+            previewEl.innerHTML = `
+                <div class="bible-preview-header">[송출 미리보기] ${shortBook} ${item.chapter}:${item.verse}</div>
+                <div class="bible-preview-content">${item.content}</div>
+            `;
+            workspace.appendChild(previewEl);
+        }
+
+        function hideBibleLivePreview() {
+            if (previewEl) {
+                previewEl.remove();
+                previewEl = null;
+            }
+        }
+
+        // 슬라이드 벌크 추가 및 웹소켓 발행
+        function addBibleSlidesToProject() {
+            if (selectedBibleVerses.length === 0) return;
+
+            const mode = document.getElementById("select-bible-split-mode").value;
+            const newSlides = [];
+
+            if (mode === "1") {
+                // 1절씩 개별 추가
+                selectedBibleVerses.forEach(v => {
+                    const shortBook = convertToShortBookName(v.book_name);
+                    const headerText = `${shortBook} ${v.chapter}:${v.verse}`;
+                    newSlides.push(createBibleSlideObject(headerText, v.content));
+                });
+            } else if (mode === "2") {
+                // 2절씩 묶어서 추가
+                for (let i = 0; i < selectedBibleVerses.length; i += 2) {
+                    const v1 = selectedBibleVerses[i];
+                    const v2 = selectedBibleVerses[i+1];
+                    const shortBook = convertToShortBookName(v1.book_name);
+                    
+                    let headerText = `${shortBook} ${v1.chapter}:${v1.verse}`;
+                    let contentText = v1.content;
+                    
+                    if (v2) {
+                        headerText = `${shortBook} ${v1.chapter}:${v1.verse}-${v2.verse}`;
+                        contentText = `${v1.content}\n${v2.content}`;
+                    }
+                    newSlides.push(createBibleSlideObject(headerText, contentText));
+                }
+            } else if (mode === "all") {
+                // 전체 합치기
+                const v1 = selectedBibleVerses[0];
+                const vend = selectedBibleVerses[selectedBibleVerses.length - 1];
+                const shortBook = convertToShortBookName(v1.book_name);
+                
+                let headerText = `${shortBook} ${v1.chapter}:${v1.verse}`;
+                if (selectedBibleVerses.length > 1) {
+                    headerText = `${shortBook} ${v1.chapter}:${v1.verse}-${vend.verse}`;
+                }
+                
+                const contentText = selectedBibleVerses.map(v => v.content).join("\n");
+                newSlides.push(createBibleSlideObject(headerText, contentText));
+            } else if (mode === "auto") {
+                // 글자 수 기준 자동 분할 (80자)
+                selectedBibleVerses.forEach(v => {
+                    const shortBook = convertToShortBookName(v.book_name);
+                    const headerText = `${shortBook} ${v.chapter}:${v.verse}`;
+                    
+                    // 글자 분할
+                    const chunks = splitTextByLength(v.content, 80);
+                    chunks.forEach((chunkText, idx) => {
+                        const pageSuffix = chunks.length > 1 ? ` (${idx+1})` : "";
+                        newSlides.push(createBibleSlideObject(headerText + pageSuffix, chunkText));
+                    });
+                });
+            }
+
+            if (newSlides.length > 0) {
+                // 웹소켓을 통한 벌크 전송
+                ws.send(JSON.stringify({
+                    type: "ADD_SLIDES_BULK",
+                    slides: newSlides
+                }));
+
+                // 결과 초기화
+                const container = document.getElementById("bible-results-list");
+                container.innerHTML = `<div style="color: #10b981; font-size: 0.78rem; text-align: center; margin: auto; padding: 20px 0;">🎉 성공적으로 슬라이드가 추가되었습니다.</div>`;
+                selectedBibleVerses = [];
+                updateBibleExpectedSlides();
+            }
+        }
+
+        // 글자수 기준 텍스트 분할 알고리즘
+        function splitTextByLength(text, maxLen) {
+            if (text.length <= maxLen) return [text];
+            
+            const words = text.split(" ");
+            const chunks = [];
+            let current = "";
+
+            words.forEach(word => {
+                if ((current + " " + word).trim().length > maxLen) {
+                    if (current) chunks.push(current.trim());
+                    current = word;
+                } else {
+                    current = (current + " " + word).trim();
+                }
+            });
+            if (current) chunks.push(current.trim());
+            
+            return chunks;
+        }
+
+        // 슬라이드 데이터 객체 빌더
+        function createBibleSlideObject(header, content) {
+            const slideId = "slide_bible_" + Math.random().toString(36).substr(2, 8);
+            
+            return {
+                id: slideId,
+                name: `성경: ${header}`,
+                elements: [
+                    {
+                        id: "elem_bible_h_" + Math.random().toString(36).substr(2, 9),
+                        type: "text",
+                        content: header,
+                        x: 7.2,
+                        y: 14.8,
+                        width: 85.0,
+                        height: 5.0,
+                        style: {
+                            fontSize: "2.2vw",
+                            fontColor: "#ffffff",
+                            fontFamily: "Inter",
+                            fontWeight: "600",
+                            textAlign: "left"
+                        }
+                    },
+                    {
+                        id: "elem_bible_c_" + Math.random().toString(36).substr(2, 9),
+                        type: "text",
+                        content: content,
+                        x: 7.2,
+                        y: 22.5,
+                        width: 85.6,
+                        height: 60.0,
+                        style: {
+                            fontSize: "3.8vw",
+                            fontColor: "#ffffff",
+                            fontFamily: "Inter",
+                            fontWeight: "700",
+                            textAlign: "left"
+                        }
+                    }
+                ]
             };
         }
 

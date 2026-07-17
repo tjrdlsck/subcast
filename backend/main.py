@@ -113,6 +113,125 @@ manager = ConnectionManager()
 # 프론트엔드 정적 파일 서빙 등록
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
+import sqlite3
+
+class BibleDatabaseHelper:
+    def __init__(self, db_path="GAE_Bible.db"):
+        self.db_path = db_path
+
+    def get_connection(self):
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def get_books(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        query = """
+            SELECT DISTINCT book_name, book_code
+            FROM bible 
+            ORDER BY id ASC
+        """
+        try:
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            books_map = {}
+            for row in rows:
+                books_map[row["book_code"]] = {
+                    "book_code": row["book_code"],
+                    "book_name": row["book_name"],
+                    "max_chapter": 0
+                }
+            
+            cursor.execute("SELECT book_code, MAX(chapter) as max_c FROM bible GROUP BY book_code")
+            for row in cursor.fetchall():
+                if row["book_code"] in books_map:
+                    books_map[row["book_code"]]["max_chapter"] = row["max_c"]
+            
+            return list(books_map.values())
+        finally:
+            conn.close()
+
+    def get_chapter(self, book_code: str, chapter: int, start_verse: int = 1, end_verse: int = 999):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        query = """
+            SELECT verse, content, title, book_name
+            FROM bible 
+            WHERE book_code = ? AND chapter = ? AND verse >= ? AND verse <= ?
+            ORDER BY verse ASC
+        """
+        try:
+            cursor.execute(query, (book_code, chapter, start_verse, end_verse))
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            conn.close()
+
+    def search_keyword(self, keyword: str, limit: int = 50):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        query = """
+            SELECT book_name, book_code, chapter, verse, content 
+            FROM bible 
+            WHERE content LIKE ?
+            ORDER BY id ASC
+            LIMIT ?
+        """
+        try:
+            search_param = f"%{keyword}%"
+            cursor.execute(query, (search_param, limit))
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            conn.close()
+
+db_helper = BibleDatabaseHelper("GAE_Bible.db")
+
+@app.get("/api/bible/books")
+async def get_bible_books():
+    try:
+        return db_helper.get_books()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/bible/read")
+async def read_bible(
+    book_code: str,
+    chapter: int,
+    start_verse: int = Query(1),
+    end_verse: int = Query(999)
+):
+    try:
+        verses = db_helper.get_chapter(book_code, chapter, start_verse, end_verse)
+        if not verses:
+            return {"book_name": "", "book_code": book_code, "chapter": chapter, "verses": []}
+        return {
+            "book_name": verses[0]["book_name"],
+            "book_code": book_code,
+            "chapter": chapter,
+            "verses": [{"verse": v["verse"], "content": v["content"], "title": v["title"]} for v in verses]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/bible/search")
+async def search_bible(
+    query: str,
+    limit: int = Query(50)
+):
+    if len(query.strip()) < 2:
+        raise HTTPException(status_code=400, detail="검색어는 공백 제외 2글자 이상 입력해 주세요.")
+    try:
+        results = db_helper.search_keyword(query.strip(), limit)
+        return {
+            "query": query,
+            "total_results": len(results),
+            "results": results
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/")
 async def get_index():
     # frontend/index.html이 있으면 응답하고 없으면 Redirect 또는 HTML 텍스트 응답
@@ -404,6 +523,21 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                         "lockedSlides": manager.locked_slides
                     })
                     logger.info(f"Slides deleted: {slide_ids}")
+
+            elif msg_type == "ADD_SLIDES_BULK":
+                slides_data = message.get("slides", [])
+                if slides_data:
+                    for s_data in slides_data:
+                        from backend.schemas import Slide
+                        new_slide = Slide.model_validate(s_data)
+                        manager.project_data.slides.append(new_slide)
+                    await save_project_data(manager.project_data)
+                    await manager.broadcast({
+                        "type": "INITIAL_SYNC",
+                        "data": manager.project_data.model_dump(),
+                        "lockedSlides": manager.locked_slides
+                    })
+                    logger.info(f"Bulk slides added: {len(slides_data)} slides")
 
             elif msg_type == "SAVE_SLIDE":
                 # 슬라이드 내용 저장 및 방송 상태 동기화 처리
