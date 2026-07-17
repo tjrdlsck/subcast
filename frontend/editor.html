@@ -4837,6 +4837,8 @@
                 return;
             }
 
+            let lastClickedIndex = -1;
+
             results.forEach((item, index) => {
                 const div = document.createElement("div");
                 div.className = "bible-result-item";
@@ -4855,11 +4857,28 @@
                 // 메모리 참조를 위해 데이터 보관
                 div.dataset.verseData = JSON.stringify(item);
 
-                // 클릭 인터랙션
+                // 클릭 인터랙션 (Shift 클릭 범위 다중 선택 탑재)
                 div.onclick = (e) => {
+                    const checkboxes = container.querySelectorAll(".bible-item-checkbox");
+                    const itemsList = container.querySelectorAll(".bible-result-item");
                     const chk = div.querySelector(".bible-item-checkbox");
-                    chk.checked = !chk.checked;
-                    div.classList.toggle("selected", chk.checked);
+                    
+                    if (e.shiftKey && lastClickedIndex !== -1) {
+                        const start = Math.min(lastClickedIndex, index);
+                        const end = Math.max(lastClickedIndex, index);
+                        
+                        // 마지막으로 선택했던 항목의 체크박스 상태로 일괄 동기화
+                        const baseChecked = checkboxes[lastClickedIndex].checked;
+                        
+                        for (let k = start; k <= end; k++) {
+                            checkboxes[k].checked = baseChecked;
+                            itemsList[k].classList.toggle("selected", baseChecked);
+                        }
+                    } else {
+                        chk.checked = !chk.checked;
+                        div.classList.toggle("selected", chk.checked);
+                        lastClickedIndex = index;
+                    }
                     
                     updateSelectedVersesMemory();
                 };
