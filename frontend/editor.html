@@ -2099,25 +2099,25 @@
                         <h4 class="section-title">도형 서식</h4>
                         <div class="property-row" style="margin-bottom: 12px;">
                             <label>채우기 색상</label>
-                            <div class="color-picker-wrapper" style="display: flex; align-items: center; gap: 8px; width: 100%;">
-                                <input type="color" id="shape-fillcolor" class="fontColor-input" value="#4f46e5" style="flex-shrink: 0;" disabled>
-                                <input type="text" class="color-hex-val" id="shape-fillcolor-hex" value="#4F46E5" maxlength="7" style="width: 80px; background: var(--bg-dark); border: 1px solid var(--panel-border); border-radius: 4px; color: #fff; text-align: center; font-size: 0.75rem; height: 26px; outline: none;" disabled>
-                                <div style="display: flex; align-items: center; gap: 6px; flex: 1;" title="투명도(Alpha)">
-                                    <span style="font-size: 0.68rem; color: var(--text-muted); min-width: 35px;">투명도</span>
-                                    <input type="range" id="shape-fillcolor-opacity" min="0" max="100" value="100" style="flex: 1; height: 4px; cursor: pointer;" disabled>
-                                    <span id="shape-fillcolor-opacity-val" style="font-size: 0.68rem; color: var(--text-muted); min-width: 32px; text-align: right;">100%</span>
+                            <div class="color-picker-wrapper" style="width: 100%;">
+                                <input type="color" id="shape-fillcolor" class="fontColor-input" value="#4f46e5" disabled>
+                                <input type="text" class="color-hex-val" id="shape-fillcolor-hex" value="#4F46E5" maxlength="7" style="width: 70px; background: transparent; border: 1px solid var(--panel-border); border-radius: 4px; color: #fff; text-align: center; font-size: 0.72rem; height: 20px; outline: none;" disabled>
+                                <div style="display: flex; align-items: center; gap: 4px; flex: 1; margin-left: 8px;" title="투명도(Alpha)">
+                                    <span style="font-size: 0.65rem; color: var(--text-muted); min-width: 32px;">투명도</span>
+                                    <input type="range" id="shape-fillcolor-opacity" min="0" max="100" value="100" style="flex: 1; height: 3px; cursor: pointer;" disabled>
+                                    <span id="shape-fillcolor-opacity-val" style="font-size: 0.6rem; color: var(--text-muted); min-width: 25px; text-align: right;">100%</span>
                                 </div>
                             </div>
                         </div>
                         <div class="property-row" style="margin-bottom: 12px;">
                             <label>테두리 색상</label>
-                            <div class="color-picker-wrapper" style="display: flex; align-items: center; gap: 8px; width: 100%;">
-                                <input type="color" id="shape-strokecolor" class="fontColor-input" value="#ffffff" style="flex-shrink: 0;" disabled>
-                                <input type="text" class="color-hex-val" id="shape-strokecolor-hex" value="#FFFFFF" maxlength="7" style="width: 80px; background: var(--bg-dark); border: 1px solid var(--panel-border); border-radius: 4px; color: #fff; text-align: center; font-size: 0.75rem; height: 26px; outline: none;" disabled>
-                                <div style="display: flex; align-items: center; gap: 6px; flex: 1;" title="투명도(Alpha)">
-                                    <span style="font-size: 0.68rem; color: var(--text-muted); min-width: 35px;">투명도</span>
-                                    <input type="range" id="shape-strokecolor-opacity" min="0" max="100" value="100" style="flex: 1; height: 4px; cursor: pointer;" disabled>
-                                    <span id="shape-strokecolor-opacity-val" style="font-size: 0.68rem; color: var(--text-muted); min-width: 32px; text-align: right;">100%</span>
+                            <div class="color-picker-wrapper" style="width: 100%;">
+                                <input type="color" id="shape-strokecolor" class="fontColor-input" value="#ffffff" disabled>
+                                <input type="text" class="color-hex-val" id="shape-strokecolor-hex" value="#FFFFFF" maxlength="7" style="width: 70px; background: transparent; border: 1px solid var(--panel-border); border-radius: 4px; color: #fff; text-align: center; font-size: 0.72rem; height: 20px; outline: none;" disabled>
+                                <div style="display: flex; align-items: center; gap: 4px; flex: 1; margin-left: 8px;" title="투명도(Alpha)">
+                                    <span style="font-size: 0.65rem; color: var(--text-muted); min-width: 32px;">투명도</span>
+                                    <input type="range" id="shape-strokecolor-opacity" min="0" max="100" value="100" style="flex: 1; height: 3px; cursor: pointer;" disabled>
+                                    <span id="shape-strokecolor-opacity-val" style="font-size: 0.6rem; color: var(--text-muted); min-width: 25px; text-align: right;">100%</span>
                                 </div>
                             </div>
                         </div>
@@ -4503,7 +4503,21 @@
 
             document.getElementById("btn-center-element").onclick = () => {
                 if (currentEditingElement) {
-                    currentEditingElement.center();
+                    const objWidth = currentEditingElement.getScaledWidth();
+                    const objHeight = currentEditingElement.getScaledHeight();
+
+                    if (currentEditingElement.originX === 'center') {
+                        currentEditingElement.set('left', BASE_WIDTH / 2);
+                    } else {
+                        currentEditingElement.set('left', (BASE_WIDTH - objWidth) / 2);
+                    }
+
+                    if (currentEditingElement.originY === 'center') {
+                        currentEditingElement.set('top', BASE_HEIGHT / 2);
+                    } else {
+                        currentEditingElement.set('top', (BASE_HEIGHT - objHeight) / 2);
+                    }
+
                     currentEditingElement.setCoords();
                     canvas.renderAll();
                     saveStateToHistory();
@@ -4525,9 +4539,6 @@
 
                 const objWidth = currentEditingElement.getScaledWidth();
                 const objHeight = currentEditingElement.getScaledHeight();
-                
-                const canvasWidth = canvas.getWidth();
-                const canvasHeight = canvas.getHeight();
 
                 switch (type) {
                     case "left":
@@ -4538,13 +4549,17 @@
                         }
                         break;
                     case "center-h":
-                        currentEditingElement.centerH();
+                        if (currentEditingElement.originX === 'center') {
+                            currentEditingElement.set('left', BASE_WIDTH / 2);
+                        } else {
+                            currentEditingElement.set('left', (BASE_WIDTH - objWidth) / 2);
+                        }
                         break;
                     case "right":
                         if (currentEditingElement.originX === 'center') {
-                            currentEditingElement.set('left', canvasWidth - objWidth / 2);
+                            currentEditingElement.set('left', BASE_WIDTH - objWidth / 2);
                         } else {
-                            currentEditingElement.set('left', canvasWidth - objWidth);
+                            currentEditingElement.set('left', BASE_WIDTH - objWidth);
                         }
                         break;
                     case "top":
@@ -4555,13 +4570,17 @@
                         }
                         break;
                     case "center-v":
-                        currentEditingElement.centerV();
+                        if (currentEditingElement.originY === 'center') {
+                            currentEditingElement.set('top', BASE_HEIGHT / 2);
+                        } else {
+                            currentEditingElement.set('top', (BASE_HEIGHT - objHeight) / 2);
+                        }
                         break;
                     case "bottom":
                         if (currentEditingElement.originY === 'center') {
-                            currentEditingElement.set('top', canvasHeight - objHeight / 2);
+                            currentEditingElement.set('top', BASE_HEIGHT - objHeight / 2);
                         } else {
-                            currentEditingElement.set('top', canvasHeight - objHeight);
+                            currentEditingElement.set('top', BASE_HEIGHT - objHeight);
                         }
                         break;
                 }
