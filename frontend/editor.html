@@ -2483,18 +2483,44 @@
 
         function renderSlides() {
             const listEl = document.getElementById("slide-list");
-            listEl.innerHTML = "";
             if (!projectData || !projectData.slides) return;
+
+            // 1. 기존 DOM 노드 보존 (재사용 목적)
+            const existingNodes = new Map();
+            Array.from(listEl.children).forEach(node => {
+                if (node.id.startsWith('slide-item-')) {
+                    const slideId = node.id.replace('slide-item-', '');
+                    existingNodes.set(slideId, node);
+                }
+            });
+
+            const fragment = document.createDocumentFragment();
+
             projectData.slides.forEach((slide, index) => {
-                const item = document.createElement("div");
-                item.className = "slide-item";
-                item.id = `slide-item-${slide.id}`;
-                item.setAttribute("draggable", "true");
+                let item = existingNodes.get(slide.id);
+                
+                // 노드가 없으면 새로 생성
+                if (!item) {
+                    item = document.createElement("div");
+                    item.className = "slide-item";
+                    item.id = `slide-item-${slide.id}`;
+                    item.setAttribute("draggable", "true");
+                } else {
+                    // 이미 존재하는 노드면 Map에서 제거 (삭제 대상에서 제외)
+                    existingNodes.delete(slide.id);
+                }
+
+                // 상태 업데이트 (클래스 및 dataset)
                 item.dataset.index = index;
                 if (slide.id === activeSlideId) item.classList.add("editing");
+                else item.classList.remove("editing");
+                
                 if (selectedSlideIds.includes(slide.id)) item.classList.add("selected-multi");
+                else item.classList.remove("selected-multi");
+
                 const isLockedByOthers = checkIsLockedByOthers(slide.id);
                 if (isLockedByOthers) item.classList.add("locked");
+                else item.classList.remove("locked");
                 
                 const lockOwner = lockedSlides[slide.id];
                 let lockName = "다른 편집자";
@@ -2506,7 +2532,8 @@
                     }
                 }
                 
-                item.innerHTML = `
+                // 콘텐츠 갱신 (불필요한 DOM 파싱을 막기 위해 텍스트 비교 후 변경 시에만 업데이트)
+                const newHTML = `
                     <!-- 슬라이드 순번 배지 (카드 자체의 왼쪽 위 모서리에 배치) -->
                     <div style="position: absolute; top: -8px; left: -8px; background: var(--primary); color: #fff; font-size: 0.7rem; font-weight: 800; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1.5px solid var(--bg-color); z-index: 20; font-family: 'Outfit', sans-serif; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
                         ${index + 1}
@@ -2518,9 +2545,20 @@
                         ${isLockedByOthers ? `<div class="lock-owner-text" style="font-size: 0.75rem; color: var(--accent-live); margin-top: 4px;">🔒 ${lockName}님이 편집 중</div>` : ''}
                     </div>
                 `;
-                
-                listEl.appendChild(item);
+
+                if (item.innerHTML !== newHTML) {
+                    item.innerHTML = newHTML;
+                }
+
+                // Fragment에 순서대로 추가 (이 과정에서 기존 DOM에 있던 요소는 자동으로 이동됨)
+                fragment.appendChild(item);
             });
+
+            // 사용되지 않는 구형 노드들 일괄 제거
+            existingNodes.forEach(node => node.remove());
+
+            // 변경된 Fragment를 실제 DOM에 일괄 반영
+            listEl.appendChild(fragment);
         }
 
         // 이벤트 위임(Event Delegation)을 통한 슬라이드 리스트 이벤트 처리 (성능 최적화 - Phase 2)
