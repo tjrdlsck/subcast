@@ -2535,13 +2535,13 @@
 
         // 위/아래 방향키를 이용한 슬라이드 이동 단축키 연동
         document.addEventListener("keydown", (e) => {
-            // 텍스트 인풋 상자나 에디터 포커싱 상태일 때는 방향키 이동 바이패스
+            // 텍스트 인풋 상자, 폼 편집 상태 또는 캔버스 내 디자인 요소가 선택된 상태일 때는 방향키 슬라이드 이동을 바이패스
             const activeEl = document.activeElement;
-            if (activeEl && (
-                activeEl.tagName === "INPUT" || 
-                activeEl.tagName === "TEXTAREA" || 
-                activeEl.isContentEditable
-            )) {
+            const hasActiveCanvasObj = typeof canvas !== 'undefined' && canvas && canvas.getActiveObject();
+            if (
+                (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.isContentEditable)) ||
+                hasActiveCanvasObj
+            ) {
                 return;
             }
 
