@@ -920,18 +920,7 @@
                 activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
 
-        // 이벤트 위임(Event Delegation)을 통한 슬라이드 클릭 이벤트 처리 (성능 최적화 - Phase 2)
-        document.addEventListener('DOMContentLoaded', () => {
-            const listEl = document.getElementById("slide-list");
-            if (!listEl) return;
-            
-            listEl.addEventListener("click", (e) => {
-                const item = e.target.closest('.slide-item');
-                if (!item) return;
-                const slideId = item.id.replace('slide-item-', '');
-                changeSlide(slideId);
-            });
-        });
+        // (클릭 이벤트 리스너는 window.onload에서 한 번만 등록하도록 수정됨)
 
             // 라이브 프리뷰 업데이트
             renderCurrentLiveSlide();
@@ -1083,6 +1072,17 @@
                 };
             }
 
+            // 슬라이드 격자 클릭 시 해당 슬라이드로 전환 (이벤트 위임)
+            const listEl = document.getElementById("slide-list");
+            if (listEl) {
+                listEl.addEventListener("click", (e) => {
+                    const item = e.target.closest('.slide-item');
+                    if (!item) return;
+                    const slideId = item.id.replace('slide-item-', '');
+                    changeSlide(slideId);
+                });
+            }
+
             // 이전/다음 버튼 리스너
             document.getElementById("btn-prev").onclick = () => navigateSlide('prev');
             document.getElementById("btn-next").onclick = () => navigateSlide('next');
@@ -1130,35 +1130,6 @@
                     }
                 }
             }, { passive: false });
-
-            // 마우스 클릭을 이용한 슬라이드 전환
-            window.addEventListener('mousedown', (e) => {
-                const activeEl = document.activeElement;
-                if (activeEl && activeEl.tagName === 'INPUT') return;
-
-                const interactiveTags = ['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA'];
-                if (e.target.closest('.slide-item') || e.target.closest('.modal-container') || interactiveTags.includes(e.target.tagName)) {
-                    return;
-                }
-
-                // 스크롤바 클릭 무시
-                if (e.clientX >= document.documentElement.clientWidth || e.clientY >= document.documentElement.clientHeight) {
-                    return;
-                }
-
-                if (e.button === 0) {
-                    navigateSlide('next');
-                } else if (e.button === 2) {
-                    navigateSlide('prev');
-                }
-            });
-
-            window.addEventListener('contextmenu', (e) => {
-                const interactiveTags = ['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA'];
-                if (!e.target.closest('.slide-item') && !e.target.closest('.modal-container') && !interactiveTags.includes(e.target.tagName)) {
-                    e.preventDefault();
-                }
-            });
 
             // 키보드 단축키
             window.onkeydown = (e) => {
