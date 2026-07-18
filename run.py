@@ -6,7 +6,10 @@ from threading import Timer
 
 # PyInstaller 환경에서 워킹 디렉토리를 먼저 맞춰주어야 backend.main이 임포트될 때 경로 문제가 없습니다.
 if getattr(sys, 'frozen', False):
-    os.chdir(os.path.dirname(sys.executable))
+    if hasattr(sys, '_MEIPASS'):
+        os.chdir(sys._MEIPASS)
+    else:
+        os.chdir(os.path.dirname(sys.executable))
     
     # --windowed 모드에서 sys.stdout과 sys.stderr가 None이 되어 발생하는 Uvicorn 에러 방지
     log_file = open("subcast.log", "w", encoding="utf-8")
