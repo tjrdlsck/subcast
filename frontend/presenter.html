@@ -1114,6 +1114,52 @@
                 }
             };
 
+            // 마우스 휠을 이용한 격자 축소/확대 (Ctrl + 휠)
+            let currentColumns = 5;
+            window.addEventListener('wheel', (e) => {
+                if (e.ctrlKey) {
+                    e.preventDefault(); // 브라우저 줌 방지
+                    if (e.deltaY > 0) {
+                        currentColumns = Math.min(currentColumns + 1, 10);
+                    } else if (e.deltaY < 0) {
+                        currentColumns = Math.max(currentColumns - 1, 1);
+                    }
+                    const grid = document.getElementById('slide-list');
+                    if (grid) {
+                        grid.style.gridTemplateColumns = `repeat(${currentColumns}, 1fr)`;
+                    }
+                }
+            }, { passive: false });
+
+            // 마우스 클릭을 이용한 슬라이드 전환
+            window.addEventListener('mousedown', (e) => {
+                const activeEl = document.activeElement;
+                if (activeEl && activeEl.tagName === 'INPUT') return;
+
+                const interactiveTags = ['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA'];
+                if (e.target.closest('.slide-item') || e.target.closest('.modal-container') || interactiveTags.includes(e.target.tagName)) {
+                    return;
+                }
+
+                // 스크롤바 클릭 무시
+                if (e.clientX >= document.documentElement.clientWidth || e.clientY >= document.documentElement.clientHeight) {
+                    return;
+                }
+
+                if (e.button === 0) {
+                    navigateSlide('next');
+                } else if (e.button === 2) {
+                    navigateSlide('prev');
+                }
+            });
+
+            window.addEventListener('contextmenu', (e) => {
+                const interactiveTags = ['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA'];
+                if (!e.target.closest('.slide-item') && !e.target.closest('.modal-container') && !interactiveTags.includes(e.target.tagName)) {
+                    e.preventDefault();
+                }
+            });
+
             // 키보드 단축키
             window.onkeydown = (e) => {
                 const activeEl = document.activeElement;
