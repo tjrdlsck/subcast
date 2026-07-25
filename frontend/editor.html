@@ -5565,24 +5565,38 @@
         }
 
         let bibleViewerLastClickedIndex = -1;
+        let isBibleViewerMouseDown = false;
+        let bibleViewerDragStartIdx = -1;
+        let bibleViewerIsDragging = false;
+        let activeBibleResultsData = [];
+
+        // 글로벌 mouseup 처리기 (드래그 상태 강제 해제)
+        window.addEventListener("mouseup", () => {
+            if (isBibleViewerMouseDown) {
+                isBibleViewerMouseDown = false;
+                bibleViewerDragStartIdx = -1;
+                if (activeBibleResultsData && activeBibleResultsData.length > 0) {
+                    syncSelectionFromViewer(activeBibleResultsData);
+                }
+            }
+        });
 
         function attachBibleTableSelectionEvents(results) {
             const tbody = document.getElementById("tbody-bible-main-viewer");
             if (!tbody || !results) return;
 
+            activeBibleResultsData = results;
             const rows = Array.from(tbody.querySelectorAll("tr"));
             if (rows.length === 0 || results.length === 0) return;
-
-            let isMouseDown = false;
-            let dragStartIndex = -1;
 
             rows.forEach((tr, idx) => {
                 tr.dataset.index = idx;
 
                 tr.onmousedown = (e) => {
                     if (e.button !== 0) return;
-                    isMouseDown = true;
-                    dragStartIndex = idx;
+                    isBibleViewerMouseDown = true;
+                    bibleViewerDragStartIdx = idx;
+                    bibleViewerIsDragging = false;
 
                     if (e.ctrlKey || e.metaKey) {
                         tr.classList.toggle("selected");
@@ -5601,44 +5615,46 @@
                 };
 
                 tr.onmouseenter = (e) => {
-                    if (isMouseDown && dragStartIndex !== -1) {
-                        const start = Math.min(dragStartIndex, idx);
-                        const end = Math.max(dragStartIndex, idx);
-                        rows.forEach((r, rIdx) => {
-                            if (rIdx >= start && rIdx <= end) {
-                                r.classList.add("selected");
-                            }
-                        });
+                    if (isBibleViewerMouseDown && bibleViewerDragStartIdx !== -1) {
+                        bibleViewerIsDragging = true;
+                        const start = Math.min(bibleViewerDragStartIdx, idx);
+                        const end = Math.max(bibleViewerDragStartIdx, idx);
+
+                        if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+                            rows.forEach((r, rIdx) => {
+                                if (rIdx >= start && rIdx <= end) {
+                                    r.classList.add("selected");
+                                } else {
+                                    r.classList.remove("selected");
+                                }
+                            });
+                        } else {
+                            rows.forEach((r, rIdx) => {
+                                if (rIdx >= start && rIdx <= end) {
+                                    r.classList.add("selected");
+                                }
+                            });
+                        }
                         syncSelectionFromViewer(results);
                     }
                 };
 
                 tr.onclick = (e) => {
-                    if (!e.ctrlKey && !e.shiftKey && dragStartIndex === idx) {
+                    if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !bibleViewerIsDragging) {
                         const selectedRows = tbody.querySelectorAll("tr.selected");
-                        if (selectedRows.length > 1) {
+                        const isSelected = tr.classList.contains("selected");
+
+                        if (selectedRows.length === 1 && isSelected) {
+                            tr.classList.remove("selected");
+                        } else {
                             rows.forEach(r => r.classList.remove("selected"));
                             tr.classList.add("selected");
-                        } else {
-                            tr.classList.toggle("selected");
                         }
                         bibleViewerLastClickedIndex = idx;
                         syncSelectionFromViewer(results);
                     }
                 };
             });
-
-            const onMouseUp = () => {
-                if (isMouseDown) {
-                    isMouseDown = false;
-                    dragStartIndex = -1;
-                    syncSelectionFromViewer(results);
-                }
-            };
-
-            document.removeEventListener("mouseup", tbody._mouseUpHandler || function(){});
-            tbody._mouseUpHandler = onMouseUp;
-            document.addEventListener("mouseup", onMouseUp);
         }
 
         function syncSelectionFromViewer(results) {
