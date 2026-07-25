@@ -1583,11 +1583,43 @@
             vertical-align: top;
             line-height: 1.65;
         }
-        #table-bible-main-viewer td.verse-badge, #table-bible-main-viewer th.verse-header {
-            color: #10b981;
-            font-weight: 700;
-            white-space: nowrap;
-            width: 1%;
+        /* 슬라이드 우클릭 커스텀 컨텍스트 메뉴 스타일 */
+        .slide-context-menu {
+            position: fixed;
+            z-index: 100000;
+            background: var(--panel-bg, #1e1e2e);
+            border: 1px solid var(--panel-border, #313244);
+            border-radius: 8px;
+            padding: 6px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            min-width: 170px;
+            display: none;
+            user-select: none;
+        }
+        .slide-context-menu-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            color: var(--text-main, #cdd6f4);
+            font-size: 0.82rem;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: background 0.15s ease;
+        }
+        .slide-context-menu-item:hover:not(.disabled) {
+            background: var(--bg-hover, rgba(255, 255, 255, 0.08));
+            color: #fff;
+        }
+        .slide-context-menu-item.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .slide-context-menu-divider {
+            height: 1px;
+            background: var(--panel-border, #313244);
+            margin: 4px 0;
         }
     </style>
 </head>
@@ -2723,6 +2755,17 @@
                         }
                         selectSlideForEdit(slide.id);
                         renderSlides();
+                    };
+
+                    item.oncontextmenu = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (!selectedSlideIds.includes(slide.id)) {
+                            selectedSlideIds = [slide.id];
+                            selectSlideForEdit(slide.id);
+                            renderSlides();
+                        }
+                        showSlideContextMenu(e.clientX, e.clientY);
                     };
                 }
                 listEl.appendChild(item);
@@ -4813,9 +4856,7 @@
                     } else if (isTemplateTabActive && selectedTemplateIds.length > 0) {
                         deleteTemplate();
                     } else if (selectedSlideIds.length > 0) {
-                        if (confirm(`선택한 ${selectedSlideIds.length}개의 슬라이드를 삭제하시겠습니까?`)) {
-                            deleteSlides(selectedSlideIds);
-                        }
+                        deleteSelectedSlidesWithConfirm();
                     }
                 } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
                     e.preventDefault();
@@ -4823,6 +4864,38 @@
                 } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z') {
                     e.preventDefault();
                     redo();
+                } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') {
+                    // 잘라내기 (Ctrl+X)
+                    const activeObj = canvas.getActiveObject();
+                    if (activeObj) {
+                        if (activeObj.type === 'activeSelection') {
+                            const serializedList = [];
+                            const groupLeft = activeObj.left || 0;
+                            const groupTop = activeObj.top || 0;
+                            const groupWidth = activeObj.width || 0;
+                            const groupHeight = activeObj.height || 0;
+                            activeObj.forEachObject((obj) => {
+                                const absLeft = groupLeft + obj.left + groupWidth / 2;
+                                const absTop = groupTop + obj.top + groupHeight / 2;
+                                const originalLeft = obj.left;
+                                const originalTop = obj.top;
+                                obj.set({ left: absLeft, top: absTop });
+                                serializedList.push(serializeElement(obj, BASE_WIDTH, BASE_HEIGHT));
+                                obj.set({ left: originalLeft, top: originalTop });
+                            });
+                            navigator.clipboard.writeText(JSON.stringify({ subcastType: "multipleElements", data: serializedList }));
+                            activeObj.forEachObject(obj => canvas.remove(obj));
+                            canvas.discardActiveObject();
+                        } else {
+                            const serialized = serializeElement(activeObj, BASE_WIDTH, BASE_HEIGHT);
+                            navigator.clipboard.writeText(JSON.stringify({ subcastType: "element", data: serialized }));
+                            canvas.remove(activeObj);
+                        }
+                        canvas.renderAll();
+                        saveStateToHistory();
+                    } else if (selectedSlideIds.length > 0) {
+                        cutSelectedSlides();
+                    }
                 } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
                     // 복사 (Ctrl+C) - 시스템 클립보드 API 활용
                     const activeObj = canvas.getActiveObject();
@@ -4860,22 +4933,9 @@
                                 console.error("시스템 클립보드 쓰기 실패:", err);
                             });
                         }
-                    } else {
+                    } else if (selectedSlideIds.length > 0) {
                         // 2. 슬라이드 복사
-                        const targetSlide = projectData.slides.find(s => s.id === activeSlideId);
-                        if (targetSlide) {
-                            const payload = {
-                                subcastType: "slide",
-                                data: {
-                                    name: targetSlide.name + " (사본)",
-                                    elements: JSON.parse(JSON.stringify(targetSlide.elements)),
-                                    thumbnail: targetSlide.thumbnail
-                                }
-                            };
-                            navigator.clipboard.writeText(JSON.stringify(payload)).catch(err => {
-                                        console.error("시스템 클립보드 쓰기 실패:", err);
-                                    });
-                        }
+                        copySelectedSlides();
                     }
                 }
             });
@@ -4961,30 +5021,13 @@
                                     canvas.requestRenderAll();
                                 }
                                 saveStateToHistory();
-                            } else if (payload && payload.subcastType === "slide") {
-                                e.preventDefault();
-                                const slideData = payload.data;
-                                const newId = `slide_${Math.random().toString(36).substr(2, 8)}`;
-                                const newSlide = {
-                                    id: newId,
-                                    name: slideData.name,
-                                    thumbnail: slideData.thumbnail,
-                                    elements: slideData.elements
-                                };
-                                
-                                const currentIndex = projectData.slides.findIndex(s => s.id === activeSlideId);
-                                if (currentIndex !== -1) {
-                                    projectData.slides.splice(currentIndex + 1, 0, newSlide);
-                                } else {
-                                    projectData.slides.push(newSlide);
+                            } else if (payload && (payload.subcastType === "slide" || payload.subcastType === "slides")) {
+                                // 다중 선택 시 붙여넣기 비활성화
+                                if (selectedSlideIds && selectedSlideIds.length > 1) {
+                                    return;
                                 }
-                                
-                                ws.send(JSON.stringify({ type: "SAVE_SLIDE", slide: newSlide }));
-                                
-                                const updatedSlideIds = projectData.slides.map(s => s.id);
-                                ws.send(JSON.stringify({ type: "REORDER_SLIDES", slideIds: updatedSlideIds }));
-                                
-                                renderSlides();
+                                e.preventDefault();
+                                pasteSlidesFromClipboardText(textData);
                             }
                         } catch (err) {
                             // 일반 텍스트 등은 무시
@@ -5112,6 +5155,170 @@
             };
             reader.readAsDataURL(file);
         }
+
+        // ==========================================================================
+        // Slide Clipboard & Context Menu Helper Logic
+        // ==========================================================================
+        async function copySelectedSlides() {
+            if (!selectedSlideIds || selectedSlideIds.length === 0) return;
+            const slidesToCopy = projectData.slides.filter(s => selectedSlideIds.includes(s.id));
+            if (slidesToCopy.length === 0) return;
+
+            let payload;
+            if (slidesToCopy.length === 1) {
+                const targetSlide = slidesToCopy[0];
+                payload = {
+                    subcastType: "slide",
+                    data: {
+                        name: targetSlide.name + " (사본)",
+                        elements: JSON.parse(JSON.stringify(targetSlide.elements)),
+                        thumbnail: targetSlide.thumbnail
+                    }
+                };
+            } else {
+                payload = {
+                    subcastType: "slides",
+                    data: slidesToCopy.map(slide => ({
+                        name: slide.name + " (사본)",
+                        elements: JSON.parse(JSON.stringify(slide.elements)),
+                        thumbnail: slide.thumbnail
+                    }))
+                };
+            }
+
+            try {
+                await navigator.clipboard.writeText(JSON.stringify(payload));
+            } catch (err) {
+                console.error("시스템 클립보드 쓰기 실패:", err);
+            }
+        }
+
+        async function cutSelectedSlides() {
+            if (!selectedSlideIds || selectedSlideIds.length === 0) return;
+            await copySelectedSlides();
+            deleteSlides(selectedSlideIds);
+        }
+
+        function pasteSlidesFromClipboardText(textData) {
+            // 다중 선택 상태에서는 붙여넣기 비활성화
+            if (selectedSlideIds && selectedSlideIds.length > 1) {
+                return false;
+            }
+            if (!textData) return false;
+
+            try {
+                const payload = JSON.parse(textData);
+                if (!payload || !payload.subcastType) return false;
+
+                let slidesToAdd = [];
+                if (payload.subcastType === "slide" && payload.data) {
+                    slidesToAdd.push(payload.data);
+                } else if (payload.subcastType === "slides" && Array.isArray(payload.data)) {
+                    slidesToAdd = payload.data;
+                } else {
+                    return false;
+                }
+
+                if (slidesToAdd.length === 0) return false;
+
+                let insertIndex = projectData.slides.findIndex(s => s.id === activeSlideId);
+                if (insertIndex === -1) insertIndex = projectData.slides.length - 1;
+
+                const newCreatedSlides = [];
+                slidesToAdd.forEach((slideData, idx) => {
+                    const newId = `slide_${Math.random().toString(36).substr(2, 8)}`;
+                    const newSlide = {
+                        id: newId,
+                        name: slideData.name || "복사된 슬라이드",
+                        thumbnail: slideData.thumbnail || "",
+                        elements: JSON.parse(JSON.stringify(slideData.elements || []))
+                    };
+                    projectData.slides.splice(insertIndex + 1 + idx, 0, newSlide);
+                    ws.send(JSON.stringify({ type: "SAVE_SLIDE", slide: newSlide }));
+                    newCreatedSlides.push(newSlide);
+                });
+
+                const updatedSlideIds = projectData.slides.map(s => s.id);
+                ws.send(JSON.stringify({ type: "REORDER_SLIDES", slideIds: updatedSlideIds }));
+
+                if (newCreatedSlides.length > 0) {
+                    selectSlideForEdit(newCreatedSlides[0].id);
+                }
+                renderSlides();
+                return true;
+            } catch (err) {
+                return false;
+            }
+        }
+
+        function deleteSelectedSlidesWithConfirm() {
+            if (!selectedSlideIds || selectedSlideIds.length === 0) return;
+            if (confirm(`선택한 ${selectedSlideIds.length}개의 슬라이드를 삭제하시겠습니까?`)) {
+                deleteSlides(selectedSlideIds);
+            }
+        }
+
+        function showSlideContextMenu(x, y) {
+            const menu = document.getElementById("slide-context-menu");
+            const pasteBtn = document.getElementById("menu-slide-paste");
+            if (!menu || !pasteBtn) return;
+
+            // 다중 선택 상태일 때 붙여넣기 메뉴 비활성화
+            const isMultiSelect = selectedSlideIds && selectedSlideIds.length > 1;
+            if (isMultiSelect) {
+                pasteBtn.classList.add("disabled");
+            } else {
+                pasteBtn.classList.remove("disabled");
+            }
+
+            menu.style.display = "block";
+            const menuWidth = menu.offsetWidth;
+            const menuHeight = menu.offsetHeight;
+            const winWidth = window.innerWidth;
+            const winHeight = window.innerHeight;
+
+            let posX = x;
+            let posY = y;
+            if (x + menuWidth > winWidth) posX = winWidth - menuWidth - 10;
+            if (y + menuHeight > winHeight) posY = winHeight - menuHeight - 10;
+
+            menu.style.left = `${posX}px`;
+            menu.style.top = `${posY}px`;
+        }
+
+        function hideSlideContextMenu() {
+            const menu = document.getElementById("slide-context-menu");
+            if (menu) menu.style.display = "none";
+        }
+
+        document.addEventListener("click", hideSlideContextMenu);
+        document.addEventListener("contextmenu", (e) => {
+            if (!e.target.closest(".slide-item") && !e.target.closest(".slide-context-menu")) {
+                hideSlideContextMenu();
+            }
+        });
+
+        // 슬라이드 컨텍스트 메뉴 버튼 이벤트 연결
+        document.addEventListener("DOMContentLoaded", () => {
+            const copyBtn = document.getElementById("menu-slide-copy");
+            const cutBtn = document.getElementById("menu-slide-cut");
+            const pasteBtn = document.getElementById("menu-slide-paste");
+            const deleteBtn = document.getElementById("menu-slide-delete");
+
+            if (copyBtn) copyBtn.onclick = () => { hideSlideContextMenu(); copySelectedSlides(); };
+            if (cutBtn) cutBtn.onclick = () => { hideSlideContextMenu(); cutSelectedSlides(); };
+            if (pasteBtn) pasteBtn.onclick = async () => {
+                hideSlideContextMenu();
+                if (selectedSlideIds && selectedSlideIds.length > 1) return;
+                try {
+                    const text = await navigator.clipboard.readText();
+                    pasteSlidesFromClipboardText(text);
+                } catch (err) {
+                    console.error("클립보드 읽기 실패:", err);
+                }
+            };
+            if (deleteBtn) deleteBtn.onclick = () => { hideSlideContextMenu(); deleteSelectedSlidesWithConfirm(); };
+        });
 
         // ==========================================================================
         // Bible Search & Integration Feature Logic
@@ -7004,6 +7211,22 @@
                 <button class="btn-modal btn-cancel" id="btn-modal-cancel">취소</button>
                 <button class="btn-modal btn-confirm" id="btn-modal-confirm" style="background: var(--primary); color: white;">적용하기</button>
             </div>
+    </div>
+
+    <!-- 슬라이드 우클릭 커스텀 컨텍스트 메뉴 -->
+    <div id="slide-context-menu" class="slide-context-menu">
+        <div class="slide-context-menu-item" id="menu-slide-copy">
+            <span>📋 복사</span> <span style="color: var(--text-muted); font-size: 0.75rem;">Ctrl+C</span>
+        </div>
+        <div class="slide-context-menu-item" id="menu-slide-cut">
+            <span>✂️ 잘라내기</span> <span style="color: var(--text-muted); font-size: 0.75rem;">Ctrl+X</span>
+        </div>
+        <div class="slide-context-menu-item" id="menu-slide-paste">
+            <span>📥 붙여넣기</span> <span style="color: var(--text-muted); font-size: 0.75rem;">Ctrl+V</span>
+        </div>
+        <div class="slide-context-menu-divider"></div>
+        <div class="slide-context-menu-item" id="menu-slide-delete" style="color: #ff5555;">
+            <span>🗑️ 삭제</span> <span style="color: var(--text-muted); font-size: 0.75rem;">Del</span>
         </div>
     </div>
 </body>
