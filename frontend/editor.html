@@ -5413,11 +5413,6 @@
                     selectBook.appendChild(opt);
                 });
 
-                // 초기 선택을 첫 번째 책(창세기)으로 인풋에 채움
-                if (bibleBooksList.length > 0) {
-                    document.getElementById("input-bible-book-filter").value = bibleBooksList[0].book_name;
-                }
-
                 // 초기 설정 호출
                 onBibleBookChange();
             } catch (err) {
