@@ -2638,6 +2638,15 @@
             const listEl = document.getElementById("slide-list");
             listEl.innerHTML = "";
             if (!projectData || !projectData.slides) return;
+
+            listEl.oncontextmenu = (e) => {
+                // 슬라이드 패널 빈 영역 클릭 시 우클릭 메뉴 노출
+                if (e.target === listEl || e.target.classList.contains("panel-body")) {
+                    e.preventDefault();
+                    showSlideContextMenu(e.clientX, e.clientY);
+                }
+            };
+
             projectData.slides.forEach((slide, index) => {
                 const item = document.createElement("div");
                 item.className = "slide-item";
@@ -2737,6 +2746,17 @@
                     item.style.borderBottom = "";
                 });
 
+                item.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!isLockedByOthers && !selectedSlideIds.includes(slide.id)) {
+                        selectedSlideIds = [slide.id];
+                        selectSlideForEdit(slide.id);
+                        renderSlides();
+                    }
+                    showSlideContextMenu(e.clientX, e.clientY);
+                };
+
                 if (!isLockedByOthers) {
                     item.onclick = (e) => {
                         if (e.shiftKey) {
@@ -2755,17 +2775,6 @@
                         }
                         selectSlideForEdit(slide.id);
                         renderSlides();
-                    };
-
-                    item.oncontextmenu = (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (!selectedSlideIds.includes(slide.id)) {
-                            selectedSlideIds = [slide.id];
-                            selectSlideForEdit(slide.id);
-                            renderSlides();
-                        }
-                        showSlideContextMenu(e.clientX, e.clientY);
                     };
                 }
                 listEl.appendChild(item);
@@ -5291,34 +5300,59 @@
             if (menu) menu.style.display = "none";
         }
 
-        document.addEventListener("click", hideSlideContextMenu);
-        document.addEventListener("contextmenu", (e) => {
-            if (!e.target.closest(".slide-item") && !e.target.closest(".slide-context-menu")) {
+        document.addEventListener("mousedown", (e) => {
+            if (!e.target.closest("#slide-context-menu")) {
                 hideSlideContextMenu();
             }
         });
 
-        // 슬라이드 컨텍스트 메뉴 버튼 이벤트 연결
-        document.addEventListener("DOMContentLoaded", () => {
+        function bindSlideContextMenuEvents() {
             const copyBtn = document.getElementById("menu-slide-copy");
             const cutBtn = document.getElementById("menu-slide-cut");
             const pasteBtn = document.getElementById("menu-slide-paste");
             const deleteBtn = document.getElementById("menu-slide-delete");
 
-            if (copyBtn) copyBtn.onclick = () => { hideSlideContextMenu(); copySelectedSlides(); };
-            if (cutBtn) cutBtn.onclick = () => { hideSlideContextMenu(); cutSelectedSlides(); };
-            if (pasteBtn) pasteBtn.onclick = async () => {
-                hideSlideContextMenu();
-                if (selectedSlideIds && selectedSlideIds.length > 1) return;
-                try {
-                    const text = await navigator.clipboard.readText();
-                    pasteSlidesFromClipboardText(text);
-                } catch (err) {
-                    console.error("클립보드 읽기 실패:", err);
-                }
-            };
-            if (deleteBtn) deleteBtn.onclick = () => { hideSlideContextMenu(); deleteSelectedSlidesWithConfirm(); };
-        });
+            if (copyBtn) {
+                copyBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    hideSlideContextMenu();
+                    copySelectedSlides();
+                };
+            }
+            if (cutBtn) {
+                cutBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    hideSlideContextMenu();
+                    cutSelectedSlides();
+                };
+            }
+            if (pasteBtn) {
+                pasteBtn.onclick = async (e) => {
+                    e.stopPropagation();
+                    hideSlideContextMenu();
+                    if (selectedSlideIds && selectedSlideIds.length > 1) return;
+                    try {
+                        const text = await navigator.clipboard.readText();
+                        pasteSlidesFromClipboardText(text);
+                    } catch (err) {
+                        console.error("클립보드 읽기 실패:", err);
+                    }
+                };
+            }
+            if (deleteBtn) {
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    hideSlideContextMenu();
+                    deleteSelectedSlidesWithConfirm();
+                };
+            }
+        }
+
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", bindSlideContextMenuEvents);
+        } else {
+            bindSlideContextMenuEvents();
+        }
 
         // ==========================================================================
         // Bible Search & Integration Feature Logic
