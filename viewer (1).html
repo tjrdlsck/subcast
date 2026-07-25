@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>개역개정 성경 대조 뷰어</title>
+  <!-- Google Fonts 로드 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* CSS 디자인 시스템 정의 */
+    :root {
+      --bg-color: #0b0f19;
+      --panel-bg: rgba(17, 24, 39, 0.7);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --primary: #3b82f6;
+      --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      --accent: #8b5cf6;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-title: 'Outfit', var(--font-sans);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 스크롤바 커스텀 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    /* 헤더 스타일 */
+    header {
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.8rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .logo-badge {
+      background: var(--primary-gradient);
+      padding: 0.4rem 0.8rem;
+      border-radius: 8px;
+      font-family: var(--font-title);
+      font-weight: 700;
+      font-size: 0.9rem;
+      letter-spacing: 0.05em;
+      box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+    }
+
+    .logo-title {
+      font-family: var(--font-title);
+      font-weight: 600;
+      font-size: 1.2rem;
+      background: linear-gradient(to right, #ffffff, #9ca3af);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .search-wrapper {
+      position: relative;
+    }
+
+    .search-input {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: #fff;
+      padding: 0.5rem 1rem 0.5rem 2.2rem;
+      border-radius: 20px;
+      width: 250px;
+      font-size: 0.85rem;
+      transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+      outline: none;
+      width: 320px;
+      border-color: var(--primary);
+      box-shadow: 0 0 10px rgba(59, 130, 246, 0.15);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 0.8rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+      font-size: 0.9rem;
+    }
+
+    .view-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 0.2rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+
+    .control-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .control-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .control-btn.active {
+      color: #fff;
+      background: var(--primary);
+    }
+
+    /* 메인 컨테이너 */
+    .main-container {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* 사이드바 스타일 */
+    aside {
+      width: 280px;
+      background: rgba(10, 15, 30, 0.95);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      flex-shrink: 0;
+    }
+
+    .testament-tabs {
+      display: flex;
+      padding: 1rem;
+      gap: 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 0.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .tab-btn.active {
+      background: var(--primary-gradient);
+      border-color: transparent;
+      color: #fff;
+      font-weight: 600;
+      box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2);
+    }
+
+    .book-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem;
+    }
+
+    .book-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.65rem 0.8rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      margin-bottom: 0.2rem;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+
+    .book-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+      color: #fff;
+    }
+
+    .book-item.active {
+      background: rgba(59, 130, 246, 0.1);
+      border-color: rgba(59, 130, 246, 0.3);
+      color: #3b82f6;
+      font-weight: 600;
+    }
+
+    .book-chapters-count {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.05);
+      padding: 0.1rem 0.4rem;
+      border-radius: 10px;
+    }
+
+    .book-item.active .book-chapters-count {
+      color: #3b82f6;
+      background: rgba(59, 130, 246, 0.15);
+    }
+
+    /* 장 선택 패널 */
+    .chapter-panel {
+      padding: 1rem;
+      background: rgba(10, 15, 30, 0.5);
+      border-top: 1px solid var(--border-color);
+      max-height: 250px;
+      overflow-y: auto;
+    }
+
+    .chapter-panel-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.6rem;
+      font-weight: 600;
+    }
+
+    .chapter-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.35rem;
+    }
+
+    .chapter-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 0.4rem 0;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 500;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .chapter-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--primary);
+    }
+
+    .chapter-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* 본문 영역 */
+    main {
+      flex: 1;
+      height: 100%;
+      overflow-y: auto;
+      background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.03), transparent 60%),
+                  radial-gradient(circle at bottom left, rgba(139, 92, 246, 0.02), transparent 50%);
+      padding: 3rem 4rem;
+      position: relative;
+    }
+
+    .content-container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    /* 본문 상단 헤더 */
+    .bible-view-header {
+      margin-bottom: 2.5rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 1.5rem;
+    }
+
+    .bible-view-path {
+      font-family: var(--font-title);
+      font-size: 0.9rem;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.4rem;
+      font-weight: 600;
+    }
+
+    .bible-view-title {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: #fff;
+      font-family: var(--font-sans);
+    }
+
+    /* 본문 렌더링 스타일 */
+    .verse-container {
+      font-size: 1.12rem;
+      line-height: 1.85;
+      font-weight: 400;
+      color: #e5e7eb;
+      letter-spacing: -0.01em;
+    }
+
+    .small-title-block {
+      display: block;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #f3f4f6;
+      border-left: 3px solid var(--primary);
+      padding-left: 0.8rem;
+      margin: 2.2rem 0 1rem 0;
+      font-family: var(--font-sans);
+    }
+
+    .verse-line {
+      margin-bottom: 0.8rem;
+      display: inline-block;
+      width: 100%;
+      transition: background 0.3s;
+      border-radius: 4px;
+      padding: 0.2rem 0.5rem;
+    }
+
+    .verse-line:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .verse-num {
+      color: var(--primary);
+      font-weight: 600;
+      font-family: var(--font-title);
+      margin-right: 0.8rem;
+      display: inline-block;
+      width: 1.5rem;
+      text-align: right;
+    }
+
+    /* 검색 결과 화면 */
+    .search-results-panel {
+      display: none;
+    }
+
+    .search-summary {
+      font-size: 1rem;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+    }
+
+    .search-summary span {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .search-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      padding: 1.2rem;
+      border-radius: 10px;
+      margin-bottom: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .search-card:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: var(--primary);
+      transform: translateY(-2px);
+    }
+
+    .search-card-meta {
+      font-size: 0.8rem;
+      color: var(--primary);
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      font-family: var(--font-title);
+    }
+
+    .search-card-text {
+      font-size: 0.98rem;
+      line-height: 1.6;
+      color: #d1d5db;
+    }
+
+    .search-card-text mark {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      padding: 0.1rem 0.2rem;
+      border-radius: 3px;
+    }
+
+    /* 데이터가 없을 때의 가이드 화면 */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .empty-state-card {
+      background: rgba(17, 24, 39, 0.5);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 3rem;
+      max-width: 550px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 1.5rem;
+      background: var(--primary-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-family: var(--font-title);
+      font-weight: 700;
+    }
+
+    .empty-state-title {
+      font-size: 1.4rem;
+      margin-bottom: 0.8rem;
+      color: #fff;
+    }
+
+    .empty-state-desc {
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+    }
+
+    .empty-state-code {
+      background: #000;
+      color: #34d399;
+      padding: 0.8rem 1rem;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 0.85rem;
+      text-align: left;
+      border: 1px solid rgba(255,255,255,0.05);
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 헤더 -->
+  <header>
+    <div class="logo-container">
+      <div class="logo-badge">GAE</div>
+      <div class="logo-title">개역개정 성경 뷰어</div>
+    </div>
+    
+    <div class="toolbar">
+      <!-- 키워드 검색기 -->
+      <div class="search-wrapper">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" class="search-input" placeholder="성경 구절 검색 (2글자 이상)...">
+      </div>
+      
+      <!-- 텍스트 폰트 조절 조작계 -->
+      <div class="view-controls">
+        <button class="control-btn" onclick="adjustFontSize(-1)">A-</button>
+        <button class="control-btn" id="fontSizeIndicator" style="cursor:default;">18px</button>
+        <button class="control-btn" onclick="adjustFontSize(1)">A+</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 메인 레이아웃 -->
+  <div class="main-container">
+    
+    <!-- 데이터 미로드시 가이드 패널 -->
+    <div id="noDataPanel" class="empty-state" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%; z-index:10; background:#0b0f19;">
+      <div class="empty-state-card">
+        <div class="empty-state-icon">DATABASE NEEDED</div>
+        <h3 class="empty-state-title">성경 데이터 파일을 찾을 수 없습니다.</h3>
+        <p class="empty-state-desc">
+          성경 본문 데이터를 로드하기 위해서는 수집 스크립트 실행 후 데이터 변환이 필요합니다.<br>
+          프로젝트 루트 디렉토리에서 아래의 데이터베이스 변환 명령어를 실행한 후 본 뷰어를 새로고침해 주세요.
+        </p>
+        <div class="empty-state-code">
+          # 1. 크롤링 진행 완료 후 (또는 진행 도중에)<br>
+          # 2. SQLite 데이터를 브라우저용 데이터로 내보냅니다.<br>
+          .\venv\Scripts\python.exe export_js_data.py
+        </div>
+      </div>
+    </div>
+
+    <!-- 사이드바 -->
+    <aside>
+      <!-- 구약 / 신약 구분 탭 -->
+      <div class="testament-tabs">
+        <button class="tab-btn active" id="tabOT" onclick="filterTestament('OT')">구약 (39)</button>
+        <button class="tab-btn" id="tabNT" onclick="filterTestament('NT')">신약 (26)</button>
+      </div>
+      
+      <!-- 성경 책 리스트 목록 -->
+      <div class="book-list" id="bookListContainer">
+        <!-- JS로 동적 렌더링 -->
+      </div>
+      
+      <!-- 장 번호 그리드 패널 -->
+      <div class="chapter-panel">
+        <div class="chapter-panel-title">장 선택 (<span id="selectedBookName">-</span>)</div>
+        <div class="chapter-grid" id="chapterGridContainer">
+          <!-- JS로 동적 렌더링 -->
+        </div>
+      </div>
+    </aside>
+
+    <!-- 메인 본문 뷰 -->
+    <main id="mainContentArea">
+      
+      <!-- 성경 읽기 뷰 -->
+      <div id="bibleReadPanel" class="content-container">
+        <div class="bible-view-header">
+          <div class="bible-view-path" id="biblePathText">GENESIS 1</div>
+          <h1 class="bible-view-title" id="bibleTitleText">창세기 1장</h1>
+        </div>
+        
+        <div class="verse-container" id="verseLinesContainer">
+          <!-- 성경 본문 구절들이 여기에 렌더링됨 -->
+        </div>
+      </div>
+
+      <!-- 성경 검색 결과 뷰 -->
+      <div id="searchResultsPanel" class="content-container search-results-panel">
+        <div class="bible-view-header">
+          <div class="bible-view-path">SEARCH RESULTS</div>
+          <h1 class="bible-view-title" id="searchTitleText">검색 결과</h1>
+        </div>
+        <div class="search-summary" id="searchSummaryText">
+          검색어 "<span>-</span>"에 대해 총 <span>0</span>건의 구절이 검색되었습니다.
+        </div>
+        <div id="searchResultsList">
+          <!-- 검색 결과 목록 카드들이 렌더링됨 -->
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- 성경 메타데이터 정의 -->
+  <script>
+    // 66권 약어, 이름, 장 수 및 구/신약 분류
+    const BIBLE_METADATA = [
+      {"code": "gen", "name": "창세기", "chapters": 50, "type": "OT"},
+      {"code": "exo", "name": "출애굽기", "chapters": 40, "type": "OT"},
+      {"code": "lev", "name": "레위기", "chapters": 27, "type": "OT"},
+      {"code": "num", "name": "민수기", "chapters": 36, "type": "OT"},
+      {"code": "deu", "name": "신명기", "chapters": 34, "type": "OT"},
+      {"code": "jos", "name": "여호수아", "chapters": 24, "type": "OT"},
+      {"code": "jdg", "name": "사사기", "chapters": 21, "type": "OT"},
+      {"code": "rut", "name": "룻기", "chapters": 4, "type": "OT"},
+      {"code": "1sa", "name": "사무엘상", "chapters": 31, "type": "OT"},
+      {"code": "2sa", "name": "사무엘하", "chapters": 24, "type": "OT"},
+      {"code": "1ki", "name": "열왕기상", "chapters": 22, "type": "OT"},
+      {"code": "2ki", "name": "열왕기하", "chapters": 25, "type": "OT"},
+      {"code": "1ch", "name": "역대상", "chapters": 29, "type": "OT"},
+      {"code": "2ch", "name": "역대하", "chapters": 36, "type": "OT"},
+      {"code": "ezr", "name": "에스라", "chapters": 10, "type": "OT"},
+      {"code": "neh", "name": "느헤미야", "chapters": 13, "type": "OT"},
+      {"code": "est", "name": "에스더", "chapters": 10, "type": "OT"},
+      {"code": "job", "name": "욥기", "chapters": 42, "type": "OT"},
+      {"code": "psa", "name": "시편", "chapters": 150, "type": "OT"},
+      {"code": "pro", "name": "잠언", "chapters": 31, "type": "OT"},
+      {"code": "ecc", "name": "전도서", "chapters": 12, "type": "OT"},
+      {"code": "sng", "name": "아가", "chapters": 8, "type": "OT"},
+      {"code": "isa", "name": "이사야", "chapters": 66, "type": "OT"},
+      {"code": "jer", "name": "예레미야", "chapters": 52, "type": "OT"},
+      {"code": "lam", "name": "예레미야애가", "chapters": 5, "type": "OT"},
+      {"code": "ezk", "name": "에스겔", "chapters": 48, "type": "OT"},
+      {"code": "dan", "name": "다니엘", "chapters": 12, "type": "OT"},
+      {"code": "hos", "name": "호세아", "chapters": 14, "type": "OT"},
+      {"code": "jol", "name": "요엘", "chapters": 3, "type": "OT"},
+      {"code": "amo", "name": "아모스", "chapters": 9, "type": "OT"},
+      {"code": "oba", "name": "오바댜", "chapters": 1, "type": "OT"},
+      {"code": "jnh", "name": "요나", "chapters": 4, "type": "OT"},
+      {"code": "mic", "name": "미가", "chapters": 7, "type": "OT"},
+      {"code": "nam", "name": "나훔", "chapters": 3, "type": "OT"},
+      {"code": "hab", "name": "하박국", "chapters": 3, "type": "OT"},
+      {"code": "zep", "name": "스바냐", "chapters": 3, "type": "OT"},
+      {"code": "hag", "name": "학개", "chapters": 2, "type": "OT"},
+      {"code": "zec", "name": "스가랴", "chapters": 14, "type": "OT"},
+      {"code": "mal", "name": "말라기", "chapters": 4, "type": "OT"},
+      {"code": "mat", "name": "마태복음", "chapters": 28, "type": "NT"},
+      {"code": "mrk", "name": "마가복음", "chapters": 16, "type": "NT"},
+      {"code": "luk", "name": "누가복음", "chapters": 24, "type": "NT"},
+      {"code": "jhn", "name": "요한복음", "chapters": 21, "type": "NT"},
+      {"code": "act", "name": "사도행전", "chapters": 28, "type": "NT"},
+      {"code": "rom", "name": "로마서", "chapters": 16, "type": "NT"},
+      {"code": "1co", "name": "고린도전서", "chapters": 16, "type": "NT"},
+      {"code": "2co", "name": "고린도후서", "chapters": 13, "type": "NT"},
+      {"code": "gal", "name": "갈라디아서", "chapters": 6, "type": "NT"},
+      {"code": "eph", "name": "에베소서", "chapters": 6, "type": "NT"},
+      {"code": "php", "name": "빌립보서", "chapters": 4, "type": "NT"},
+      {"code": "col", "name": "골로새서", "chapters": 4, "type": "NT"},
+      {"code": "1th", "name": "데살로니가전서", "chapters": 5, "type": "NT"},
+      {"code": "2th", "name": "데살로니가후서", "chapters": 3, "type": "NT"},
+      {"code": "1ti", "name": "디모데전서", "chapters": 6, "type": "NT"},
+      {"code": "2ti", "name": "디모데후서", "chapters": 4, "type": "NT"},
+      {"code": "tit", "name": "디도서", "chapters": 3, "type": "NT"},
+      {"code": "phm", "name": "빌레몬서", "chapters": 1, "type": "NT"},
+      {"code": "heb", "name": "히브리서", "chapters": 13, "type": "NT"},
+      {"code": "jas", "name": "야고보서", "chapters": 5, "type": "NT"},
+      {"code": "1pe", "name": "베드로전서", "chapters": 5, "type": "NT"},
+      {"code": "2pe", "name": "베드로후서", "chapters": 3, "type": "NT"},
+      {"code": "1jn", "name": "요한1서", "chapters": 5, "type": "NT"},
+      {"code": "2jn", "name": "요한2서", "chapters": 1, "type": "NT"},
+      {"code": "3jn", "name": "요한3서", "chapters": 1, "type": "NT"},
+      {"code": "jud", "name": "유다서", "chapters": 1, "type": "NT"},
+      {"code": "rev", "name": "요한계시록", "chapters": 22, "type": "NT"}
+    ];
+  </script>
+
+  <!-- 성경 본문 데이터 로드 (CORS 회피용 외부 스크립트 임포트) -->
+  <script src="GAE_Bible.js" onerror="handleDataLoadError()"></script>
+
+  <!-- 뷰어 상호작용 제어 자바스크립트 -->
+  <script>
+    let currentBook = BIBLE_METADATA[0]; // 디폴트: 창세기
+    let currentChapter = 1;
+    let currentTestament = 'OT';
+    let currentFontSize = 18; // 디폴트 폰트 사이즈 (px)
+
+    // 데이터 로드 에러 핸들러 (GAE_Bible.js가 없는 경우)
+    function handleDataLoadError() {
+      document.getElementById('noDataPanel').style.display = 'flex';
+    }
+
+    // 초기화
+    window.addEventListener('DOMContentLoaded', () => {
+      // BIBLE_DATA가 로드되었는지 최종 확인
+      if (typeof BIBLE_DATA === 'undefined') {
+        handleDataLoadError();
+        return;
+      }
+
+      renderBookList();
+      selectBook(currentBook.code);
+      setupSearch();
+    });
+
+    // 구약 / 신약 필터링
+    function filterTestament(type) {
+      currentTestament = type;
+      document.getElementById('tabOT').classList.toggle('active', type === 'OT');
+      document.getElementById('tabNT').classList.toggle('active', type === 'NT');
+      
+      renderBookList();
+      
+      // 해당 타입의 첫 번째 책 자동 선택
+      const firstBookOfTestament = BIBLE_METADATA.find(b => b.type === type);
+      if (firstBookOfTestament) {
+        selectBook(firstBookOfTestament.code);
+      }
+    }
+
+    // 책 목록 사이드바 렌더링
+    function renderBookList() {
+      const container = document.getElementById('bookListContainer');
+      container.innerHTML = '';
+      
+      const filteredBooks = BIBLE_METADATA.filter(b => b.type === currentTestament);
+      
+      filteredBooks.forEach(book => {
+        const item = document.createElement('div');
+        item.className = `book-item ${currentBook.code === book.code ? 'active' : ''}`;
+        item.id = `book-item-${book.code}`;
+        item.onclick = () => selectBook(book.code);
+        
+        item.innerHTML = `
+          <span>${book.name}</span>
+          <span class="book-chapters-count">${book.chapters}장</span>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    // 책 선택
+    function selectBook(bookCode) {
+      const prevActive = document.querySelector('.book-item.active');
+      if (prevActive) prevActive.classList.remove('active');
+      
+      currentBook = BIBLE_METADATA.find(b => b.code === bookCode);
+      const activeItem = document.getElementById(`book-item-${bookCode}`);
+      if (activeItem) activeItem.classList.add('active');
+      
+      document.getElementById('selectedBookName').textContent = currentBook.name;
+      
+      // 장 그리드 업데이트
+      renderChapterGrid();
+      
+      // 기본 1장 렌더링
+      selectChapter(1);
+    }
+
+    // 장 그리드 렌더링
+    function renderChapterGrid() {
+      const container = document.getElementById('chapterGridContainer');
+      container.innerHTML = '';
+      
+      for (let i = 1; i <= currentBook.chapters; i++) {
+        const btn = document.createElement('button');
+        btn.className = `chapter-btn ${currentChapter === i ? 'active' : ''}`;
+        btn.id = `chapter-btn-${i}`;
+        btn.textContent = i;
+        btn.onclick = () => selectChapter(i);
+        container.appendChild(btn);
+      }
+    }
+
+    // 장 선택 및 본문 렌더링
+    function selectChapter(chapterNum) {
+      currentChapter = chapterNum;
+      
+      const prevActive = document.querySelector('.chapter-btn.active');
+      if (prevActive) prevActive.classList.remove('active');
+      
+      const activeBtn = document.getElementById(`chapter-btn-${chapterNum}`);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      // 본문 뷰 활성화 (검색 뷰 숨김)
+      document.getElementById('bibleReadPanel').style.display = 'block';
+      document.getElementById('searchResultsPanel').style.display = 'none';
+      document.getElementById('searchInput').value = '';
+      
+      // 본문 경로 및 제목 수정
+      document.getElementById('biblePathText').textContent = `${currentBook.code.toUpperCase()} ${chapterNum}`;
+      document.getElementById('bibleTitleText').textContent = `${currentBook.name} ${chapterNum}장`;
+      
+      // 본문 가져오기
+      renderVerses();
+    }
+
+    // 특정 책 & 장의 성경 본문을 뷰에 렌더링
+    function renderVerses() {
+      const container = document.getElementById('verseLinesContainer');
+      container.innerHTML = '';
+      
+      // GAE_Bible.js 데이터에서 필터링
+      const verses = BIBLE_DATA.filter(v => v.book_code === currentBook.code && v.chapter === currentChapter);
+      
+      if (verses.length === 0) {
+        container.innerHTML = `<div style="color: var(--text-muted); text-align: center; padding: 2rem;">해당 장의 수집된 데이터가 아직 존재하지 않습니다. 크롤러가 구동 중인지 확인해 주세요.</div>`;
+        return;
+      }
+      
+      verses.forEach(v => {
+        // 소제목이 명시되어 있다면 단독 라인으로 추가
+        if (v.title) {
+          const titleBlock = document.createElement('div');
+          titleBlock.className = 'small-title-block';
+          titleBlock.textContent = v.title;
+          container.appendChild(titleBlock);
+        }
+        
+        // 절 단위의 텍스트 추가
+        const line = document.createElement('div');
+        line.className = 'verse-line';
+        line.innerHTML = `
+          <span class="verse-num">${v.verse}</span>
+          <span>${v.content}</span>
+        `;
+        container.appendChild(line);
+      });
+      
+      // 스크롤 탑 복원
+      document.getElementById('mainContentArea').scrollTop = 0;
+    }
+
+    // 폰트 크기 조절
+    function adjustFontSize(delta) {
+      currentFontSize = Math.max(14, Math.min(30, currentFontSize + delta));
+      document.getElementById('fontSizeIndicator').textContent = `${currentFontSize}px`;
+      
+      // 본문 폰트 크기 변경
+      const container = document.getElementById('verseLinesContainer');
+      container.style.fontSize = `${currentFontSize}px`;
+    }
+
+    // 키워드 검색 설정
+    function setupSearch() {
+      const searchInput = document.getElementById('searchInput');
+      searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.trim();
+        if (query.length >= 2) {
+          performSearch(query);
+        } else if (query.length === 0) {
+          // 검색창이 비어있으면 읽기 모드로 복귀
+          document.getElementById('bibleReadPanel').style.display = 'block';
+          document.getElementById('searchResultsPanel').style.display = 'none';
+        }
+      });
+    }
+
+    // 검색 수행
+    function performSearch(query) {
+      document.getElementById('bibleReadPanel').style.display = 'none';
+      const resultsPanel = document.getElementById('searchResultsPanel');
+      resultsPanel.style.display = 'block';
+      
+      const summaryText = document.getElementById('searchSummaryText');
+      const listContainer = document.getElementById('searchResultsList');
+      listContainer.innerHTML = '';
+      
+      // 전체 본문에서 부분 검색
+      const matches = BIBLE_DATA.filter(v => v.content.includes(query));
+      
+      summaryText.innerHTML = `검색어 "<span>${escapeHtml(query)}</span>"에 대해 총 <span>${matches.length}</span>건의 구절이 검색되었습니다.`;
+      
+      if (matches.length === 0) {
+        listContainer.innerHTML = `<div style="color: var(--text-muted); text-align: center; padding: 3rem;">검색 결과가 존재하지 않습니다.</div>`;
+        return;
+      }
+      
+      // 상위 200개까지만 노출하여 브라우저 과부하 방지
+      const visibleMatches = matches.slice(0, 200);
+      
+      visibleMatches.forEach(v => {
+        const card = document.createElement('div');
+        card.className = 'search-card';
+        card.onclick = () => jumpToVerse(v.book_code, v.chapter);
+        
+        // 검색 키워드 하이라이팅
+        const highlightedText = v.content.replace(
+          new RegExp(escapeRegExp(query), 'g'), 
+          `<mark>${escapeHtml(query)}</mark>`
+        );
+        
+        card.innerHTML = `
+          <div class="search-card-meta">${v.book_name} ${v.chapter}장 ${v.verse}절</div>
+          <div class="search-card-text">${highlightedText}</div>
+        `;
+        listContainer.appendChild(card);
+      });
+      
+      if (matches.length > 200) {
+        const moreDiv = document.createElement('div');
+        moreDiv.style.cssText = 'color: var(--text-muted); text-align: center; padding: 1.5rem; font-size: 0.85rem;';
+        moreDiv.textContent = `... 외에 ${matches.length - 200}건이 더 있습니다. 구체적인 키워드로 다시 검색해 주세요.`;
+        listContainer.appendChild(moreDiv);
+      }
+      
+      document.getElementById('mainContentArea').scrollTop = 0;
+    }
+
+    // 검색 카드 클릭 시 해당 성경 절 위치로 이동
+    function jumpToVerse(bookCode, chapter) {
+      // 탭 구약/신약 변경 판정
+      const targetBook = BIBLE_METADATA.find(b => b.code === bookCode);
+      if (targetBook && targetBook.type !== currentTestament) {
+        filterTestament(targetBook.type);
+      }
+      
+      selectBook(bookCode);
+      selectChapter(chapter);
+    }
+
+    // HTML 특수기호 이스케이프
+    function escapeHtml(string) {
+      return String(string).replace(/[&<>"']/g, function (s) {
+        return {
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;'
+        }[s];
+      });
+    }
+
+    // 정규식 이스케이프
+    function escapeRegExp(string) {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+  </script>
+</body>
+</html>
