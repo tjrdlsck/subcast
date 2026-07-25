@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +8,9 @@
     <!-- Google Fonts: Inter & Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap"
+        rel="stylesheet">
     <!-- Fabric.js 안정 버전 5.3.0 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
     <style>
@@ -33,17 +36,34 @@
             --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.7);
         }
 
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
         body {
             background-color: var(--bg-color);
             background-image: radial-gradient(circle at top right, rgba(79, 70, 229, 0.06) 0%, transparent 45%),
-                              radial-gradient(circle at bottom left, rgba(239, 68, 68, 0.04) 0%, transparent 40%);
+                radial-gradient(circle at bottom left, rgba(239, 68, 68, 0.04) 0%, transparent 40%);
             color: var(--text-main);
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             min-height: 100vh;
@@ -54,8 +74,8 @@
 
         /* 헤더 스타일 고도화 */
         header {
-            display: flex; 
-            justify-content: space-between; 
+            display: flex;
+            justify-content: space-between;
             align-items: center;
             height: 56px;
             padding: 0 24px;
@@ -63,7 +83,9 @@
             backdrop-filter: var(--panel-blur);
             -webkit-backdrop-filter: var(--panel-blur);
             border-bottom: 1px solid var(--panel-border);
-            position: sticky; top: 0; z-index: 100;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
         .header-logo-group {
@@ -78,6 +100,7 @@
             gap: 6px;
             margin-left: 12px;
         }
+
         .header-nav-menu .nav-link {
             color: var(--text-muted);
             text-decoration: none;
@@ -89,10 +112,12 @@
             display: inline-flex;
             align-items: center;
         }
+
         .header-nav-menu .nav-link:hover {
             color: var(--text-main);
             background: rgba(255, 255, 255, 0.08);
         }
+
         .header-nav-menu .nav-link.active {
             color: #fff;
             background: var(--primary);
@@ -101,14 +126,14 @@
 
         header h1 {
             font-family: 'Outfit', sans-serif;
-            font-size: 1.3rem; 
+            font-size: 1.3rem;
             font-weight: 700;
             letter-spacing: -0.5px;
             display: flex;
             align-items: center;
             gap: 8px;
             background: linear-gradient(135deg, #fff 40%, var(--text-muted) 100%);
-            -webkit-background-clip: text; 
+            -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
@@ -133,7 +158,7 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        
+
         .mini-preview-label .pulse-dot {
             width: 6px;
             height: 6px;
@@ -143,20 +168,31 @@
         }
 
         @keyframes pulse-glow {
-            0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-            70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
-            100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+            0% {
+                transform: scale(0.9);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+
+            70% {
+                transform: scale(1.1);
+                box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+            }
+
+            100% {
+                transform: scale(0.9);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
         }
 
         .preview-screen {
-            width: 140px; 
-            aspect-ratio: 16/9; 
+            width: 140px;
+            aspect-ratio: 16/9;
             background: #000;
-            border: 1px solid rgba(255, 255, 255, 0.1); 
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: var(--radius-sm);
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
             overflow: hidden;
             box-shadow: var(--shadow-sm);
         }
@@ -182,11 +218,13 @@
             transition: all 0.2s;
             font-size: 0.72rem;
         }
+
         .btn-quick-nav:hover {
             background: var(--primary);
             border-color: var(--primary);
             box-shadow: 0 0 8px var(--primary-glow);
         }
+
         .btn-quick-nav:active {
             transform: scale(0.95);
         }
@@ -219,26 +257,41 @@
             gap: 6px;
             transition: all 0.2s;
         }
+
         .btn-settings-trigger:hover {
             background: rgba(255, 255, 255, 0.1);
             border-color: rgba(255, 255, 255, 0.2);
         }
 
         .status-badge {
-            display: flex; align-items: center; gap: 8px;
-            font-size: 0.75rem; font-weight: 600;
-            padding: 8px 14px; border-radius: var(--radius-sm);
-            background: var(--panel-bg); border: 1px solid var(--panel-border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
         }
 
-        .status-dot { width: 6px; height: 6px; border-radius: 50%; background-color: var(--accent-live); }
-        .status-badge.connected .status-dot { background-color: var(--green-online); box-shadow: 0 0 6px var(--green-online); }
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--accent-live);
+        }
+
+        .status-badge.connected .status-dot {
+            background-color: var(--green-online);
+            box-shadow: 0 0 6px var(--green-online);
+        }
 
         /* 메인 레이아웃 및 5x4 Grid */
-        .workspace { 
-            flex: 1; 
+        .workspace {
+            flex: 1;
             padding: 10px 24px 24px 24px;
-            overflow-y: auto; 
+            overflow-y: auto;
             display: flex;
             flex-direction: column;
             gap: 12px;
@@ -275,23 +328,24 @@
 
         /* 슬라이드 썸네일 카드 디자인 */
         .slide-item {
-            background: rgba(255, 255, 255, 0.02); 
+            background: rgba(255, 255, 255, 0.02);
             border: 1px solid var(--panel-border);
-            border-radius: var(--radius-md); 
-            padding: 10px; 
+            border-radius: var(--radius-md);
+            padding: 10px;
             cursor: pointer;
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative; 
-            user-select: none; 
+            position: relative;
+            user-select: none;
             box-shadow: var(--shadow-sm);
             display: flex;
             flex-direction: column;
             gap: 8px;
         }
-        .slide-item:hover { 
-            background: rgba(255, 255, 255, 0.05); 
+
+        .slide-item:hover {
+            background: rgba(255, 255, 255, 0.05);
             border-color: rgba(255, 255, 255, 0.15);
-            transform: translateY(-3px); 
+            transform: translateY(-3px);
             box-shadow: var(--shadow-md);
         }
 
@@ -301,6 +355,7 @@
             background: rgba(16, 185, 129, 0.06) !important;
             box-shadow: 0 0 16px rgba(16, 185, 129, 0.35) !important;
         }
+
         .slide-item.selected::after {
             content: 'PREVIEW';
             position: absolute;
@@ -318,19 +373,20 @@
 
         /* LIVE 송출 상태 슬라이드 - 빨간색 하이라이트 */
         .slide-item.live {
-            border-color: var(--accent-live) !important; 
+            border-color: var(--accent-live) !important;
             background: rgba(239, 68, 68, 0.08) !important;
             box-shadow: 0 0 18px var(--accent-live-glow) !important;
         }
+
         .slide-item.live::after {
-            content: ''; 
-            position: absolute; 
-            top: 10px; 
+            content: '';
+            position: absolute;
+            top: 10px;
             right: 10px;
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            background: var(--accent-live); 
+            background: var(--accent-live);
             box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8), 0 0 10px var(--accent-live);
             animation: live-pulse 1.5s infinite;
         }
@@ -340,10 +396,12 @@
                 transform: scale(0.95);
                 box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8), 0 0 8px var(--accent-live);
             }
+
             70% {
                 transform: scale(1.15);
                 box-shadow: 0 0 0 6px rgba(239, 68, 68, 0), 0 0 12px var(--accent-live);
             }
+
             100% {
                 transform: scale(0.95);
                 box-shadow: 0 0 0 0 rgba(239, 68, 68, 0), 0 0 8px var(--accent-live);
@@ -365,6 +423,7 @@
             border: 1px solid var(--panel-border);
             transition: all 0.3s ease;
         }
+
         .live-status-badge .live-icon-dot {
             width: 8px;
             height: 8px;
@@ -372,12 +431,14 @@
             background-color: var(--text-muted);
             transition: all 0.3s ease;
         }
+
         .live-status-badge.on {
             color: #fff;
             background: rgba(239, 68, 68, 0.15);
             border-color: rgba(239, 68, 68, 0.5);
             box-shadow: 0 0 12px var(--accent-live-glow);
         }
+
         .live-status-badge.on .live-icon-dot {
             background-color: var(--accent-live);
             box-shadow: 0 0 8px var(--accent-live);
@@ -385,14 +446,14 @@
         }
 
         .slide-thumbnail-wrapper {
-            width: 100%; 
-            aspect-ratio: 16/9; 
-            background: #000000; 
-            border-radius: var(--radius-sm); 
-            overflow: hidden; 
-            border: 1px solid rgba(255, 255, 255, 0.06); 
-            display: flex; 
-            align-items: center; 
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000000;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            display: flex;
+            align-items: center;
             justify-content: center;
         }
 
@@ -423,20 +484,20 @@
         }
 
         .slide-title-label {
-            font-size: 0.82rem; 
-            font-weight: 600; 
+            font-size: 0.82rem;
+            font-weight: 600;
             color: var(--text-main);
-            overflow: hidden; 
-            text-overflow: ellipsis; 
-            white-space: nowrap; 
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
             flex: 1;
             margin-left: 6px;
         }
 
         .slide-lock-indicator {
-            display: none; 
-            align-items: center; 
-            gap: 4px; 
+            display: none;
+            align-items: center;
+            gap: 4px;
             font-size: 0.68rem;
             color: #fff;
             background: rgba(239, 68, 68, 0.85);
@@ -448,19 +509,25 @@
             bottom: 8px;
             left: 8px;
             z-index: 15;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
             max-width: calc(100% - 16px);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             pointer-events: none;
         }
-        .slide-item.locked .slide-lock-indicator { display: flex; }
+
+        .slide-item.locked .slide-lock-indicator {
+            display: flex;
+        }
 
         /* 모달창 (Settings Modal) 디자인 */
         .modal-overlay {
             position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             background: rgba(5, 5, 8, 0.7);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
@@ -472,7 +539,7 @@
             pointer-events: none;
             transition: opacity 0.25s ease;
         }
-        
+
         .modal-overlay.active {
             opacity: 1;
             pointer-events: auto;
@@ -523,6 +590,7 @@
             border-radius: 50%;
             transition: all 0.2s;
         }
+
         .modal-close-btn:hover {
             color: #fff;
             background: rgba(255, 255, 255, 0.05);
@@ -567,19 +635,20 @@
         }
 
         .form-input {
-            background: rgba(0, 0, 0, 0.3); 
+            background: rgba(0, 0, 0, 0.3);
             border: 1px solid var(--panel-border);
-            border-radius: var(--radius-sm); 
-            padding: 10px 14px; 
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
             color: white;
-            font-size: 0.88rem; 
-            outline: none; 
+            font-size: 0.88rem;
+            outline: none;
             transition: all 0.2s;
             width: 100%;
         }
-        .form-input:focus { 
-            border-color: var(--primary); 
-            box-shadow: 0 0 0 3px var(--primary-glow); 
+
+        .form-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
         }
 
         .btn-save-settings {
@@ -595,6 +664,7 @@
             margin-top: 10px;
             box-shadow: 0 4px 12px var(--primary-glow);
         }
+
         .btn-save-settings:hover {
             background: var(--primary-hover);
         }
@@ -645,12 +715,13 @@
         }
     </style>
 </head>
+
 <body>
     <header>
         <div class="header-logo-group">
             <h1>
                 <svg style="width: 22px; height: 22px; fill: var(--primary);" viewBox="0 0 24 24">
-                    <path d="M12 2L2 22h20L12 2zm0 3.99L19.53 19H4.47L12 5.99zM13 16h-2v2h2v-2zm0-6h-2v4h2v-4z"/>
+                    <path d="M12 2L2 22h20L12 2zm0 3.99L19.53 19H4.47L12 5.99zM13 16h-2v2h2v-2zm0-6h-2v4h2v-4z" />
                 </svg>
                 Subcast
             </h1>
@@ -659,11 +730,12 @@
                 <a href="/static/editor.html" class="nav-link">Editor</a>
                 <a href="/static/presenter.html" class="nav-link active">Presenter</a>
                 <a href="/static/viewer.html" target="_blank" class="nav-link">Viewer</a>
+                <a href="/static/viewer.html?mode=monitor" target="_blank" class="nav-link">Monitor</a>
             </nav>
         </div>
 
         <div class="header-right-group">
-            <button class="btn-settings-trigger" id="btn-open-monitoring">🖥️ 모니터링</button>
+            <button class="btn-settings-trigger" id="btn-open-monitoring">모니터링</button>
             <div class="live-status-badge" id="live-status-badge" title="LIVE 송출 상태">
                 <span class="live-icon-dot"></span>
                 <span>LIVE</span>
@@ -725,8 +797,10 @@
                 <div class="settings-group">
                     <h3>단축키 안내</h3>
                     <div class="shortcut-info-box">
-                        • 다음 슬라이드: <span class="shortcut-key">→</span> <span class="shortcut-key">Space</span> <span class="shortcut-key">PageDown</span><br>
-                        • 이전 슬라이드: <span class="shortcut-key">←</span> <span class="shortcut-key">Backspace</span> <span class="shortcut-key">PageUp</span>
+                        • 다음 슬라이드: <span class="shortcut-key">→</span> <span class="shortcut-key">Space</span> <span
+                            class="shortcut-key">PageDown</span><br>
+                        • 이전 슬라이드: <span class="shortcut-key">←</span> <span class="shortcut-key">Backspace</span> <span
+                            class="shortcut-key">PageUp</span>
                     </div>
                 </div>
 
@@ -749,33 +823,39 @@
 
                 <div class="settings-group">
                     <h3>모니터링 뷰어 실행</h3>
-                    <button class="btn-save-settings" id="btn-open-monitor-window" style="margin-top:0; background:#10b981;">🖥️ 모니터링 뷰어 새창으로 열기</button>
+                    <button class="btn-save-settings" id="btn-open-monitor-window"
+                        style="margin-top:0; background:#10b981;">🖥️ 모니터링 뷰어 새창으로 열기</button>
                 </div>
 
                 <div class="settings-group">
                     <h3>글씨 크기 (Font Size)</h3>
-                    <div class="bg-mode-wrapper">
-                        <label class="bg-mode-option"><input type="radio" name="monitor-font" value="100"> <span>보통 (100%)</span></label>
-                        <label class="bg-mode-option"><input type="radio" name="monitor-font" value="125" checked> <span>크게 (125%)</span></label>
-                        <label class="bg-mode-option"><input type="radio" name="monitor-font" value="150"> <span>매우 크게 (150%)</span></label>
+                    <div style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.6; background: rgba(255, 255, 255, 0.03); padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--panel-border);">
+                        💡 모니터링 창에서 <b>Ctrl + 마우스 휠</b>로 글꼴 크기를 자유롭게 조정할 수 있습니다.<br>
+                        창을 닫을 때 조정된 글씨 크기가 <b>자동 저장</b>되어 기본 설정으로 유지됩니다.
                     </div>
                 </div>
 
                 <div class="settings-group">
                     <h3>화면 비율 (Current : Next)</h3>
                     <div class="bg-mode-wrapper">
-                        <label class="bg-mode-option"><input type="radio" name="monitor-layout" value="5:5" checked> <span>5:5 균등</span></label>
-                        <label class="bg-mode-option"><input type="radio" name="monitor-layout" value="7:3"> <span>7:3 (현재 강조)</span></label>
-                        <label class="bg-mode-option"><input type="radio" name="monitor-layout" value="3:7"> <span>3:7 (다음 강조)</span></label>
+                        <label class="bg-mode-option"><input type="radio" name="monitor-layout" value="5:5" checked>
+                            <span>5:5 균등</span></label>
+                        <label class="bg-mode-option"><input type="radio" name="monitor-layout" value="7:3"> <span>7:3
+                                (현재 강조)</span></label>
+                        <label class="bg-mode-option"><input type="radio" name="monitor-layout" value="3:7"> <span>3:7
+                                (다음 강조)</span></label>
                     </div>
                 </div>
 
                 <div class="settings-group">
                     <h3>성경 구절 표출 옵션</h3>
                     <div class="bg-mode-wrapper" style="flex-direction: column; gap: 8px;">
-                        <label class="bg-mode-option"><input type="radio" name="monitor-bible" value="summary" checked> <span>장/절 출처 + 첫 2줄 요약 (...) [권장]</span></label>
-                        <label class="bg-mode-option"><input type="radio" name="monitor-bible" value="ref_only"> <span>장/절 출처만 표시</span></label>
-                        <label class="bg-mode-option"><input type="radio" name="monitor-bible" value="full"> <span>본문 전체 표시</span></label>
+                        <label class="bg-mode-option"><input type="radio" name="monitor-bible" value="summary" checked>
+                            <span>장/절 출처 + 첫 2줄 요약 (...) [권장]</span></label>
+                        <label class="bg-mode-option"><input type="radio" name="monitor-bible" value="ref_only">
+                            <span>장/절 출처만 표시</span></label>
+                        <label class="bg-mode-option"><input type="radio" name="monitor-bible" value="full"> <span>본문 전체
+                                표시</span></label>
                     </div>
                 </div>
 
@@ -786,13 +866,13 @@
 
     <script>
         // CanvasTextBaseline 패치: 브라우저 확장 프로그램 등에서 'alphabetical'을 넣어 발생하는 경고 우회
-        (function() {
+        (function () {
             if (typeof CanvasRenderingContext2D !== 'undefined') {
                 const descriptor = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, 'textBaseline');
                 if (descriptor && descriptor.set) {
                     const originalSet = descriptor.set;
                     Object.defineProperty(CanvasRenderingContext2D.prototype, 'textBaseline', {
-                        set: function(value) {
+                        set: function (value) {
                             if (value === 'alphabetical') {
                                 value = 'alphabetic';
                             }
@@ -818,24 +898,24 @@
         // 백그라운드에서 썸네일을 자동 생성하는 함수
         function autoGenerateThumbnail(slide) {
             if (slide.thumbnail) return Promise.resolve(slide.thumbnail);
-            
+
             return new Promise((resolve) => {
                 // 1. fabric.StaticCanvas용 임시 캔버스 생성 및 요소 렌더링
                 const fabricCanvasEl = document.createElement('canvas');
                 fabricCanvasEl.width = 768;
                 fabricCanvasEl.height = 432;
-                
+
                 const tempCanvas = new fabric.StaticCanvas(fabricCanvasEl, {
                     backgroundColor: '#000000'
                 });
-                
+
                 slide.elements.forEach(elem => {
                     const obj = deserializeElement(elem, 768, 432);
                     if (obj) tempCanvas.add(obj);
                 });
-                
+
                 tempCanvas.renderAll();
-                
+
                 // 2. 최종 출력용 캔버스에 검정 배경을 먼저 확실히 칠한 뒤
                 //    fabric 렌더링 결과를 그 위에 합성 (fabric의 backgroundColor 미적용 버그 방지)
                 const outputCanvasEl = document.createElement('canvas');
@@ -845,19 +925,19 @@
                 ctx.fillStyle = '#000000';
                 ctx.fillRect(0, 0, 768, 432);
                 ctx.drawImage(fabricCanvasEl, 0, 0);
-                
+
                 const dataUrl = outputCanvasEl.toDataURL('image/jpeg', 0.4);
-                
+
                 tempCanvas.dispose();
                 slide.thumbnail = dataUrl;
-                
+
                 if (ws && ws.readyState === WebSocket.OPEN) {
                     ws.send(JSON.stringify({
                         type: "SAVE_SLIDE",
                         slide: slide
                     }));
                 }
-                
+
                 resolve(dataUrl);
             });
         }
@@ -868,14 +948,14 @@
             if (canvas) {
                 canvas.dispose();
             }
-            
+
             // 프리뷰는 상호작용이 없는 StaticCanvas를 사용
             canvas = new fabric.StaticCanvas('presenter-preview-canvas', {
                 width: 480,
                 height: 270,
                 backgroundColor: '#000000'
             });
-            
+
             updateCanvasDimensions();
         }
 
@@ -943,8 +1023,8 @@
                     selectable: false,
                     paintFirst: 'stroke'
                 };
-                obj = isInsideGroup ? 
-                    new fabric.Text(elem.content, textOptions) : 
+                obj = isInsideGroup ?
+                    new fabric.Text(elem.content, textOptions) :
                     new fabric.Textbox(elem.content, Object.assign(textOptions, { splitByGrapheme: false }));
             } else if (elem.type === 'rect') {
                 obj = new fabric.Rect({ left: x, top: y, width: w, height: h, rx: elem.style?.cornerRadius || 0, ry: elem.style?.cornerRadius || 0, fill: elem.style?.fillColor || '#4f46e5', stroke: elem.style?.strokeColor || 'transparent', strokeWidth: elem.style?.strokeWidth !== undefined ? (elem.style.strokeWidth / 1920) * canvasWidth : 0, opacity: opacity, selectable: false });
@@ -1025,7 +1105,7 @@
                 const item = document.createElement("div");
                 item.className = "slide-item";
                 item.id = `slide-item-${slide.id}`;
-                
+
                 const isLive = slide.id === projectData.settings?.currentLiveSlideId;
                 const isSelected = slide.id === selectedSlideId;
 
@@ -1146,13 +1226,13 @@
                 if (message.type === 'INITIAL_SYNC') {
                     projectData = message.data;
                     lockedSlides = message.lockedSlides || {};
-                    
+
                     if (projectData.settings) {
                         document.getElementById("width-input").value = projectData.settings.targetWidth || 1920;
                         document.getElementById("height-input").value = projectData.settings.targetHeight || 1080;
                         targetWidth = projectData.settings.targetWidth || 1920;
                         targetHeight = projectData.settings.targetHeight || 1080;
-                        
+
                         const bgMode = projectData.settings.backgroundMode || "transparent";
                         const radioEl = document.getElementById(`bg-${bgMode}`);
                         if (radioEl) radioEl.checked = true;
@@ -1169,7 +1249,7 @@
                         }
                         return Promise.resolve();
                     });
-                    
+
                     if (needsUpdate) {
                         Promise.all(promises).then(() => {
                             renderDeck();
@@ -1263,10 +1343,6 @@
                     // 저장된 설정을 라디오 버튼에 적용
                     try {
                         const saved = JSON.parse(localStorage.getItem("subcast_monitor_settings") || "{}");
-                        if (saved.fontSize) {
-                            const fontEl = document.querySelector(`input[name="monitor-font"][value="${saved.fontSize}"]`);
-                            if (fontEl) fontEl.checked = true;
-                        }
                         if (saved.layout) {
                             const layoutEl = document.querySelector(`input[name="monitor-layout"][value="${saved.layout}"]`);
                             if (layoutEl) layoutEl.checked = true;
@@ -1275,7 +1351,7 @@
                             const bibleEl = document.querySelector(`input[name="monitor-bible"][value="${saved.bibleMode}"]`);
                             if (bibleEl) bibleEl.checked = true;
                         }
-                    } catch (e) {}
+                    } catch (e) { }
                     monitorModal.classList.add("active");
                 };
             }
@@ -1298,13 +1374,14 @@
 
             if (saveMonitorBtn && monitorModal) {
                 saveMonitorBtn.onclick = () => {
-                    const fontSize = document.querySelector('input[name="monitor-font"]:checked')?.value || "125";
+                    const saved = JSON.parse(localStorage.getItem("subcast_monitor_settings") || "{}");
+                    const fontSize = saved.fontSize || "125";
                     const layout = document.querySelector('input[name="monitor-layout"]:checked')?.value || "5:5";
                     const bibleMode = document.querySelector('input[name="monitor-bible"]:checked')?.value || "summary";
 
-                    const settings = { fontSize, layout, bibleMode };
+                    const settings = { ...saved, fontSize, layout, bibleMode };
                     localStorage.setItem("subcast_monitor_settings", JSON.stringify(settings));
-                    
+
                     monitorModal.classList.remove("active");
                 };
             }
@@ -1341,7 +1418,7 @@
             document.getElementById("btn-apply-res").onclick = () => {
                 const w = parseInt(document.getElementById("width-input").value) || 1920;
                 const h = parseInt(document.getElementById("height-input").value) || 1080;
-                
+
                 if (ws && ws.readyState === WebSocket.OPEN) {
                     // 1. 해상도 설정 전송
                     ws.send(JSON.stringify({
@@ -1383,4 +1460,5 @@
         };
     </script>
 </body>
+
 </html>

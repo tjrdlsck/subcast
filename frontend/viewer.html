@@ -261,12 +261,83 @@
             };
         }
 
+        let monitorFontSize = 125;
+        let fontToastTimeout = null;
+
+        function showFontToast(size) {
+            let toast = document.getElementById("monitor-font-toast");
+            if (!toast) {
+                toast = document.createElement("div");
+                toast.id = "monitor-font-toast";
+                toast.style.cssText = `
+                    position: fixed;
+                    bottom: 24px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: rgba(17, 24, 39, 0.95);
+                    color: #ffffff;
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    padding: 8px 18px;
+                    border-radius: 20px;
+                    font-size: 0.88rem;
+                    font-weight: 600;
+                    z-index: 9999;
+                    pointer-events: none;
+                    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+                    transition: opacity 0.2s ease;
+                `;
+                document.body.appendChild(toast);
+            }
+            toast.innerText = `🔍 글꼴 크기: ${Math.round(size)}% (Ctrl+Wheel)`;
+            toast.style.opacity = "1";
+
+            if (fontToastTimeout) clearTimeout(fontToastTimeout);
+            fontToastTimeout = setTimeout(() => {
+                if (toast) toast.style.opacity = "0";
+            }, 1200);
+        }
+
+        function updateMonitorFontSize() {
+            const baseFontSize = (monitorFontSize / 100) * 1.8;
+            document.documentElement.style.setProperty("--monitor-font-size", `${baseFontSize}rem`);
+        }
+
+        function saveCurrentMonitorFontSize() {
+            try {
+                const settings = JSON.parse(localStorage.getItem("subcast_monitor_settings") || "{}");
+                settings.fontSize = Math.round(monitorFontSize).toString();
+                localStorage.setItem("subcast_monitor_settings", JSON.stringify(settings));
+            } catch (e) {
+                console.error("Failed to save monitor font size", e);
+            }
+        }
+
         window.onload = () => {
             const urlParams = new URLSearchParams(window.location.search);
             const isMonitorMode = urlParams.get('mode') === 'monitor';
 
             if (isMonitorMode) {
                 document.body.classList.add('monitor-mode');
+
+                const savedSettings = JSON.parse(localStorage.getItem("subcast_monitor_settings") || "{}");
+                monitorFontSize = parseFloat(savedSettings.fontSize) || 125;
+                updateMonitorFontSize();
+
+                // Ctrl + 마우스 휠로 글꼴 크기 자유 조절
+                window.addEventListener('wheel', (e) => {
+                    if (e.ctrlKey) {
+                        e.preventDefault();
+                        const delta = e.deltaY < 0 ? 5 : -5;
+                        monitorFontSize = Math.min(Math.max(50, monitorFontSize + delta), 300);
+                        updateMonitorFontSize();
+                        showFontToast(monitorFontSize);
+                    }
+                }, { passive: false });
+
+                // 창을 닫을 때 조정한 글씨 크기 파악하여 기본 설정으로 저장
+                window.addEventListener("beforeunload", saveCurrentMonitorFontSize);
+                window.addEventListener("pagehide", saveCurrentMonitorFontSize);
+
                 // 모니터링 전용 스타일 추가
                 const styleEl = document.createElement('style');
                 styleEl.innerHTML = `
@@ -381,7 +452,6 @@
 
         function renderMonitorView() {
             const settings = JSON.parse(localStorage.getItem("subcast_monitor_settings") || "{}");
-            const fontSizeScale = settings.fontSize || "125";
             const layoutRatio = settings.layout || "5:5";
             const bibleMode = settings.bibleMode || "summary";
 
@@ -393,8 +463,7 @@
             if (!currentSec || !nextSec) return;
 
             // 폰트 크기 및 비율 적용
-            const baseFontSize = (parseFloat(fontSizeScale) / 100) * 1.8;
-            document.documentElement.style.setProperty("--monitor-font-size", `${baseFontSize}rem`);
+            updateMonitorFontSize();
 
             if (layoutRatio === "7:3") {
                 currentSec.style.flex = "7";
