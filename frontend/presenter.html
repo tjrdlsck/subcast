@@ -663,6 +663,7 @@
         </div>
 
         <div class="header-right-group">
+            <button class="btn-settings-trigger" id="btn-open-monitoring">🖥️ 모니터링</button>
             <div class="live-status-badge" id="live-status-badge" title="LIVE 송출 상태">
                 <span class="live-icon-dot"></span>
                 <span>LIVE</span>
@@ -730,6 +731,55 @@
                 </div>
 
                 <button class="btn-save-settings" id="btn-apply-res">해상도 및 설정 전송</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모니터링 설정 모달창 -->
+    <div class="modal-overlay" id="monitoring-modal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>🖥️ 발표자 모니터링 뷰어 설정</h2>
+                <button class="modal-close-btn" id="btn-close-monitoring">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="shortcut-info-box">
+                    • OBS 자막용 뷰어와 별개로 발표자/설교자 모니터에 <b>현재 & 다음 슬라이드</b>를 동시에 표출하는 모니터링 뷰어 설정입니다.
+                </div>
+
+                <div class="settings-group">
+                    <h3>모니터링 뷰어 실행</h3>
+                    <button class="btn-save-settings" id="btn-open-monitor-window" style="margin-top:0; background:#10b981;">🖥️ 모니터링 뷰어 새창으로 열기</button>
+                </div>
+
+                <div class="settings-group">
+                    <h3>글씨 크기 (Font Size)</h3>
+                    <div class="bg-mode-wrapper">
+                        <label class="bg-mode-option"><input type="radio" name="monitor-font" value="100"> <span>보통 (100%)</span></label>
+                        <label class="bg-mode-option"><input type="radio" name="monitor-font" value="125" checked> <span>크게 (125%)</span></label>
+                        <label class="bg-mode-option"><input type="radio" name="monitor-font" value="150"> <span>매우 크게 (150%)</span></label>
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h3>화면 비율 (Current : Next)</h3>
+                    <div class="bg-mode-wrapper">
+                        <label class="bg-mode-option"><input type="radio" name="monitor-layout" value="5:5" checked> <span>5:5 균등</span></label>
+                        <label class="bg-mode-option"><input type="radio" name="monitor-layout" value="7:3"> <span>7:3 (현재 강조)</span></label>
+                        <label class="bg-mode-option"><input type="radio" name="monitor-layout" value="3:7"> <span>3:7 (다음 강조)</span></label>
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h3>성경 구절 표출 옵션</h3>
+                    <div class="bg-mode-wrapper" style="flex-direction: column; gap: 8px;">
+                        <label class="bg-mode-option"><input type="radio" name="monitor-bible" value="summary" checked> <span>장/절 출처 + 첫 2줄 요약 (...) [권장]</span></label>
+                        <label class="bg-mode-option"><input type="radio" name="monitor-bible" value="ref_only"> <span>장/절 출처만 표시</span></label>
+                        <label class="bg-mode-option"><input type="radio" name="monitor-bible" value="full"> <span>본문 전체 표시</span></label>
+                    </div>
+                </div>
+
+                <button class="btn-save-settings" id="btn-save-monitoring">설정 저장</button>
             </div>
         </div>
     </div>
@@ -1198,6 +1248,64 @@
                     if (e.target === modal) {
                         modal.classList.remove("active");
                     }
+                };
+            }
+
+            // 모니터링 모달 제어 이벤트 바인딩
+            const monitorModal = document.getElementById("monitoring-modal");
+            const openMonitorBtn = document.getElementById("btn-open-monitoring");
+            const closeMonitorBtn = document.getElementById("btn-close-monitoring");
+            const saveMonitorBtn = document.getElementById("btn-save-monitoring");
+            const openMonitorWindowBtn = document.getElementById("btn-open-monitor-window");
+
+            if (openMonitorBtn && monitorModal) {
+                openMonitorBtn.onclick = () => {
+                    // 저장된 설정을 라디오 버튼에 적용
+                    try {
+                        const saved = JSON.parse(localStorage.getItem("subcast_monitor_settings") || "{}");
+                        if (saved.fontSize) {
+                            const fontEl = document.querySelector(`input[name="monitor-font"][value="${saved.fontSize}"]`);
+                            if (fontEl) fontEl.checked = true;
+                        }
+                        if (saved.layout) {
+                            const layoutEl = document.querySelector(`input[name="monitor-layout"][value="${saved.layout}"]`);
+                            if (layoutEl) layoutEl.checked = true;
+                        }
+                        if (saved.bibleMode) {
+                            const bibleEl = document.querySelector(`input[name="monitor-bible"][value="${saved.bibleMode}"]`);
+                            if (bibleEl) bibleEl.checked = true;
+                        }
+                    } catch (e) {}
+                    monitorModal.classList.add("active");
+                };
+            }
+            if (closeMonitorBtn && monitorModal) {
+                closeMonitorBtn.onclick = () => monitorModal.classList.remove("active");
+            }
+            if (monitorModal) {
+                monitorModal.onclick = (e) => {
+                    if (e.target === monitorModal) {
+                        monitorModal.classList.remove("active");
+                    }
+                };
+            }
+
+            if (openMonitorWindowBtn) {
+                openMonitorWindowBtn.onclick = () => {
+                    window.open('/static/viewer.html?mode=monitor', '_blank', 'width=1280,height=720');
+                };
+            }
+
+            if (saveMonitorBtn && monitorModal) {
+                saveMonitorBtn.onclick = () => {
+                    const fontSize = document.querySelector('input[name="monitor-font"]:checked')?.value || "125";
+                    const layout = document.querySelector('input[name="monitor-layout"]:checked')?.value || "5:5";
+                    const bibleMode = document.querySelector('input[name="monitor-bible"]:checked')?.value || "summary";
+
+                    const settings = { fontSize, layout, bibleMode };
+                    localStorage.setItem("subcast_monitor_settings", JSON.stringify(settings));
+                    
+                    monitorModal.classList.remove("active");
                 };
             }
 

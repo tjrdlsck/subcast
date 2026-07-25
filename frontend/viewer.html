@@ -262,9 +262,204 @@
         }
 
         window.onload = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isMonitorMode = urlParams.get('mode') === 'monitor';
+
+            if (isMonitorMode) {
+                document.body.classList.add('monitor-mode');
+                // 모니터링 전용 스타일 추가
+                const styleEl = document.createElement('style');
+                styleEl.innerHTML = `
+                    body.monitor-mode {
+                        background: #09090b !important;
+                        color: #ffffff;
+                        overflow: hidden;
+                        display: flex;
+                        flex-direction: column;
+                    }
+                    body.monitor-mode #canvas-container {
+                        display: none !important;
+                    }
+                    .monitor-wrapper {
+                        display: flex;
+                        flex-direction: column;
+                        width: 100vw;
+                        height: 100vh;
+                        padding: 16px;
+                        gap: 16px;
+                        box-sizing: border-box;
+                    }
+                    .monitor-section {
+                        background: rgba(255, 255, 255, 0.04);
+                        border: 1px solid rgba(255, 255, 255, 0.1);
+                        border-radius: 12px;
+                        padding: 20px 24px;
+                        display: flex;
+                        flex-direction: column;
+                        position: relative;
+                        overflow: hidden;
+                    }
+                    .monitor-section.current {
+                        border-color: rgba(239, 68, 68, 0.6);
+                        background: rgba(239, 68, 68, 0.05);
+                        flex: 1;
+                    }
+                    .monitor-section.next {
+                        border-color: rgba(79, 70, 229, 0.5);
+                        background: rgba(79, 70, 229, 0.05);
+                        flex: 1;
+                    }
+                    .monitor-tag {
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 6px;
+                        font-size: 0.8rem;
+                        font-weight: 800;
+                        padding: 4px 10px;
+                        border-radius: 6px;
+                        margin-bottom: 12px;
+                        width: fit-content;
+                    }
+                    .monitor-section.current .monitor-tag {
+                        background: #ef4444;
+                        color: #fff;
+                    }
+                    .monitor-section.next .monitor-tag {
+                        background: #4f46e5;
+                        color: #fff;
+                    }
+                    .monitor-content {
+                        font-size: var(--monitor-font-size, 2rem);
+                        line-height: 1.5;
+                        font-weight: 600;
+                        white-space: pre-wrap;
+                        word-break: keep-all;
+                        overflow: hidden;
+                    }
+                    .bible-badge {
+                        display: inline-block;
+                        background: rgba(255, 255, 255, 0.15);
+                        padding: 2px 8px;
+                        border-radius: 4px;
+                        font-size: 0.85em;
+                        color: #fbbf24;
+                        margin-right: 8px;
+                    }
+                `;
+                document.head.appendChild(styleEl);
+
+                const monitorDiv = document.createElement('div');
+                monitorDiv.className = 'monitor-wrapper';
+                monitorDiv.id = 'monitor-wrapper';
+                monitorDiv.innerHTML = `
+                    <div class="monitor-section current" id="monitor-current-section">
+                        <div class="monitor-tag">🔴 CURRENT (현재 송출 슬라이드)</div>
+                        <div class="monitor-content" id="monitor-current-text">송출 중인 슬라이드가 없습니다.</div>
+                    </div>
+                    <div class="monitor-section next" id="monitor-next-section">
+                        <div class="monitor-tag">🔵 NEXT (다음 슬라이드)</div>
+                        <div class="monitor-content" id="monitor-next-text">다음 슬라이드가 없습니다.</div>
+                    </div>
+                `;
+                document.body.appendChild(monitorDiv);
+            }
+
             initCanvas();
             connectWebSocket();
         };
+
+        // 렌더링 함수 가로채기 (모니터링 모드 지원)
+        const origRenderCurrentSlide = renderCurrentSlide;
+        renderCurrentSlide = function() {
+            origRenderCurrentSlide();
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('mode') === 'monitor' && projectData && projectData.slides) {
+                renderMonitorView();
+            }
+        };
+
+        function renderMonitorView() {
+            const settings = JSON.parse(localStorage.getItem("subcast_monitor_settings") || "{}");
+            const fontSizeScale = settings.fontSize || "125";
+            const layoutRatio = settings.layout || "5:5";
+            const bibleMode = settings.bibleMode || "summary";
+
+            const currentSec = document.getElementById("monitor-current-section");
+            const nextSec = document.getElementById("monitor-next-section");
+            const currentTextEl = document.getElementById("monitor-current-text");
+            const nextTextEl = document.getElementById("monitor-next-text");
+
+            if (!currentSec || !nextSec) return;
+
+            // 폰트 크기 및 비율 적용
+            const baseFontSize = (parseFloat(fontSizeScale) / 100) * 1.8;
+            document.documentElement.style.setProperty("--monitor-font-size", `${baseFontSize}rem`);
+
+            if (layoutRatio === "7:3") {
+                currentSec.style.flex = "7";
+                nextSec.style.flex = "3";
+            } else if (layoutRatio === "3:7") {
+                currentSec.style.flex = "3";
+                nextSec.style.flex = "7";
+            } else {
+                currentSec.style.flex = "1";
+                nextSec.style.flex = "1";
+            }
+
+            const currentLiveId = projectData.settings?.currentLiveSlideId;
+            const slides = projectData.slides;
+            const currentIdx = slides.findIndex(s => s.id === currentLiveId);
+
+            function extractSlideText(slide) {
+                if (!slide || !slide.elements) return "";
+                const texts = [];
+                function traverse(elems) {
+                    elems.forEach(el => {
+                        if (el.type === 'text' && el.content) {
+                            texts.push(el.content.trim());
+                        } else if (el.type === 'group' && el.children) {
+                            traverse(el.children);
+                        }
+                    });
+                }
+                traverse(slide.elements);
+                return texts.join("\n");
+            }
+
+            if (currentIdx !== -1) {
+                const currentSlide = slides[currentIdx];
+                currentTextEl.innerText = extractSlideText(currentSlide) || "(빈 슬라이드)";
+
+                // 다음 슬라이드
+                if (currentIdx + 1 < slides.length) {
+                    const nextSlide = slides[currentIdx + 1];
+                    let nextText = extractSlideText(nextSlide) || "(빈 슬라이드)";
+
+                    // 성경 모드 처리
+                    if (bibleMode === "ref_only") {
+                        const match = nextText.match(/([가-힣]+\s*\d+:\d+)/);
+                        if (match) {
+                            nextText = `📖 ${match[1]} (성경 구절 대기)`;
+                        }
+                    } else if (bibleMode === "summary") {
+                        if (nextText.length > 60) {
+                            nextText = nextText.substring(0, 60) + "...";
+                        }
+                    }
+                    nextTextEl.innerText = nextText;
+                } else {
+                    nextTextEl.innerText = "🏁 다음 슬라이드가 없습니다 (마지막)";
+                }
+            } else {
+                currentTextEl.innerText = "송출 중인 슬라이드가 없습니다.";
+                if (slides.length > 0) {
+                    nextTextEl.innerText = `[대기 1번 슬라이드] ` + extractSlideText(slides[0]);
+                } else {
+                    nextTextEl.innerText = "등록된 슬라이드가 없습니다.";
+                }
+            }
+        }
 
         window.onresize = () => {
             updateCanvasDimensions();
