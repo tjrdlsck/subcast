@@ -711,15 +711,11 @@
 
                 <!-- 배경 모드 설정 -->
                 <div class="settings-group">
-                    <h3>Chroma Key 배경 설정</h3>
+                    <h3>배경 설정</h3>
                     <div class="bg-mode-wrapper">
                         <label class="bg-mode-option">
                             <input type="radio" name="bg-mode" id="bg-transparent" value="transparent" checked>
                             <span>투명 배경 (OBS)</span>
-                        </label>
-                        <label class="bg-mode-option">
-                            <input type="radio" name="bg-mode" id="bg-chromakey" value="chromakey">
-                            <span>녹색 크로마키 (믹서)</span>
                         </label>
                     </div>
                 </div>
@@ -1246,7 +1242,7 @@
                         height: h
                     }));
 
-                    // 2. 크로마키 배경 설정 전송
+                    // 2. 배경 설정 전송
                     const checkedRadio = document.querySelector('input[name="bg-mode"]:checked');
                     if (checkedRadio) {
                         ws.send(JSON.stringify({
