@@ -1621,6 +1621,48 @@
             background: var(--panel-border, #313244);
             margin: 4px 0;
         }
+
+        /* 캔버스 편집 공간 단축키 툴바 스타일 */
+        .btn-canvas-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.1));
+            border-radius: 4px;
+            color: var(--text-main, #cdd6f4);
+            font-size: 0.78rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+        .btn-canvas-action:hover {
+            background: var(--primary, #6c5ce7);
+            color: #ffffff;
+            border-color: var(--primary, #6c5ce7);
+        }
+        .btn-canvas-action.btn-danger:hover {
+            background: #ef4444;
+            border-color: #ef4444;
+        }
+        .shortcut-badge {
+            display: inline-block;
+            padding: 1px 5px;
+            font-size: 0.7rem;
+            font-family: monospace;
+            color: var(--text-muted, #a1a1aa);
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+            line-height: 1.2;
+        }
+        .btn-canvas-action:hover .shortcut-badge {
+            color: rgba(255, 255, 255, 0.9);
+            background: rgba(0, 0, 0, 0.25);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
     </style>
 </head>
 <body>
@@ -2065,8 +2107,35 @@
                 <div class="lock-warning-banner" id="lock-banner">
                     ⚠️ 다른 사용자가 편집 중인 슬라이드입니다.
                 </div>
-                <div class="lock-warning-banner" id="offline-banner" style="background: rgba(239, 68, 68, 0.9); display: none; z-index: 1000;">
-                    ⚠️ 네트워크 연결이 단절되었습니다. 데이터 유실 방지를 위해 편집이 잠금 처리됩니다.
+                <!-- 편집 공간 직관적 단축키 및 작업 툴바 -->
+                <div class="canvas-action-toolbar" style="display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: var(--panel-bg, #1e1e2e); border: 1px solid var(--panel-border, #313244); border-radius: var(--radius-sm, 6px); margin-bottom: 8px; gap: 8px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <button id="btn-shortcut-undo" class="btn-canvas-action" title="실행 취소 (Ctrl+Z)">
+                            <span>↩️ 취소</span> <kbd class="shortcut-badge">Ctrl+Z</kbd>
+                        </button>
+                        <button id="btn-shortcut-redo" class="btn-canvas-action" title="다시 실행 (Ctrl+Y / Ctrl+Shift+Z)">
+                            <span>↪️ 다시실행</span> <kbd class="shortcut-badge">Ctrl+Shift+Z</kbd>
+                        </button>
+                        
+                        <div style="width: 1px; height: 16px; background: var(--panel-border, #313244); margin: 0 4px;"></div>
+                        
+                        <button id="btn-shortcut-copy" class="btn-canvas-action" title="복사 (Ctrl+C)">
+                            <span>📋 복사</span> <kbd class="shortcut-badge">Ctrl+C</kbd>
+                        </button>
+                        <button id="btn-shortcut-cut" class="btn-canvas-action" title="잘라내기 (Ctrl+X)">
+                            <span>✂️ 잘라내기</span> <kbd class="shortcut-badge">Ctrl+X</kbd>
+                        </button>
+                        <button id="btn-shortcut-paste" class="btn-canvas-action" title="붙여넣기 (Ctrl+V)">
+                            <span>📥 붙여넣기</span> <kbd class="shortcut-badge">Ctrl+V</kbd>
+                        </button>
+                        <button id="btn-shortcut-delete" class="btn-canvas-action btn-danger" title="삭제 (Del)">
+                            <span>🗑️ 삭제</span> <kbd class="shortcut-badge">Del</kbd>
+                        </button>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--text-muted, #a1a1aa);">
+                        <span>💡 이동: <kbd class="shortcut-badge">방향키</kbd> (10px: <kbd class="shortcut-badge">Shift+방향키</kbd>)</span>
+                    </div>
                 </div>
 
                 <div class="canvas-viewport" style="position: relative;">
@@ -5359,9 +5428,158 @@
         }
 
         if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", bindSlideContextMenuEvents);
+            document.addEventListener("DOMContentLoaded", () => {
+                bindSlideContextMenuEvents();
+                bindCanvasActionToolbarEvents();
+            });
         } else {
             bindSlideContextMenuEvents();
+            bindCanvasActionToolbarEvents();
+        }
+
+        function bindCanvasActionToolbarEvents() {
+            const undoBtn = document.getElementById("btn-shortcut-undo");
+            const redoBtn = document.getElementById("btn-shortcut-redo");
+            const copyBtn = document.getElementById("btn-shortcut-copy");
+            const cutBtn = document.getElementById("btn-shortcut-cut");
+            const pasteBtn = document.getElementById("btn-shortcut-paste");
+            const deleteBtn = document.getElementById("btn-shortcut-delete");
+
+            if (undoBtn) undoBtn.onclick = () => undo();
+            if (redoBtn) redoBtn.onclick = () => redo();
+
+            if (copyBtn) {
+                copyBtn.onclick = () => {
+                    const activeObj = canvas.getActiveObject();
+                    if (activeObj) {
+                        if (activeObj.type === 'activeSelection') {
+                            const serializedList = [];
+                            const groupLeft = activeObj.left || 0;
+                            const groupTop = activeObj.top || 0;
+                            const groupWidth = activeObj.width || 0;
+                            const groupHeight = activeObj.height || 0;
+                            activeObj.forEachObject((obj) => {
+                                const absLeft = groupLeft + obj.left + groupWidth / 2;
+                                const absTop = groupTop + obj.top + groupHeight / 2;
+                                const originalLeft = obj.left;
+                                const originalTop = obj.top;
+                                obj.set({ left: absLeft, top: absTop });
+                                serializedList.push(serializeElement(obj, BASE_WIDTH, BASE_HEIGHT));
+                                obj.set({ left: originalLeft, top: originalTop });
+                            });
+                            navigator.clipboard.writeText(JSON.stringify({ subcastType: "multipleElements", data: serializedList }));
+                        } else {
+                            const serialized = serializeElement(activeObj, BASE_WIDTH, BASE_HEIGHT);
+                            navigator.clipboard.writeText(JSON.stringify({ subcastType: "element", data: serialized }));
+                        }
+                    } else if (selectedSlideIds && selectedSlideIds.length > 0) {
+                        copySelectedSlides();
+                    }
+                };
+            }
+
+            if (cutBtn) {
+                cutBtn.onclick = () => {
+                    const activeObj = canvas.getActiveObject();
+                    if (activeObj) {
+                        if (activeObj.type === 'activeSelection') {
+                            const serializedList = [];
+                            const groupLeft = activeObj.left || 0;
+                            const groupTop = activeObj.top || 0;
+                            const groupWidth = activeObj.width || 0;
+                            const groupHeight = activeObj.height || 0;
+                            activeObj.forEachObject((obj) => {
+                                const absLeft = groupLeft + obj.left + groupWidth / 2;
+                                const absTop = groupTop + obj.top + groupHeight / 2;
+                                const originalLeft = obj.left;
+                                const originalTop = obj.top;
+                                obj.set({ left: absLeft, top: absTop });
+                                serializedList.push(serializeElement(obj, BASE_WIDTH, BASE_HEIGHT));
+                                obj.set({ left: originalLeft, top: originalTop });
+                            });
+                            navigator.clipboard.writeText(JSON.stringify({ subcastType: "multipleElements", data: serializedList }));
+                            activeObj.forEachObject(obj => canvas.remove(obj));
+                            canvas.discardActiveObject();
+                        } else {
+                            const serialized = serializeElement(activeObj, BASE_WIDTH, BASE_HEIGHT);
+                            navigator.clipboard.writeText(JSON.stringify({ subcastType: "element", data: serialized }));
+                            canvas.remove(activeObj);
+                        }
+                        canvas.renderAll();
+                        saveStateToHistory();
+                    } else if (selectedSlideIds && selectedSlideIds.length > 0) {
+                        cutSelectedSlides();
+                    }
+                };
+            }
+
+            if (pasteBtn) {
+                pasteBtn.onclick = async () => {
+                    try {
+                        const text = await navigator.clipboard.readText();
+                        if (!text) return;
+                        try {
+                            const payload = JSON.parse(text);
+                            if (payload && payload.subcastType === "element") {
+                                const elem = payload.data;
+                                const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
+                                if (obj) {
+                                    obj.set({
+                                        left: (obj.left || 0) + 20,
+                                        top: (obj.top || 0) + 20,
+                                        originalId: `elem_${Math.random().toString(36).substr(2, 9)}`
+                                    });
+                                    canvas.add(obj);
+                                    canvas.setActiveObject(obj);
+                                    canvas.renderAll();
+                                    saveStateToHistory();
+                                }
+                            } else if (payload && payload.subcastType === "multipleElements") {
+                                const elemList = payload.data;
+                                const newObjects = [];
+                                elemList.forEach((elem) => {
+                                    const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
+                                    if (obj) {
+                                        obj.set({
+                                            left: (obj.left || 0) + 20,
+                                            top: (obj.top || 0) + 20,
+                                            originalId: `elem_${Math.random().toString(36).substr(2, 9)}`
+                                        });
+                                        canvas.add(obj);
+                                        newObjects.push(obj);
+                                    }
+                                });
+                                if (newObjects.length > 0) {
+                                    const activeSelection = new fabric.ActiveSelection(newObjects, { canvas: canvas });
+                                    canvas.setActiveObject(activeSelection);
+                                    canvas.requestRenderAll();
+                                }
+                                saveStateToHistory();
+                            } else if (payload && (payload.subcastType === "slide" || payload.subcastType === "slides")) {
+                                pasteSlidesFromClipboardText(text);
+                            }
+                        } catch (e) {
+                            // 일반 텍스트일 때 무시
+                        }
+                    } catch (err) {
+                        console.error("클립보드 읽기 실패:", err);
+                    }
+                };
+            }
+
+            if (deleteBtn) {
+                deleteBtn.onclick = () => {
+                    const activeObj = canvas.getActiveObject();
+                    const isTemplateTabActive = document.getElementById('panel-templates')?.classList.contains('active');
+                    if (activeObj || currentEditingElement) {
+                        deleteElement();
+                    } else if (isTemplateTabActive && selectedTemplateIds.length > 0) {
+                        deleteTemplate();
+                    } else if (selectedSlideIds && selectedSlideIds.length > 0) {
+                        deleteSelectedSlidesWithConfirm();
+                    }
+                };
+            }
         }
 
         // ==========================================================================
