@@ -5523,7 +5523,7 @@
         let bibleViewerFontSize = 16; // 기본 글자 크기 (px)
 
         function updateBibleViewerFontSize(newSize) {
-            bibleViewerFontSize = Math.max(10, Math.min(60, newSize));
+            bibleViewerFontSize = Math.max(5, Math.min(60, newSize));
             const table = document.getElementById("table-bible-main-viewer");
             if (table) {
                 table.style.fontSize = `${bibleViewerFontSize}px`;
