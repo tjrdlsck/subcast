@@ -17,9 +17,11 @@ def test_presenter_monitoring_button_and_modal():
     assert 'id="btn-save-monitoring"' in content, "설정 저장 버튼이 존재해야 합니다."
     assert 'id="btn-open-monitor-window"' in content, "모니터링 뷰어 실행 버튼이 존재해야 합니다."
     
-    # 3. 설정 옵션 라디오 검증
+    # 3. 설정 옵션 라디오 및 모달 내 실시간 미리보기 검증
     assert 'name="monitor-layout"' in content, "레이아웃 비율 옵션 라디오가 존재해야 합니다."
     assert 'name="monitor-bible"' in content, "성경 표출 옵션 라디오가 존재해야 합니다."
+    assert 'id="monitor-preview-box"' in content, "모달 내 실시간 미리보기 컨테이너(#monitor-preview-box)가 존재해야 합니다."
+    assert 'updateMonitorPreview' in content, "실시간 미리보기 업데이트 로직(updateMonitorPreview)이 존재해야 합니다."
 
 def test_viewer_monitor_mode_support():
     viewer_path = Path("frontend/viewer.html")

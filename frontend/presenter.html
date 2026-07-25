@@ -598,6 +598,66 @@
 
         .modal-body {
             padding: 24px;
+        }
+
+        /* 모니터링 미리보기 상자 */
+        .monitor-preview-box {
+            display: flex;
+            width: 100%;
+            height: 110px;
+            background: #09090b;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--panel-border);
+            overflow: hidden;
+            margin-top: 6px;
+            box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.6);
+        }
+
+        .monitor-preview-section {
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            transition: flex 0.2s ease;
+            overflow: hidden;
+        }
+
+        .monitor-preview-section.current {
+            background: rgba(220, 38, 38, 0.1);
+            border-right: 1px solid rgba(255, 255, 255, 0.12);
+            flex: 5;
+        }
+
+        .monitor-preview-section.next {
+            background: rgba(37, 99, 235, 0.1);
+            flex: 5;
+        }
+
+        .preview-tag {
+            font-size: 0.68rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .preview-tag.current-tag {
+            color: #f87171;
+        }
+
+        .preview-tag.next-tag {
+            color: #60a5fa;
+        }
+
+        .preview-text {
+            font-size: 0.75rem;
+            color: #e5e7eb;
+            line-height: 1.35;
+            white-space: pre-wrap;
+            word-break: break-word;
+            overflow: hidden;
+        }
+
+        .modal-body {
             display: flex;
             flex-direction: column;
             gap: 20px;
@@ -832,6 +892,20 @@
                     <div style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.6; background: rgba(255, 255, 255, 0.03); padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--panel-border);">
                         💡 모니터링 창에서 <b>Ctrl + 마우스 휠</b>로 글꼴 크기를 자유롭게 조정할 수 있습니다.<br>
                         창을 닫을 때 조정된 글씨 크기가 <b>자동 저장</b>되어 기본 설정으로 유지됩니다.
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h3>🖥️ 실시간 미리보기 (Live Preview)</h3>
+                    <div class="monitor-preview-box" id="monitor-preview-box">
+                        <div class="monitor-preview-section current" id="preview-current-sec">
+                            <div class="preview-tag current-tag">🔴 CURRENT (현재)</div>
+                            <div class="preview-text" id="preview-current-text">송출 중인 슬라이드가 없습니다.</div>
+                        </div>
+                        <div class="monitor-preview-section next" id="preview-next-sec">
+                            <div class="preview-tag next-tag">🔵 NEXT (다음)</div>
+                            <div class="preview-text" id="preview-next-text">다음 슬라이드가 없습니다.</div>
+                        </div>
                     </div>
                 </div>
 
@@ -1338,6 +1412,93 @@
             const saveMonitorBtn = document.getElementById("btn-save-monitoring");
             const openMonitorWindowBtn = document.getElementById("btn-open-monitor-window");
 
+            // 모니터링 실시간 미리보기 업데이트 함수
+            function updateMonitorPreview() {
+                const layout = document.querySelector('input[name="monitor-layout"]:checked')?.value || "5:5";
+                const bibleMode = document.querySelector('input[name="monitor-bible"]:checked')?.value || "summary";
+
+                const currentSec = document.getElementById("preview-current-sec");
+                const nextSec = document.getElementById("preview-next-sec");
+                const currentTextEl = document.getElementById("preview-current-text");
+                const nextTextEl = document.getElementById("preview-next-text");
+
+                if (currentSec && nextSec) {
+                    if (layout === "7:3") {
+                        currentSec.style.flex = "7";
+                        nextSec.style.flex = "3";
+                    } else if (layout === "3:7") {
+                        currentSec.style.flex = "3";
+                        nextSec.style.flex = "7";
+                    } else {
+                        currentSec.style.flex = "5";
+                        nextSec.style.flex = "5";
+                    }
+                }
+
+                function extractText(slide) {
+                    if (!slide || !slide.elements) return "";
+                    const texts = [];
+                    function traverse(elems) {
+                        elems.forEach(el => {
+                            if (el.type === 'text' && el.content) {
+                                texts.push(el.content.trim());
+                            } else if (el.type === 'group' && el.children) {
+                                traverse(el.children);
+                            }
+                        });
+                    }
+                    traverse(slide.elements);
+                    return texts.join("\n");
+                }
+
+                let curText = "";
+                let nxtText = "";
+
+                const slides = projectData?.slides || [];
+                const curIdx = currentLiveIndex >= 0 ? currentLiveIndex : -1;
+
+                if (curIdx !== -1 && slides[curIdx]) {
+                    curText = extractText(slides[curIdx]) || "(빈 슬라이드)";
+                    if (curIdx + 1 < slides.length) {
+                        nxtText = extractText(slides[curIdx + 1]) || "(빈 슬라이드)";
+                    } else {
+                        nxtText = "🏁 다음 슬라이드가 없습니다 (마지막)";
+                    }
+                } else if (slides.length > 0) {
+                    curText = "[대기 1번 슬라이드]\n" + (extractText(slides[0]) || "슬라이드 내용");
+                    if (slides.length > 1) {
+                        nxtText = "[대기 2번 슬라이드]\n" + (extractText(slides[1]) || "슬라이드 내용");
+                    } else {
+                        nxtText = "[요한복음 3:17] 하나님이 그 아들을 세상에 보내신 것은...";
+                    }
+                } else {
+                    curText = "[요한복음 3:16] 하나님이 세상을 이처럼 사랑하사 독생자를 주셨으니 이는 그를 믿는 자마다 멸망하지 않고 영생을 얻게 하려 하심이라";
+                    nxtText = "[요한복음 3:17] 하나님이 그 아들을 세상에 보내신 것은 세상을 심판하려 하심이 아니요 그를 통하여 세상이 구원을 받게 하려 하심이라";
+                }
+
+                function applyBibleMode(text) {
+                    if (!text) return "";
+                    if (bibleMode === "ref_only") {
+                        const match = text.match(/(\[[^\]]+\]|[가-힣]+\s*\d+:\d+)/);
+                        if (match) {
+                            return `${match[1]} (성경 구절 대기)`;
+                        }
+                    } else if (bibleMode === "summary") {
+                        if (text.length > 55) {
+                            return text.substring(0, 55) + "...";
+                        }
+                    }
+                    return text;
+                }
+
+                if (currentTextEl) currentTextEl.innerText = applyBibleMode(curText);
+                if (nextTextEl) nextTextEl.innerText = applyBibleMode(nxtText);
+            }
+
+            document.querySelectorAll('input[name="monitor-layout"], input[name="monitor-bible"]').forEach(radio => {
+                radio.addEventListener('change', updateMonitorPreview);
+            });
+
             if (openMonitorBtn && monitorModal) {
                 openMonitorBtn.onclick = () => {
                     // 저장된 설정을 라디오 버튼에 적용
@@ -1352,6 +1513,7 @@
                             if (bibleEl) bibleEl.checked = true;
                         }
                     } catch (e) { }
+                    updateMonitorPreview();
                     monitorModal.classList.add("active");
                 };
             }
