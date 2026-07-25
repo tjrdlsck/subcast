@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Subcast - 실시간 방송 자막/슬라이드 송출 시스템</title>
+    <title>Subcast - 프로젝트 관리 시스템</title>
     <!-- Google Fonts: Outfit & Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-color: #0b0f19;
             --card-bg: rgba(255, 255, 255, 0.03);
             --card-border: rgba(255, 255, 255, 0.08);
+            --card-bg-hover: rgba(255, 255, 255, 0.06);
             --primary: #6366f1;
             --primary-glow: rgba(99, 102, 241, 0.4);
             --secondary: #06b6d4;
@@ -21,6 +22,8 @@
             --accent-glow: rgba(244, 63, 94, 0.4);
             --text-main: #f3f4f6;
             --text-muted: #9ca3af;
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.3);
         }
 
         * {
@@ -46,25 +49,25 @@
         body::before {
             content: '';
             position: absolute;
-            width: 600px;
-            height: 600px;
+            width: 650px;
+            height: 650px;
             background: radial-gradient(circle, var(--primary-glow) 0%, transparent 70%);
             top: -200px;
             left: -200px;
             z-index: -1;
-            filter: blur(80px);
+            filter: blur(90px);
         }
 
         body::after {
             content: '';
             position: absolute;
-            width: 600px;
-            height: 600px;
+            width: 650px;
+            height: 650px;
             background: radial-gradient(circle, var(--secondary-glow) 0%, transparent 70%);
             bottom: -200px;
             right: -200px;
             z-index: -1;
-            filter: blur(80px);
+            filter: blur(90px);
         }
 
         /* 상단 통합 네비게이션 헤더 */
@@ -133,195 +136,371 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1100px;
             width: 100%;
-            padding: 50px 20px 40px 20px;
-            text-align: center;
+            padding: 40px 20px;
             z-index: 1;
         }
 
         .hero-section {
-            margin-bottom: 50px;
+            text-align: center;
+            margin-bottom: 36px;
         }
 
         .hero-section h2 {
             font-family: 'Outfit', sans-serif;
-            font-size: 3.2rem;
+            font-size: 2.8rem;
             font-weight: 800;
             background: linear-gradient(135deg, #fff 30%, var(--text-muted) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             letter-spacing: -0.04em;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         .hero-section p {
             color: var(--text-muted);
-            font-size: 1.15rem;
-            max-width: 640px;
+            font-size: 1.05rem;
+            max-width: 600px;
             margin: 0 auto;
-            line-height: 1.6;
+            line-height: 1.5;
         }
 
-        /* 카드 그리드 */
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-            margin-bottom: 60px;
+        /* 프로젝트 관리 헤더 바 */
+        .projects-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--card-border);
         }
 
-        /* 글래스모피즘 카드 */
-        .card {
+        .projects-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .projects-count-badge {
+            background: rgba(99, 102, 241, 0.15);
+            color: var(--primary);
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 20px;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-create-project {
+            background: linear-gradient(135deg, var(--primary) 0%, #4338ca 100%);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 15px var(--primary-glow);
+        }
+
+        .btn-create-project:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px var(--primary-glow);
+            background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+        }
+
+        /* 프로젝트 리스트 UI */
+        .project-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .project-item {
             background: var(--card-bg);
             border: 1px solid var(--card-border);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
-            border-radius: 24px;
-            padding: 40px 30px;
-            text-decoration: none;
-            color: inherit;
+            border-radius: 16px;
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+        }
+
+        .project-item:hover {
+            background: var(--card-bg-hover);
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+        }
+
+        .project-item.active {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.07);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
+        }
+
+        .project-info {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+            gap: 6px;
         }
 
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-8px);
-            border-color: rgba(255, 255, 255, 0.2);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-        }
-
-        .card:hover::before {
-            opacity: 1;
-        }
-
-        /* 역할별 고유 보더/글로우 스타일 */
-        .card.presenter:hover {
-            box-shadow: 0 0 30px var(--primary-glow);
-            border-color: var(--primary);
-        }
-
-        .card.editor:hover {
-            box-shadow: 0 0 30px var(--secondary-glow);
-            border-color: var(--secondary);
-        }
-
-        .card.viewer:hover {
-            box-shadow: 0 0 30px var(--accent-glow);
-            border-color: var(--accent);
-        }
-
-        .icon-wrapper {
-            width: 80px;
-            height: 80px;
-            border-radius: 20px;
+        .project-title-row {
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 2.2rem;
-            margin-bottom: 24px;
-            transition: transform 0.4s ease;
+            gap: 12px;
         }
 
-        .card:hover .icon-wrapper {
-            transform: scale(1.1) rotate(5deg);
-        }
-
-        .presenter .icon-wrapper {
-            background: linear-gradient(135deg, var(--primary) 0%, #312e81 100%);
-            box-shadow: 0 8px 20px var(--primary-glow);
-        }
-
-        .editor .icon-wrapper {
-            background: linear-gradient(135deg, var(--secondary) 0%, #0891b2 100%);
-            box-shadow: 0 8px 20px var(--secondary-glow);
-        }
-
-        .viewer .icon-wrapper {
-            background: linear-gradient(135deg, var(--accent) 0%, #9f1239 100%);
-            box-shadow: 0 8px 20px var(--accent-glow);
-        }
-
-        .card h3 {
+        .project-name {
             font-family: 'Outfit', sans-serif;
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             font-weight: 600;
-            margin-bottom: 12px;
-            letter-spacing: -0.02em;
+            color: #ffffff;
         }
 
-        .card p {
+        .active-badge {
+            background: var(--success);
+            color: #ffffff;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 3px 9px;
+            border-radius: 12px;
+            letter-spacing: 0.03em;
+            box-shadow: 0 0 10px var(--success-glow);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .project-meta {
+            font-size: 0.85rem;
             color: var(--text-muted);
-            font-size: 0.95rem;
-            line-height: 1.6;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .project-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .action-btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+        }
+
+        .btn-select {
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.12);
+        }
+        .btn-select:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
+        .btn-select.current {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border-color: rgba(16, 185, 129, 0.3);
+            cursor: default;
+        }
+
+        .btn-editor {
+            background: rgba(6, 182, 212, 0.15);
+            color: #22d3ee;
+            border-color: rgba(6, 182, 212, 0.3);
+        }
+        .btn-editor:hover {
+            background: var(--secondary);
+            color: #fff;
+            box-shadow: 0 4px 12px var(--secondary-glow);
+        }
+
+        .btn-presenter {
+            background: rgba(99, 102, 241, 0.15);
+            color: #818cf8;
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+        .btn-presenter:hover {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
+        .btn-delete {
+            background: rgba(244, 63, 94, 0.1);
+            color: #fb7185;
+            border-color: rgba(244, 63, 94, 0.2);
+            padding: 8px 12px;
+        }
+        .btn-delete:hover {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+            box-shadow: 0 4px 12px var(--accent-glow);
+        }
+
+        /* 빈 리스트 안내 */
+        .empty-projects {
+            text-align: center;
+            padding: 60px 20px;
+            background: var(--card-bg);
+            border: 1px dashed var(--card-border);
+            border-radius: 16px;
+            color: var(--text-muted);
+        }
+
+        /* 모달 스타일 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-box {
+            background: #111827;
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 440px;
+            padding: 28px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            transform: scale(0.95);
+            transition: transform 0.25s ease;
+        }
+
+        .modal-overlay.show .modal-box {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
             margin-bottom: 24px;
         }
 
-        .btn {
-            padding: 10px 24px;
-            border-radius: 12px;
+        .form-group label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .form-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .btn-cancel {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+            border: none;
+            padding: 10px 18px;
+            border-radius: 10px;
             font-weight: 600;
-            font-size: 0.9rem;
-            transition: all 0.3s ease;
-            border: 1px solid transparent;
+            cursor: pointer;
+        }
+        .btn-cancel:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.15);
         }
 
-        .presenter .btn {
-            background-color: var(--primary);
+        .btn-submit {
+            background: var(--primary);
             color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px var(--primary-glow);
         }
-        .presenter:hover .btn {
-            background-color: #fff;
-            color: var(--primary);
-        }
-
-        .editor .btn {
-            background-color: var(--secondary);
-            color: #fff;
-        }
-        .editor:hover .btn {
-            background-color: #fff;
-            color: var(--secondary);
-        }
-
-        .viewer .btn {
-            background-color: var(--accent);
-            color: #fff;
-        }
-        .viewer:hover .btn {
-            background-color: #fff;
-            color: var(--accent);
+        .btn-submit:hover {
+            background: #4f46e5;
         }
 
         footer {
+            margin-top: 50px;
+            text-align: center;
             color: rgba(255, 255, 255, 0.2);
             font-size: 0.85rem;
         }
 
-        /* 반응형 디자인 */
         @media (max-width: 768px) {
-            .hero-section h2 {
-                font-size: 2.2rem;
+            .project-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
             }
-            .grid {
-                grid-template-columns: 1fr;
+            .project-actions {
+                width: 100%;
+                justify-content: flex-end;
+                flex-wrap: wrap;
             }
         }
     </style>
@@ -349,38 +528,219 @@
     <div class="container">
         <section class="hero-section">
             <h2>Subcast System</h2>
-            <p>다중 마스터 실시간 동기화와 편집 잠금 메커니즘을 지원하는 생방송 오버레이 자막 관리 플랫폼</p>
+            <p>다중 프로젝트 기록 및 실시간 자막 방송 관리를 지원하는 통합 시스템</p>
         </section>
 
-        <main class="grid">
-            <!-- Presenter Card -->
-            <a href="/static/presenter.html" class="card presenter" id="link-presenter">
-                <div class="icon-wrapper">🚀</div>
-                <h3>송출 제어기</h3>
-                <p>슬라이드 전환(Prev/Next) 및 현재 송출 상태를 마스터 제어합니다. 다중 제어자 간의 자동 동기화를 지원합니다.</p>
-                <span class="btn">Presenter 진입</span>
-            </a>
+        <!-- 프로젝트 관리 섹션 -->
+        <section class="projects-section">
+            <div class="projects-header">
+                <div class="projects-title">
+                    <span>📂 프로젝트 목록</span>
+                    <span class="projects-count-badge" id="projects-count">0개</span>
+                </div>
+                <button class="btn-create-project" id="btn-open-create-modal">
+                    <span>+ 새 프로젝트 추가</span>
+                </button>
+            </div>
 
-            <!-- Editor Card -->
-            <a href="/static/editor.html" class="card editor" id="link-editor">
-                <div class="icon-wrapper">✍️</div>
-                <h3>실시간 편집기</h3>
-                <p>방송 흐름 방해 없이 대기 중인 슬라이드의 글씨, 위치 등을 Fabric.js 기반 에디터로 실시간 수정/잠금할 수 있습니다.</p>
-                <span class="btn">Editor 진입</span>
-            </a>
-
-            <!-- Viewer Card -->
-            <a href="/static/viewer.html" class="card viewer" id="link-viewer">
-                <div class="icon-wrapper">📺</div>
-                <h3>OBS 뷰어</h3>
-                <p>투명 배경의 그래픽 결과물 송출 전용 뷰어. 네트워크 연결 두절 감지 시 오버레이 화면을 완전 투명화합니다.</p>
-                <span class="btn">Viewer 진입</span>
-            </a>
-        </main>
+            <!-- 프로젝트 리스트 영역 -->
+            <div class="project-list" id="project-list-container">
+                <!-- Javascript 동적 로딩 -->
+            </div>
+        </section>
 
         <footer>
             <p>© 2026 Subcast. All rights reserved.</p>
         </footer>
     </div>
+
+    <!-- 프로젝트 생성 모달 -->
+    <div class="modal-overlay" id="create-modal">
+        <div class="modal-box">
+            <div class="modal-header">새 프로젝트 추가</div>
+            <div class="form-group">
+                <label for="new-project-name">프로젝트 이름</label>
+                <input type="text" id="new-project-name" class="form-input" placeholder="예: 주일 예배 자막 프로젝트" autofocus>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" id="btn-close-modal">취소</button>
+                <button class="btn-submit" id="btn-submit-create">생성하기</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const projectListContainer = document.getElementById('project-list-container');
+            const projectsCountBadge = document.getElementById('projects-count');
+            const createModal = document.getElementById('create-modal');
+            const btnOpenCreateModal = document.getElementById('btn-open-create-modal');
+            const btnCloseModal = document.getElementById('btn-close-modal');
+            const btnSubmitCreate = document.getElementById('btn-submit-create');
+            const inputProjectName = document.getElementById('new-project-name');
+
+            // 프로젝트 목록 조회 및 렌더링
+            async function fetchProjects() {
+                try {
+                    const response = await fetch('/api/projects');
+                    if (!response.ok) throw new Error('프로젝트 목록을 불러오지 못했습니다.');
+                    const projects = await response.json();
+                    renderProjects(projects);
+                } catch (error) {
+                    console.error('Error fetching projects:', error);
+                    projectListContainer.innerHTML = `<div class="empty-projects">프로젝트 목록을 불러오는 중 오류가 발생했습니다.</div>`;
+                }
+            }
+
+            function renderProjects(projects) {
+                projectsCountBadge.textContent = `${projects.length}개`;
+
+                if (!projects || projects.length === 0) {
+                    projectListContainer.innerHTML = `
+                        <div class="empty-projects">
+                            등록된 프로젝트가 없습니다.<br>
+                            상단의 '+ 새 프로젝트 추가' 버튼을 눌러 프로젝트를 생성해 주세요.
+                        </div>
+                    `;
+                    return;
+                }
+
+                projectListContainer.innerHTML = projects.map(proj => {
+                    const isActive = proj.isActive;
+                    const updatedAt = proj.updatedAt || '일시 정보 없음';
+                    const slideCount = proj.slideCount || 0;
+
+                    return `
+                        <div class="project-item ${isActive ? 'active' : ''}" data-id="${proj.id}">
+                            <div class="project-info">
+                                <div class="project-title-row">
+                                    <span class="project-name">${escapeHtml(proj.name)}</span>
+                                    ${isActive ? '<span class="active-badge">✓ 선택됨</span>' : ''}
+                                </div>
+                                <div class="project-meta">
+                                    <span>📄 슬라이드 ${slideCount}개</span>
+                                    <span>🕒 ${updatedAt}</span>
+                                </div>
+                            </div>
+                            <div class="project-actions">
+                                ${isActive ? `
+                                    <span class="action-btn btn-select current">현재 선택됨</span>
+                                ` : `
+                                    <button class="action-btn btn-select" onclick="selectProject('${proj.id}')">선택</button>
+                                `}
+                                <button class="action-btn btn-editor" onclick="openPage('${proj.id}', '/static/editor.html')">Editor</button>
+                                <button class="action-btn btn-presenter" onclick="openPage('${proj.id}', '/static/presenter.html')">Presenter</button>
+                                ${projects.length > 1 ? `
+                                    <button class="action-btn btn-delete" onclick="deleteProject('${proj.id}', '${escapeHtml(proj.name)}')">삭제</button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // XSS 방지 HTML escape
+            function escapeHtml(text) {
+                if (!text) return '';
+                return text
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }
+
+            // 프로젝트 선택 (글로벌 바인딩)
+            window.selectProject = async function(projectId) {
+                try {
+                    const res = await fetch(`/api/projects/${projectId}/select`, { method: 'POST' });
+                    if (!res.ok) throw new Error('프로젝트 선택 실패');
+                    await fetchProjects();
+                } catch (err) {
+                    alert('프로젝트 선택 중 오류가 발생했습니다: ' + err.message);
+                }
+            };
+
+            // 선택 후 페이지 이동 (글로벌 바인딩)
+            window.openPage = async function(projectId, targetUrl) {
+                try {
+                    const res = await fetch(`/api/projects/${projectId}/select`, { method: 'POST' });
+                    if (!res.ok) throw new Error('프로젝트 선택 실패');
+                    window.location.href = targetUrl;
+                } catch (err) {
+                    alert('프로젝트 이동 중 오류가 발생했습니다: ' + err.message);
+                }
+            };
+
+            // 프로젝트 삭제 (글로벌 바인딩)
+            window.deleteProject = async function(projectId, projectName) {
+                if (!confirm(`'${projectName}' 프로젝트를 정말 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`)) {
+                    return;
+                }
+                try {
+                    const res = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
+                    if (!res.ok) throw new Error('프로젝트 삭제 실패');
+                    await fetchProjects();
+                } catch (err) {
+                    alert('프로젝트 삭제 중 오류가 발생했습니다: ' + err.message);
+                }
+            };
+
+            // 모달 조작
+            btnOpenCreateModal.addEventListener('click', () => {
+                inputProjectName.value = '';
+                createModal.classList.add('show');
+                inputProjectName.focus();
+            });
+
+            btnCloseModal.addEventListener('click', () => {
+                createModal.classList.remove('show');
+            });
+
+            createModal.addEventListener('click', (e) => {
+                if (e.target === createModal) {
+                    createModal.classList.remove('show');
+                }
+            });
+
+            // 새 프로젝트 생성 제출
+            async function handleCreateProject() {
+                const name = inputProjectName.value.trim();
+                if (!name) {
+                    alert('프로젝트 이름을 입력해 주세요.');
+                    inputProjectName.focus();
+                    return;
+                }
+
+                try {
+                    const res = await fetch('/api/projects', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name })
+                    });
+                    if (!res.ok) {
+                        const errorData = await res.json();
+                        throw new Error(errorData.detail || '프로젝트 생성 실패');
+                    }
+                    const newProj = await res.json();
+                    createModal.classList.remove('show');
+                    // 새 프로젝트를 바로 선택 상태로 설정
+                    await window.selectProject(newProj.id);
+                } catch (err) {
+                    alert('프로젝트 생성 오류: ' + err.message);
+                }
+            }
+
+            btnSubmitCreate.addEventListener('click', handleCreateProject);
+            inputProjectName.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    handleCreateProject();
+                }
+            });
+
+            // 최초 목록 로드
+            fetchProjects();
+        });
+    </script>
 </body>
 </html>

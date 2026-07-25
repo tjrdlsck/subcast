@@ -8,8 +8,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
 from pathlib import Path
 
-from backend.schemas import ProjectData, SystemSettings, Slide
-from backend.storage import load_project_data, save_project_data
+from backend.schemas import ProjectData, SystemSettings, Slide, ProjectCreateRequest, ProjectListItem
+from backend.storage import (
+    load_project_data, save_project_data, list_projects,
+    create_project, delete_project, get_active_project_id, set_active_project_id
+)
 
 # 로그 설정
 logging.basicConfig(level=logging.INFO)
@@ -51,7 +54,8 @@ class ConnectionManager:
 
     async def initialize(self):
         """저장소로부터 데이터를 읽어 캐싱합니다."""
-        self.project_data = await load_project_data()
+        active_id = get_active_project_id()
+        self.project_data = await load_project_data(active_id)
 
     async def connect(self, websocket: WebSocket, role: str):
         await websocket.accept()
@@ -409,6 +413,59 @@ async def search_bible(
             "total_results": len(results),
             "results": results
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/projects")
+async def get_projects():
+    try:
+        return await list_projects()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/projects")
+async def create_new_project(req: ProjectCreateRequest):
+    try:
+        if not req.name or not req.name.strip():
+            raise HTTPException(status_code=400, detail="프로젝트 이름을 입력해주세요.")
+        proj = await create_project(req.name.strip())
+        return proj
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/projects/{project_id}/select")
+async def select_project(project_id: str):
+    try:
+        set_active_project_id(project_id)
+        manager.project_data = await load_project_data(project_id)
+        manager.project_history.clear()
+        manager.locked_slides.clear()
+        
+        await manager.broadcast({
+            "type": "INITIAL_SYNC",
+            "data": manager.project_data.model_dump(),
+            "lockedSlides": manager.locked_slides
+        })
+        return {"status": "success", "active_project_id": project_id, "project": manager.project_data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/projects/{project_id}")
+async def remove_project(project_id: str):
+    try:
+        new_active_id = await delete_project(project_id)
+        if manager.project_data and manager.project_data.id == project_id:
+            manager.project_data = await load_project_data(new_active_id)
+            manager.project_history.clear()
+            manager.locked_slides.clear()
+            await manager.broadcast({
+                "type": "INITIAL_SYNC",
+                "data": manager.project_data.model_dump(),
+                "lockedSlides": manager.locked_slides
+            })
+        return {"status": "success", "active_project_id": new_active_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
