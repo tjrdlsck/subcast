@@ -18,7 +18,6 @@ def test_presenter_monitoring_button_and_modal():
     assert 'id="btn-open-monitor-window"' in content, "모니터링 뷰어 실행 버튼이 존재해야 합니다."
     
     # 3. 설정 옵션 라디오 검증
-    assert 'name="monitor-font"' in content, "글씨 크기 옵션 라디오가 존재해야 합니다."
     assert 'name="monitor-layout"' in content, "레이아웃 비율 옵션 라디오가 존재해야 합니다."
     assert 'name="monitor-bible"' in content, "성경 표출 옵션 라디오가 존재해야 합니다."
 

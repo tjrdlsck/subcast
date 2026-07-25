@@ -1,7 +1,7 @@
 import json
 import logging
 import uuid
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Optional
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -253,11 +253,11 @@ class PraiseDatabaseHelper:
         conn = self.get_connection()
         cursor = conn.cursor()
         if not query_str.strip():
-            sql = "SELECT title, lyrics FROM praise_songs ORDER BY title ASC LIMIT ?"
+            sql = "SELECT id, title, lyrics FROM praise_songs ORDER BY title ASC LIMIT ?"
             params = (limit,)
         else:
             sql = """
-                SELECT title, lyrics 
+                SELECT id, title, lyrics 
                 FROM praise_songs 
                 WHERE title LIKE ? OR lyrics LIKE ?
                 ORDER BY title ASC
@@ -272,33 +272,72 @@ class PraiseDatabaseHelper:
         finally:
             conn.close()
 
-    def save_song(self, title: str, lyrics: str):
+    def save_song(self, title: str, lyrics: str, song_id: Optional[int] = None, original_title: Optional[str] = None):
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
-            cursor.execute("SELECT id FROM praise_songs WHERE title = ?", (title,))
-            row = cursor.fetchone()
-            if row:
+            if song_id is not None:
                 cursor.execute("""
                     UPDATE praise_songs 
-                    SET lyrics = ?, updated_at = CURRENT_TIMESTAMP 
+                    SET title = ?, lyrics = ?, updated_at = CURRENT_TIMESTAMP 
                     WHERE id = ?
-                """, (lyrics, row["id"]))
-            else:
+                """, (title, lyrics, song_id))
+            elif original_title is not None:
                 cursor.execute("""
-                    INSERT INTO praise_songs (title, lyrics) 
-                    VALUES (?, ?)
-                """, (title, lyrics))
+                    UPDATE praise_songs 
+                    SET title = ?, lyrics = ?, updated_at = CURRENT_TIMESTAMP 
+                    WHERE title = ?
+                """, (title, lyrics, original_title))
+            else:
+                cursor.execute("SELECT id FROM praise_songs WHERE title = ?", (title,))
+                row = cursor.fetchone()
+                if row:
+                    cursor.execute("""
+                        UPDATE praise_songs 
+                        SET lyrics = ?, updated_at = CURRENT_TIMESTAMP 
+                        WHERE id = ?
+                    """, (lyrics, row["id"]))
+                else:
+                    cursor.execute("""
+                        INSERT INTO praise_songs (title, lyrics) 
+                        VALUES (?, ?)
+                    """, (title, lyrics))
             conn.commit()
+        finally:
+            conn.close()
+
+    def delete_songs(self, song_ids: Optional[List[int]] = None, titles: Optional[List[str]] = None):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        deleted_count = 0
+        try:
+            if song_ids:
+                placeholders = ",".join(["?"] * len(song_ids))
+                cursor.execute(f"DELETE FROM praise_songs WHERE id IN ({placeholders})", song_ids)
+                deleted_count += cursor.rowcount
+            if titles:
+                placeholders = ",".join(["?"] * len(titles))
+                cursor.execute(f"DELETE FROM praise_songs WHERE title IN ({placeholders})", titles)
+                deleted_count += cursor.rowcount
+            conn.commit()
+            return deleted_count
         finally:
             conn.close()
 
 praise_db = PraiseDatabaseHelper("GAE_Bible.db")
 
 from pydantic import BaseModel
+from typing import Optional, List
+
 class PraiseSongSaveRequest(BaseModel):
+    id: Optional[int] = None
     title: str
     lyrics: str
+    original_title: Optional[str] = None
+
+class PraiseSongDeleteRequest(BaseModel):
+    ids: Optional[List[int]] = None
+    titles: Optional[List[str]] = None
 
 @app.get("/api/praise/search")
 async def search_praise_songs(query: str = Query("")):
@@ -312,8 +351,18 @@ async def save_praise_song(req: PraiseSongSaveRequest):
     try:
         if not req.title.strip() or not req.lyrics.strip():
             raise HTTPException(status_code=400, detail="제목과 가사를 모두 입력해 주세요.")
-        praise_db.save_song(req.title.strip(), req.lyrics.strip())
+        praise_db.save_song(req.title.strip(), req.lyrics.strip(), song_id=req.id, original_title=req.original_title)
         return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/praise/delete")
+async def delete_praise_songs(req: PraiseSongDeleteRequest):
+    try:
+        if not req.ids and not req.titles:
+            raise HTTPException(status_code=400, detail="삭제할 찬양곡을 지정해 주세요.")
+        count = praise_db.delete_songs(song_ids=req.ids, titles=req.titles)
+        return {"status": "success", "deleted_count": count}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

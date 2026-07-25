@@ -2029,8 +2029,14 @@
 
                         <!-- 3) 선택된 찬양곡 세부 사항 및 슬라이드 추가 제어 -->
                         <div id="praise-selection-control" style="border-top: 1px solid var(--panel-border); padding-top: 10px; display: none; flex-direction: column; gap: 8px; flex-shrink: 0;">
-                            <div style="font-size: 0.75rem; color: var(--text-main); font-weight: 600;">
-                                선택된 곡: <span id="lbl-selected-praise-title" style="color: var(--primary); font-weight: bold;">없음</span>
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+                                <div style="font-size: 0.75rem; color: var(--text-main); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;">
+                                    선택된 곡: <span id="lbl-selected-praise-title" style="color: var(--primary); font-weight: bold;">없음</span>
+                                </div>
+                                <div style="display: flex; gap: 4px;">
+                                    <button id="btn-praise-edit-selected" style="padding: 3px 8px; font-size: 0.7rem; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-xs); cursor: pointer;">✏️ 수정</button>
+                                    <button id="btn-praise-delete-selected" style="padding: 3px 8px; font-size: 0.7rem; background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #ef4444; border-radius: var(--radius-xs); cursor: pointer;">🗑️ 삭제</button>
+                                </div>
                             </div>
                             
                             <!-- ⚙️ 디자인 프리셋 및 커스터마이징 영역 -->
@@ -4936,8 +4942,15 @@
                 if (e.key === 'Delete') {
                     const activeObj = canvas.getActiveObject();
                     const isTemplateTabActive = document.getElementById('panel-templates')?.classList.contains('active');
+                    const isPraiseTabActive = document.getElementById('panel-praise')?.classList.contains('active');
                     
-                    if (activeObj || currentEditingElement) {
+                    if (isPraiseTabActive || (selectedPraiseSongs && selectedPraiseSongs.length > 0)) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (typeof deleteSelectedPraiseSongsWithConfirm === 'function') {
+                            deleteSelectedPraiseSongsWithConfirm();
+                        }
+                    } else if (activeObj || currentEditingElement) {
                         deleteElement();
                     } else if (isTemplateTabActive && selectedTemplateIds.length > 0) {
                         deleteTemplate();
@@ -4952,6 +4965,12 @@
                     redo();
                 } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') {
                     // 잘라내기 (Ctrl+X)
+                    const isPraiseTabActive = document.getElementById('panel-praise')?.classList.contains('active');
+                    if (isPraiseTabActive && selectedPraiseSongs && selectedPraiseSongs.length > 0) {
+                        e.preventDefault();
+                        if (typeof cutSelectedPraiseSongs === 'function') cutSelectedPraiseSongs();
+                        return;
+                    }
                     const activeObj = canvas.getActiveObject();
                     if (activeObj) {
                         if (activeObj.type === 'activeSelection') {
@@ -4984,6 +5003,12 @@
                     }
                 } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
                     // 복사 (Ctrl+C) - 시스템 클립보드 API 활용
+                    const isPraiseTabActive = document.getElementById('panel-praise')?.classList.contains('active');
+                    if (isPraiseTabActive && selectedPraiseSongs && selectedPraiseSongs.length > 0) {
+                        e.preventDefault();
+                        if (typeof copySelectedPraiseSongs === 'function') copySelectedPraiseSongs();
+                        return;
+                    }
                     const activeObj = canvas.getActiveObject();
                     if (activeObj) {
                         if (activeObj.type === 'activeSelection') {
@@ -5022,6 +5047,14 @@
                     } else if (selectedSlideIds.length > 0) {
                         // 2. 슬라이드 복사
                         copySelectedSlides();
+                    }
+                } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+                    // 붙여넣기 (Ctrl+V)
+                    const isPraiseTabActive = document.getElementById('panel-praise')?.classList.contains('active');
+                    if (isPraiseTabActive) {
+                        e.preventDefault();
+                        if (typeof pastePraiseSongs === 'function') pastePraiseSongs();
+                        return;
                     }
                 }
             });
@@ -5404,12 +5437,67 @@
             if (menu) menu.style.display = "none";
         }
 
+        function showPraiseContextMenu(x, y) {
+            hideSlideContextMenu();
+            hideCanvasContextMenu();
+            const menu = document.getElementById("praise-context-menu");
+            if (!menu) return;
+
+            const editBtn = document.getElementById("menu-praise-edit");
+            if (editBtn) {
+                if (selectedPraiseSongs.length === 1) {
+                    editBtn.classList.remove("disabled");
+                    editBtn.style.opacity = "1";
+                    editBtn.style.pointerEvents = "auto";
+                } else {
+                    editBtn.classList.add("disabled");
+                    editBtn.style.opacity = "0.5";
+                    editBtn.style.pointerEvents = "none";
+                }
+            }
+
+            const pasteBtn = document.getElementById("menu-praise-paste");
+            if (pasteBtn) {
+                if (praiseClipboardData && praiseClipboardData.length > 0) {
+                    pasteBtn.classList.remove("disabled");
+                    pasteBtn.style.opacity = "1";
+                    pasteBtn.style.pointerEvents = "auto";
+                } else {
+                    pasteBtn.classList.add("disabled");
+                    pasteBtn.style.opacity = "0.5";
+                    pasteBtn.style.pointerEvents = "none";
+                }
+            }
+
+            menu.style.display = "block";
+            const menuWidth = menu.offsetWidth;
+            const menuHeight = menu.offsetHeight;
+            const winWidth = window.innerWidth;
+            const winHeight = window.innerHeight;
+
+            let posX = x;
+            let posY = y;
+            if (x + menuWidth > winWidth) posX = winWidth - menuWidth - 10;
+            if (y + menuHeight > winHeight) posY = winHeight - menuHeight - 10;
+
+            menu.style.left = `${posX}px`;
+            menu.style.top = `${posY}px`;
+        }
+
+        function hidePraiseContextMenu() {
+            const menu = document.getElementById("praise-context-menu");
+            if (menu) menu.style.display = "none";
+        }
+
         document.addEventListener("mousedown", (e) => {
             if (!e.target.closest("#slide-context-menu")) {
                 hideSlideContextMenu();
             }
             if (!e.target.closest("#canvas-context-menu")) {
                 hideCanvasContextMenu();
+            }
+            if (!e.target.closest("#praise-context-menu")) {
+                hidePraiseContextMenu();
             }
         });
 
@@ -6619,7 +6707,8 @@
                 updateBibleExpectedSlides();
             } else if (tempPraiseSlidesToAdd.length > 0) {
                 // 선택 초기화 및 세부 제어창 닫기
-                activeSelectedPraiseSong = null;
+                selectedPraiseSongs = [];
+                updatePraiseSelectionUI();
                 const selectionControl = document.getElementById("praise-selection-control");
                 if (selectionControl) {
                     selectionControl.style.display = "none";
@@ -6760,7 +6849,11 @@
         // ==========================================================================
         let tempPraiseSlidesToAdd = [];
         let activeSelectedPraiseSong = null;
-        let praiseLastClickedIndex = -1;
+        let selectedPraiseSongs = [];
+        let currentPraiseSongsList = [];
+        let lastSelectedPraiseIndex = -1;
+        let currentEditingPraiseSong = null;
+        let praiseClipboardData = [];
 
         function updatePraiseExpectedCount() {
             const previewList = document.getElementById("praise-preview-list");
@@ -6816,9 +6909,16 @@
             if (chkAllPraise) chkAllPraise.checked = true;
             praiseLastClickedIndex = -1;
 
+            if (!song || !song.lyrics) {
+                previewList.innerHTML = `<div style="color: var(--text-muted); font-size: 0.7rem; text-align: center; padding: 10px 0;">분해된 가사가 없습니다.</div>`;
+                updatePraiseExpectedCount();
+                return;
+            }
+
             const blocks = song.lyrics.split(/\n\s*\n/).map(s => s.trim()).filter(s => s !== "");
             if (blocks.length === 0) {
                 previewList.innerHTML = `<div style="color: var(--text-muted); font-size: 0.7rem; text-align: center; padding: 10px 0;">분해된 가사가 없습니다.</div>`;
+                updatePraiseExpectedCount();
                 return;
             }
 
@@ -6893,6 +6993,169 @@
             updatePraiseExpectedCount();
         }
 
+        // 찬양곡 선택 UI 상태 동기화
+        function updatePraiseSelectionUI() {
+            const songsList = document.getElementById("praise-songs-list");
+            const lblTitle = document.getElementById("lbl-selected-praise-title");
+            const charCount = document.getElementById("val-praise-char-count");
+            
+            if (songsList) {
+                const items = songsList.querySelectorAll(".bible-result-item");
+                items.forEach((item) => {
+                    const songTitle = item.dataset.title;
+                    const isSel = selectedPraiseSongs.some(s => s.title === songTitle);
+                    if (isSel) {
+                        item.classList.add("selected");
+                    } else {
+                        item.classList.remove("selected");
+                    }
+                });
+            }
+
+            if (selectedPraiseSongs.length === 0) {
+                activeSelectedPraiseSong = null;
+                if (lblTitle) lblTitle.textContent = "없음";
+                adjustPraisePanelLayout(false);
+            } else if (selectedPraiseSongs.length === 1) {
+                activeSelectedPraiseSong = selectedPraiseSongs[0];
+                if (lblTitle) lblTitle.textContent = selectedPraiseSongs[0].title;
+                if (charCount) charCount.textContent = selectedPraiseSongs[0].lyrics.length;
+                adjustPraisePanelLayout(true);
+                renderPraisePreview(selectedPraiseSongs[0]);
+            } else {
+                activeSelectedPraiseSong = selectedPraiseSongs[0];
+                if (lblTitle) lblTitle.textContent = `${selectedPraiseSongs[0].title} 외 ${selectedPraiseSongs.length - 1}건 (총 ${selectedPraiseSongs.length}곡)`;
+                if (charCount) charCount.textContent = selectedPraiseSongs.reduce((sum, s) => sum + s.lyrics.length, 0);
+                adjustPraisePanelLayout(true);
+                renderPraisePreview(selectedPraiseSongs[0]);
+            }
+        }
+
+        // 찬양 수정 모달 열기
+        function openEditPraiseModal(song) {
+            if (!song) return;
+            currentEditingPraiseSong = song;
+            const addModal = document.getElementById("praise-add-modal");
+            const headerTitle = document.getElementById("modal-praise-header-title");
+            const inputTitle = document.getElementById("modal-praise-title");
+            const inputLyrics = document.getElementById("modal-praise-lyrics");
+            
+            if (headerTitle) headerTitle.textContent = "🎵 찬양곡 수정";
+            if (inputTitle) inputTitle.value = song.title;
+            if (inputLyrics) inputLyrics.value = song.lyrics;
+            if (addModal) addModal.style.display = "flex";
+        }
+
+        // 찬양 추가 모달 열기 (신규 등록)
+        function openAddPraiseModal() {
+            currentEditingPraiseSong = null;
+            const addModal = document.getElementById("praise-add-modal");
+            const headerTitle = document.getElementById("modal-praise-header-title");
+            const inputTitle = document.getElementById("modal-praise-title");
+            const inputLyrics = document.getElementById("modal-praise-lyrics");
+            
+            if (headerTitle) headerTitle.textContent = "🎵 신규 찬양곡 등록 및 가사 입력";
+            if (inputTitle) inputTitle.value = "";
+            if (inputLyrics) inputLyrics.value = "";
+            if (addModal) addModal.style.display = "flex";
+        }
+
+        // 선택된 찬양곡 삭제 처리
+        async function deleteSelectedPraiseSongsWithConfirm(confirmRequired = true) {
+            if (selectedPraiseSongs.length === 0) return;
+
+            if (confirmRequired) {
+                const titlesStr = selectedPraiseSongs.map(s => s.title).slice(0, 3).join(", ") + (selectedPraiseSongs.length > 3 ? ` 외 ${selectedPraiseSongs.length - 3}건` : "");
+                if (!confirm(`선택한 찬양곡 (${selectedPraiseSongs.length}개: ${titlesStr})을 삭제하시겠습니까?`)) {
+                    return;
+                }
+            }
+
+            const ids = selectedPraiseSongs.filter(s => s.id).map(s => s.id);
+            const titles = selectedPraiseSongs.map(s => s.title);
+            const reqBody = ids.length > 0 ? { ids, titles } : { titles };
+
+            try {
+                const response = await fetch("/api/praise/delete", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(reqBody)
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || "삭제 실패");
+                }
+
+                selectedPraiseSongs = [];
+                const searchInput = document.getElementById("input-praise-search");
+                fetchPraiseSongs(searchInput ? searchInput.value : "");
+            } catch (err) {
+                alert("찬양 삭제 오류: " + err.message);
+            }
+        }
+
+        // 복사 (Ctrl+C)
+        function copySelectedPraiseSongs() {
+            if (selectedPraiseSongs.length === 0) return;
+            praiseClipboardData = JSON.parse(JSON.stringify(selectedPraiseSongs));
+            try {
+                navigator.clipboard.writeText(JSON.stringify({
+                    subcastType: "praiseSongs",
+                    data: praiseClipboardData
+                }));
+            } catch (err) {
+                console.error("클립보드 저장 실패:", err);
+            }
+        }
+
+        // 잘라내기 (Ctrl+X)
+        function cutSelectedPraiseSongs() {
+            if (selectedPraiseSongs.length === 0) return;
+            copySelectedPraiseSongs();
+            deleteSelectedPraiseSongsWithConfirm(false);
+        }
+
+        // 붙여넣기 (Ctrl+V)
+        async function pastePraiseSongs() {
+            let itemsToPaste = praiseClipboardData;
+            try {
+                const clipText = await navigator.clipboard.readText();
+                if (clipText) {
+                    const parsed = JSON.parse(clipText);
+                    if (parsed && parsed.subcastType === "praiseSongs" && Array.isArray(parsed.data)) {
+                        itemsToPaste = parsed.data;
+                    }
+                }
+            } catch (e) {
+                // 클립보드 읽기 실패 시 내부 메모리 사용
+            }
+
+            if (!itemsToPaste || itemsToPaste.length === 0) {
+                return;
+            }
+
+            let successCount = 0;
+            for (const song of itemsToPaste) {
+                const newTitle = song.title + " (복사본)";
+                try {
+                    const resp = await fetch("/api/praise/save", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ title: newTitle, lyrics: song.lyrics })
+                    });
+                    if (resp.ok) successCount++;
+                } catch (err) {
+                    console.error("붙여넣기 저장 오류:", err);
+                }
+            }
+
+            if (successCount > 0) {
+                const searchInput = document.getElementById("input-praise-search");
+                fetchPraiseSongs(searchInput ? searchInput.value : "");
+            }
+        }
+
         function initPraiseFeature() {
             const searchInput = document.getElementById("input-praise-search");
             const songsList = document.getElementById("praise-songs-list");
@@ -6903,6 +7166,9 @@
             const modalCloseBtn = document.getElementById("btn-praise-modal-close");
             const modalCancelBtn = document.getElementById("btn-praise-modal-cancel");
             const modalSaveBtn = document.getElementById("btn-praise-modal-save");
+
+            const btnEditSelected = document.getElementById("btn-praise-edit-selected");
+            const btnDeleteSelected = document.getElementById("btn-praise-delete-selected");
 
             const chkAllPraise = document.getElementById("chk-select-all-praise");
             const previewList = document.getElementById("praise-preview-list");
@@ -6942,12 +7208,68 @@
                 addModal.style.display = "none";
                 document.getElementById("modal-praise-title").value = "";
                 document.getElementById("modal-praise-lyrics").value = "";
+                currentEditingPraiseSong = null;
             };
-            openAddModalBtn.onclick = () => {
-                addModal.style.display = "flex";
-            };
+
+            openAddModalBtn.onclick = openAddPraiseModal;
             if (modalCloseBtn) modalCloseBtn.onclick = closeAddModal;
             if (modalCancelBtn) modalCancelBtn.onclick = closeAddModal;
+
+            if (btnEditSelected) {
+                btnEditSelected.onclick = () => {
+                    if (selectedPraiseSongs.length === 1) {
+                        openEditPraiseModal(selectedPraiseSongs[0]);
+                    } else if (selectedPraiseSongs.length > 1) {
+                        alert("한 번에 하나의 찬양곡만 수정할 수 있습니다.");
+                    }
+                };
+            }
+
+            if (btnDeleteSelected) {
+                btnDeleteSelected.onclick = () => {
+                    deleteSelectedPraiseSongsWithConfirm();
+                };
+            }
+
+            // 우클릭 컨텍스트 메뉴 이벤트 연결
+            const menuEdit = document.getElementById("menu-praise-edit");
+            const menuCopy = document.getElementById("menu-praise-copy");
+            const menuCut = document.getElementById("menu-praise-cut");
+            const menuPaste = document.getElementById("menu-praise-paste");
+            const menuDelete = document.getElementById("menu-praise-delete");
+
+            if (menuEdit) {
+                menuEdit.onclick = () => {
+                    hidePraiseContextMenu();
+                    if (selectedPraiseSongs.length === 1) {
+                        openEditPraiseModal(selectedPraiseSongs[0]);
+                    }
+                };
+            }
+            if (menuCopy) {
+                menuCopy.onclick = () => {
+                    hidePraiseContextMenu();
+                    copySelectedPraiseSongs();
+                };
+            }
+            if (menuCut) {
+                menuCut.onclick = () => {
+                    hidePraiseContextMenu();
+                    cutSelectedPraiseSongs();
+                };
+            }
+            if (menuPaste) {
+                menuPaste.onclick = () => {
+                    hidePraiseContextMenu();
+                    pastePraiseSongs();
+                };
+            }
+            if (menuDelete) {
+                menuDelete.onclick = () => {
+                    hidePraiseContextMenu();
+                    deleteSelectedPraiseSongsWithConfirm();
+                };
+            }
 
             // 4) 모달 내 찬양 DB 신규 저장/수정
             if (modalSaveBtn) {
@@ -6963,11 +7285,19 @@
                     modalSaveBtn.disabled = true;
                     modalSaveBtn.textContent = "⏳ 저장 중...";
 
+                    const savePayload = { title, lyrics };
+                    if (currentEditingPraiseSong) {
+                        if (currentEditingPraiseSong.id) {
+                            savePayload.id = currentEditingPraiseSong.id;
+                        }
+                        savePayload.original_title = currentEditingPraiseSong.title;
+                    }
+
                     try {
                         const response = await fetch("/api/praise/save", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ title, lyrics })
+                            body: JSON.stringify(savePayload)
                         });
                         
                         if (!response.ok) {
@@ -7235,28 +7565,34 @@
         // 찬양 목록 UI 그리기
         function renderPraiseSongsList(songs) {
             const songsList = document.getElementById("praise-songs-list");
-            const selectionControl = document.getElementById("praise-selection-control");
             if (!songsList) return;
 
+            currentPraiseSongsList = songs || [];
             songsList.innerHTML = "";
 
-            if (songs.length === 0) {
+            if (currentPraiseSongsList.length === 0) {
                 songsList.innerHTML = `<div style="color: var(--text-muted); font-size: 0.78rem; text-align: center; margin: auto; padding: 20px 0;">등록된 찬양이 없습니다.</div>`;
-                if (selectionControl) {
-                    adjustPraisePanelLayout(false);
-                }
+                selectedPraiseSongs = [];
+                updatePraiseSelectionUI();
                 return;
             }
 
-            songs.forEach(song => {
+            // 이전 선택 정보가 유효한지 보정
+            selectedPraiseSongs = selectedPraiseSongs.filter(sel => currentPraiseSongsList.some(s => s.title === sel.title));
+
+            currentPraiseSongsList.forEach((song, index) => {
                 const div = document.createElement("div");
                 div.className = "bible-result-item";
+                div.dataset.index = index;
+                div.dataset.title = song.title;
                 div.style.padding = "10px";
                 div.style.cursor = "pointer";
                 div.style.display = "flex";
                 div.style.flexDirection = "column";
                 div.style.gap = "4px";
-                if (activeSelectedPraiseSong && activeSelectedPraiseSong.title === song.title) {
+                div.style.userSelect = "none";
+
+                if (selectedPraiseSongs.some(s => s.title === song.title)) {
                     div.classList.add("selected");
                 }
 
@@ -7265,35 +7601,58 @@
                 const previewText = lines.length > 0 ? lines[0] : "";
 
                 div.innerHTML = `
-                    <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">${song.title}</span>
-                    <span style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${previewText}</span>
+                    <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-main); pointer-events: none;">${song.title}</span>
+                    <span style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;">${previewText}</span>
                 `;
-                div.onclick = () => {
-                    const isAlreadySelected = (activeSelectedPraiseSong && activeSelectedPraiseSong.title === song.title);
 
-                    const prevSel = songsList.querySelector(".bible-result-item.selected");
-                    if (prevSel) prevSel.classList.remove("selected");
-
-                    if (isAlreadySelected) {
-                        // 이미 선택된 항목을 누르면 해제
-                        activeSelectedPraiseSong = null;
-                        adjustPraisePanelLayout(false);
+                // 클릭 (다중 선택, Shift, Ctrl)
+                div.onclick = (e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                        const existsIdx = selectedPraiseSongs.findIndex(s => s.title === song.title);
+                        if (existsIdx >= 0) {
+                            selectedPraiseSongs.splice(existsIdx, 1);
+                        } else {
+                            selectedPraiseSongs.push(song);
+                        }
+                    } else if (e.shiftKey && lastSelectedPraiseIndex >= 0) {
+                        const start = Math.min(lastSelectedPraiseIndex, index);
+                        const end = Math.max(lastSelectedPraiseIndex, index);
+                        const rangeSongs = currentPraiseSongsList.slice(start, end + 1);
+                        rangeSongs.forEach(rs => {
+                            if (!selectedPraiseSongs.some(s => s.title === rs.title)) {
+                                selectedPraiseSongs.push(rs);
+                            }
+                        });
                     } else {
-                        // 새 선택
-                        div.classList.add("selected");
-                        activeSelectedPraiseSong = song;
-
-                        document.getElementById("lbl-selected-praise-title").textContent = song.title;
-                        document.getElementById("val-praise-char-count").textContent = song.lyrics.length;
-
-                        // 레이아웃 변경 및 분해 리스트 렌더링
-                        adjustPraisePanelLayout(true);
-                        renderPraisePreview(song);
+                        const isAlreadyOnly = (selectedPraiseSongs.length === 1 && selectedPraiseSongs[0].title === song.title);
+                        if (isAlreadyOnly) {
+                            selectedPraiseSongs = [];
+                        } else {
+                            selectedPraiseSongs = [song];
+                        }
                     }
+                    lastSelectedPraiseIndex = index;
+                    updatePraiseSelectionUI();
+                };
+
+                // 우클릭 (컨텍스트 메뉴)
+                div.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const inSel = selectedPraiseSongs.some(s => s.title === song.title);
+                    if (!inSel) {
+                        selectedPraiseSongs = [song];
+                        lastSelectedPraiseIndex = index;
+                        updatePraiseSelectionUI();
+                    }
+                    showPraiseContextMenu(e.clientX, e.clientY);
                 };
 
                 songsList.appendChild(div);
             });
+
+            updatePraiseSelectionUI();
         }
 
         // 찬양용 슬라이드 데이터 빌더 (커스텀 디자인 매핑 규격)
@@ -7441,7 +7800,7 @@
     <div id="praise-add-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content" style="width: 580px; max-width: 90vw;">
             <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <h3 style="margin: 0; color: var(--text-main); font-size: 1.05rem;">🎵 신규 찬양곡 등록 및 가사 입력</h3>
+                <h3 id="modal-praise-header-title" style="margin: 0; color: var(--text-main); font-size: 1.05rem;">🎵 신규 찬양곡 등록 및 가사 입력</h3>
                 <span id="btn-praise-modal-close" style="cursor: pointer; font-size: 1.5rem; color: var(--text-muted); line-height: 1;">&times;</span>
             </div>
             <div class="modal-body" style="padding-top: 0; display: flex; flex-direction: column; gap: 12px;">
@@ -7532,6 +7891,27 @@
         </div>
         <div class="slide-context-menu-divider"></div>
         <div class="slide-context-menu-item" id="menu-slide-delete" style="color: #ff5555;">
+            <span>🗑️ 삭제</span> <span style="color: var(--text-muted); font-size: 0.75rem;">Del</span>
+        </div>
+    </div>
+
+    <!-- 찬양 목록 우클릭 커스텀 컨텍스트 메뉴 -->
+    <div id="praise-context-menu" class="slide-context-menu">
+        <div class="slide-context-menu-item" id="menu-praise-edit">
+            <span>✏️ 찬양 수정</span>
+        </div>
+        <div class="slide-context-menu-divider"></div>
+        <div class="slide-context-menu-item" id="menu-praise-copy">
+            <span>📋 복사</span> <span style="color: var(--text-muted); font-size: 0.75rem;">Ctrl+C</span>
+        </div>
+        <div class="slide-context-menu-item" id="menu-praise-cut">
+            <span>✂️ 잘라내기</span> <span style="color: var(--text-muted); font-size: 0.75rem;">Ctrl+X</span>
+        </div>
+        <div class="slide-context-menu-item" id="menu-praise-paste">
+            <span>📥 붙여넣기</span> <span style="color: var(--text-muted); font-size: 0.75rem;">Ctrl+V</span>
+        </div>
+        <div class="slide-context-menu-divider"></div>
+        <div class="slide-context-menu-item" id="menu-praise-delete" style="color: #ff5555;">
             <span>🗑️ 삭제</span> <span style="color: var(--text-muted); font-size: 0.75rem;">Del</span>
         </div>
     </div>
