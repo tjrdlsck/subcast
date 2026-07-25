@@ -5040,10 +5040,6 @@
                                 }
                                 saveStateToHistory();
                             } else if (payload && (payload.subcastType === "slide" || payload.subcastType === "slides")) {
-                                // 다중 선택 시 붙여넣기 비활성화
-                                if (selectedSlideIds && selectedSlideIds.length > 1) {
-                                    return;
-                                }
                                 e.preventDefault();
                                 pasteSlidesFromClipboardText(textData);
                             }
@@ -5218,10 +5214,6 @@
         }
 
         function pasteSlidesFromClipboardText(textData) {
-            // 다중 선택 상태에서는 붙여넣기 비활성화
-            if (selectedSlideIds && selectedSlideIds.length > 1) {
-                return false;
-            }
             if (!textData) return false;
 
             try {
@@ -5239,8 +5231,23 @@
 
                 if (slidesToAdd.length === 0) return false;
 
-                let insertIndex = projectData.slides.findIndex(s => s.id === activeSlideId);
-                if (insertIndex === -1) insertIndex = projectData.slides.length - 1;
+                // 선택된 슬라이드들 중 가장 마지막 위치(인덱스)의 슬라이드 뒤에 삽입
+                let insertIndex = -1;
+                if (selectedSlideIds && selectedSlideIds.length > 0) {
+                    const indices = selectedSlideIds
+                        .map(id => projectData.slides.findIndex(s => s.id === id))
+                        .filter(idx => idx !== -1);
+                    if (indices.length > 0) {
+                        insertIndex = Math.max(...indices);
+                    }
+                }
+
+                if (insertIndex === -1) {
+                    insertIndex = projectData.slides.findIndex(s => s.id === activeSlideId);
+                }
+                if (insertIndex === -1) {
+                    insertIndex = projectData.slides.length - 1;
+                }
 
                 const newCreatedSlides = [];
                 slidesToAdd.forEach((slideData, idx) => {
@@ -5281,13 +5288,8 @@
             const pasteBtn = document.getElementById("menu-slide-paste");
             if (!menu || !pasteBtn) return;
 
-            // 다중 선택 상태일 때 붙여넣기 메뉴 비활성화
-            const isMultiSelect = selectedSlideIds && selectedSlideIds.length > 1;
-            if (isMultiSelect) {
-                pasteBtn.classList.add("disabled");
-            } else {
-                pasteBtn.classList.remove("disabled");
-            }
+            // 붙여넣기 메뉴 항시 활성화
+            pasteBtn.classList.remove("disabled");
 
             menu.style.display = "block";
             const menuWidth = menu.offsetWidth;
@@ -5339,7 +5341,6 @@
                 pasteBtn.onclick = async (e) => {
                     e.stopPropagation();
                     hideSlideContextMenu();
-                    if (selectedSlideIds && selectedSlideIds.length > 1) return;
                     try {
                         const text = await navigator.clipboard.readText();
                         pasteSlidesFromClipboardText(text);
