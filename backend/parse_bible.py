@@ -72,10 +72,76 @@ def parse_and_import_krv(js_path="GAE_Bible.js", db_path="GAE_Bible.db"):
     # 데이터 건수 검증
     cursor.execute("SELECT COUNT(*) FROM bible WHERE version_code = 'KRV'")
     cnt = cursor.fetchone()[0]
-    print(f"✅ DB 임포트 완료! 저장된 개역개정 구절 수: {cnt}개")
+    print(f"✅ 개역개정 (KRV) DB 임포트 완료! 저장된 구절 수: {cnt}개")
 
     conn.close()
     return cnt
 
+def parse_and_import_easy(html_path="viewer_easy.html", db_path="GAE_Bible.db"):
+    """
+    viewer_easy.html 파일에서 쉬운성경(EASY) 데이터를 파싱하여
+    sqlite3 GAE_Bible.db의 bible 테이블에 추가/업데이트합니다.
+    """
+    if not os.path.exists(html_path):
+        raise FileNotFoundError(f"원본 성경 HTML 파일('{html_path}')을 찾을 수 없습니다.")
+
+    print(f"[{html_path}] 파일 읽는 중...")
+    with open(html_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # 1. books 메타데이터 파싱 (code -> name 매핑)
+    m_b = re.search(r'const\s+books\s*=\s*(\[[\s\S]*?\]);', content)
+    if not m_b:
+        raise ValueError("viewer_easy.html 내에서 const books 배열을 찾을 수 없습니다.")
+    books_meta = json.loads(m_b.group(1))
+    book_name_map = {item["code"].lower(): item["name"] for item in books_meta}
+
+    # 2. bibleData 파싱
+    m_d = re.search(r'const\s+bibleData\s*=\s*(\[[\s\S]*?\]);', content)
+    if not m_d:
+        raise ValueError("viewer_easy.html 내에서 const bibleData 배열을 찾을 수 없습니다.")
+    data = json.loads(m_d.group(1))
+    print(f"쉬운성경 파싱 성공: 총 {len(data)}개 구절 추출됨.")
+
+    # DB 연결
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # 기존 EASY 데이터 삭제 후 인서트
+    cursor.execute("DELETE FROM bible WHERE version_code = 'EASY'")
+
+    rows = []
+    for item in data:
+        code = item["b"].lower()
+        name = book_name_map.get(code, code)
+        rows.append((
+            "EASY",
+            code,
+            name,
+            item["c"],
+            item["v"],
+            item["txt"],
+            item.get("t")
+        ))
+
+    print(f"DB 저장 중... (EASY 총 {len(rows)}개 구절)")
+    cursor.executemany("""
+        INSERT INTO bible (version_code, book_code, book_name, chapter, verse, content, title)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, rows)
+
+    conn.commit()
+
+    cursor.execute("SELECT COUNT(*) FROM bible WHERE version_code = 'EASY'")
+    cnt = cursor.fetchone()[0]
+    print(f"✅ 쉬운성경 (EASY) DB 임포트 완료! 저장된 구절 수: {cnt}개")
+
+    conn.close()
+    return cnt
+
+def parse_all(db_path="GAE_Bible.db"):
+    parse_and_import_krv(db_path=db_path)
+    parse_and_import_easy(db_path=db_path)
+
 if __name__ == "__main__":
-    parse_and_import_krv()
+    parse_all()

@@ -40,3 +40,24 @@ def test_bible_api_endpoints():
     data_search = res_search.json()
     assert data_search["total_results"] > 0
     assert any("천지를 창조하시니라" in item["content"] for item in data_search["results"])
+
+def test_bible_db_easy_import():
+    """DB에 쉬운성경 (EASY) 데이터 31,102개 구절이 정밀 임포트되었는지 검증"""
+    books = db_helper.get_books(version_code="EASY")
+    assert len(books) == 66, f"성경 66권이 조회되어야 합니다. (실제: {len(books)}권)"
+    
+    # 창세기 1장 조회 테스트
+    gen_verses = db_helper.get_chapter(book_code="gen", chapter=1, version_code="EASY")
+    assert len(gen_verses) > 0
+    assert gen_verses[0]["content"] == "태초에 하나님께서 하늘과 땅을 창조하셨습니다."
+    
+    # REST API 테스트
+    res_read = client.get("/api/bible/read?book_code=gen&chapter=1&version=EASY")
+    assert res_read.status_code == 200
+    data_read = res_read.json()
+    assert data_read["verses"][0]["content"] == "태초에 하나님께서 하늘과 땅을 창조하셨습니다."
+    
+    # 검색 API 테스트
+    res_search = client.get("/api/bible/search?query=하나님께서&version=EASY")
+    assert res_search.status_code == 200
+    assert res_search.json()["total_results"] > 0

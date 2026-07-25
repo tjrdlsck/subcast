@@ -192,7 +192,7 @@ class BibleDatabaseHelper:
             SELECT verse, content, title, book_name
             FROM bible 
             WHERE version_code = ? AND UPPER(book_code) = UPPER(?) AND chapter = ? AND verse >= ? AND verse <= ?
-            ORDER BY verse ASC
+            ORDER BY verse ASC, id ASC
         """
         try:
             cursor.execute(query, (version_code, book_code, chapter, start_verse, end_verse))
