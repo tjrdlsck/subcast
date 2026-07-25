@@ -1012,10 +1012,14 @@
                     ${isLocked ? `<div class="slide-lock-indicator">🔒 ${lockedSlides[slide.id] || ''} 편집 중</div>` : ''}
                 `;
 
-                // 클릭 시 슬라이드 대기(Preview: 초록색) 선택
+                // 클릭 시 슬라이드 선택 (LIVE ON 상태이면 클릭 시 즉시 라이브 전환!)
                 item.onclick = () => {
                     selectedSlideId = slide.id;
-                    renderDeck();
+                    if (projectData.settings?.currentLiveSlideId) {
+                        changeSlide(slide.id);
+                    } else {
+                        renderDeck();
+                    }
                 };
 
                 listEl.appendChild(item);
@@ -1052,14 +1056,24 @@
             const len = projectData.slides.length;
             if (len === 0) return;
 
-            let nextIdx = currentLiveIndex;
+            let baseIdx = currentLiveIndex !== -1 ? currentLiveIndex : projectData.slides.findIndex(s => s.id === selectedSlideId);
+            if (baseIdx === -1) baseIdx = 0;
+
+            let nextIdx = baseIdx;
             if (direction === 'next') {
-                nextIdx = (currentLiveIndex + 1) % len;
+                nextIdx = (baseIdx + 1) % len;
             } else if (direction === 'prev') {
-                nextIdx = (currentLiveIndex - 1 + len) % len;
+                nextIdx = (baseIdx - 1 + len) % len;
             }
 
-            changeSlide(projectData.slides[nextIdx].id);
+            const targetSlideId = projectData.slides[nextIdx].id;
+            selectedSlideId = targetSlideId;
+
+            if (projectData.settings?.currentLiveSlideId) {
+                changeSlide(targetSlideId);
+            } else {
+                renderDeck();
+            }
         }
 
         // 웹소켓 연결
