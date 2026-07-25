@@ -57,8 +57,9 @@
             display: flex; 
             justify-content: space-between; 
             align-items: center;
-            padding: 12px 24px;
-            background: rgba(13, 13, 17, 0.75);
+            height: 56px;
+            padding: 0 24px;
+            background: rgba(17, 24, 39, 0.85);
             backdrop-filter: var(--panel-blur);
             -webkit-backdrop-filter: var(--panel-blur);
             border-bottom: 1px solid var(--panel-border);
@@ -76,6 +77,9 @@
             font-size: 1.3rem; 
             font-weight: 700;
             letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
             background: linear-gradient(135deg, #fff 40%, var(--text-muted) 100%);
             -webkit-background-clip: text; 
             -webkit-text-fill-color: transparent;
@@ -530,22 +534,12 @@
 <body>
     <header>
         <div class="header-logo-group">
-            <h1>Subcast Presenter</h1>
-            <!-- 미니 송출 미리보기 영역 -->
-            <div class="mini-preview-container">
-                <div class="mini-preview-label">
-                    <span class="pulse-dot"></span>LIVE 송출
-                </div>
-                <div class="preview-screen">
-                    <canvas id="presenter-preview-canvas"></canvas>
-                </div>
-                <!-- 퀵 컨트롤러 -->
-                <div class="quick-nav-controls">
-                    <button class="btn-quick-nav" id="btn-prev" title="이전 슬라이드 [←]">◀</button>
-                    <span class="slide-indicator-badge" id="slide-indicator">0 / 0</span>
-                    <button class="btn-quick-nav" id="btn-next" title="다음 슬라이드 [→]">▶</button>
-                </div>
-            </div>
+            <h1>
+                <svg style="width: 22px; height: 22px; fill: var(--primary);" viewBox="0 0 24 24">
+                    <path d="M12 2L2 22h20L12 2zm0 3.99L19.53 19H4.47L12 5.99zM13 16h-2v2h2v-2zm0-6h-2v4h2v-4z"/>
+                </svg>
+                Subcast Presenter
+            </h1>
         </div>
 
         <div class="header-right-group">
@@ -699,6 +693,7 @@
 
         // 캔버스 초기화
         function initCanvas() {
+            if (!document.getElementById('presenter-preview-canvas')) return;
             if (canvas) {
                 canvas.dispose();
             }
@@ -916,7 +911,7 @@
             ws.onopen = () => {
                 const badge = document.getElementById("status-badge");
                 badge.classList.add("connected");
-                document.getElementById("status-text").innerText = "Connected (Presenter)";
+                document.getElementById("status-text").innerText = "Connected";
             };
 
             ws.onmessage = (event) => {
@@ -1028,8 +1023,10 @@
             }
 
             // 이전/다음 버튼 리스너
-            document.getElementById("btn-prev").onclick = () => navigateSlide('prev');
-            document.getElementById("btn-next").onclick = () => navigateSlide('next');
+            const btnPrev = document.getElementById("btn-prev");
+            if (btnPrev) btnPrev.onclick = () => navigateSlide('prev');
+            const btnNext = document.getElementById("btn-next");
+            if (btnNext) btnNext.onclick = () => navigateSlide('next');
 
             // 해상도 및 배경 모드 전송 버튼 리스너
             document.getElementById("btn-apply-res").onclick = () => {
