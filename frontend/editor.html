@@ -1578,16 +1578,16 @@
             background: rgba(16, 185, 129, 0.22) !important;
             box-shadow: inset 3px 0 0 #10b981;
         }
-        #table-bible-main-viewer td {
-            padding: 12px 16px;
+        #table-bible-main-viewer td, #table-bible-main-viewer th {
+            padding: 0.65em 0.85em;
             vertical-align: top;
             line-height: 1.65;
         }
-        #table-bible-main-viewer td.verse-badge {
+        #table-bible-main-viewer td.verse-badge, #table-bible-main-viewer th.verse-header {
             color: #10b981;
             font-weight: 700;
             white-space: nowrap;
-            width: 130px;
+            width: 1%;
         }
     </style>
 </head>
@@ -2076,8 +2076,8 @@
                             <table id="table-bible-main-viewer">
                                 <thead>
                                     <tr style="border-bottom: 2px solid var(--panel-border, #3f3f46); text-align: left;">
-                                        <th style="padding: 10px 16px; width: 130px; color: var(--text-muted, #a1a1aa); font-weight: 600; font-size: 0.85em;">구절</th>
-                                        <th style="padding: 10px 16px; color: var(--text-muted, #a1a1aa); font-weight: 600; font-size: 0.85em;">본문 내용</th>
+                                        <th class="verse-header" style="color: var(--text-muted, #a1a1aa); font-weight: 600; font-size: 0.85em;">구절</th>
+                                        <th style="color: var(--text-muted, #a1a1aa); font-weight: 600; font-size: 0.85em;">본문 내용</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tbody-bible-main-viewer">
