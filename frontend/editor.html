@@ -2143,29 +2143,6 @@
                         </div>
                     </div>
 
-                    <!-- 편집 공간 클릭 시 출력되는 컴팩트 플로팅 단축키 툴바 -->
-                    <div id="canvas-floating-toolbar" class="canvas-floating-toolbar">
-                        <button id="btn-shortcut-undo" class="btn-compact-action" title="실행 취소">
-                            취소 <kbd class="shortcut-badge">Ctrl+Z</kbd>
-                        </button>
-                        <button id="btn-shortcut-redo" class="btn-compact-action" title="다시 실행">
-                            다시실행 <kbd class="shortcut-badge">Ctrl+Shift+Z</kbd>
-                        </button>
-                        <div class="compact-divider"></div>
-                        <button id="btn-shortcut-copy" class="btn-compact-action" title="복사">
-                            복사 <kbd class="shortcut-badge">Ctrl+C</kbd>
-                        </button>
-                        <button id="btn-shortcut-cut" class="btn-compact-action" title="잘라내기">
-                            잘라내기 <kbd class="shortcut-badge">Ctrl+X</kbd>
-                        </button>
-                        <button id="btn-shortcut-paste" class="btn-compact-action" title="붙여넣기">
-                            붙여넣기 <kbd class="shortcut-badge">Ctrl+V</kbd>
-                        </button>
-                        <button id="btn-shortcut-delete" class="btn-compact-action btn-danger" title="삭제">
-                            삭제 <kbd class="shortcut-badge">Del</kbd>
-                        </button>
-                    </div>
-
                     <!-- 성경 내용 메인 표 뷰어 (중앙 슬라이드 영역 오버레이) -->
                     <div id="bible-main-viewer-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark, #121212); z-index: 100; flex-direction: column; box-shadow: inset 0 0 12px rgba(0,0,0,0.6);">
                         <!-- 뷰어 상단 헤더 -->
@@ -5401,19 +5378,45 @@
             if (menu) menu.style.display = "none";
         }
 
+        function showCanvasContextMenu(x, y) {
+            hideSlideContextMenu();
+            const menu = document.getElementById("canvas-context-menu");
+            if (!menu) return;
+
+            menu.style.display = "block";
+            const menuWidth = menu.offsetWidth;
+            const menuHeight = menu.offsetHeight;
+            const winWidth = window.innerWidth;
+            const winHeight = window.innerHeight;
+
+            let posX = x;
+            let posY = y;
+            if (x + menuWidth > winWidth) posX = winWidth - menuWidth - 10;
+            if (y + menuHeight > winHeight) posY = winHeight - menuHeight - 10;
+
+            menu.style.left = `${posX}px`;
+            menu.style.top = `${posY}px`;
+        }
+
+        function hideCanvasContextMenu() {
+            const menu = document.getElementById("canvas-context-menu");
+            if (menu) menu.style.display = "none";
+        }
+
         document.addEventListener("mousedown", (e) => {
             if (!e.target.closest("#slide-context-menu")) {
                 hideSlideContextMenu();
             }
+            if (!e.target.closest("#canvas-context-menu")) {
+                hideCanvasContextMenu();
+            }
+        });
 
-            // 캔버스 편집 공간 클릭 시 컴팩트 플로팅 단축키 툴바 노출
-            const floatingToolbar = document.getElementById("canvas-floating-toolbar");
-            if (floatingToolbar) {
-                if (e.target.closest(".canvas-workspace") || e.target.closest("#canvas-floating-toolbar")) {
-                    floatingToolbar.style.display = "flex";
-                } else {
-                    floatingToolbar.style.display = "none";
-                }
+        // 캔버스 편집 공간 우클릭 시 커스텀 우클릭 팝업 메뉴 표시
+        document.addEventListener("contextmenu", (e) => {
+            if (e.target.closest(".canvas-workspace") || e.target.closest(".canvas-wrapper-outer") || e.target.closest("#editor-canvas")) {
+                e.preventDefault();
+                showCanvasContextMenu(e.clientX, e.clientY);
             }
         });
 
@@ -5461,26 +5464,28 @@
         if (document.readyState === "loading") {
             document.addEventListener("DOMContentLoaded", () => {
                 bindSlideContextMenuEvents();
-                bindCanvasActionToolbarEvents();
+                bindCanvasContextMenuEvents();
             });
         } else {
             bindSlideContextMenuEvents();
-            bindCanvasActionToolbarEvents();
+            bindCanvasContextMenuEvents();
         }
 
-        function bindCanvasActionToolbarEvents() {
-            const undoBtn = document.getElementById("btn-shortcut-undo");
-            const redoBtn = document.getElementById("btn-shortcut-redo");
-            const copyBtn = document.getElementById("btn-shortcut-copy");
-            const cutBtn = document.getElementById("btn-shortcut-cut");
-            const pasteBtn = document.getElementById("btn-shortcut-paste");
-            const deleteBtn = document.getElementById("btn-shortcut-delete");
+        function bindCanvasContextMenuEvents() {
+            const undoBtn = document.getElementById("menu-canvas-undo");
+            const redoBtn = document.getElementById("menu-canvas-redo");
+            const copyBtn = document.getElementById("menu-canvas-copy");
+            const cutBtn = document.getElementById("menu-canvas-cut");
+            const pasteBtn = document.getElementById("menu-canvas-paste");
+            const deleteBtn = document.getElementById("menu-canvas-delete");
 
-            if (undoBtn) undoBtn.onclick = () => undo();
-            if (redoBtn) redoBtn.onclick = () => redo();
+            if (undoBtn) undoBtn.onclick = (e) => { e.stopPropagation(); hideCanvasContextMenu(); undo(); };
+            if (redoBtn) redoBtn.onclick = (e) => { e.stopPropagation(); hideCanvasContextMenu(); redo(); };
 
             if (copyBtn) {
-                copyBtn.onclick = () => {
+                copyBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    hideCanvasContextMenu();
                     const activeObj = canvas.getActiveObject();
                     if (activeObj) {
                         if (activeObj.type === 'activeSelection') {
@@ -5510,7 +5515,9 @@
             }
 
             if (cutBtn) {
-                cutBtn.onclick = () => {
+                cutBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    hideCanvasContextMenu();
                     const activeObj = canvas.getActiveObject();
                     if (activeObj) {
                         if (activeObj.type === 'activeSelection') {
@@ -5545,7 +5552,9 @@
             }
 
             if (pasteBtn) {
-                pasteBtn.onclick = async () => {
+                pasteBtn.onclick = async (e) => {
+                    e.stopPropagation();
+                    hideCanvasContextMenu();
                     try {
                         const text = await navigator.clipboard.readText();
                         if (!text) return;
@@ -5599,7 +5608,9 @@
             }
 
             if (deleteBtn) {
-                deleteBtn.onclick = () => {
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    hideCanvasContextMenu();
                     const activeObj = canvas.getActiveObject();
                     const isTemplateTabActive = document.getElementById('panel-templates')?.classList.contains('active');
                     if (activeObj || currentEditingElement) {
@@ -7521,6 +7532,30 @@
         <div class="slide-context-menu-divider"></div>
         <div class="slide-context-menu-item" id="menu-slide-delete" style="color: #ff5555;">
             <span>🗑️ 삭제</span> <span style="color: var(--text-muted); font-size: 0.75rem;">Del</span>
+        </div>
+    </div>
+
+    <!-- 캔버스 편집 공간 우클릭 커스텀 컨텍스트 메뉴 (아이콘 없는 컴팩트 텍스트) -->
+    <div id="canvas-context-menu" class="slide-context-menu">
+        <div class="slide-context-menu-item" id="menu-canvas-undo">
+            <span>취소</span> <span style="color: var(--text-muted); font-size: 0.72rem;">Ctrl+Z</span>
+        </div>
+        <div class="slide-context-menu-item" id="menu-canvas-redo">
+            <span>다시실행</span> <span style="color: var(--text-muted); font-size: 0.72rem;">Ctrl+Shift+Z</span>
+        </div>
+        <div class="slide-context-menu-divider"></div>
+        <div class="slide-context-menu-item" id="menu-canvas-copy">
+            <span>복사</span> <span style="color: var(--text-muted); font-size: 0.72rem;">Ctrl+C</span>
+        </div>
+        <div class="slide-context-menu-item" id="menu-canvas-cut">
+            <span>잘라내기</span> <span style="color: var(--text-muted); font-size: 0.72rem;">Ctrl+X</span>
+        </div>
+        <div class="slide-context-menu-item" id="menu-canvas-paste">
+            <span>붙여넣기</span> <span style="color: var(--text-muted); font-size: 0.72rem;">Ctrl+V</span>
+        </div>
+        <div class="slide-context-menu-divider"></div>
+        <div class="slide-context-menu-item" id="menu-canvas-delete" style="color: #ff5555;">
+            <span>삭제</span> <span style="color: var(--text-muted); font-size: 0.72rem;">Del</span>
         </div>
     </div>
 </body>
