@@ -410,10 +410,23 @@
             display: none; 
             align-items: center; 
             gap: 4px; 
-            font-size: 0.7rem;
-            color: #f87171; 
-            font-weight: 500;
-            margin-top: 2px;
+            font-size: 0.68rem;
+            color: #fff;
+            background: rgba(239, 68, 68, 0.85);
+            backdrop-filter: blur(4px);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            z-index: 15;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            max-width: calc(100% - 16px);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            pointer-events: none;
         }
         .slide-item.locked .slide-lock-indicator { display: flex; }
 
@@ -909,15 +922,21 @@
 
             document.getElementById("slide-count").innerText = `${projectData.slides.length} Slides`;
 
-            // 상단 LIVE 배지 아이콘 상태 업데이트
+            // 상단 LIVE 배지 아이콘 상태 및 클릭 이벤트 업데이트
             const liveBadge = document.getElementById("live-status-badge");
             const hasLiveSlide = !!projectData.settings?.currentLiveSlideId;
             if (liveBadge) {
+                liveBadge.style.cursor = "pointer";
                 if (hasLiveSlide) {
                     liveBadge.classList.add("on");
                 } else {
                     liveBadge.classList.remove("on");
                 }
+                liveBadge.onclick = () => {
+                    if (projectData.settings?.currentLiveSlideId) {
+                        changeSlide(null);
+                    }
+                };
             }
 
             projectData.slides.forEach((slide, index) => {
@@ -938,7 +957,7 @@
 
                 item.innerHTML = `
                     <!-- 슬라이드 순번 배지 (카드 자체의 왼쪽 위 모서리에 배치) -->
-                    <div style="position: absolute; top: -8px; left: -8px; background: var(--primary); color: #fff; font-size: 0.7rem; font-weight: 800; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1.5px solid var(--bg-color); z-index: 20; font-family: 'Outfit', sans-serif; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
+                    <div style="position: absolute; top: -8px; left: -8px; background: ${isLive ? 'var(--accent-live)' : 'var(--primary)'}; color: #fff; font-size: 0.7rem; font-weight: 800; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1.5px solid var(--bg-color); z-index: 20; font-family: 'Outfit', sans-serif; box-shadow: ${isLive ? '0 0 8px var(--accent-live-glow)' : '0 2px 5px rgba(0,0,0,0.5)'};">
                         ${index + 1}
                     </div>
                     <div class="slide-thumbnail-wrapper">
@@ -947,9 +966,13 @@
                     ${isLocked ? `<div class="slide-lock-indicator">🔒 ${lockedSlides[slide.id] || ''} 편집 중</div>` : ''}
                 `;
 
-                // 클릭 시 해당 슬라이드로 즉시 전환
+                // 클릭 시 해당 슬라이드로 전환 (이미 LIVE 중이면 클릭 시 LIVE 끄기/토글)
                 item.onclick = () => {
-                    changeSlide(slide.id);
+                    if (isLive) {
+                        changeSlide(null);
+                    } else {
+                        changeSlide(slide.id);
+                    }
                 };
 
                 listEl.appendChild(item);
