@@ -290,10 +290,32 @@
             box-shadow: var(--shadow-md);
         }
 
+        /* 선택된 (Preview 대기) 슬라이드 - 초록색 하이라이트 */
+        .slide-item.selected {
+            border-color: var(--green-online) !important;
+            background: rgba(16, 185, 129, 0.06) !important;
+            box-shadow: 0 0 16px rgba(16, 185, 129, 0.35) !important;
+        }
+        .slide-item.selected::after {
+            content: 'PREVIEW';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--green-online);
+            color: white;
+            font-size: 0.58rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+        }
+
+        /* LIVE 송출 상태 슬라이드 - 빨간색 하이라이트 */
         .slide-item.live {
-            border-color: var(--accent-live); 
-            background: rgba(239, 68, 68, 0.05);
-            box-shadow: 0 0 16px var(--accent-live-glow);
+            border-color: var(--accent-live) !important; 
+            background: rgba(239, 68, 68, 0.08) !important;
+            box-shadow: 0 0 18px var(--accent-live-glow) !important;
         }
         .slide-item.live::after {
             content: ''; 
@@ -737,6 +759,7 @@
         let projectData = null;
         let lockedSlides = {};
         let currentLiveIndex = -1;
+        let selectedSlideId = null;
         let canvas = null;
         let targetWidth = 1920;
         let targetHeight = 1080;
@@ -933,8 +956,16 @@
                     liveBadge.classList.remove("on");
                 }
                 liveBadge.onclick = () => {
-                    if (projectData.settings?.currentLiveSlideId) {
+                    if (hasLiveSlide) {
+                        // 송출 중일 때는 송출 끄기 (OFF)
                         changeSlide(null);
+                    } else {
+                        // 송출 OFF일 때는 현재 선택된(초록색) 슬라이드를 송출 (LIVE ON)
+                        if (selectedSlideId) {
+                            changeSlide(selectedSlideId);
+                        } else if (projectData.slides.length > 0) {
+                            changeSlide(projectData.slides[0].id);
+                        }
                     }
                 };
             }
@@ -944,10 +975,14 @@
                 item.className = "slide-item";
                 item.id = `slide-item-${slide.id}`;
                 
-                const isLive = slide.id === projectData.settings.currentLiveSlideId;
+                const isLive = slide.id === projectData.settings?.currentLiveSlideId;
+                const isSelected = slide.id === selectedSlideId;
+
                 if (isLive) {
                     item.classList.add("live");
                     currentLiveIndex = index;
+                } else if (isSelected) {
+                    item.classList.add("selected");
                 }
 
                 const isLocked = lockedSlides[slide.id] !== undefined;
@@ -955,9 +990,20 @@
                     item.classList.add("locked");
                 }
 
+                // 배지 색상 구분: LIVE면 빨간색, Selected(대기)면 초록색, 기본 보라색
+                let badgeBg = "var(--primary)";
+                let badgeShadow = "0 2px 5px rgba(0,0,0,0.5)";
+                if (isLive) {
+                    badgeBg = "var(--accent-live)";
+                    badgeShadow = "0 0 8px var(--accent-live-glow)";
+                } else if (isSelected) {
+                    badgeBg = "var(--green-online)";
+                    badgeShadow = "0 0 8px rgba(16, 185, 129, 0.5)";
+                }
+
                 item.innerHTML = `
-                    <!-- 슬라이드 순번 배지 (카드 자체의 왼쪽 위 모서리에 배치) -->
-                    <div style="position: absolute; top: -8px; left: -8px; background: ${isLive ? 'var(--accent-live)' : 'var(--primary)'}; color: #fff; font-size: 0.7rem; font-weight: 800; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1.5px solid var(--bg-color); z-index: 20; font-family: 'Outfit', sans-serif; box-shadow: ${isLive ? '0 0 8px var(--accent-live-glow)' : '0 2px 5px rgba(0,0,0,0.5)'};">
+                    <!-- 슬라이드 순번 배지 -->
+                    <div style="position: absolute; top: -8px; left: -8px; background: ${badgeBg}; color: #fff; font-size: 0.7rem; font-weight: 800; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1.5px solid var(--bg-color); z-index: 20; font-family: 'Outfit', sans-serif; box-shadow: ${badgeShadow};">
                         ${index + 1}
                     </div>
                     <div class="slide-thumbnail-wrapper">
@@ -966,13 +1012,10 @@
                     ${isLocked ? `<div class="slide-lock-indicator">🔒 ${lockedSlides[slide.id] || ''} 편집 중</div>` : ''}
                 `;
 
-                // 클릭 시 해당 슬라이드로 전환 (이미 LIVE 중이면 클릭 시 LIVE 끄기/토글)
+                // 클릭 시 슬라이드 대기(Preview: 초록색) 선택
                 item.onclick = () => {
-                    if (isLive) {
-                        changeSlide(null);
-                    } else {
-                        changeSlide(slide.id);
-                    }
+                    selectedSlideId = slide.id;
+                    renderDeck();
                 };
 
                 listEl.appendChild(item);
@@ -1078,6 +1121,9 @@
                 else if (message.type === 'SLIDE_CHANGE') {
                     if (projectData) {
                         projectData.settings.currentLiveSlideId = message.slideId;
+                        if (message.slideId) {
+                            selectedSlideId = message.slideId;
+                        }
                         renderDeck();
                     }
                 }
