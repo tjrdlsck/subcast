@@ -2749,17 +2749,26 @@
                 item.oncontextmenu = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    if (!isLockedByOthers && !selectedSlideIds.includes(slide.id)) {
-                        selectedSlideIds = [slide.id];
-                        selectSlideForEdit(slide.id);
-                        renderSlides();
+                    if (!isLockedByOthers) {
+                        if (!selectedSlideIds.includes(slide.id)) {
+                            selectedSlideIds = [slide.id];
+                            selectSlideForEdit(slide.id);
+                        }
                     }
                     showSlideContextMenu(e.clientX, e.clientY);
                 };
 
                 if (!isLockedByOthers) {
                     item.onclick = (e) => {
-                        if (e.shiftKey) {
+                        if (e.ctrlKey || e.metaKey) {
+                            if (selectedSlideIds.includes(slide.id)) {
+                                if (selectedSlideIds.length > 1) {
+                                    selectedSlideIds = selectedSlideIds.filter(id => id !== slide.id);
+                                }
+                            } else {
+                                selectedSlideIds.push(slide.id);
+                            }
+                        } else if (e.shiftKey) {
                             const activeIndex = projectData.slides.findIndex(s => s.id === activeSlideId);
                             const clickedIndex = index;
                             if (activeIndex !== -1) {
@@ -2783,7 +2792,7 @@
 
         function selectSlideForEdit(slideId, force = false) {
             if (activeSlideId === slideId && !force) {
-                if (selectedSlideIds.length === 0) {
+                if (!selectedSlideIds || selectedSlideIds.length === 0) {
                     selectedSlideIds = [slideId];
                 }
                 return;
