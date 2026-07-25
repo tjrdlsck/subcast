@@ -1781,6 +1781,16 @@
                     </div>
                     
                     <div class="panel-body" style="display: flex; flex-direction: column; overflow: hidden; gap: 14px; height: 100%;">
+                        <!-- 성경 번역본 버전 선택 드롭다운 -->
+                        <div style="display: flex; flex-direction: column; gap: 4px; flex-shrink: 0;">
+                            <label style="font-size: 0.68rem; color: var(--text-muted); font-weight: 600;">성경 번역본 선택</label>
+                            <select id="select-bible-version" style="width: 100%; padding: 8px 12px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; height: 36px; outline: none; cursor: pointer;">
+                                <option value="KRV">개역개정 (KRV)</option>
+                                <option value="EASY">쉬운성경 (EASY)</option>
+                                <option value="NIV">NIV 영어성경 (NIV)</option>
+                            </select>
+                        </div>
+
                         <!-- 검색 모드 선택 (Segmented Control) -->
                         <div class="search-mode-tabs" style="display: flex; background: var(--bg-dark); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 2px; flex-shrink: 0;">
                             <button class="mode-tab-btn active" id="btn-mode-coord" style="flex: 1; text-align: center; padding: 6px 12px; font-size: 0.78rem; border: none; border-radius: var(--radius-xs); background: transparent; color: var(--text-muted); cursor: pointer; font-weight: 500; transition: all 0.2s ease;">장/절 검색</button>

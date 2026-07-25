@@ -167,16 +167,17 @@ class BibleDatabaseHelper:
         finally:
             conn.close()
 
-    def get_books(self):
+    def get_books(self, version_code: str = "KRV"):
         conn = self.get_connection()
         cursor = conn.cursor()
         query = """
             SELECT DISTINCT book_name, book_code
             FROM bible 
+            WHERE version_code = ?
             ORDER BY id ASC
         """
         try:
-            cursor.execute(query)
+            cursor.execute(query, (version_code,))
             rows = cursor.fetchall()
             books_map = {}
             for row in rows:
@@ -186,7 +187,7 @@ class BibleDatabaseHelper:
                     "max_chapter": 0
                 }
             
-            cursor.execute("SELECT book_code, MAX(chapter) as max_c FROM bible GROUP BY book_code")
+            cursor.execute("SELECT book_code, MAX(chapter) as max_c FROM bible WHERE version_code = ? GROUP BY book_code", (version_code,))
             for row in cursor.fetchall():
                 if row["book_code"] in books_map:
                     books_map[row["book_code"]]["max_chapter"] = row["max_c"]
@@ -195,35 +196,35 @@ class BibleDatabaseHelper:
         finally:
             conn.close()
 
-    def get_chapter(self, book_code: str, chapter: int, start_verse: int = 1, end_verse: int = 999):
+    def get_chapter(self, book_code: str, chapter: int, start_verse: int = 1, end_verse: int = 999, version_code: str = "KRV"):
         conn = self.get_connection()
         cursor = conn.cursor()
         query = """
             SELECT verse, content, title, book_name
             FROM bible 
-            WHERE book_code = ? AND chapter = ? AND verse >= ? AND verse <= ?
+            WHERE version_code = ? AND UPPER(book_code) = UPPER(?) AND chapter = ? AND verse >= ? AND verse <= ?
             ORDER BY verse ASC
         """
         try:
-            cursor.execute(query, (book_code, chapter, start_verse, end_verse))
+            cursor.execute(query, (version_code, book_code, chapter, start_verse, end_verse))
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
         finally:
             conn.close()
 
-    def search_keyword(self, keyword: str, limit: int = 50):
+    def search_keyword(self, keyword: str, limit: int = 50, version_code: str = "KRV"):
         conn = self.get_connection()
         cursor = conn.cursor()
         query = """
             SELECT book_name, book_code, chapter, verse, content 
             FROM bible 
-            WHERE content LIKE ?
+            WHERE version_code = ? AND content LIKE ?
             ORDER BY id ASC
             LIMIT ?
         """
         try:
             search_param = f"%{keyword}%"
-            cursor.execute(query, (search_param, limit))
+            cursor.execute(query, (version_code, search_param, limit))
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
         finally:
@@ -328,9 +329,9 @@ async def save_praise_song(req: PraiseSongSaveRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/bible/books")
-async def get_bible_books():
+async def get_bible_books(version: str = Query("KRV")):
     try:
-        return db_helper.get_books()
+        return db_helper.get_books(version_code=version)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -339,10 +340,11 @@ async def read_bible(
     book_code: str,
     chapter: int,
     start_verse: int = Query(1),
-    end_verse: int = Query(999)
+    end_verse: int = Query(999),
+    version: str = Query("KRV")
 ):
     try:
-        verses = db_helper.get_chapter(book_code, chapter, start_verse, end_verse)
+        verses = db_helper.get_chapter(book_code, chapter, start_verse, end_verse, version_code=version)
         if not verses:
             return {"book_name": "", "book_code": book_code, "chapter": chapter, "verses": []}
         return {
@@ -357,12 +359,13 @@ async def read_bible(
 @app.get("/api/bible/search")
 async def search_bible(
     query: str,
-    limit: int = Query(50)
+    limit: int = Query(50),
+    version: str = Query("KRV")
 ):
     if len(query.strip()) < 2:
         raise HTTPException(status_code=400, detail="검색어는 공백 제외 2글자 이상 입력해 주세요.")
     try:
-        results = db_helper.search_keyword(query.strip(), limit)
+        results = db_helper.search_keyword(query.strip(), limit, version_code=version)
         return {
             "query": query,
             "total_results": len(results),
