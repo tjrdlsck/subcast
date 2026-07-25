@@ -5043,6 +5043,14 @@
             // 성경 책 목록 가져오기
             fetchBibleBooks();
 
+            // 성경 번역본 선택 변경 이벤트 바인딩
+            const selectVer = document.getElementById("select-bible-version");
+            if (selectVer) {
+                selectVer.addEventListener("change", () => {
+                    fetchBibleBooks();
+                });
+            }
+
             // 성경 모달 취소 및 닫기 바인딩
             const closeBibleModal = () => {
                 document.getElementById("bible-insert-modal").style.display = "none";
@@ -5301,9 +5309,15 @@
             document.getElementById("form-keyword-search").style.display = isCoord ? "none" : "flex";
         }
 
+        function getSelectedBibleVersion() {
+            const selectVer = document.getElementById("select-bible-version");
+            return selectVer ? selectVer.value : "KRV";
+        }
+
         async function fetchBibleBooks() {
             try {
-                const response = await fetch("/api/bible/books");
+                const version = getSelectedBibleVersion();
+                const response = await fetch(`/api/bible/books?version=${version}`);
                 if (!response.ok) throw new Error("성경 책 목록 로드 실패");
                 bibleBooksList = await response.json();
                 
@@ -5352,6 +5366,7 @@
             const chapter = parseInt(document.getElementById("input-bible-chapter").value);
             const startVerseVal = document.getElementById("input-bible-start-verse").value;
             const endVerseVal = document.getElementById("input-bible-end-verse").value;
+            const version = getSelectedBibleVersion();
             
             if (!chapter || chapter < 1) {
                 alert("올바른 장 번호를 입력하세요.");
@@ -5368,7 +5383,7 @@
 
             setBibleLoadingState(true, "btn-bible-fetch");
             try {
-                const response = await fetch(`/api/bible/read?book_code=${bookCode}&chapter=${chapter}&start_verse=${startVerse}&end_verse=${endVerse}`);
+                const response = await fetch(`/api/bible/read?book_code=${bookCode}&chapter=${chapter}&start_verse=${startVerse}&end_verse=${endVerse}&version=${version}`);
                 if (!response.ok) throw new Error("성경 구절 패치 실패");
                 const data = await response.json();
                 
@@ -5388,6 +5403,7 @@
 
         async function searchBibleKeywords() {
             const query = document.getElementById("input-bible-keyword").value.trim();
+            const version = getSelectedBibleVersion();
             if (query.length < 2) {
                 alert("검색어는 공백 제외 2글자 이상 입력해 주세요.");
                 return;
@@ -5395,7 +5411,7 @@
 
             setBibleLoadingState(true, "btn-bible-search");
             try {
-                const response = await fetch(`/api/bible/search?query=${encodeURIComponent(query)}`);
+                const response = await fetch(`/api/bible/search?query=${encodeURIComponent(query)}&version=${version}`);
                 if (!response.ok) {
                     const errData = await response.json();
                     throw new Error(errData.detail || "검색 실패");
