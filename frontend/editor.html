@@ -1564,13 +1564,19 @@
             width: 100%;
             border-collapse: collapse;
             color: var(--text-main, #f4f4f5);
+            user-select: none;
         }
         #table-bible-main-viewer tr {
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
             transition: background 0.15s ease;
+            cursor: pointer;
         }
         #table-bible-main-viewer tr:hover {
             background: rgba(255, 255, 255, 0.05);
+        }
+        #table-bible-main-viewer tr.selected {
+            background: rgba(16, 185, 129, 0.22) !important;
+            box-shadow: inset 3px 0 0 #10b981;
         }
         #table-bible-main-viewer td {
             padding: 12px 16px;
@@ -2049,6 +2055,11 @@
                                 </span>
                             </div>
                             <div style="display: flex; align-items: center; gap: 12px;">
+                                <!-- 선택 구절 슬라이드 추가 버튼 -->
+                                <button id="btn-bible-viewer-add-slides" style="background: #10b981; border: none; height: 28px; padding: 0 12px; border-radius: var(--radius-xs); color: #ffffff; font-weight: 600; font-size: 0.78rem; cursor: not-allowed; opacity: 0.5; display: flex; align-items: center; gap: 4px; transition: all 0.15s ease;" disabled>
+                                    <span>➕ 선택 구절 슬라이드 추가</span>
+                                    (<strong id="bible-viewer-selected-count">0</strong>개)
+                                </button>
                                 <div style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--text-main, #f4f4f5);">
                                     <span style="color: var(--text-muted);">글자 크기:</span>
                                     <strong id="bible-viewer-fontsize-label" style="color: #10b981; min-width: 36px; text-align: center; font-size: 0.85rem;">16px</strong>
@@ -5544,11 +5555,165 @@
             const btnIncrease = document.getElementById("btn-bible-font-increase");
             const btnReset = document.getElementById("btn-bible-font-reset");
             const btnClose = document.getElementById("btn-close-bible-viewer");
+            const btnAddSlides = document.getElementById("btn-bible-viewer-add-slides");
 
             if (btnDecrease) btnDecrease.onclick = () => updateBibleViewerFontSize(bibleViewerFontSize - 1);
             if (btnIncrease) btnIncrease.onclick = () => updateBibleViewerFontSize(bibleViewerFontSize + 1);
             if (btnReset) btnReset.onclick = () => updateBibleViewerFontSize(16);
             if (btnClose) btnClose.onclick = hideBibleMainViewer;
+            if (btnAddSlides) btnAddSlides.onclick = addBibleSlidesToProject;
+        }
+
+        let bibleViewerLastClickedIndex = -1;
+
+        function attachBibleTableSelectionEvents(results) {
+            const tbody = document.getElementById("tbody-bible-main-viewer");
+            if (!tbody || !results) return;
+
+            const rows = Array.from(tbody.querySelectorAll("tr"));
+            if (rows.length === 0 || results.length === 0) return;
+
+            let isMouseDown = false;
+            let dragStartIndex = -1;
+
+            rows.forEach((tr, idx) => {
+                tr.dataset.index = idx;
+
+                tr.onmousedown = (e) => {
+                    if (e.button !== 0) return;
+                    isMouseDown = true;
+                    dragStartIndex = idx;
+
+                    if (e.ctrlKey || e.metaKey) {
+                        tr.classList.toggle("selected");
+                        bibleViewerLastClickedIndex = idx;
+                        syncSelectionFromViewer(results);
+                    } else if (e.shiftKey && bibleViewerLastClickedIndex !== -1) {
+                        const start = Math.min(bibleViewerLastClickedIndex, idx);
+                        const end = Math.max(bibleViewerLastClickedIndex, idx);
+                        rows.forEach((r, rIdx) => {
+                            if (rIdx >= start && rIdx <= end) {
+                                r.classList.add("selected");
+                            }
+                        });
+                        syncSelectionFromViewer(results);
+                    }
+                };
+
+                tr.onmouseenter = (e) => {
+                    if (isMouseDown && dragStartIndex !== -1) {
+                        const start = Math.min(dragStartIndex, idx);
+                        const end = Math.max(dragStartIndex, idx);
+                        rows.forEach((r, rIdx) => {
+                            if (rIdx >= start && rIdx <= end) {
+                                r.classList.add("selected");
+                            }
+                        });
+                        syncSelectionFromViewer(results);
+                    }
+                };
+
+                tr.onclick = (e) => {
+                    if (!e.ctrlKey && !e.shiftKey && dragStartIndex === idx) {
+                        const selectedRows = tbody.querySelectorAll("tr.selected");
+                        if (selectedRows.length > 1) {
+                            rows.forEach(r => r.classList.remove("selected"));
+                            tr.classList.add("selected");
+                        } else {
+                            tr.classList.toggle("selected");
+                        }
+                        bibleViewerLastClickedIndex = idx;
+                        syncSelectionFromViewer(results);
+                    }
+                };
+            });
+
+            const onMouseUp = () => {
+                if (isMouseDown) {
+                    isMouseDown = false;
+                    dragStartIndex = -1;
+                    syncSelectionFromViewer(results);
+                }
+            };
+
+            document.removeEventListener("mouseup", tbody._mouseUpHandler || function(){});
+            tbody._mouseUpHandler = onMouseUp;
+            document.addEventListener("mouseup", onMouseUp);
+        }
+
+        function syncSelectionFromViewer(results) {
+            const tbody = document.getElementById("tbody-bible-main-viewer");
+            if (!tbody || !results) return;
+
+            const selectedIndices = [];
+            const rows = tbody.querySelectorAll("tr");
+            rows.forEach((tr, idx) => {
+                if (tr.classList.contains("selected")) {
+                    selectedIndices.push(idx);
+                }
+            });
+
+            selectedBibleVerses = selectedIndices.map(i => results[i]).filter(Boolean);
+
+            const leftItems = document.querySelectorAll("#bible-results-list .bible-result-item");
+            leftItems.forEach((div, idx) => {
+                const chk = div.querySelector(".bible-item-checkbox");
+                const isSelected = selectedIndices.includes(idx);
+                if (chk) chk.checked = isSelected;
+                div.classList.toggle("selected", isSelected);
+            });
+
+            const count = selectedBibleVerses.length;
+            const countLabel = document.getElementById("bible-viewer-selected-count");
+            if (countLabel) countLabel.textContent = count;
+
+            const viewerAddBtn = document.getElementById("btn-bible-viewer-add-slides");
+            if (viewerAddBtn) {
+                if (count > 0) {
+                    viewerAddBtn.disabled = false;
+                    viewerAddBtn.style.cursor = "pointer";
+                    viewerAddBtn.style.opacity = "1";
+                } else {
+                    viewerAddBtn.disabled = true;
+                    viewerAddBtn.style.cursor = "not-allowed";
+                    viewerAddBtn.style.opacity = "0.5";
+                }
+            }
+
+            updateBibleExpectedSlides();
+        }
+
+        function syncViewerFromLeftPanel() {
+            const tbody = document.getElementById("tbody-bible-main-viewer");
+            if (!tbody) return;
+
+            const leftItems = document.querySelectorAll("#bible-results-list .bible-result-item");
+            const rows = tbody.querySelectorAll("tr");
+
+            leftItems.forEach((div, idx) => {
+                const chk = div.querySelector(".bible-item-checkbox");
+                const isChecked = chk && chk.checked;
+                if (rows[idx]) {
+                    rows[idx].classList.toggle("selected", isChecked);
+                }
+            });
+
+            const count = selectedBibleVerses.length;
+            const countLabel = document.getElementById("bible-viewer-selected-count");
+            if (countLabel) countLabel.textContent = count;
+
+            const viewerAddBtn = document.getElementById("btn-bible-viewer-add-slides");
+            if (viewerAddBtn) {
+                if (count > 0) {
+                    viewerAddBtn.disabled = false;
+                    viewerAddBtn.style.cursor = "pointer";
+                    viewerAddBtn.style.opacity = "1";
+                } else {
+                    viewerAddBtn.disabled = true;
+                    viewerAddBtn.style.cursor = "not-allowed";
+                    viewerAddBtn.style.opacity = "0.5";
+                }
+            }
         }
 
         function showBibleMainViewer(results, titleInfo) {
@@ -5577,10 +5742,13 @@
                     `;
                     tbody.appendChild(tr);
                 });
+
+                attachBibleTableSelectionEvents(results);
             }
 
             overlay.style.display = "flex";
             updateBibleViewerFontSize(bibleViewerFontSize);
+            syncViewerFromLeftPanel();
         }
 
         function hideBibleMainViewer() {
@@ -5680,6 +5848,7 @@
             const allChecked = allCheckboxes.length > 0 && Array.from(allCheckboxes).every(c => c.checked);
             document.getElementById("chk-select-all-bible").checked = allChecked;
 
+            syncViewerFromLeftPanel();
             updateBibleExpectedSlides();
         }
 
