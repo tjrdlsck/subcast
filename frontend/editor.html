@@ -77,7 +77,39 @@
             background: linear-gradient(135deg, #fff 40%, var(--text-muted) 100%);
             -webkit-background-clip: text;
             -webkit-fill-color: transparent;
-            -webkit-text-fill-color: transparent;
+        }
+
+        .header-logo-group {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-nav-menu {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 12px;
+        }
+        .header-nav-menu .nav-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 600;
+            padding: 5px 11px;
+            border-radius: var(--radius-sm);
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+        }
+        .header-nav-menu .nav-link:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .header-nav-menu .nav-link.active {
+            color: #fff;
+            background: var(--primary);
+            box-shadow: 0 2px 8px var(--primary-glow);
         }
         
         .header-center {
@@ -1532,12 +1564,20 @@
     <div class="app-layout">
         <!-- Top Bar -->
         <header>
-            <h1>
-                <svg style="width: 22px; height: 22px; fill: var(--primary);" viewBox="0 0 24 24">
-                    <path d="M12 2L2 22h20L12 2zm0 3.99L19.53 19H4.47L12 5.99zM13 16h-2v2h2v-2zm0-6h-2v4h2v-4z"/>
-                </svg>
-                Subcast Editor
-            </h1>
+            <div class="header-logo-group">
+                <h1>
+                    <svg style="width: 22px; height: 22px; fill: var(--primary);" viewBox="0 0 24 24">
+                        <path d="M12 2L2 22h20L12 2zm0 3.99L19.53 19H4.47L12 5.99zM13 16h-2v2h2v-2zm0-6h-2v4h2v-4z"/>
+                    </svg>
+                    Subcast Editor
+                </h1>
+                <nav class="header-nav-menu">
+                    <a href="/static/index.html" class="nav-link">홈</a>
+                    <a href="/static/editor.html" class="nav-link active">Editor</a>
+                    <a href="/static/presenter.html" class="nav-link">Presenter</a>
+                    <a href="/static/viewer.html" target="_blank" class="nav-link">Viewer</a>
+                </nav>
+            </div>
 
             <div class="header-controls">
                 <div class="editor-name-group">

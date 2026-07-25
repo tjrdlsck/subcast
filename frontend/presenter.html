@@ -72,6 +72,33 @@
             gap: 16px;
         }
 
+        .header-nav-menu {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 12px;
+        }
+        .header-nav-menu .nav-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 600;
+            padding: 5px 11px;
+            border-radius: var(--radius-sm);
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+        }
+        .header-nav-menu .nav-link:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .header-nav-menu .nav-link.active {
+            color: #fff;
+            background: var(--primary);
+            box-shadow: 0 2px 8px var(--primary-glow);
+        }
+
         header h1 {
             font-family: 'Outfit', sans-serif;
             font-size: 1.3rem; 
@@ -210,11 +237,11 @@
         /* 메인 레이아웃 및 5x4 Grid */
         .workspace { 
             flex: 1; 
-            padding: 24px;
+            padding: 10px 24px 24px 24px;
             overflow-y: auto; 
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 12px;
         }
 
         .deck-header {
@@ -540,6 +567,12 @@
                 </svg>
                 Subcast Presenter
             </h1>
+            <nav class="header-nav-menu">
+                <a href="/static/index.html" class="nav-link">홈</a>
+                <a href="/static/editor.html" class="nav-link">Editor</a>
+                <a href="/static/presenter.html" class="nav-link active">Presenter</a>
+                <a href="/static/viewer.html" target="_blank" class="nav-link">Viewer</a>
+            </nav>
         </div>
 
         <div class="header-right-group">
@@ -842,14 +875,14 @@
                 }
 
                 item.innerHTML = `
+                    <!-- 슬라이드 순번 배지 (카드 자체의 왼쪽 위 모서리에 배치) -->
+                    <div style="position: absolute; top: -8px; left: -8px; background: var(--primary); color: #fff; font-size: 0.7rem; font-weight: 800; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1.5px solid var(--bg-color); z-index: 20; font-family: 'Outfit', sans-serif; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
+                        ${index + 1}
+                    </div>
                     <div class="slide-thumbnail-wrapper">
                         ${slide.thumbnail ? `<img src="${slide.thumbnail}">` : `<span style="font-size: 0.72rem; color: var(--text-muted);">미리보기 없음</span>`}
                     </div>
-                    <div class="slide-info-row">
-                        <span class="slide-index-label">${String(index + 1).padStart(2, '0')}</span>
-                        <span class="slide-title-label" title="${slide.name}">${slide.name}</span>
-                    </div>
-                    <div class="slide-lock-indicator">🔒 ${lockedSlides[slide.id] || ''} 편집 중</div>
+                    ${isLocked ? `<div class="slide-lock-indicator">🔒 ${lockedSlides[slide.id] || ''} 편집 중</div>` : ''}
                 `;
 
                 // 클릭 시 해당 슬라이드로 즉시 전환
