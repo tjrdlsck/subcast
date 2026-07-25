@@ -440,7 +440,7 @@
                     if (bibleMode === "ref_only") {
                         const match = nextText.match(/([가-힣]+\s*\d+:\d+)/);
                         if (match) {
-                            nextText = `📖 ${match[1]} (성경 구절 대기)`;
+                            nextText = `${match[1]} (성경 구절 대기)`;
                         }
                     } else if (bibleMode === "summary") {
                         if (nextText.length > 60) {
