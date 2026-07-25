@@ -13,8 +13,8 @@
             --bg-color: #0b0f19;
             --card-bg: rgba(255, 255, 255, 0.03);
             --card-border: rgba(255, 255, 255, 0.08);
-            --primary: #4f46e5;
-            --primary-glow: rgba(79, 70, 229, 0.4);
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.4);
             --secondary: #06b6d4;
             --secondary-glow: rgba(6, 182, 212, 0.4);
             --accent: #f43f5e;
@@ -37,9 +37,9 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
             overflow-x: hidden;
             position: relative;
+            padding-top: 56px;
         }
 
         /* 백그라운드 그라데이션 오라 효과 */
@@ -67,33 +67,98 @@
             filter: blur(80px);
         }
 
+        /* 상단 통합 네비게이션 헤더 */
+        .top-nav-bar {
+            width: 100%;
+            height: 56px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            background: rgba(17, 24, 39, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--card-border);
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 100;
+        }
+
+        .header-logo-group {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .top-nav-bar h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+            background: linear-gradient(135deg, #fff 40%, var(--text-muted) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-nav-menu {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 12px;
+        }
+        .header-nav-menu .nav-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 600;
+            padding: 5px 11px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+        }
+        .header-nav-menu .nav-link:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .header-nav-menu .nav-link.active {
+            color: #fff;
+            background: var(--primary);
+            box-shadow: 0 2px 8px var(--primary-glow);
+        }
+
         .container {
             max-width: 1200px;
             width: 100%;
-            padding: 40px 20px;
+            padding: 50px 20px 40px 20px;
             text-align: center;
             z-index: 1;
         }
 
-        header {
-            margin-bottom: 60px;
+        .hero-section {
+            margin-bottom: 50px;
         }
 
-        header h1 {
+        .hero-section h2 {
             font-family: 'Outfit', sans-serif;
-            font-size: 3.5rem;
+            font-size: 3.2rem;
             font-weight: 800;
             background: linear-gradient(135deg, #fff 30%, var(--text-muted) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            letter-spacing: -0.05em;
+            letter-spacing: -0.04em;
             margin-bottom: 16px;
         }
 
-        header p {
+        .hero-section p {
             color: var(--text-muted);
-            font-size: 1.2rem;
-            max-width: 600px;
+            font-size: 1.15rem;
+            max-width: 640px;
             margin: 0 auto;
             line-height: 1.6;
         }
@@ -194,7 +259,7 @@
             box-shadow: 0 8px 20px var(--accent-glow);
         }
 
-        .card h2 {
+        .card h3 {
             font-family: 'Outfit', sans-serif;
             font-size: 1.5rem;
             font-weight: 600;
@@ -252,8 +317,8 @@
 
         /* 반응형 디자인 */
         @media (max-width: 768px) {
-            header h1 {
-                font-size: 2.5rem;
+            .hero-section h2 {
+                font-size: 2.2rem;
             }
             .grid {
                 grid-template-columns: 1fr;
@@ -262,17 +327,35 @@
     </style>
 </head>
 <body>
+    <!-- Top Fixed Header -->
+    <header class="top-nav-bar">
+        <div class="header-logo-group">
+            <h1>
+                <svg style="width: 22px; height: 22px; fill: var(--primary);" viewBox="0 0 24 24">
+                    <path d="M12 2L2 22h20L12 2zm0 3.99L19.53 19H4.47L12 5.99zM13 16h-2v2h2v-2zm0-6h-2v4h2v-4z"/>
+                </svg>
+                Subcast
+            </h1>
+            <nav class="header-nav-menu">
+                <a href="/static/index.html" class="nav-link active">Home</a>
+                <a href="/static/editor.html" class="nav-link">Editor</a>
+                <a href="/static/presenter.html" class="nav-link">Presenter</a>
+                <a href="/static/viewer.html" target="_blank" class="nav-link">Viewer</a>
+            </nav>
+        </div>
+    </header>
+
     <div class="container">
-        <header>
-            <h1>Subcast</h1>
+        <section class="hero-section">
+            <h2>Subcast System</h2>
             <p>다중 마스터 실시간 동기화와 편집 잠금 메커니즘을 지원하는 생방송 오버레이 자막 관리 플랫폼</p>
-        </header>
+        </section>
 
         <main class="grid">
             <!-- Presenter Card -->
             <a href="/static/presenter.html" class="card presenter" id="link-presenter">
                 <div class="icon-wrapper">🚀</div>
-                <h2>송출 제어기</h2>
+                <h3>송출 제어기</h3>
                 <p>슬라이드 전환(Prev/Next) 및 현재 송출 상태를 마스터 제어합니다. 다중 제어자 간의 자동 동기화를 지원합니다.</p>
                 <span class="btn">Presenter 진입</span>
             </a>
@@ -280,7 +363,7 @@
             <!-- Editor Card -->
             <a href="/static/editor.html" class="card editor" id="link-editor">
                 <div class="icon-wrapper">✍️</div>
-                <h2>실시간 편집기</h2>
+                <h3>실시간 편집기</h3>
                 <p>방송 흐름 방해 없이 대기 중인 슬라이드의 글씨, 위치 등을 Fabric.js 기반 에디터로 실시간 수정/잠금할 수 있습니다.</p>
                 <span class="btn">Editor 진입</span>
             </a>
@@ -288,7 +371,7 @@
             <!-- Viewer Card -->
             <a href="/static/viewer.html" class="card viewer" id="link-viewer">
                 <div class="icon-wrapper">📺</div>
-                <h2>OBS 뷰어</h2>
+                <h3>OBS 뷰어</h3>
                 <p>투명 배경의 그래픽 결과물 송출 전용 뷰어. 네트워크 연결 두절 감지 시 오버레이 화면을 완전 투명화합니다.</p>
                 <span class="btn">Viewer 진입</span>
             </a>
