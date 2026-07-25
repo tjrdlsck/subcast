@@ -2129,8 +2129,13 @@
             <!-- Center Canvas Workspace -->
             <main class="canvas-workspace">
                 <!-- 잠금 경고 배너 -->
-                <div class="lock-warning-banner" id="lock-banner">
+                <div class="lock-warning-banner" id="lock-banner" style="display: none;">
                     ⚠️ 다른 사용자가 편집 중인 슬라이드입니다.
+                </div>
+                <div class="lock-warning-banner" id="offline-banner" style="background: rgba(239, 68, 68, 0.9); display: none; z-index: 1000;">
+                    ⚠️ 네트워크 연결이 단절되었습니다. 데이터 유실 방지를 위해 편집이 잠금 처리됩니다.
+                </div>
+
                 <div class="canvas-viewport" style="position: relative;">
                     <div class="canvas-wrapper-outer">
                         <div class="canvas-wrapper">
