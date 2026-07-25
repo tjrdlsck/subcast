@@ -1622,45 +1622,70 @@
             margin: 4px 0;
         }
 
-        /* 캔버스 편집 공간 단축키 툴바 스타일 */
-        .btn-canvas-action {
-            display: inline-flex;
+        /* 캔버스 편집 공간 컴팩트 플로팅 툴바 스타일 */
+        .canvas-floating-toolbar {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 99;
+            background: rgba(24, 24, 37, 0.92);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 20px;
+            padding: 4px 10px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            display: none;
             align-items: center;
             gap: 6px;
-            padding: 5px 10px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.1));
-            border-radius: 4px;
+            user-select: none;
+            animation: fadeInFloating 0.2s ease;
+        }
+        @keyframes fadeInFloating {
+            from { opacity: 0; transform: translate(-50%, 8px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .btn-compact-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 8px;
+            background: transparent;
+            border: none;
+            border-radius: 12px;
             color: var(--text-main, #cdd6f4);
-            font-size: 0.78rem;
+            font-size: 0.75rem;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.15s ease;
-            user-select: none;
         }
-        .btn-canvas-action:hover {
-            background: var(--primary, #6c5ce7);
+        .btn-compact-action:hover {
+            background: rgba(255, 255, 255, 0.12);
             color: #ffffff;
-            border-color: var(--primary, #6c5ce7);
         }
-        .btn-canvas-action.btn-danger:hover {
-            background: #ef4444;
-            border-color: #ef4444;
+        .btn-compact-action.btn-danger:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+        .compact-divider {
+            width: 1px;
+            height: 14px;
+            background: rgba(255, 255, 255, 0.15);
+            margin: 0 2px;
         }
         .shortcut-badge {
             display: inline-block;
-            padding: 1px 5px;
-            font-size: 0.7rem;
+            padding: 1px 4px;
+            font-size: 0.65rem;
             font-family: monospace;
             color: var(--text-muted, #a1a1aa);
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 3px;
-            line-height: 1.2;
+            line-height: 1.1;
         }
-        .btn-canvas-action:hover .shortcut-badge {
-            color: rgba(255, 255, 255, 0.9);
-            background: rgba(0, 0, 0, 0.25);
+        .btn-compact-action:hover .shortcut-badge {
+            color: #ffffff;
             border-color: rgba(255, 255, 255, 0.3);
         }
     </style>
@@ -2106,43 +2131,34 @@
                 <!-- 잠금 경고 배너 -->
                 <div class="lock-warning-banner" id="lock-banner">
                     ⚠️ 다른 사용자가 편집 중인 슬라이드입니다.
-                </div>
-                <!-- 편집 공간 직관적 단축키 및 작업 툴바 -->
-                <div class="canvas-action-toolbar" style="display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; background: var(--panel-bg, #1e1e2e); border: 1px solid var(--panel-border, #313244); border-radius: var(--radius-sm, 6px); margin-bottom: 8px; gap: 8px; flex-wrap: wrap;">
-                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                        <button id="btn-shortcut-undo" class="btn-canvas-action" title="실행 취소 (Ctrl+Z)">
-                            <span>↩️ 취소</span> <kbd class="shortcut-badge">Ctrl+Z</kbd>
-                        </button>
-                        <button id="btn-shortcut-redo" class="btn-canvas-action" title="다시 실행 (Ctrl+Y / Ctrl+Shift+Z)">
-                            <span>↪️ 다시실행</span> <kbd class="shortcut-badge">Ctrl+Shift+Z</kbd>
-                        </button>
-                        
-                        <div style="width: 1px; height: 16px; background: var(--panel-border, #313244); margin: 0 4px;"></div>
-                        
-                        <button id="btn-shortcut-copy" class="btn-canvas-action" title="복사 (Ctrl+C)">
-                            <span>📋 복사</span> <kbd class="shortcut-badge">Ctrl+C</kbd>
-                        </button>
-                        <button id="btn-shortcut-cut" class="btn-canvas-action" title="잘라내기 (Ctrl+X)">
-                            <span>✂️ 잘라내기</span> <kbd class="shortcut-badge">Ctrl+X</kbd>
-                        </button>
-                        <button id="btn-shortcut-paste" class="btn-canvas-action" title="붙여넣기 (Ctrl+V)">
-                            <span>📥 붙여넣기</span> <kbd class="shortcut-badge">Ctrl+V</kbd>
-                        </button>
-                        <button id="btn-shortcut-delete" class="btn-canvas-action btn-danger" title="삭제 (Del)">
-                            <span>🗑️ 삭제</span> <kbd class="shortcut-badge">Del</kbd>
-                        </button>
-                    </div>
-
-                    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--text-muted, #a1a1aa);">
-                        <span>💡 이동: <kbd class="shortcut-badge">방향키</kbd> (10px: <kbd class="shortcut-badge">Shift+방향키</kbd>)</span>
-                    </div>
-                </div>
-
                 <div class="canvas-viewport" style="position: relative;">
                     <div class="canvas-wrapper-outer">
                         <div class="canvas-wrapper">
                             <canvas id="editor-canvas"></canvas>
                         </div>
+                    </div>
+
+                    <!-- 편집 공간 클릭 시 출력되는 컴팩트 플로팅 단축키 툴바 -->
+                    <div id="canvas-floating-toolbar" class="canvas-floating-toolbar">
+                        <button id="btn-shortcut-undo" class="btn-compact-action" title="실행 취소">
+                            취소 <kbd class="shortcut-badge">Ctrl+Z</kbd>
+                        </button>
+                        <button id="btn-shortcut-redo" class="btn-compact-action" title="다시 실행">
+                            다시실행 <kbd class="shortcut-badge">Ctrl+Shift+Z</kbd>
+                        </button>
+                        <div class="compact-divider"></div>
+                        <button id="btn-shortcut-copy" class="btn-compact-action" title="복사">
+                            복사 <kbd class="shortcut-badge">Ctrl+C</kbd>
+                        </button>
+                        <button id="btn-shortcut-cut" class="btn-compact-action" title="잘라내기">
+                            잘라내기 <kbd class="shortcut-badge">Ctrl+X</kbd>
+                        </button>
+                        <button id="btn-shortcut-paste" class="btn-compact-action" title="붙여넣기">
+                            붙여넣기 <kbd class="shortcut-badge">Ctrl+V</kbd>
+                        </button>
+                        <button id="btn-shortcut-delete" class="btn-compact-action btn-danger" title="삭제">
+                            삭제 <kbd class="shortcut-badge">Del</kbd>
+                        </button>
                     </div>
 
                     <!-- 성경 내용 메인 표 뷰어 (중앙 슬라이드 영역 오버레이) -->
@@ -5383,6 +5399,16 @@
         document.addEventListener("mousedown", (e) => {
             if (!e.target.closest("#slide-context-menu")) {
                 hideSlideContextMenu();
+            }
+
+            // 캔버스 편집 공간 클릭 시 컴팩트 플로팅 단축키 툴바 노출
+            const floatingToolbar = document.getElementById("canvas-floating-toolbar");
+            if (floatingToolbar) {
+                if (e.target.closest(".canvas-workspace") || e.target.closest("#canvas-floating-toolbar")) {
+                    floatingToolbar.style.display = "flex";
+                } else {
+                    floatingToolbar.style.display = "none";
+                }
             }
         });
 
