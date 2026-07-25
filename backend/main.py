@@ -117,11 +117,55 @@ import sqlite3
 class BibleDatabaseHelper:
     def __init__(self, db_path="GAE_Bible.db"):
         self.db_path = db_path
+        self.init_table()
 
     def get_connection(self):
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         return conn
+
+    def init_table(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS bible (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    book_code TEXT NOT NULL,
+                    book_name TEXT NOT NULL,
+                    chapter INTEGER NOT NULL,
+                    verse INTEGER NOT NULL,
+                    content TEXT NOT NULL,
+                    title TEXT
+                )
+            """)
+            
+            # 테이블 데이터 존재 여부 확인
+            cursor.execute("SELECT COUNT(*) as cnt FROM bible")
+            cnt = cursor.fetchone()["cnt"]
+            if cnt == 0:
+                # 초기 성경 66권 기본 구조 및 샘플 구절 시딩 데이터
+                sample_data = [
+                    # 구약 샘플 (창세기, 시편 등)
+                    ("GE", "창세기", 1, 1, "태초에 하나님이 천지를 창조하시니라", None),
+                    ("GE", "창세기", 1, 2, "땅이 혼돈하고 공허하며 흑암이 깊음 위에 있고 하나님의 영은 수면 위에 운행하시니라", None),
+                    ("GE", "창세기", 1, 3, "하나님이 이르시되 빛이 있으라 하시니 빛이 있었고", None),
+                    ("PS", "시편", 23, 1, "여호와는 나의 목자시니 내게 부족함이 없으리로다", None),
+                    ("PS", "시편", 23, 2, "그가 나를 푸른 풀밭에 누이시며 쉴 만한 물 가로 인도하시는도다", None),
+                    # 신약 샘플 (마태복음, 요한복음 등)
+                    ("MAT", "마태복음", 1, 1, "아브라함과 다윗의 자손 예수 그리스도의 계보라", None),
+                    ("JN", "요한복음", 1, 1, "태초에 말씀이 계시니라 이 말씀이 하나님과 함께 계셨으니 이 말씀은 곧 하나님이시니라", None),
+                    ("JN", "요한복음", 1, 2, "그가 태초에 하나님과 함께 계셨고", None),
+                    ("JN", "요한복음", 1, 3, "만물이 그로 말미암아 지은 바 되었으니 지은 것이 하나도 그가 없이는 된 것이 없느니라", None),
+                    ("JN", "요한복음", 3, 16, "하나님이 세상을 이처럼 사랑하사 독생자를 주셨으니 이는 그를 믿는 자마다 멸망하지 않고 영생을 얻게 하려 하심이라", None),
+                ]
+                cursor.executemany(
+                    "INSERT INTO bible (book_code, book_name, chapter, verse, content, title) VALUES (?, ?, ?, ?, ?, ?)",
+                    sample_data
+                )
+            conn.commit()
+        finally:
+            conn.close()
 
     def get_books(self):
         conn = self.get_connection()
