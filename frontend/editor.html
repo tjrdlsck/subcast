@@ -1945,8 +1945,20 @@
 
                 <!-- 2) 템플릿 탭 -->
                 <div class="sidebar-panel" id="panel-templates">
-                    <div class="panel-header">
+                    <div class="panel-header"
+                        style="display: flex; justify-content: space-between; align-items: center;">
                         <h3>디자인 템플릿</h3>
+                        <div style="display: flex; gap: 4px; align-items: center;">
+                            <input type="file" id="file-import-template" accept=".json" style="display: none;" />
+                            <button class="btn-template-action" id="btn-template-export"
+                                style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); margin: 0; cursor: pointer; border-radius: 6px;" title="선택된 템플릿 또는 전체 템플릿 내보내기">
+                                <img src="/static/assets/icons/upload.svg" style="width: 14px; height: 14px; filter: brightness(0) invert(1);" alt="내보내기" />
+                            </button>
+                            <button class="btn-template-action" id="btn-template-import"
+                                style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: rgba(6, 182, 212, 0.2); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.4); margin: 0; cursor: pointer; border-radius: 6px;" title="템플릿 데이터 가져오기">
+                                <img src="/static/assets/icons/download.svg" style="width: 14px; height: 14px; filter: brightness(0) invert(1);" alt="가져오기" />
+                            </button>
+                        </div>
                     </div>
                     <div class="panel-body" style="display: flex; flex-direction: column; overflow: hidden;">
                         <div class="template-actions" style="flex-shrink: 0;">
@@ -4673,6 +4685,48 @@
             document.getElementById("btn-apply-template-bulk").onclick = applyTemplateBulk;
             document.getElementById("btn-delete-template").onclick = deleteTemplate;
             document.getElementById("btn-undo-template").onclick = undoBulkAction;
+
+            const btnTemplateExport = document.getElementById("btn-template-export");
+            if (btnTemplateExport) {
+                btnTemplateExport.onclick = () => {
+                    if (selectedTemplateIds && selectedTemplateIds.length > 0) {
+                        window.location.href = `/api/templates/export?ids=${selectedTemplateIds.join(",")}`;
+                    } else {
+                        window.location.href = "/api/templates/export";
+                    }
+                };
+            }
+
+            const btnTemplateImport = document.getElementById("btn-template-import");
+            const fileImportTemplate = document.getElementById("file-import-template");
+            if (btnTemplateImport && fileImportTemplate) {
+                btnTemplateImport.onclick = () => {
+                    fileImportTemplate.value = "";
+                    fileImportTemplate.click();
+                };
+                fileImportTemplate.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    const formData = new FormData();
+                    formData.append("file", file);
+
+                    try {
+                        const res = await fetch("/api/templates/import", {
+                            method: "POST",
+                            body: formData
+                        });
+                        if (!res.ok) {
+                            const errData = await res.json();
+                            throw new Error(errData.detail || "템플릿 가져오기 실패");
+                        }
+                        const data = await res.json();
+                        alert(`성공적으로 ${data.imported_count || 0}개의 템플릿 데이터를 가져왔습니다.`);
+                    } catch (err) {
+                        alert("템플릿 데이터 가져오기 오류: " + err.message);
+                    }
+                };
+            }
 
             // 템플릿 적용 모달 내 버튼 제어
             document.getElementById("btn-modal-cancel").onclick = closeApplyModal;

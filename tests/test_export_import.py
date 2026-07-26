@@ -101,3 +101,62 @@ def test_praise_import_duplicate_titles():
     clean_ids = [s["id"] for s in results if "중복 테스트 찬양" in s["title"]]
     if clean_ids:
         client.post("/api/praise/delete", json={"ids": clean_ids})
+
+def test_template_export_and_import():
+    # 1. 템플릿 가져오기 (Import)
+    test_templates = [
+        {
+            "id": "tpl_test_001",
+            "name": "테스트 템플릿 1",
+            "elements": []
+        },
+        {
+            "id": "tpl_test_002",
+            "name": "테스트 템플릿 2",
+            "elements": []
+        }
+    ]
+    file_bytes = json.dumps(test_templates).encode("utf-8")
+    import_res = client.post(
+        "/api/templates/import",
+        files={"file": ("templates_test.json", io.BytesIO(file_bytes), "application/json")}
+    )
+    assert import_res.status_code == 200
+    assert import_res.json()["status"] == "success"
+    assert import_res.json()["imported_count"] == 2
+
+    # 2. 전체 템플릿 내보내기 (Export)
+    export_res = client.get("/api/templates/export")
+    assert export_res.status_code == 200
+    exported_templates = export_res.json()
+    assert isinstance(exported_templates, list)
+    assert any(t["name"] == "테스트 템플릿 1" for t in exported_templates)
+
+    # 3. 특정 ID 선택 템플릿 다중 내보내기
+    t1 = next(t for t in exported_templates if t["name"] == "테스트 템플릿 1")
+    t2 = next(t for t in exported_templates if t["name"] == "테스트 템플릿 2")
+    multi_export_res = client.get(f"/api/templates/export?ids={t1['id']},{t2['id']}")
+    assert multi_export_res.status_code == 200
+    multi_exported_data = multi_export_res.json()
+    assert len(multi_exported_data) == 2
+
+def test_template_import_duplicate_names():
+    # 동일한 이름의 템플릿 import 시 중복 이름 (1) 처리 검증
+    duplicate_templates = [
+        {"id": "tpl_dup_1", "name": "중복 템플릿 이름", "elements": []},
+        {"id": "tpl_dup_2", "name": "중복 템플릿 이름", "elements": []}
+    ]
+    file_bytes = json.dumps(duplicate_templates).encode("utf-8")
+    res = client.post(
+        "/api/templates/import",
+        files={"file": ("templates_dup.json", io.BytesIO(file_bytes), "application/json")}
+    )
+    assert res.status_code == 200
+    assert res.json()["imported_count"] == 2
+
+    export_res = client.get("/api/templates/export")
+    assert export_res.status_code == 200
+    all_tpls = export_res.json()
+    names = [t["name"] for t in all_tpls]
+    assert "중복 템플릿 이름" in names
+    assert "중복 템플릿 이름 (1)" in names
