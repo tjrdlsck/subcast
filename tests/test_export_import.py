@@ -64,6 +64,15 @@ def test_praise_export_and_import():
     found_songs = search_res.json()
     assert any(s["title"] == "테스트 찬양 101" for s in found_songs)
     
+    # 3. Export specific praise song by id
+    if found_songs:
+        single_id = found_songs[0]["id"]
+        single_export_res = client.get(f"/api/praise/export?ids={single_id}")
+        assert single_export_res.status_code == 200
+        single_exported_data = single_export_res.json()
+        assert len(single_exported_data) == 1
+        assert single_exported_data[0]["title"] == found_songs[0]["title"]
+    
     # Clean up test praise songs
     test_ids = [s["id"] for s in found_songs if s["title"] in ["테스트 찬양 101", "테스트 찬양 102"]]
     if test_ids:

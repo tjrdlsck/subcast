@@ -2235,6 +2235,8 @@
                                         style="color: var(--primary); font-weight: bold;">없음</span>
                                 </div>
                                 <div style="display: flex; gap: 4px;">
+                                    <button id="btn-praise-export-selected"
+                                        style="padding: 3px 8px; font-size: 0.7rem; background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #34d399; border-radius: var(--radius-xs); cursor: pointer;" title="선택한 곡 JSON 내보내기">내보내기</button>
                                     <button id="btn-praise-edit-selected"
                                         style="padding: 3px 8px; font-size: 0.7rem; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-xs); cursor: pointer;">수정</button>
                                     <button id="btn-praise-delete-selected"
@@ -7534,9 +7536,35 @@
 
             // 찬양 데이터 내보내기/가져오기 이벤트 바인딩
             const btnPraiseExport = document.getElementById("btn-praise-export");
+            const btnPraiseExportSelected = document.getElementById("btn-praise-export-selected");
+
+            const exportPraiseAction = (idsArray) => {
+                if (idsArray && idsArray.length > 0) {
+                    window.location.href = `/api/praise/export?ids=${idsArray.join(",")}`;
+                } else {
+                    window.location.href = "/api/praise/export";
+                }
+            };
+
             if (btnPraiseExport) {
                 btnPraiseExport.onclick = () => {
-                    window.location.href = "/api/praise/export";
+                    if (selectedPraiseSongs && selectedPraiseSongs.length > 0) {
+                        const selectedIds = selectedPraiseSongs.map(s => s.id);
+                        exportPraiseAction(selectedIds);
+                    } else {
+                        exportPraiseAction();
+                    }
+                };
+            }
+
+            if (btnPraiseExportSelected) {
+                btnPraiseExportSelected.onclick = () => {
+                    if (selectedPraiseSongs && selectedPraiseSongs.length > 0) {
+                        const selectedIds = selectedPraiseSongs.map(s => s.id);
+                        exportPraiseAction(selectedIds);
+                    } else {
+                        alert("선택된 찬양곡이 없습니다.");
+                    }
                 };
             }
 

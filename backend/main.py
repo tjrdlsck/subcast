@@ -356,6 +356,19 @@ class PraiseDatabaseHelper:
         finally:
             conn.close()
 
+    def get_songs_by_ids(self, song_ids: List[int]) -> List[dict]:
+        if not song_ids:
+            return []
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            placeholders = ",".join(["?"] * len(song_ids))
+            cursor.execute(f"SELECT id, title, lyrics FROM praise_songs WHERE id IN ({placeholders}) ORDER BY title ASC", song_ids)
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            conn.close()
+
     def import_songs(self, songs: List[dict]) -> int:
         count = 0
         for song in songs:
@@ -409,15 +422,31 @@ async def delete_praise_songs(req: PraiseSongDeleteRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/praise/export")
-async def export_praise_songs():
+async def export_praise_songs(ids: Optional[str] = Query(None)):
     try:
-        songs = praise_db.get_all_songs()
+        if ids:
+            id_list = [int(i.strip()) for i in ids.split(",") if i.strip().isdigit()]
+            songs = praise_db.get_songs_by_ids(id_list)
+        else:
+            songs = praise_db.get_all_songs()
+        
+        if not songs:
+            raise HTTPException(status_code=404, detail="내보낼 찬양 데이터가 없습니다.")
+
         export_data = [{"title": s["title"], "lyrics": s["lyrics"]} for s in songs]
+        
+        if len(songs) == 1:
+            safe_title = "".join(c for c in songs[0]["title"] if c.isalnum() or c in (' ', '_', '-')).rstrip()
+            file_name = f"praise_{safe_title}.json"
+        else:
+            file_name = "praise_songs.json"
+
+        encoded_filename = urllib.parse.quote(file_name)
         json_bytes = json.dumps(export_data, indent=2, ensure_ascii=False).encode('utf-8')
         return Response(
             content=json_bytes,
             media_type="application/json",
-            headers={"Content-Disposition": 'attachment; filename="praise_songs.json"'}
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
