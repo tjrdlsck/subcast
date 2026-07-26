@@ -2202,9 +2202,13 @@
                         <div style="display: flex; gap: 4px; align-items: center;">
                             <input type="file" id="file-import-praise" accept=".json" style="display: none;" />
                             <button class="btn-template-action" id="btn-praise-export"
-                                style="width: auto; padding: 4px 8px; font-size: 0.72rem; background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); margin: 0; cursor: pointer;" title="전체 찬양 데이터 JSON 내보내기">📤 내보내기</button>
+                                style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); margin: 0; cursor: pointer; border-radius: 6px;" title="선택된 찬양 또는 전체 찬양 내보내기">
+                                <img src="/static/assets/icons/download.svg" style="width: 14px; height: 14px; filter: brightness(0) invert(1);" alt="내보내기" />
+                            </button>
                             <button class="btn-template-action" id="btn-praise-import"
-                                style="width: auto; padding: 4px 8px; font-size: 0.72rem; background: rgba(6, 182, 212, 0.2); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.4); margin: 0; cursor: pointer;" title="찬양 데이터 JSON 가져오기">📥 가져오기</button>
+                                style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: rgba(6, 182, 212, 0.2); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.4); margin: 0; cursor: pointer; border-radius: 6px;" title="찬양 데이터 가져오기">
+                                <img src="/static/assets/icons/upload.svg" style="width: 14px; height: 14px; filter: brightness(0) invert(1);" alt="가져오기" />
+                            </button>
                             <button class="btn-template-action" id="btn-praise-open-add-modal"
                                 style="width: auto; padding: 4px 8px; font-size: 0.72rem; background: var(--primary); border-color: var(--primary); margin: 0; cursor: pointer;">➕ 등록</button>
                         </div>
@@ -2235,8 +2239,6 @@
                                         style="color: var(--primary); font-weight: bold;">없음</span>
                                 </div>
                                 <div style="display: flex; gap: 4px;">
-                                    <button id="btn-praise-export-selected"
-                                        style="padding: 3px 8px; font-size: 0.7rem; background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #34d399; border-radius: var(--radius-xs); cursor: pointer;" title="선택한 곡 JSON 내보내기">내보내기</button>
                                     <button id="btn-praise-edit-selected"
                                         style="padding: 3px 8px; font-size: 0.7rem; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-xs); cursor: pointer;">수정</button>
                                     <button id="btn-praise-delete-selected"
@@ -7536,7 +7538,6 @@
 
             // 찬양 데이터 내보내기/가져오기 이벤트 바인딩
             const btnPraiseExport = document.getElementById("btn-praise-export");
-            const btnPraiseExportSelected = document.getElementById("btn-praise-export-selected");
 
             const exportPraiseAction = (idsArray) => {
                 if (idsArray && idsArray.length > 0) {
@@ -7553,17 +7554,6 @@
                         exportPraiseAction(selectedIds);
                     } else {
                         exportPraiseAction();
-                    }
-                };
-            }
-
-            if (btnPraiseExportSelected) {
-                btnPraiseExportSelected.onclick = () => {
-                    if (selectedPraiseSongs && selectedPraiseSongs.length > 0) {
-                        const selectedIds = selectedPraiseSongs.map(s => s.id);
-                        exportPraiseAction(selectedIds);
-                    } else {
-                        alert("선택된 찬양곡이 없습니다.");
                     }
                 };
             }
