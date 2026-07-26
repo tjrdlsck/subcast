@@ -15,18 +15,6 @@ CURRENT_VERSION = "1.3.8"
 REPO_OWNER = "tjrdlsck"
 REPO_NAME = "subcast"
 
-# PyInstaller 환경에서 워킹 디렉토리를 먼저 맞춰주어야 backend.main이 임포트될 때 경로 문제가 없습니다.
-if getattr(sys, 'frozen', False):
-    if hasattr(sys, '_MEIPASS'):
-        os.chdir(sys._MEIPASS)
-    else:
-        os.chdir(os.path.dirname(sys.executable))
-    
-    # --windowed 모드에서 sys.stdout과 sys.stderr가 None이 되어 발생하는 Uvicorn 에러 방지
-    log_file = open("subcast.log", "w", encoding="utf-8")
-    sys.stdout = log_file
-    sys.stderr = log_file
-
 import shutil
 from pathlib import Path
 
@@ -36,6 +24,19 @@ if not appdata_dir:
 
 subcast_appdata = os.path.join(appdata_dir, "Subcast")
 os.makedirs(subcast_appdata, exist_ok=True)
+
+# PyInstaller 환경에서 워킹 디렉토리를 먼저 맞춰주어야 backend.main이 임포트될 때 경로 문제가 없습니다.
+if getattr(sys, 'frozen', False):
+    if hasattr(sys, '_MEIPASS'):
+        os.chdir(sys._MEIPASS)
+    else:
+        os.chdir(os.path.dirname(sys.executable))
+    
+    # --windowed 모드에서 sys.stdout과 sys.stderr가 None이 되어 발생하는 Uvicorn 에러 방지
+    log_path = os.path.join(subcast_appdata, "subcast.log")
+    log_file = open(log_path, "w", encoding="utf-8")
+    sys.stdout = log_file
+    sys.stderr = log_file
 
 install_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.getcwd()
 
