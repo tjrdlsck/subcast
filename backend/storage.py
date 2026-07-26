@@ -186,16 +186,26 @@ async def list_projects() -> List[ProjectListItem]:
     return items
 
 async def create_project(name: str) -> ProjectData:
-    """새로운 프로젝트를 생성합니다."""
+    """새로운 프로젝트를 생성합니다. (빈 슬라이드 1개 포함)"""
     new_id = f"proj_{uuid.uuid4().hex[:8]}"
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    initial_slide_id = f"slide_{uuid.uuid4().hex[:8]}"
+    initial_slide = Slide(id=initial_slide_id, name="새 슬라이드 1", elements=[])
     
-    # DEFAULT_PROJECT_DATA를 기반으로 생성
-    new_data = DEFAULT_PROJECT_DATA.model_copy(deep=True)
-    new_data.id = new_id
-    new_data.name = name.strip() if name and name.strip() else "새 프로젝트"
-    new_data.createdAt = now_str
-    new_data.updatedAt = now_str
+    new_data = ProjectData(
+        id=new_id,
+        name=name.strip() if name and name.strip() else "새 프로젝트",
+        createdAt=now_str,
+        updatedAt=now_str,
+        settings=SystemSettings(
+            targetWidth=1920,
+            targetHeight=1080,
+            currentLiveSlideId=initial_slide_id
+        ),
+        slides=[initial_slide],
+        templates=[],
+        customFonts=[]
+    )
     
     await save_project_data(new_data)
     return new_data

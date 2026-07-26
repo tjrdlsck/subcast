@@ -40,6 +40,8 @@ def test_create_and_select_and_delete_project():
     proj_id = created_proj["id"]
     assert created_proj["name"] == project_name
     assert proj_id.startswith("proj_")
+    assert len(created_proj["slides"]) == 1
+    assert created_proj["slides"][0]["elements"] == []
 
     # 2. 프로젝트 목록에서 새로 생성된 프로젝트 확인
     list_res = client.get("/api/projects")
