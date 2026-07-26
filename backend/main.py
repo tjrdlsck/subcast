@@ -241,7 +241,8 @@ class BibleDatabaseHelper:
         finally:
             conn.close()
 
-db_helper = BibleDatabaseHelper("GAE_Bible.db")
+APP_DATA_DIR = os.environ.get("SUBCAST_DATA_DIR", ".")
+db_helper = BibleDatabaseHelper(os.path.join(APP_DATA_DIR, "GAE_Bible.db"))
 
 class PraiseDatabaseHelper:
     def __init__(self, db_path="GAE_Bible.db"):
@@ -399,7 +400,7 @@ class PraiseDatabaseHelper:
         finally:
             conn.close()
 
-praise_db = PraiseDatabaseHelper("GAE_Bible.db")
+praise_db = PraiseDatabaseHelper(os.path.join(APP_DATA_DIR, "GAE_Bible.db"))
 
 from pydantic import BaseModel
 from typing import Optional, List

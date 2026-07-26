@@ -8,7 +8,8 @@ from typing import List, Optional
 from backend.schemas import ProjectData, SystemSettings, Slide, SlideTemplate, Element, ElementStyle, ProjectListItem
 
 # 데이터 저장 경로 설정
-DATA_DIR = Path("data")
+APP_DATA_DIR = Path(os.environ.get("SUBCAST_DATA_DIR", "."))
+DATA_DIR = APP_DATA_DIR / "data"
 PROJECTS_DIR = DATA_DIR / "projects"
 ACTIVE_PROJECT_FILE = DATA_DIR / "active_project_id.txt"
 OLD_DATA_FILE_PATH = DATA_DIR / "project_data.json"

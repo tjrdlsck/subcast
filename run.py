@@ -11,7 +11,7 @@ import tempfile
 import pystray
 from PIL import Image, ImageDraw
 
-CURRENT_VERSION = "1.3.4"
+CURRENT_VERSION = "1.3.5"
 REPO_OWNER = "tjrdlsck"
 REPO_NAME = "subcast"
 
@@ -27,13 +27,48 @@ if getattr(sys, 'frozen', False):
     sys.stdout = log_file
     sys.stderr = log_file
 
+import shutil
+from pathlib import Path
+
+appdata_dir = os.getenv("APPDATA")
+if not appdata_dir:
+    appdata_dir = os.path.expanduser("~")
+
+subcast_appdata = os.path.join(appdata_dir, "Subcast")
+os.makedirs(subcast_appdata, exist_ok=True)
+
+old_data_dir = os.path.join(os.getcwd(), "data")
+new_data_dir = os.path.join(subcast_appdata, "data")
+if os.path.exists(old_data_dir) and not os.path.exists(new_data_dir):
+    try:
+        shutil.copytree(old_data_dir, new_data_dir)
+    except Exception as e:
+        print(f"Failed to migrate data dir: {e}")
+
+old_db_path = os.path.join(os.getcwd(), "GAE_Bible.db")
+new_db_path = os.path.join(subcast_appdata, "GAE_Bible.db")
+if os.path.exists(old_db_path) and not os.path.exists(new_db_path):
+    try:
+        shutil.copy2(old_db_path, new_db_path)
+    except Exception as e:
+        print(f"Failed to migrate db: {e}")
+
+os.environ["SUBCAST_DATA_DIR"] = subcast_appdata
+
 # 워킹 디렉토리 세팅 후 app을 임포트합니다.
 from backend.main import app
 
-CONFIG_FILE = "subcast_config.json"
+CONFIG_FILE = os.path.join(subcast_appdata, "subcast_config.json")
 DEFAULT_PORT = 8000
 
 def load_config():
+    old_config = "subcast_config.json"
+    if os.path.exists(old_config) and not os.path.exists(CONFIG_FILE):
+        try:
+            shutil.copy2(old_config, CONFIG_FILE)
+        except:
+            pass
+            
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, "r", encoding="utf-8") as f:
