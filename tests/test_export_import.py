@@ -77,3 +77,27 @@ def test_praise_export_and_import():
     test_ids = [s["id"] for s in found_songs if s["title"] in ["테스트 찬양 101", "테스트 찬양 102"]]
     if test_ids:
         client.post("/api/praise/delete", json={"ids": test_ids})
+
+def test_praise_import_duplicate_titles():
+    duplicate_songs = [
+        {"title": "중복 테스트 찬양", "lyrics": "가사 내용 1"},
+        {"title": "중복 테스트 찬양", "lyrics": "가사 내용 2"}
+    ]
+    file_bytes = json.dumps(duplicate_songs).encode("utf-8")
+    res = client.post(
+        "/api/praise/import",
+        files={"file": ("praise_dup.json", io.BytesIO(file_bytes), "application/json")}
+    )
+    assert res.status_code == 200
+    assert res.json()["imported_count"] == 2
+
+    search_res = client.get("/api/praise/search?query=중복 테스트 찬양")
+    assert search_res.status_code == 200
+    results = search_res.json()
+    titles = [s["title"] for s in results]
+    assert "중복 테스트 찬양" in titles
+    assert "중복 테스트 찬양 (1)" in titles
+
+    clean_ids = [s["id"] for s in results if "중복 테스트 찬양" in s["title"]]
+    if clean_ids:
+        client.post("/api/praise/delete", json={"ids": clean_ids})

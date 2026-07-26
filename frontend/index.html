@@ -696,7 +696,7 @@
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <input type="file" id="file-import-project" accept=".json" style="display: none;" />
                     <button class="btn-create-project" id="btn-import-project-trigger" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); padding: 10px 14px;" title="프로젝트 가져오기">
-                        <img src="/static/assets/icons/upload.svg" style="width: 16px; height: 16px; filter: brightness(0) invert(1);" alt="가져오기" />
+                        <img src="/static/assets/icons/download.svg" style="width: 16px; height: 16px; filter: brightness(0) invert(1);" alt="가져오기" />
                     </button>
                     <button class="btn-create-project" id="btn-open-create-modal">
                         <span>+ 새 프로젝트 추가</span>
@@ -717,7 +717,7 @@
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <button id="btn-export-selected" class="action-btn btn-export" style="display: none; padding: 6px 10px;" title="선택한 프로젝트 내보내기">
-                        <img src="/static/assets/icons/download.svg" style="width: 14px; height: 14px; filter: brightness(0) invert(1);" alt="선택 내보내기" />
+                        <img src="/static/assets/icons/upload.svg" style="width: 14px; height: 14px; filter: brightness(0) invert(1);" alt="선택 내보내기" />
                     </button>
                     <span class="selected-count-badge" id="selected-count-badge">0개 선택됨</span>
                 </div>
@@ -905,7 +905,7 @@
                                 `}
                                 <button class="action-btn btn-editor" onclick="event.stopPropagation(); openPage('${proj.id}', '/static/editor.html')">Editor</button>
                                 <button class="action-btn btn-presenter" onclick="event.stopPropagation(); openPage('${proj.id}', '/static/presenter.html')">Presenter</button>
-                                <button class="action-btn btn-export" title="프로젝트 내보내기" style="padding: 8px 10px;" onclick="event.stopPropagation(); exportProject('${proj.id}')"><img src="/static/assets/icons/download.svg" style="width: 14px; height: 14px; filter: brightness(0) invert(1);" alt="내보내기" /></button>
+                                <button class="action-btn btn-export" title="프로젝트 내보내기" style="padding: 8px 10px;" onclick="event.stopPropagation(); exportProject('${proj.id}')"><img src="/static/assets/icons/upload.svg" style="width: 14px; height: 14px; filter: brightness(0) invert(1);" alt="내보내기" /></button>
                                 ${currentProjects.length > 1 ? `
                                     <button class="action-btn btn-delete" onclick="event.stopPropagation(); deleteProject('${proj.id}', '${escapeHtml(proj.name)}')">삭제</button>
                                 ` : ''}

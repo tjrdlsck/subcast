@@ -370,14 +370,34 @@ class PraiseDatabaseHelper:
             conn.close()
 
     def import_songs(self, songs: List[dict]) -> int:
+        conn = self.get_connection()
+        cursor = conn.cursor()
         count = 0
-        for song in songs:
-            title = str(song.get("title", "")).strip()
-            lyrics = str(song.get("lyrics", "")).strip()
-            if title and lyrics:
-                self.save_song(title=title, lyrics=lyrics)
+        try:
+            for song in songs:
+                orig_title = str(song.get("title", "")).strip()
+                lyrics = str(song.get("lyrics", "")).strip()
+                if not orig_title or not lyrics:
+                    continue
+
+                candidate_title = orig_title
+                counter = 1
+                while True:
+                    cursor.execute("SELECT id FROM praise_songs WHERE title = ?", (candidate_title,))
+                    if not cursor.fetchone():
+                        break
+                    candidate_title = f"{orig_title} ({counter})"
+                    counter += 1
+
+                cursor.execute("""
+                    INSERT INTO praise_songs (title, lyrics)
+                    VALUES (?, ?)
+                """, (candidate_title, lyrics))
                 count += 1
-        return count
+            conn.commit()
+            return count
+        finally:
+            conn.close()
 
 praise_db = PraiseDatabaseHelper("GAE_Bible.db")
 
