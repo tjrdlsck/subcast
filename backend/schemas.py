@@ -64,6 +64,9 @@ class ProjectData(BaseModel):
 class ProjectCreateRequest(BaseModel):
     name: str
 
+class ProjectUpdateRequest(BaseModel):
+    name: str
+
 class ProjectListItem(BaseModel):
     id: str
     name: str

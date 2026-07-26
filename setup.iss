@@ -1,5 +1,5 @@
 #define MyAppName "Subcast"
-#define MyAppVersion "1.3.3"
+#define MyAppVersion "1.3.11"
 #define MyAppPublisher "Subcast Inc."
 #define MyAppURL "https://github.com/tjrdlsck/subcast"
 #define MyAppExeName "subcast.exe"
@@ -34,4 +34,4 @@ Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall
