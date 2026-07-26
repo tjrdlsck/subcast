@@ -4,7 +4,7 @@ import os
 block_cipher = None
 
 a = Analysis(
-    ['backend/main.py'],
+    ['run.py'],
     pathex=['.'],
     binaries=[],
     datas=[
@@ -27,7 +27,9 @@ a = Analysis(
         'httpx',
         'fastapi',
         'pydantic',
-        'aiofiles'
+        'aiofiles',
+        'pystray',
+        'PIL'
     ],
     hookspath=[],
     hooksconfig={},
@@ -53,7 +55,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
