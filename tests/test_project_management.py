@@ -8,18 +8,20 @@ from backend.storage import PROJECTS_DIR, ACTIVE_PROJECT_FILE
 
 client = TestClient(app)
 
+created_test_project_ids = []
+
 @pytest.fixture(autouse=True)
 def setup_and_teardown_projects():
-    # 테스트 전 실행: 임시 저장
     yield
-    # 테스트 완료 후 생성된 프로젝트 cleanup (기본 프로젝트 제외)
-    if PROJECTS_DIR.exists():
-        for pfile in PROJECTS_DIR.glob("proj_*.json"):
-            if pfile.stem != "proj_default":
-                try:
-                    pfile.unlink()
-                except Exception:
-                    pass
+    # 테스트 종료 후 테스트에서 등록된 특정 프로젝트 ID만 안전하게 삭제
+    for pid in created_test_project_ids:
+        pfile = PROJECTS_DIR / f"{pid}.json"
+        if pfile.exists():
+            try:
+                pfile.unlink()
+            except Exception:
+                pass
+    created_test_project_ids.clear()
 
 def test_get_projects_list():
     response = client.get("/api/projects")
@@ -38,6 +40,7 @@ def test_create_and_select_and_delete_project():
     assert create_res.status_code == 200
     created_proj = create_res.json()
     proj_id = created_proj["id"]
+    created_test_project_ids.append(proj_id)
     assert created_proj["name"] == project_name
     assert proj_id.startswith("proj_")
     assert len(created_proj["slides"]) == 1
