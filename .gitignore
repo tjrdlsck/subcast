@@ -7,3 +7,5 @@ node_modules/
 *.log
 *.lock
 coverage/
+build/
+dist/

@@ -1,6 +1,13 @@
 import json
 import logging
 import uuid
+import sys
+import os
+import subprocess
+import tempfile
+import zipfile
+import shutil
+import httpx
 from typing import Dict, List, Set, Optional
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPException
@@ -14,6 +21,9 @@ from backend.storage import (
     create_project, delete_project, get_active_project_id, set_active_project_id,
     load_global_templates, save_global_templates, duplicate_projects_bulk, delete_projects_bulk
 )
+
+CURRENT_VERSION = "1.3.0"
+GITHUB_REPO = "tjrdlsck/subcast"
 
 # 로그 설정
 logging.basicConfig(level=logging.INFO)
@@ -420,6 +430,118 @@ async def search_bible(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+def _parse_ver(v_str: str):
+    try:
+        clean = v_str.lstrip("v").strip()
+        parts = [int(x) for x in clean.split(".") if x.isdigit()]
+        return tuple(parts)
+    except Exception:
+        return (0, 0, 0)
+
+@app.get("/api/system/version")
+async def get_system_version():
+    return {"version": CURRENT_VERSION, "app": "Subcast"}
+
+@app.get("/api/system/check-update")
+async def check_update():
+    try:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            res = await client.get(url, headers={"User-Agent": "Subcast-AutoUpdater"})
+            if res.status_code != 200:
+                return {
+                    "has_update": False,
+                    "current_version": CURRENT_VERSION,
+                    "latest_version": CURRENT_VERSION,
+                    "message": "최신 버전 정보를 불러올 수 없습니다."
+                }
+            data = res.json()
+            latest_tag = data.get("tag_name", "v0.0.0")
+            latest_ver_str = latest_tag.lstrip("v")
+            
+            curr_ver_tuple = _parse_ver(CURRENT_VERSION)
+            latest_ver_tuple = _parse_ver(latest_ver_str)
+            
+            has_update = latest_ver_tuple > curr_ver_tuple
+            
+            assets = data.get("assets", [])
+            download_url = None
+            for asset in assets:
+                name = asset.get("name", "").lower()
+                if name.endswith(".zip") or name.endswith(".exe"):
+                    download_url = asset.get("browser_download_url")
+                    if name.endswith(".zip"):
+                        break
+            
+            return {
+                "has_update": has_update,
+                "current_version": CURRENT_VERSION,
+                "latest_version": latest_ver_str,
+                "latest_tag": latest_tag,
+                "release_name": data.get("name", latest_tag),
+                "release_notes": data.get("body", ""),
+                "download_url": download_url,
+                "html_url": data.get("html_url", "")
+            }
+    except Exception as e:
+        logger.error(f"Check update error: {e}")
+        return {
+            "has_update": False,
+            "current_version": CURRENT_VERSION,
+            "latest_version": CURRENT_VERSION,
+            "error": str(e)
+        }
+
+@app.post("/api/system/auto-update")
+async def perform_auto_update(download_url: Optional[str] = Query(None)):
+    try:
+        if not download_url:
+            check_res = await check_update()
+            if not check_res.get("has_update") and not check_res.get("download_url"):
+                raise HTTPException(status_code=400, detail="업데이트 가능한 새 버전이 없습니다.")
+            download_url = check_res.get("download_url")
+            
+        if not download_url:
+            raise HTTPException(status_code=400, detail="다운로드 가능한 업데이트 파일이 없습니다.")
+            
+        temp_dir = tempfile.mkdtemp(prefix="subcast_update_")
+        zip_path = os.path.join(temp_dir, "update.zip")
+        
+        async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
+            res = await client.get(download_url, headers={"User-Agent": "Subcast-AutoUpdater"})
+            if res.status_code != 200:
+                raise HTTPException(status_code=500, detail="업데이트 파일 다운로드 실패")
+            with open(zip_path, "wb") as f:
+                f.write(res.content)
+                
+        extract_dir = os.path.join(temp_dir, "extracted")
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_dir)
+            
+        app_dir = os.getcwd()
+        bat_path = os.path.join(temp_dir, "apply_update.bat")
+        
+        bat_content = f"""@echo off
+chcp 65001 > nul
+echo Subcast 자동 업데이트를 적용 중입니다...
+timeout /t 2 /nobreak > nul
+xcopy /s /e /y "{extract_dir}\\*" "{app_dir}\\"
+echo 업데이트가 완료되었습니다. 앱을 다시 시작합니다.
+start "" "{sys.executable}" {" ".join(sys.argv)}
+del "%~f0"
+"""
+        with open(bat_path, "w", encoding="utf-8") as f:
+            f.write(bat_content)
+            
+        subprocess.Popen(["cmd.exe", "/c", bat_path], creationflags=subprocess.CREATE_NEW_CONSOLE)
+        
+        return {"status": "success", "message": "업데이트 다운로드가 완료되어 앱이 재시작됩니다."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Auto update error: {e}")
+        raise HTTPException(status_code=500, detail=f"자동 업데이트 실패: {str(e)}")
 
 @app.get("/api/projects")
 async def get_projects():

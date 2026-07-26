@@ -626,6 +626,13 @@
                 <a href="/static/viewer.html?mode=monitor" target="_blank" class="nav-link">Monitor</a>
             </nav>
         </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span id="app-version-badge" style="font-size: 0.8rem; background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); padding: 3px 10px; border-radius: 12px; font-weight: 600;">v1.3.0</span>
+            <button id="btn-check-update" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #d1d5db; padding: 6px 12px; border-radius: 8px; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                <svg style="width: 14px; height: 14px; fill: currentColor;" viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+                업데이트 확인
+            </button>
+        </div>
     </header>
 
     <div class="container">
@@ -1046,6 +1053,35 @@
 
             // 최초 목록 로드
             fetchProjects();
+
+            // 업데이트 확인 이벤트 핸들러
+            const btnCheckUpdate = document.getElementById('btn-check-update');
+            if (btnCheckUpdate) {
+                btnCheckUpdate.addEventListener('click', async () => {
+                    btnCheckUpdate.disabled = true;
+                    btnCheckUpdate.innerText = '확인 중...';
+                    try {
+                        const res = await fetch('/api/system/check-update');
+                        const data = await res.json();
+                        if (data.has_update) {
+                            const confirmUpdate = confirm(`🚀 새 버전 [${data.latest_version}]이 출시되었습니다!\n현재 버전: ${data.current_version}\n\n지금 자동으로 업데이트를 진행하시겠습니까?`);
+                            if (confirmUpdate) {
+                                btnCheckUpdate.innerText = '업데이트 중...';
+                                const updateRes = await fetch('/api/system/auto-update', { method: 'POST' });
+                                const updateData = await updateRes.json();
+                                alert(updateData.message || '업데이트 다운로드가 완료되어 앱이 곧 재시작됩니다.');
+                            }
+                        } else {
+                            alert(`현재 최신 버전(v${data.current_version})을 사용 중입니다.`);
+                        }
+                    } catch (err) {
+                        alert('업데이트 확인 실패: ' + err.message);
+                    } finally {
+                        btnCheckUpdate.disabled = false;
+                        btnCheckUpdate.innerHTML = `<svg style="width: 14px; height: 14px; fill: currentColor;" viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg> 업데이트 확인`;
+                    }
+                });
+            }
         });
     </script>
 </body>
