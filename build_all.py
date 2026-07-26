@@ -12,7 +12,7 @@ def run_command(cmd, cwd=None):
         sys.exit(res.returncode)
 
 def main():
-    print("=== Subcast Enterprise Build & Packaging Pipeline v1.3.6 ===")
+    print("=== Subcast Enterprise Build & Packaging Pipeline v1.3.7 ===")
     
     # 1. PyInstaller 빌드
     print("\n[Step 1/3] Building executable with PyInstaller...")
@@ -26,7 +26,7 @@ def main():
     
     # 2. ZIP 패키지 생성 (자동 업데이트 및 무설치 배포용)
     print("\n[Step 2/3] Creating zip package for auto-updater...")
-    zip_filename = os.path.join("dist", "subcast-v1.3.6-windows.zip")
+    zip_filename = os.path.join("dist", "subcast-v1.3.7-windows.zip")
     if os.path.exists(zip_filename):
         os.remove(zip_filename)
         
@@ -50,8 +50,8 @@ def main():
         
     print("\n=== Build Completed Successfully! ===")
     print("Artifacts generated:")
-    print(f" - Installer: dist/Subcast_Setup_v1.3.6.exe")
-    print(f" - Auto-Update ZIP: dist/subcast-v1.3.6-windows.zip")
+    print(f" - Installer: dist/Subcast_Setup_v1.3.7.exe")
+    print(f" - Auto-Update ZIP: dist/subcast-v1.3.7-windows.zip")
 
 if __name__ == "__main__":
     main()

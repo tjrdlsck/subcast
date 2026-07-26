@@ -11,7 +11,7 @@ import tempfile
 import pystray
 from PIL import Image, ImageDraw
 
-CURRENT_VERSION = "1.3.6"
+CURRENT_VERSION = "1.3.7"
 REPO_OWNER = "tjrdlsck"
 REPO_NAME = "subcast"
 
@@ -37,7 +37,9 @@ if not appdata_dir:
 subcast_appdata = os.path.join(appdata_dir, "Subcast")
 os.makedirs(subcast_appdata, exist_ok=True)
 
-old_data_dir = os.path.join(os.getcwd(), "data")
+install_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.getcwd()
+
+old_data_dir = os.path.join(install_dir, "data")
 new_data_dir = os.path.join(subcast_appdata, "data")
 if os.path.exists(old_data_dir):
     try:
@@ -45,7 +47,7 @@ if os.path.exists(old_data_dir):
     except Exception as e:
         print(f"Failed to migrate data dir: {e}")
 
-old_db_path = os.path.join(os.getcwd(), "GAE_Bible.db")
+old_db_path = os.path.join(install_dir, "GAE_Bible.db")
 new_db_path = os.path.join(subcast_appdata, "GAE_Bible.db")
 if os.path.exists(old_db_path) and not os.path.exists(new_db_path):
     try:

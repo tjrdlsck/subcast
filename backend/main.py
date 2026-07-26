@@ -25,7 +25,7 @@ from backend.storage import (
     import_project_data
 )
 
-CURRENT_VERSION = "1.3.3"
+CURRENT_VERSION = "1.3.7"
 GITHUB_REPO = "tjrdlsck/subcast"
 
 # 로그 설정
