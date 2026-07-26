@@ -361,6 +361,29 @@
             font-size: 1.2rem;
             font-weight: 600;
             color: #ffffff;
+            cursor: pointer;
+            user-select: none;
+            padding: 2px 6px;
+            border-radius: 6px;
+            transition: background 0.15s ease;
+        }
+
+        .project-name:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .project-name-input {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--primary);
+            border-radius: 6px;
+            padding: 2px 8px;
+            outline: none;
+            box-shadow: 0 0 8px var(--primary-glow);
+            width: 240px;
         }
 
         .active-badge {
@@ -898,7 +921,7 @@
                              data-index="${idx}">
                             <div class="project-info">
                                 <div class="project-title-row">
-                                    <span class="project-name">${escapeHtml(proj.name)}</span>
+                                    <span class="project-name" title="두 번 클릭하여 이름 수정" ondblclick="event.stopPropagation(); startInlineRename(this, '${proj.id}', '${escapeHtml(proj.name)}')">${escapeHtml(proj.name)}</span>
                                     <div class="badge-container">
                                         ${isActive ? '<span class="active-badge">✓ 현재 작업중</span>' : ''}
                                         ${isSelected ? '<span class="selected-badge">선택됨</span>' : ''}
@@ -917,7 +940,6 @@
                                 `}
                                 <button class="action-btn btn-editor" onclick="event.stopPropagation(); openPage('${proj.id}', '/static/editor.html')">Editor</button>
                                 <button class="action-btn btn-presenter" onclick="event.stopPropagation(); openPage('${proj.id}', '/static/presenter.html')">Presenter</button>
-                                <button class="action-btn btn-rename" title="프로젝트명 수정" onclick="event.stopPropagation(); renameProject('${proj.id}', '${escapeHtml(proj.name)}')">수정</button>
                                 <button class="action-btn btn-export" title="프로젝트 내보내기" style="padding: 8px 10px;" onclick="event.stopPropagation(); exportProject('${proj.id}')"><img src="/static/assets/icons/upload.svg" style="width: 14px; height: 14px; filter: brightness(0) invert(1);" alt="내보내기" /></button>
                                 ${currentProjects.length > 1 ? `
                                     <button class="action-btn btn-delete" onclick="event.stopPropagation(); deleteProject('${proj.id}', '${escapeHtml(proj.name)}')">삭제</button>
@@ -1076,32 +1098,69 @@
                 }
             };
 
-            // 프로젝트 이름 수정 (글로벌 바인딩)
-            window.renameProject = async function(projectId, currentName) {
-                const newName = prompt('새로운 프로젝트 이름을 입력해 주세요:', currentName);
-                if (newName === null) return;
-                const trimmed = newName.trim();
-                if (!trimmed) {
-                    alert('프로젝트 이름을 입력해 주세요.');
-                    return;
-                }
-                if (trimmed === currentName) return;
+            // 프로젝트 이름 인라인 수정 (글로벌 바인딩 - 더블클릭)
+            window.startInlineRename = function(spanElement, projectId, currentName) {
+                if (spanElement.querySelector('input')) return;
 
-                try {
-                    const res = await fetch(`/api/projects/${projectId}`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name: trimmed })
-                    });
-                    if (!res.ok) {
-                        const err = await res.json();
-                        throw new Error(err.detail || '프로젝트 이름 수정 실패');
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'project-name-input';
+                input.value = currentName;
+                
+                input.onclick = (e) => e.stopPropagation();
+                input.ondblclick = (e) => e.stopPropagation();
+
+                let isSaved = false;
+                const saveRename = async () => {
+                    if (isSaved) return;
+                    isSaved = true;
+
+                    const newName = input.value.trim();
+                    if (!newName) {
+                        alert('프로젝트 이름을 입력해 주세요.');
+                        spanElement.textContent = currentName;
+                        return;
                     }
-                    showToast('프로젝트 이름이 변경되었습니다.');
-                    await fetchProjects();
-                } catch (err) {
-                    alert('프로젝트 이름 변경 중 오류가 발생했습니다: ' + err.message);
-                }
+                    if (newName === currentName) {
+                        spanElement.textContent = currentName;
+                        return;
+                    }
+
+                    try {
+                        const res = await fetch(`/api/projects/${projectId}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name: newName })
+                        });
+                        if (!res.ok) {
+                            const err = await res.json();
+                            throw new Error(err.detail || '프로젝트 이름 수정 실패');
+                        }
+                        showToast('프로젝트 이름이 변경되었습니다.');
+                        await fetchProjects();
+                    } catch (err) {
+                        alert('프로젝트 이름 변경 중 오류가 발생했습니다: ' + err.message);
+                        spanElement.textContent = currentName;
+                    }
+                };
+
+                input.onkeydown = (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        input.blur();
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        isSaved = true;
+                        spanElement.textContent = currentName;
+                    }
+                };
+
+                input.onblur = saveRename;
+
+                spanElement.innerHTML = '';
+                spanElement.appendChild(input);
+                input.focus();
+                input.select();
             };
 
             // 단일 프로젝트 삭제 (글로벌 바인딩)
