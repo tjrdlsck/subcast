@@ -132,4 +132,25 @@ def test_bulk_duplicate_and_delete():
     for d_id in dup_ids:
         assert d_id not in remaining
 
+def test_templates_persist_after_project_deletion():
+    # 1. 테스트용 프로젝트 생성 및 템플릿 개수 확인
+    p = client.post("/api/projects", json={"name": "템플릿 테스트용 프로젝트"}).json()
+    pid = p["id"]
+    created_test_project_ids.append(pid)
+
+    select_p = client.post(f"/api/projects/{pid}/select").json()
+    orig_templates_count = len(select_p["project"]["templates"])
+
+    # 2. 프로젝트 삭제
+    del_res = client.delete(f"/api/projects/{pid}")
+    assert del_res.status_code == 200
+
+    # 3. 프로젝트 삭제 후에도 전역 템플릿 목록이 그대로 유지되는지 검증
+    active_pid = del_res.json()["active_project_id"]
+    select_active = client.post(f"/api/projects/{active_pid}/select").json()
+    after_del_templates_count = len(select_active["project"]["templates"])
+
+    assert after_del_templates_count == orig_templates_count
+
+
 
