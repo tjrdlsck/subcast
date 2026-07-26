@@ -459,6 +459,17 @@
             box-shadow: 0 4px 12px var(--primary-glow);
         }
 
+        .btn-export {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+        .btn-export:hover {
+            background: var(--success);
+            color: #fff;
+            box-shadow: 0 4px 12px var(--success-glow);
+        }
+
         .btn-delete {
             background: rgba(244, 63, 94, 0.1);
             color: #fb7185;
@@ -682,9 +693,15 @@
                     <span>📂 프로젝트 목록</span>
                     <span class="projects-count-badge" id="projects-count">0개</span>
                 </div>
-                <button class="btn-create-project" id="btn-open-create-modal">
-                    <span>+ 새 프로젝트 추가</span>
-                </button>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="file" id="file-import-project" accept=".json" style="display: none;" />
+                    <button class="btn-create-project" id="btn-import-project-trigger" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">
+                        <span>📥 가져오기</span>
+                    </button>
+                    <button class="btn-create-project" id="btn-open-create-modal">
+                        <span>+ 새 프로젝트 추가</span>
+                    </button>
+                </div>
             </div>
 
             <!-- 프로젝트 검색창 -->
@@ -698,7 +715,10 @@
                 <div class="shortcut-tips">
                     <span>💡 단축키: <kbd>Ctrl</kbd>/<kbd>Shift</kbd> + 클릭 (다중 선택) | <kbd>Ctrl+C</kbd> (복사) | <kbd>Ctrl+V</kbd> (붙여넣기) | <kbd>Del</kbd> (삭제)</span>
                 </div>
-                <span class="selected-count-badge" id="selected-count-badge">0개 선택됨</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button id="btn-export-selected" class="action-btn btn-export" style="display: none; padding: 4px 10px; font-size: 0.78rem;">📤 선택 내보내기</button>
+                    <span class="selected-count-badge" id="selected-count-badge">0개 선택됨</span>
+                </div>
             </div>
 
             <!-- 프로젝트 리스트 영역 -->
@@ -808,12 +828,15 @@
                     }
                 });
 
-                // 상단 선택 개수 뱃지 갱신
+                // 상단 선택 개수 뱃지 및 선택 내보내기 버튼 갱신
+                const btnExportSelected = document.getElementById('btn-export-selected');
                 if (selectedProjectIds.size > 0) {
                     selectedCountBadge.textContent = `${selectedProjectIds.size}개 선택됨`;
                     selectedCountBadge.classList.add('show');
+                    if (btnExportSelected) btnExportSelected.style.display = 'inline-flex';
                 } else {
                     selectedCountBadge.classList.remove('show');
+                    if (btnExportSelected) btnExportSelected.style.display = 'none';
                 }
             }
 
@@ -880,6 +903,7 @@
                                 `}
                                 <button class="action-btn btn-editor" onclick="event.stopPropagation(); openPage('${proj.id}', '/static/editor.html')">Editor</button>
                                 <button class="action-btn btn-presenter" onclick="event.stopPropagation(); openPage('${proj.id}', '/static/presenter.html')">Presenter</button>
+                                <button class="action-btn btn-export" onclick="event.stopPropagation(); exportProject('${proj.id}')">내보내기</button>
                                 ${currentProjects.length > 1 ? `
                                     <button class="action-btn btn-delete" onclick="event.stopPropagation(); deleteProject('${proj.id}', '${escapeHtml(proj.name)}')">삭제</button>
                                 ` : ''}
@@ -951,6 +975,80 @@
                     alert('프로젝트 선택 중 오류가 발생했습니다: ' + err.message);
                 }
             };
+
+            // 단일 프로젝트 내보내기 (글로벌 바인딩)
+            window.exportProject = function(projectId) {
+                window.location.href = `/api/projects/${projectId}/export`;
+            };
+
+            // 선택한 프로젝트 다중 내보내기
+            const btnExportSelected = document.getElementById('btn-export-selected');
+            if (btnExportSelected) {
+                btnExportSelected.addEventListener('click', async () => {
+                    if (selectedProjectIds.size === 0) return;
+                    if (selectedProjectIds.size === 1) {
+                        const pid = Array.from(selectedProjectIds)[0];
+                        window.exportProject(pid);
+                        return;
+                    }
+                    try {
+                        showToast(`${selectedProjectIds.size}개 프로젝트 내보내는 중...`);
+                        const response = await fetch('/api/projects/export-bulk', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ids: Array.from(selectedProjectIds) })
+                        });
+                        if (!response.ok) throw new Error('프로젝트 일괄 내보내기 실패');
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `projects_export_${new Date().toISOString().slice(0,10)}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        window.URL.revokeObjectURL(url);
+                        showToast(`${selectedProjectIds.size}개 프로젝트가 내보내졌습니다.`);
+                    } catch (err) {
+                        alert('프로젝트 내보내기 오류: ' + err.message);
+                    }
+                });
+            }
+
+            // 프로젝트 가져오기 처리
+            const btnImportProjectTrigger = document.getElementById('btn-import-project-trigger');
+            const fileImportProject = document.getElementById('file-import-project');
+            if (btnImportProjectTrigger && fileImportProject) {
+                btnImportProjectTrigger.addEventListener('click', () => {
+                    fileImportProject.value = '';
+                    fileImportProject.click();
+                });
+
+                fileImportProject.addEventListener('change', async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    try {
+                        showToast('프로젝트 가져오는 중...');
+                        const res = await fetch('/api/projects/import', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        if (!res.ok) {
+                            const errData = await res.json();
+                            throw new Error(errData.detail || '가져오기 실패');
+                        }
+                        const data = await res.json();
+                        showToast(`성공적으로 ${data.imported_count || 1}개의 프로젝트를 가져왔습니다.`);
+                        await fetchProjects();
+                    } catch (err) {
+                        alert('프로젝트 가져오기 실패: ' + err.message);
+                    }
+                });
+            }
 
             // 선택 후 페이지 이동 (글로벌 바인딩)
             window.openPage = async function(projectId, targetUrl) {

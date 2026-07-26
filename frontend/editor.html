@@ -2199,9 +2199,15 @@
                     <div class="panel-header"
                         style="display: flex; justify-content: space-between; align-items: center;">
                         <h3>찬양 가사 목록</h3>
-                        <button class="btn-template-action" id="btn-praise-open-add-modal"
-                            style="width: auto; padding: 6px 12px; font-size: 0.75rem; background: var(--primary); border-color: var(--primary); margin: 0; cursor: pointer;">➕
-                            새 찬양 등록</button>
+                        <div style="display: flex; gap: 4px; align-items: center;">
+                            <input type="file" id="file-import-praise" accept=".json" style="display: none;" />
+                            <button class="btn-template-action" id="btn-praise-export"
+                                style="width: auto; padding: 4px 8px; font-size: 0.72rem; background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); margin: 0; cursor: pointer;" title="전체 찬양 데이터 JSON 내보내기">📤 내보내기</button>
+                            <button class="btn-template-action" id="btn-praise-import"
+                                style="width: auto; padding: 4px 8px; font-size: 0.72rem; background: rgba(6, 182, 212, 0.2); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.4); margin: 0; cursor: pointer;" title="찬양 데이터 JSON 가져오기">📥 가져오기</button>
+                            <button class="btn-template-action" id="btn-praise-open-add-modal"
+                                style="width: auto; padding: 4px 8px; font-size: 0.72rem; background: var(--primary); border-color: var(--primary); margin: 0; cursor: pointer;">➕ 등록</button>
+                        </div>
                     </div>
 
                     <div class="panel-body"
@@ -7525,6 +7531,46 @@
 
             // 1) 최초 로드 시 DB 내 전체 찬양 목록 렌더링
             fetchPraiseSongs("");
+
+            // 찬양 데이터 내보내기/가져오기 이벤트 바인딩
+            const btnPraiseExport = document.getElementById("btn-praise-export");
+            if (btnPraiseExport) {
+                btnPraiseExport.onclick = () => {
+                    window.location.href = "/api/praise/export";
+                };
+            }
+
+            const btnPraiseImport = document.getElementById("btn-praise-import");
+            const fileImportPraise = document.getElementById("file-import-praise");
+            if (btnPraiseImport && fileImportPraise) {
+                btnPraiseImport.onclick = () => {
+                    fileImportPraise.value = "";
+                    fileImportPraise.click();
+                };
+                fileImportPraise.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    const formData = new FormData();
+                    formData.append("file", file);
+
+                    try {
+                        const res = await fetch("/api/praise/import", {
+                            method: "POST",
+                            body: formData
+                        });
+                        if (!res.ok) {
+                            const errData = await res.json();
+                            throw new Error(errData.detail || "찬양 가져오기 실패");
+                        }
+                        const data = await res.json();
+                        alert(`성공적으로 ${data.imported_count || 0}곡의 찬양 데이터를 가져왔습니다.`);
+                        fetchPraiseSongs(searchInput ? searchInput.value : "");
+                    } catch (err) {
+                        alert("찬양 데이터 가져오기 오류: " + err.message);
+                    }
+                };
+            }
 
             // 2) 실시간 검색어 입력 시 목록 필터링
             searchInput.oninput = (e) => {

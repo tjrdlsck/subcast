@@ -3,6 +3,7 @@ import logging
 import uuid
 import sys
 import os
+import urllib.parse
 import subprocess
 import tempfile
 import zipfile
@@ -11,7 +12,7 @@ import asyncio
 import httpx
 from typing import Dict, List, Set, Optional
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPException, Response, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
 from pathlib import Path
@@ -20,7 +21,8 @@ from backend.schemas import ProjectData, SystemSettings, Slide, ProjectCreateReq
 from backend.storage import (
     load_project_data, save_project_data, list_projects,
     create_project, delete_project, get_active_project_id, set_active_project_id,
-    load_global_templates, save_global_templates, duplicate_projects_bulk, delete_projects_bulk
+    load_global_templates, save_global_templates, duplicate_projects_bulk, delete_projects_bulk,
+    import_project_data
 )
 
 CURRENT_VERSION = "1.3.3"
@@ -344,6 +346,26 @@ class PraiseDatabaseHelper:
         finally:
             conn.close()
 
+    def get_all_songs(self) -> List[dict]:
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT id, title, lyrics FROM praise_songs ORDER BY title ASC")
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            conn.close()
+
+    def import_songs(self, songs: List[dict]) -> int:
+        count = 0
+        for song in songs:
+            title = str(song.get("title", "")).strip()
+            lyrics = str(song.get("lyrics", "")).strip()
+            if title and lyrics:
+                self.save_song(title=title, lyrics=lyrics)
+                count += 1
+        return count
+
 praise_db = PraiseDatabaseHelper("GAE_Bible.db")
 
 from pydantic import BaseModel
@@ -383,6 +405,34 @@ async def delete_praise_songs(req: PraiseSongDeleteRequest):
             raise HTTPException(status_code=400, detail="삭제할 찬양곡을 지정해 주세요.")
         count = praise_db.delete_songs(song_ids=req.ids, titles=req.titles)
         return {"status": "success", "deleted_count": count}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/praise/export")
+async def export_praise_songs():
+    try:
+        songs = praise_db.get_all_songs()
+        export_data = [{"title": s["title"], "lyrics": s["lyrics"]} for s in songs]
+        json_bytes = json.dumps(export_data, indent=2, ensure_ascii=False).encode('utf-8')
+        return Response(
+            content=json_bytes,
+            media_type="application/json",
+            headers={"Content-Disposition": 'attachment; filename="praise_songs.json"'}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/praise/import")
+async def import_praise_songs(file: UploadFile = File(...)):
+    try:
+        content = await file.read()
+        raw = json.loads(content.decode('utf-8'))
+        if not isinstance(raw, list):
+            raise HTTPException(status_code=400, detail="올바른 찬양 데이터 형식(JSON 배열)이 아닙니다.")
+        imported_count = praise_db.import_songs(raw)
+        return {"status": "success", "imported_count": imported_count}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="유효하지 않은 JSON 파일입니다.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -650,6 +700,58 @@ async def delete_projects_batch(req: ProjectBatchRequest):
         return {"status": "success", "active_project_id": new_active_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/projects/{project_id}/export")
+async def export_project(project_id: str):
+    try:
+        project = await load_project_data(project_id)
+        file_name = f"project_{project.name}_{project.id}.json"
+        safe_filename = "".join(c for c in file_name if c.isalnum() or c in (' ', '_', '-')).rstrip() + ".json"
+        encoded_filename = urllib.parse.quote(safe_filename)
+        json_bytes = json.dumps(project.model_dump(), indent=2, ensure_ascii=False).encode('utf-8')
+        return Response(
+            content=json_bytes,
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/projects/export-bulk")
+async def export_projects_batch(req: ProjectBatchRequest):
+    try:
+        if not req.ids:
+            raise HTTPException(status_code=400, detail="내보낼 프로젝트 ID 목록이 비어있습니다.")
+        export_list = []
+        for pid in req.ids:
+            p = await load_project_data(pid)
+            export_list.append(p.model_dump())
+        json_bytes = json.dumps(export_list, indent=2, ensure_ascii=False).encode('utf-8')
+        return Response(
+            content=json_bytes,
+            media_type="application/json",
+            headers={"Content-Disposition": 'attachment; filename="projects_export.json"'}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/projects/import")
+async def import_project_endpoint(file: UploadFile = File(...)):
+    try:
+        content = await file.read()
+        raw = json.loads(content.decode('utf-8'))
+        if isinstance(raw, list):
+            imported_projects = []
+            for item in raw:
+                imported_projects.append(await import_project_data(item))
+            return {"status": "success", "imported_count": len(imported_projects), "projects": imported_projects}
+        else:
+            imported_project = await import_project_data(raw)
+            return {"status": "success", "imported_count": 1, "projects": [imported_project]}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="유효하지 않은 JSON 파일입니다.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"프로젝트 가져오기 실패: {str(e)}")
 
 @app.get("/")
 async def get_index():

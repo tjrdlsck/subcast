@@ -351,3 +351,29 @@ async def delete_projects_bulk(project_ids: List[str]) -> str:
         return new_active_id
 
     return active_id
+
+async def import_project_data(raw_data: dict) -> ProjectData:
+    """가져온 JSON 데이터를 이용하여 새로운 프로젝트로 등록합니다."""
+    project = ProjectData.model_validate(raw_data)
+    
+    existing = await list_projects()
+    existing_names = {p.name for p in existing}
+    
+    orig_name = project.name.strip() if project.name and project.name.strip() else "가져온 프로젝트"
+    candidate_name = orig_name
+    counter = 1
+    while candidate_name in existing_names:
+        counter += 1
+        candidate_name = f"{orig_name} (가져옴 {counter})"
+    
+    new_id = f"proj_{uuid.uuid4().hex[:8]}"
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    project.id = new_id
+    project.name = candidate_name
+    project.createdAt = now_str
+    project.updatedAt = now_str
+    
+    await save_project_data(project)
+    return project
+
