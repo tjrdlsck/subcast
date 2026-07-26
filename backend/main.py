@@ -11,7 +11,8 @@ from pathlib import Path
 from backend.schemas import ProjectData, SystemSettings, Slide, ProjectCreateRequest, ProjectListItem
 from backend.storage import (
     load_project_data, save_project_data, list_projects,
-    create_project, delete_project, get_active_project_id, set_active_project_id
+    create_project, delete_project, get_active_project_id, set_active_project_id,
+    save_global_templates
 )
 
 # 로그 설정
@@ -606,19 +607,21 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                             break
                     else:
                         manager.project_data.templates.append(new_tpl)
+                    await save_global_templates(manager.project_data.templates)
                     await save_project_data(manager.project_data)
                     await manager.broadcast({
                         "type": "INITIAL_SYNC",
                         "data": manager.project_data.model_dump(),
                         "lockedSlides": manager.locked_slides
                     })
-                    logger.info(f"Template saved: {new_tpl.id}")
+                    logger.info(f"Template saved globally: {new_tpl.id}")
 
             elif msg_type == "DELETE_TEMPLATE":
                 tpl_id = message.get("templateId")
                 tpl_ids = message.get("templateIds")
                 if tpl_ids:
                     manager.project_data.templates = [t for t in manager.project_data.templates if t.id not in tpl_ids]
+                    await save_global_templates(manager.project_data.templates)
                     await save_project_data(manager.project_data)
                     await manager.broadcast({
                         "type": "INITIAL_SYNC",
@@ -628,6 +631,7 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                     logger.info(f"Templates deleted (bulk): {tpl_ids}")
                 elif tpl_id:
                     manager.project_data.templates = [t for t in manager.project_data.templates if t.id != tpl_id]
+                    await save_global_templates(manager.project_data.templates)
                     await save_project_data(manager.project_data)
                     await manager.broadcast({
                         "type": "INITIAL_SYNC",

@@ -5,13 +5,65 @@ import aiofiles
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
-from backend.schemas import ProjectData, SystemSettings, Slide, Element, ElementStyle, ProjectListItem
+from backend.schemas import ProjectData, SystemSettings, Slide, SlideTemplate, Element, ElementStyle, ProjectListItem
 
 # 데이터 저장 경로 설정
 DATA_DIR = Path("data")
 PROJECTS_DIR = DATA_DIR / "projects"
 ACTIVE_PROJECT_FILE = DATA_DIR / "active_project_id.txt"
 OLD_DATA_FILE_PATH = DATA_DIR / "project_data.json"
+TEMPLATES_FILE_PATH = DATA_DIR / "templates.json"
+
+async def load_global_templates() -> List[SlideTemplate]:
+    """전역 템플릿 목록을 로드합니다. 파일이 없으면 기존 프로젝트 파일들의 templates를 이관(Merge)합니다."""
+    PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
+    
+    if not TEMPLATES_FILE_PATH.exists():
+        templates_map = {}
+        project_files = list(PROJECTS_DIR.glob("*.json"))
+        for pfile in project_files:
+            try:
+                async with aiofiles.open(pfile, mode="r", encoding="utf-8") as f:
+                    content = await f.read()
+                    raw = json.loads(content)
+                    tpls_raw = raw.get("templates", [])
+                    for t_data in tpls_raw:
+                        try:
+                            tpl = SlideTemplate.model_validate(t_data)
+                            templates_map[tpl.id] = tpl
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+        
+        merged_templates = list(templates_map.values())
+        await save_global_templates(merged_templates)
+        return merged_templates
+
+    async with aiofiles.open(TEMPLATES_FILE_PATH, mode="r", encoding="utf-8") as f:
+        content = await f.read()
+        try:
+            raw_list = json.loads(content)
+            return [SlideTemplate.model_validate(t) for t in raw_list]
+        except Exception:
+            return []
+
+async def save_global_templates(templates: List[SlideTemplate]) -> None:
+    """전역 템플릿 목록을 templates.json 파일에 저장합니다."""
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    temp_path = TEMPLATES_FILE_PATH.with_suffix('.json.tmp')
+    try:
+        raw_list = [t.model_dump() for t in templates]
+        async with aiofiles.open(temp_path, mode="w", encoding="utf-8") as f:
+            await f.write(json.dumps(raw_list, indent=2, ensure_ascii=False))
+        os.replace(temp_path, TEMPLATES_FILE_PATH)
+    except Exception as e:
+        if temp_path.exists():
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+        raise e
 
 DEFAULT_PROJECT_DATA = ProjectData(
     id="proj_default",
@@ -114,9 +166,12 @@ async def load_project_data(project_id: Optional[str] = None) -> ProjectData:
             data = ProjectData.model_validate_json(content)
             if not data.id:
                 data.id = project_id
+            data.templates = await load_global_templates()
             return data
         except Exception:
-            return DEFAULT_PROJECT_DATA
+            data = DEFAULT_PROJECT_DATA.model_copy(deep=True)
+            data.templates = await load_global_templates()
+            return data
 
 async def save_project_data(data: ProjectData, project_id: Optional[str] = None) -> None:
     """프로젝트 데이터를 JSON 파일에 저장합니다."""
@@ -203,7 +258,7 @@ async def create_project(name: str) -> ProjectData:
             currentLiveSlideId=initial_slide_id
         ),
         slides=[initial_slide],
-        templates=[],
+        templates=await load_global_templates(),
         customFonts=[]
     )
     

@@ -75,3 +75,29 @@ def test_create_and_select_and_delete_project():
     list_res_after_del = client.get("/api/projects")
     remaining_ids = [p["id"] for p in list_res_after_del.json()]
     assert proj_id not in remaining_ids
+
+def test_global_template_sharing():
+    # 프로젝트 A 생성
+    res_a = client.post("/api/projects", json={"name": "프로젝트 A"})
+    assert res_a.status_code == 200
+    proj_a = res_a.json()
+    proj_a_id = proj_a["id"]
+    created_test_project_ids.append(proj_a_id)
+
+    # 프로젝트 B 생성
+    res_b = client.post("/api/projects", json={"name": "프로젝트 B"})
+    assert res_b.status_code == 200
+    proj_b = res_b.json()
+    proj_b_id = proj_b["id"]
+    created_test_project_ids.append(proj_b_id)
+
+    # 프로젝트 A 선택 후 템플릿 확인
+    select_a = client.post(f"/api/projects/{proj_a_id}/select").json()
+    templates_a = select_a["project"]["templates"]
+
+    # 프로젝트 B 선택 후 템플릿 확인 -> A와 동일한 템플릿 목록이어야 함
+    select_b = client.post(f"/api/projects/{proj_b_id}/select").json()
+    templates_b = select_b["project"]["templates"]
+
+    assert templates_a == templates_b
+
