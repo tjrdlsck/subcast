@@ -212,7 +212,14 @@ def download_and_update(asset_url, installer_name):
         subprocess.run(["powershell", "-Command", script], creationflags=0x08000000)
         
         # Run installer with restart
-        subprocess.Popen([installer_path, '/VERYSILENT', '/SUPPRESSMSGBOXES', '/FORCECLOSEAPPLICATIONS', '/RESTARTAPPLICATIONS', '/NOCANCEL'])
+        proc = subprocess.Popen([installer_path, '/VERYSILENT', '/SUPPRESSMSGBOXES', '/FORCECLOSEAPPLICATIONS', '/RESTARTAPPLICATIONS', '/NOCANCEL'])
+        
+        # Wait briefly then clean up temp installer file
+        proc.wait(timeout=5)
+        try:
+            os.remove(installer_path)
+        except Exception:
+            pass
         
         # Exit current app
         if icon is not None:
@@ -224,7 +231,7 @@ def download_and_update(asset_url, installer_name):
         if hasattr(sys, "stderr") and sys.stderr is not None:
             sys.stderr.write(f"Update failed: {e}\n")
 
-def check_for_updates(icon=None, item=None):
+def check_for_updates(_icon=None, item=None):
     def _check():
         release_info = get_latest_release_info()
         if not release_info:

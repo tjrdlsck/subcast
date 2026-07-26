@@ -1,11 +1,12 @@
 import os
 import sys
+import inspect
 import pytest
 
 # Add parent directory to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from run import get_current_version, parse_version
+from run import get_current_version, parse_version, download_and_update, check_for_updates
 from build_all import get_version, find_iscc
 
 def test_version_reading():
@@ -38,3 +39,39 @@ def test_find_iscc():
     iscc_path = find_iscc()
     if iscc_path:
         assert os.path.exists(iscc_path)
+
+def test_check_for_updates_no_icon_shadowing():
+    """check_for_updates 파라미터가 전역 icon을 shadowing하지 않아야 함"""
+    sig = inspect.signature(check_for_updates)
+    params = list(sig.parameters.keys())
+    assert 'icon' not in params, "icon 파라미터가 전역 icon을 shadowing함"
+    assert '_icon' in params, "_icon 파라미터가 존재해야 함"
+
+def test_download_and_update_uses_chunked_download():
+    """download_and_update 함수가 청크 단위 다운로드를 사용해야 함"""
+    src = inspect.getsource(download_and_update)
+    assert 'chunk_size' in src, "청크 단위 다운로드 미사용"
+
+def test_installer_flags_include_restart():
+    """/RESTARTAPPLICATIONS 플래그가 인스톨러 호출 시 포함되어야 함"""
+    src = inspect.getsource(download_and_update)
+    assert '/RESTARTAPPLICATIONS' in src
+
+def test_temp_file_cleanup():
+    """인스톨러 실행 후 임시 파일을 정리해야 함"""
+    src = inspect.getsource(download_and_update)
+    assert 'os.remove(installer_path)' in src
+
+def test_run_py_has_threading_import():
+    """run.py에 threading 모듈 임포트가 있어야 함"""
+    run_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "run.py"))
+    with open(run_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    assert 'import threading' in content
+
+def test_run_py_has_global_icon():
+    """run.py에 icon 전역 변수 선언이 있어야 함"""
+    run_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "run.py"))
+    with open(run_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    assert 'icon = None' in content
