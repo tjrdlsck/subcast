@@ -1557,33 +1557,28 @@
         }
 
         /* 애플 스타일 깔끔하고 가독성 좋은 드롭다운 select/option CSS */
-        .sidebar-panel select,
-        .modal-content select {
+        select {
             appearance: none;
             -webkit-appearance: none;
             background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%238e8e93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='feather feather-chevron-down' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
-            background-position: right 12px center;
+            background-position: right 10px center;
             background-size: 10px;
-            padding-right: 28px !important;
+            padding-right: 26px !important;
             cursor: pointer;
             outline: none;
             transition: border-color 0.2s, box-shadow 0.2s;
         }
 
-        .sidebar-panel select:focus,
-        .modal-content select:focus {
+        select:focus {
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
         }
 
-        .sidebar-panel select option,
-        .modal-content select option {
-            background-color: #1e1e1e;
-            /* 다크 그레이 배경 */
-            color: #ffffff;
-            /* 흰색 글자 */
-            padding: 8px;
+        select option {
+            background-color: #1e1e24 !important;
+            color: #ffffff !important;
+            padding: 8px 12px;
         }
 
         /* 애플 스타일 자동완성 드롭다운 팝업 아이템 디자인 */
@@ -2368,7 +2363,7 @@
                                         <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
                                             <span style="font-size: 0.78rem; color: var(--text-main); font-weight: 500;">디자인 프리셋</span>
                                             <select id="select-praise-design-preset"
-                                                style="padding: 5px 10px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.78rem;">
+                                                style="padding: 6px 10px; background: #18181b; border: 1px solid var(--panel-border); color: #ffffff; border-radius: var(--radius-sm); font-size: 0.78rem; font-weight: 500;">
                                                 <option value="type-a">타입 A (하단 좌측형)</option>
                                                 <option value="type-b">타입 B (상단 중앙형)</option>
                                                 <option value="type-black">블랙 채우기 (성경형)</option>
@@ -2382,7 +2377,7 @@
                                             style="display: none; align-items: center; justify-content: space-between; gap: 6px; border-top: 1px dashed var(--panel-border); padding-top: 10px; margin-top: 2px;">
                                             <span style="font-size: 0.72rem; color: var(--text-muted);">디자인 템플릿</span>
                                             <select id="select-praise-user-template"
-                                                style="padding: 5px 10px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.75rem; flex: 1; max-width: 180px;">
+                                                style="padding: 6px 10px; background: #18181b; border: 1px solid var(--panel-border); color: #ffffff; border-radius: var(--radius-sm); font-size: 0.75rem; flex: 1; max-width: 180px;">
                                             </select>
                                         </div>
 
