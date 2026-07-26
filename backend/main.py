@@ -659,10 +659,11 @@ async def check_update():
             download_url = None
             for asset in assets:
                 name = asset.get("name", "").lower()
-                if name.endswith(".zip") or name.endswith(".exe"):
+                if name.endswith(".exe"):
                     download_url = asset.get("browser_download_url")
-                    if name.endswith(".zip"):
-                        break
+                    break
+                elif name.endswith(".zip") and not download_url:
+                    download_url = asset.get("browser_download_url")
             
             return {
                 "has_update": has_update,
@@ -696,59 +697,50 @@ async def perform_auto_update(download_url: Optional[str] = Query(None)):
             raise HTTPException(status_code=400, detail="다운로드 가능한 업데이트 파일이 없습니다.")
             
         temp_dir = tempfile.mkdtemp(prefix="subcast_update_")
-        zip_path = os.path.join(temp_dir, "update.zip")
         
-        async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
+        is_exe = download_url.lower().endswith(".exe")
+        file_name = "update.exe" if is_exe else "update.zip"
+        download_path = os.path.join(temp_dir, file_name)
+        
+        async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
             res = await client.get(download_url, headers={"User-Agent": "Subcast-AutoUpdater"})
             if res.status_code != 200:
                 raise HTTPException(status_code=500, detail="업데이트 파일 다운로드 실패")
-            with open(zip_path, "wb") as f:
+            with open(download_path, "wb") as f:
                 f.write(res.content)
                 
-        extract_dir = os.path.join(temp_dir, "extracted")
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(extract_dir)
-            
-        if getattr(sys, 'frozen', False):
-            app_dir = os.path.dirname(sys.executable)
+        if is_exe:
+            # .exe 설치 파일인 경우 직접 실행하여 UAC(관리자 권한) 요청 및 설치 유도
+            subprocess.Popen([download_path, '/VERYSILENT', '/SUPPRESSMSGBOXES', '/FORCECLOSEAPPLICATIONS', '/NOCANCEL'], creationflags=subprocess.CREATE_NO_WINDOW)
+            asyncio.create_task(_delayed_exit())
+            return {"status": "success", "message": "업데이트 관리자가 시작되었습니다. 앱이 종료되고 설치 후 자동 재시작됩니다."}
         else:
-            app_dir = os.getcwd()
-        curr_pid = os.getpid()
-        
-        # executable 찾기 (subcast.exe 또는 python 실행)
-        target_exe = os.path.join(app_dir, "subcast.exe")
-        if not os.path.exists(target_exe):
-            target_exe = f'"{sys.executable}" backend/main.py'
-        else:
-            target_exe = f'"{target_exe}"'
+            # 기존 zip 덮어쓰기 로직
+            extract_dir = os.path.join(temp_dir, "extracted")
+            with zipfile.ZipFile(download_path, 'r') as zip_ref:
+                zip_ref.extractall(extract_dir)
+                
+            if getattr(sys, 'frozen', False):
+                app_dir = os.path.dirname(sys.executable)
+            else:
+                app_dir = os.getcwd()
+            curr_pid = os.getpid()
             
-        bat_path = os.path.join(temp_dir, "apply_update.bat")
-        
-        bat_content = f"""@echo off
-chcp 65001 > nul
-echo [Subcast Auto-Updater] 기존 프로세스 종료 중... (PID: {curr_pid})
-taskkill /F /PID {curr_pid} > nul 2>&1
-taskkill /F /IM subcast.exe > nul 2>&1
-timeout /t 3 /nobreak > nul
-
-echo [Subcast Auto-Updater] 최신 버전 패치 적용 중...
-xcopy /s /e /y /q "{extract_dir}\\*" "{app_dir}\\" > nul
-
-echo [Subcast Auto-Updater] 패치 완료. 애플리케이션 재시작 중...
-timeout /t 1 /nobreak > nul
-start "" {target_exe}
-
-del "%~f0"
-"""
-        with open(bat_path, "w", encoding="utf-8") as f:
-            f.write(bat_content)
+            target_exe = os.path.join(app_dir, "subcast.exe")
+            if not os.path.exists(target_exe):
+                target_exe = f'"{sys.executable}" backend/main.py'
+            else:
+                target_exe = f'"{target_exe}"'
+                
+            bat_path = os.path.join(temp_dir, "apply_update.bat")
+            bat_content = f"""@echo off\nchcp 65001 > nul\necho [Subcast Auto-Updater] 기존 프로세스 종료 중... (PID: {curr_pid})\ntaskkill /F /PID {curr_pid} > nul 2>&1\ntaskkill /F /IM subcast.exe > nul 2>&1\ntimeout /t 3 /nobreak > nul\n\necho [Subcast Auto-Updater] 최신 버전 패치 적용 중...\nxcopy /s /e /y /q "{extract_dir}\\*" "{app_dir}\\" > nul\n\necho [Subcast Auto-Updater] 패치 완료. 애플리케이션 재시작 중...\ntimeout /t 1 /nobreak > nul\nstart "" {target_exe}\n\ndel "%~f0"\n"""
+            with open(bat_path, "w", encoding="utf-8") as f:
+                f.write(bat_content)
+                
+            subprocess.Popen(["cmd.exe", "/c", bat_path], creationflags=subprocess.CREATE_NEW_CONSOLE)
+            asyncio.create_task(_delayed_exit())
             
-        subprocess.Popen(["cmd.exe", "/c", bat_path], creationflags=subprocess.CREATE_NEW_CONSOLE)
-        
-        # 1초 후 서버 안전 종료
-        asyncio.create_task(_delayed_exit())
-        
-        return {"status": "success", "message": "업데이트 패치 다운로드가 완료되었습니다. 앱이 종료되고 최신 버전으로 자동 재시작됩니다."}
+            return {"status": "success", "message": "업데이트 패치 다운로드가 완료되었습니다. 앱이 종료되고 최신 버전으로 자동 재시작됩니다."}
     except HTTPException:
         raise
     except Exception as e:
