@@ -709,7 +709,10 @@ async def perform_auto_update(download_url: Optional[str] = Query(None)):
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(extract_dir)
             
-        app_dir = os.getcwd()
+        if getattr(sys, 'frozen', False):
+            app_dir = os.path.dirname(sys.executable)
+        else:
+            app_dir = os.getcwd()
         curr_pid = os.getpid()
         
         # executable 찾기 (subcast.exe 또는 python 실행)

@@ -11,7 +11,7 @@ import tempfile
 import pystray
 from PIL import Image, ImageDraw
 
-CURRENT_VERSION = "1.3.5"
+CURRENT_VERSION = "1.3.6"
 REPO_OWNER = "tjrdlsck"
 REPO_NAME = "subcast"
 
@@ -39,9 +39,9 @@ os.makedirs(subcast_appdata, exist_ok=True)
 
 old_data_dir = os.path.join(os.getcwd(), "data")
 new_data_dir = os.path.join(subcast_appdata, "data")
-if os.path.exists(old_data_dir) and not os.path.exists(new_data_dir):
+if os.path.exists(old_data_dir):
     try:
-        shutil.copytree(old_data_dir, new_data_dir)
+        shutil.copytree(old_data_dir, new_data_dir, dirs_exist_ok=True)
     except Exception as e:
         print(f"Failed to migrate data dir: {e}")
 
