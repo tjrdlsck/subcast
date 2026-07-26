@@ -707,7 +707,7 @@
             </nav>
         </div>
         <div style="display: flex; align-items: center; gap: 12px;">
-            <span id="app-version-badge" style="font-size: 0.8rem; background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); padding: 3px 10px; border-radius: 12px; font-weight: 600;">v1.3.11</span>
+            <span id="app-version-badge" style="font-size: 0.8rem; background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); padding: 3px 10px; border-radius: 12px; font-weight: 600;">v1.3.12</span>
             <button id="btn-check-update" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #d1d5db; padding: 6px 12px; border-radius: 8px; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
                 <svg style="width: 14px; height: 14px; fill: currentColor;" viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
                 업데이트 확인
@@ -1327,6 +1327,14 @@
 
             // 최초 목록 로드
             fetchProjects();
+
+            // 현재 시스템 버전 동적 로드
+            fetch('/api/system/version').then(r => r.json()).then(data => {
+                const badge = document.getElementById('app-version-badge');
+                if (badge && data.version) {
+                    badge.innerText = 'v' + data.version;
+                }
+            }).catch(() => {});
 
             // ────────────────────────────────────────────────
             // 자동 업데이트 오버레이 (캐시 클리어 강제 새로고침 포함)
