@@ -11,7 +11,7 @@ import tempfile
 import pystray
 from PIL import Image, ImageDraw
 
-CURRENT_VERSION = "1.3.9"
+CURRENT_VERSION = "1.3.10"
 REPO_OWNER = "tjrdlsck"
 REPO_NAME = "subcast"
 
