@@ -1,5 +1,5 @@
 #define MyAppName "Subcast"
-#define MyAppVersion "1.3.3"
+#define MyAppVersion "1.3.4"
 #define MyAppPublisher "Subcast Inc."
 #define MyAppURL "https://github.com/tjrdlsck/subcast"
 #define MyAppExeName "subcast.exe"
