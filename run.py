@@ -5,9 +5,25 @@ import uvicorn
 import json
 import subprocess
 from threading import Timer, Thread
+import urllib.request
+import tempfile
 
 import pystray
 from PIL import Image, ImageDraw
+
+CURRENT_VERSION = "1.3.11"
+REPO_OWNER = "tjrdlsck"
+REPO_NAME = "subcast"
+
+import shutil
+from pathlib import Path
+
+appdata_dir = os.getenv("APPDATA")
+if not appdata_dir:
+    appdata_dir = os.path.expanduser("~")
+
+subcast_appdata = os.path.join(appdata_dir, "Subcast")
+os.makedirs(subcast_appdata, exist_ok=True)
 
 # PyInstaller 환경에서 워킹 디렉토리를 먼저 맞춰주어야 backend.main이 임포트될 때 경로 문제가 없습니다.
 if getattr(sys, 'frozen', False):
@@ -17,17 +33,46 @@ if getattr(sys, 'frozen', False):
         os.chdir(os.path.dirname(sys.executable))
     
     # --windowed 모드에서 sys.stdout과 sys.stderr가 None이 되어 발생하는 Uvicorn 에러 방지
-    log_file = open("subcast.log", "w", encoding="utf-8")
+    log_path = os.path.join(subcast_appdata, "subcast.log")
+    log_file = open(log_path, "w", encoding="utf-8")
     sys.stdout = log_file
     sys.stderr = log_file
+
+install_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.getcwd()
+
+new_data_dir = os.path.join(subcast_appdata, "data")
+for old_dir in [os.path.join(install_dir, "data"), os.path.join(install_dir, "_internal", "data")]:
+    if os.path.exists(old_dir):
+        try:
+            shutil.copytree(old_dir, new_data_dir, dirs_exist_ok=True)
+        except Exception as e:
+            print(f"Failed to migrate data dir from {old_dir}: {e}")
+
+new_db_path = os.path.join(subcast_appdata, "GAE_Bible.db")
+for old_db in [os.path.join(install_dir, "GAE_Bible.db"), os.path.join(install_dir, "_internal", "GAE_Bible.db")]:
+    if os.path.exists(old_db) and not os.path.exists(new_db_path):
+        try:
+            shutil.copy2(old_db, new_db_path)
+            break
+        except Exception as e:
+            print(f"Failed to migrate db from {old_db}: {e}")
+
+os.environ["SUBCAST_DATA_DIR"] = subcast_appdata
 
 # 워킹 디렉토리 세팅 후 app을 임포트합니다.
 from backend.main import app
 
-CONFIG_FILE = "subcast_config.json"
+CONFIG_FILE = os.path.join(subcast_appdata, "subcast_config.json")
 DEFAULT_PORT = 8000
 
 def load_config():
+    old_config = "subcast_config.json"
+    if os.path.exists(old_config) and not os.path.exists(CONFIG_FILE):
+        try:
+            shutil.copy2(old_config, CONFIG_FILE)
+        except:
+            pass
+            
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, "r", encoding="utf-8") as f:
@@ -118,12 +163,80 @@ def create_image():
     draw.ellipse((16, 16, 48, 48), fill=(255, 255, 255))
     return image
 
+def get_latest_release_info():
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases/latest"
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req) as response:
+            return json.loads(response.read().decode('utf-8'))
+    except Exception as e:
+        if hasattr(sys, "stderr") and sys.stderr is not None:
+            sys.stderr.write(f"Failed to get release info: {e}\n")
+        return None
+
+def parse_version(v_str):
+    return [int(x) for x in v_str.replace('v', '').split('.') if x.isdigit()]
+
+def download_and_update(asset_url, installer_name):
+    try:
+        temp_dir = tempfile.gettempdir()
+        installer_path = os.path.join(temp_dir, installer_name)
+        
+        req = urllib.request.Request(asset_url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req) as response, open(installer_path, 'wb') as out_file:
+            out_file.write(response.read())
+            
+        script = f'''
+        Add-Type -AssemblyName PresentationFramework
+        [System.Windows.MessageBox]::Show("업데이트 다운로드가 완료되었습니다. 설치를 진행합니다.", "Subcast Update")
+        '''
+        subprocess.run(["powershell", "-Command", script], creationflags=0x08000000)
+        
+        # Run installer
+        subprocess.Popen([installer_path, '/VERYSILENT', '/SUPPRESSMSGBOXES', '/FORCECLOSEAPPLICATIONS', '/NOCANCEL'])
+        
+        # Exit current app
+        exit_app(icon, None)
+    except Exception as e:
+        if hasattr(sys, "stderr") and sys.stderr is not None:
+            sys.stderr.write(f"Update failed: {e}\n")
+
+def check_for_updates(icon=None, item=None):
+    def _check():
+        release_info = get_latest_release_info()
+        if not release_info:
+            return
+            
+        latest_version = release_info.get("tag_name", "")
+        if not latest_version:
+            return
+            
+        try:
+            if parse_version(latest_version) > parse_version(CURRENT_VERSION):
+                for asset in release_info.get("assets", []):
+                    if asset["name"].endswith(".exe"):
+                        script = f'''
+                        Add-Type -AssemblyName PresentationFramework
+                        $result = [System.Windows.MessageBox]::Show("새로운 버전({latest_version})이 있습니다. 업데이트 하시겠습니까?", "Subcast Update", 'YesNo')
+                        if ($result -eq 'Yes') {{ exit 0 }} else {{ exit 1 }}
+                        '''
+                        ret = subprocess.run(["powershell", "-Command", script], creationflags=0x08000000)
+                        if ret.returncode == 0:
+                            threading.Thread(target=download_and_update, args=(asset["browser_download_url"], asset["name"])).start()
+                        break
+        except Exception as e:
+            if hasattr(sys, "stderr") and sys.stderr is not None:
+                sys.stderr.write(f"Version check error: {e}\n")
+    
+    threading.Thread(target=_check).start()
+
 if __name__ == "__main__":
     if config.get("auto_start_server", True):
         start_server()
 
     menu = pystray.Menu(
         pystray.MenuItem(lambda text: f"Status: {'Running' if is_running() else 'Stopped'} ({config['port']})", None, enabled=False),
+        pystray.MenuItem(f"Version: {CURRENT_VERSION}", None, enabled=False),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Start Server", start_server, visible=is_stopped),
         pystray.MenuItem("Stop Server", stop_server, visible=is_running),
@@ -131,6 +244,7 @@ if __name__ == "__main__":
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Change Port...", change_port),
         pystray.MenuItem("Auto Start Server", toggle_auto_start, checked=lambda item: config.get("auto_start_server", True)),
+        pystray.MenuItem("Check for Updates", check_for_updates),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Exit", exit_app)
     )

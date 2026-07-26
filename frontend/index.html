@@ -268,6 +268,40 @@
             background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
         }
 
+        /* 프로젝트 검색 UI */
+        .project-search-box {
+            position: relative;
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .project-search-input {
+            width: 100%;
+            padding: 10px 14px 10px 36px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border, rgba(255, 255, 255, 0.15));
+            border-radius: 10px;
+            color: #fff;
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .project-search-input:focus {
+            border-color: var(--primary, #6366f1);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        .project-search-icon {
+            position: absolute;
+            left: 12px;
+            color: #9ca3af;
+            font-size: 14px;
+            pointer-events: none;
+        }
+
         /* 프로젝트 리스트 UI */
         .project-list {
             display: flex;
@@ -327,6 +361,29 @@
             font-size: 1.2rem;
             font-weight: 600;
             color: #ffffff;
+            cursor: pointer;
+            user-select: none;
+            padding: 2px 6px;
+            border-radius: 6px;
+            transition: background 0.15s ease;
+        }
+
+        .project-name:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .project-name-input {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--primary);
+            border-radius: 6px;
+            padding: 2px 8px;
+            outline: none;
+            box-shadow: 0 0 8px var(--primary-glow);
+            width: 240px;
         }
 
         .active-badge {
@@ -423,6 +480,29 @@
             background: var(--primary);
             color: #fff;
             box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
+        .btn-export {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+        .btn-export:hover {
+            background: var(--success);
+            color: #fff;
+            box-shadow: 0 4px 12px var(--success-glow);
+        }
+
+        .btn-rename {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border-color: rgba(245, 158, 11, 0.3);
+            padding: 8px 12px;
+        }
+        .btn-rename:hover {
+            background: #f59e0b;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
         }
 
         .btn-delete {
@@ -627,7 +707,7 @@
             </nav>
         </div>
         <div style="display: flex; align-items: center; gap: 12px;">
-            <span id="app-version-badge" style="font-size: 0.8rem; background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); padding: 3px 10px; border-radius: 12px; font-weight: 600;">v1.3.3</span>
+            <span id="app-version-badge" style="font-size: 0.8rem; background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); padding: 3px 10px; border-radius: 12px; font-weight: 600;">v1.3.11</span>
             <button id="btn-check-update" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #d1d5db; padding: 6px 12px; border-radius: 8px; font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
                 <svg style="width: 14px; height: 14px; fill: currentColor;" viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
                 업데이트 확인
@@ -648,9 +728,21 @@
                     <span>📂 프로젝트 목록</span>
                     <span class="projects-count-badge" id="projects-count">0개</span>
                 </div>
-                <button class="btn-create-project" id="btn-open-create-modal">
-                    <span>+ 새 프로젝트 추가</span>
-                </button>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="file" id="file-import-project" accept=".json" style="display: none;" />
+                    <button class="btn-create-project" id="btn-import-project-trigger" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); padding: 10px 14px;" title="프로젝트 가져오기">
+                        <img src="/static/assets/icons/download.svg" style="width: 16px; height: 16px; filter: brightness(0) invert(1);" alt="가져오기" />
+                    </button>
+                    <button class="btn-create-project" id="btn-open-create-modal">
+                        <span>+ 새 프로젝트 추가</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 프로젝트 검색창 -->
+            <div class="project-search-box">
+                <span class="project-search-icon">🔍</span>
+                <input type="text" id="project-search-input" class="project-search-input" placeholder="프로젝트 이름으로 검색..." />
             </div>
 
             <!-- 단축키 안내 툴바 -->
@@ -658,7 +750,12 @@
                 <div class="shortcut-tips">
                     <span>💡 단축키: <kbd>Ctrl</kbd>/<kbd>Shift</kbd> + 클릭 (다중 선택) | <kbd>Ctrl+C</kbd> (복사) | <kbd>Ctrl+V</kbd> (붙여넣기) | <kbd>Del</kbd> (삭제)</span>
                 </div>
-                <span class="selected-count-badge" id="selected-count-badge">0개 선택됨</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button id="btn-export-selected" class="action-btn btn-export" style="display: none; padding: 6px 10px;" title="선택한 프로젝트 내보내기">
+                        <img src="/static/assets/icons/upload.svg" style="width: 14px; height: 14px; filter: brightness(0) invert(1);" alt="선택 내보내기" />
+                    </button>
+                    <span class="selected-count-badge" id="selected-count-badge">0개 선택됨</span>
+                </div>
             </div>
 
             <!-- 프로젝트 리스트 영역 -->
@@ -700,6 +797,7 @@
             const btnCloseModal = document.getElementById('btn-close-modal');
             const btnSubmitCreate = document.getElementById('btn-submit-create');
             const inputProjectName = document.getElementById('new-project-name');
+            const projectSearchInput = document.getElementById('project-search-input');
             const toastEl = document.getElementById('toast');
 
             // 로컬 상태 관리
@@ -707,6 +805,14 @@
             let selectedProjectIds = new Set();
             let clipboardProjectIds = [];
             let lastSelectedIndex = -1;
+            let searchQuery = '';
+
+            if (projectSearchInput) {
+                projectSearchInput.addEventListener('input', (e) => {
+                    searchQuery = e.target.value.trim().toLowerCase();
+                    renderProjects();
+                });
+            }
 
             // 토스트 알림 보이기
             function showToast(message, duration = 2500) {
@@ -759,17 +865,28 @@
                     }
                 });
 
-                // 상단 선택 개수 뱃지 갱신
+                // 상단 선택 개수 뱃지 및 선택 내보내기 버튼 갱신
+                const btnExportSelected = document.getElementById('btn-export-selected');
                 if (selectedProjectIds.size > 0) {
                     selectedCountBadge.textContent = `${selectedProjectIds.size}개 선택됨`;
                     selectedCountBadge.classList.add('show');
+                    if (btnExportSelected) btnExportSelected.style.display = 'inline-flex';
                 } else {
                     selectedCountBadge.classList.remove('show');
+                    if (btnExportSelected) btnExportSelected.style.display = 'none';
                 }
             }
 
             function renderProjects() {
-                projectsCountBadge.textContent = `${currentProjects.length}개`;
+                const filteredProjects = currentProjects.filter(proj =>
+                    !searchQuery || (proj.name && proj.name.toLowerCase().includes(searchQuery))
+                );
+
+                if (searchQuery) {
+                    projectsCountBadge.textContent = `${filteredProjects.length}개 / 총 ${currentProjects.length}개`;
+                } else {
+                    projectsCountBadge.textContent = `${currentProjects.length}개`;
+                }
 
                 if (!currentProjects || currentProjects.length === 0) {
                     projectListContainer.innerHTML = `
@@ -782,7 +899,17 @@
                     return;
                 }
 
-                projectListContainer.innerHTML = currentProjects.map((proj, idx) => {
+                if (filteredProjects.length === 0) {
+                    projectListContainer.innerHTML = `
+                        <div class="empty-projects">
+                            '${escapeHtml(searchQuery)}' 검색 결과와 일치하는 프로젝트가 없습니다.
+                        </div>
+                    `;
+                    updateSelectedUI();
+                    return;
+                }
+
+                projectListContainer.innerHTML = filteredProjects.map((proj, idx) => {
                     const isActive = proj.isActive;
                     const isSelected = selectedProjectIds.has(proj.id);
                     const updatedAt = proj.updatedAt || '일시 정보 없음';
@@ -794,7 +921,7 @@
                              data-index="${idx}">
                             <div class="project-info">
                                 <div class="project-title-row">
-                                    <span class="project-name">${escapeHtml(proj.name)}</span>
+                                    <span class="project-name" title="두 번 클릭하여 이름 수정" ondblclick="event.stopPropagation(); startInlineRename(this, '${proj.id}', '${escapeHtml(proj.name)}')">${escapeHtml(proj.name)}</span>
                                     <div class="badge-container">
                                         ${isActive ? '<span class="active-badge">✓ 현재 작업중</span>' : ''}
                                         ${isSelected ? '<span class="selected-badge">선택됨</span>' : ''}
@@ -813,6 +940,7 @@
                                 `}
                                 <button class="action-btn btn-editor" onclick="event.stopPropagation(); openPage('${proj.id}', '/static/editor.html')">Editor</button>
                                 <button class="action-btn btn-presenter" onclick="event.stopPropagation(); openPage('${proj.id}', '/static/presenter.html')">Presenter</button>
+                                <button class="action-btn btn-export" title="프로젝트 내보내기" style="padding: 8px 10px;" onclick="event.stopPropagation(); exportProject('${proj.id}')"><img src="/static/assets/icons/upload.svg" style="width: 14px; height: 14px; filter: brightness(0) invert(1);" alt="내보내기" /></button>
                                 ${currentProjects.length > 1 ? `
                                     <button class="action-btn btn-delete" onclick="event.stopPropagation(); deleteProject('${proj.id}', '${escapeHtml(proj.name)}')">삭제</button>
                                 ` : ''}
@@ -836,8 +964,8 @@
                                 selectedProjectIds.clear();
                             }
                             for (let i = start; i <= end; i++) {
-                                if (currentProjects[i]) {
-                                    selectedProjectIds.add(currentProjects[i].id);
+                                if (filteredProjects[i]) {
+                                    selectedProjectIds.add(filteredProjects[i].id);
                                 }
                             }
                         } else if (e.ctrlKey || e.metaKey) {
@@ -885,6 +1013,80 @@
                 }
             };
 
+            // 단일 프로젝트 내보내기 (글로벌 바인딩)
+            window.exportProject = function(projectId) {
+                window.location.href = `/api/projects/${projectId}/export`;
+            };
+
+            // 선택한 프로젝트 다중 내보내기
+            const btnExportSelected = document.getElementById('btn-export-selected');
+            if (btnExportSelected) {
+                btnExportSelected.addEventListener('click', async () => {
+                    if (selectedProjectIds.size === 0) return;
+                    if (selectedProjectIds.size === 1) {
+                        const pid = Array.from(selectedProjectIds)[0];
+                        window.exportProject(pid);
+                        return;
+                    }
+                    try {
+                        showToast(`${selectedProjectIds.size}개 프로젝트 내보내는 중...`);
+                        const response = await fetch('/api/projects/export-bulk', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ids: Array.from(selectedProjectIds) })
+                        });
+                        if (!response.ok) throw new Error('프로젝트 일괄 내보내기 실패');
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `projects_export_${new Date().toISOString().slice(0,10)}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        window.URL.revokeObjectURL(url);
+                        showToast(`${selectedProjectIds.size}개 프로젝트가 내보내졌습니다.`);
+                    } catch (err) {
+                        alert('프로젝트 내보내기 오류: ' + err.message);
+                    }
+                });
+            }
+
+            // 프로젝트 가져오기 처리
+            const btnImportProjectTrigger = document.getElementById('btn-import-project-trigger');
+            const fileImportProject = document.getElementById('file-import-project');
+            if (btnImportProjectTrigger && fileImportProject) {
+                btnImportProjectTrigger.addEventListener('click', () => {
+                    fileImportProject.value = '';
+                    fileImportProject.click();
+                });
+
+                fileImportProject.addEventListener('change', async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    try {
+                        showToast('프로젝트 가져오는 중...');
+                        const res = await fetch('/api/projects/import', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        if (!res.ok) {
+                            const errData = await res.json();
+                            throw new Error(errData.detail || '가져오기 실패');
+                        }
+                        const data = await res.json();
+                        showToast(`성공적으로 ${data.imported_count || 1}개의 프로젝트를 가져왔습니다.`);
+                        await fetchProjects();
+                    } catch (err) {
+                        alert('프로젝트 가져오기 실패: ' + err.message);
+                    }
+                });
+            }
+
             // 선택 후 페이지 이동 (글로벌 바인딩)
             window.openPage = async function(projectId, targetUrl) {
                 try {
@@ -894,6 +1096,71 @@
                 } catch (err) {
                     alert('프로젝트 이동 중 오류가 발생했습니다: ' + err.message);
                 }
+            };
+
+            // 프로젝트 이름 인라인 수정 (글로벌 바인딩 - 더블클릭)
+            window.startInlineRename = function(spanElement, projectId, currentName) {
+                if (spanElement.querySelector('input')) return;
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'project-name-input';
+                input.value = currentName;
+                
+                input.onclick = (e) => e.stopPropagation();
+                input.ondblclick = (e) => e.stopPropagation();
+
+                let isSaved = false;
+                const saveRename = async () => {
+                    if (isSaved) return;
+                    isSaved = true;
+
+                    const newName = input.value.trim();
+                    if (!newName) {
+                        alert('프로젝트 이름을 입력해 주세요.');
+                        spanElement.textContent = currentName;
+                        return;
+                    }
+                    if (newName === currentName) {
+                        spanElement.textContent = currentName;
+                        return;
+                    }
+
+                    try {
+                        const res = await fetch(`/api/projects/${projectId}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name: newName })
+                        });
+                        if (!res.ok) {
+                            const err = await res.json();
+                            throw new Error(err.detail || '프로젝트 이름 수정 실패');
+                        }
+                        showToast('프로젝트 이름이 변경되었습니다.');
+                        await fetchProjects();
+                    } catch (err) {
+                        alert('프로젝트 이름 변경 중 오류가 발생했습니다: ' + err.message);
+                        spanElement.textContent = currentName;
+                    }
+                };
+
+                input.onkeydown = (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        input.blur();
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        isSaved = true;
+                        spanElement.textContent = currentName;
+                    }
+                };
+
+                input.onblur = saveRename;
+
+                spanElement.innerHTML = '';
+                spanElement.appendChild(input);
+                input.focus();
+                input.select();
             };
 
             // 단일 프로젝트 삭제 (글로벌 바인딩)
@@ -1021,6 +1288,13 @@
                 const name = inputProjectName.value.trim();
                 if (!name) {
                     alert('프로젝트 이름을 입력해 주세요.');
+                    inputProjectName.focus();
+                    return;
+                }
+
+                // 중복 이름 사전 검증
+                if (currentProjects.some(p => p.name.trim() === name)) {
+                    alert(`'${name}' 프로젝트가 이미 존재합니다. 다른 이름을 사용해 주세요.`);
                     inputProjectName.focus();
                     return;
                 }

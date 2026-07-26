@@ -9,7 +9,6 @@ a = Analysis(
     binaries=[],
     datas=[
         ('frontend', 'frontend'),
-        ('data', 'data'),
         ('GAE_Bible.db', '.'),
     ],
     hiddenimports=[

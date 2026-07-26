@@ -3,6 +3,7 @@ import logging
 import uuid
 import sys
 import os
+import urllib.parse
 import subprocess
 import tempfile
 import zipfile
@@ -11,19 +12,20 @@ import asyncio
 import httpx
 from typing import Dict, List, Set, Optional
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPException, Response, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
 from pathlib import Path
 
-from backend.schemas import ProjectData, SystemSettings, Slide, ProjectCreateRequest, ProjectListItem, ProjectBatchRequest
+from backend.schemas import ProjectData, SystemSettings, Slide, ProjectCreateRequest, ProjectUpdateRequest, ProjectListItem, ProjectBatchRequest
 from backend.storage import (
     load_project_data, save_project_data, list_projects,
-    create_project, delete_project, get_active_project_id, set_active_project_id,
-    load_global_templates, save_global_templates, duplicate_projects_bulk, delete_projects_bulk
+    create_project, update_project_name, delete_project, get_active_project_id, set_active_project_id,
+    load_global_templates, save_global_templates, duplicate_projects_bulk, delete_projects_bulk,
+    import_project_data
 )
 
-CURRENT_VERSION = "1.3.3"
+CURRENT_VERSION = "1.3.11"
 GITHUB_REPO = "tjrdlsck/subcast"
 
 # 로그 설정
@@ -239,7 +241,8 @@ class BibleDatabaseHelper:
         finally:
             conn.close()
 
-db_helper = BibleDatabaseHelper("GAE_Bible.db")
+APP_DATA_DIR = os.environ.get("SUBCAST_DATA_DIR", ".")
+db_helper = BibleDatabaseHelper(os.path.join(APP_DATA_DIR, "GAE_Bible.db"))
 
 class PraiseDatabaseHelper:
     def __init__(self, db_path="GAE_Bible.db"):
@@ -344,7 +347,60 @@ class PraiseDatabaseHelper:
         finally:
             conn.close()
 
-praise_db = PraiseDatabaseHelper("GAE_Bible.db")
+    def get_all_songs(self) -> List[dict]:
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT id, title, lyrics FROM praise_songs ORDER BY title ASC")
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            conn.close()
+
+    def get_songs_by_ids(self, song_ids: List[int]) -> List[dict]:
+        if not song_ids:
+            return []
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            placeholders = ",".join(["?"] * len(song_ids))
+            cursor.execute(f"SELECT id, title, lyrics FROM praise_songs WHERE id IN ({placeholders}) ORDER BY title ASC", song_ids)
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            conn.close()
+
+    def import_songs(self, songs: List[dict]) -> int:
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        count = 0
+        try:
+            for song in songs:
+                orig_title = str(song.get("title", "")).strip()
+                lyrics = str(song.get("lyrics", "")).strip()
+                if not orig_title or not lyrics:
+                    continue
+
+                candidate_title = orig_title
+                counter = 1
+                while True:
+                    cursor.execute("SELECT id FROM praise_songs WHERE title = ?", (candidate_title,))
+                    if not cursor.fetchone():
+                        break
+                    candidate_title = f"{orig_title} ({counter})"
+                    counter += 1
+
+                cursor.execute("""
+                    INSERT INTO praise_songs (title, lyrics)
+                    VALUES (?, ?)
+                """, (candidate_title, lyrics))
+                count += 1
+            conn.commit()
+            return count
+        finally:
+            conn.close()
+
+praise_db = PraiseDatabaseHelper(os.path.join(APP_DATA_DIR, "GAE_Bible.db"))
 
 from pydantic import BaseModel
 from typing import Optional, List
@@ -383,6 +439,139 @@ async def delete_praise_songs(req: PraiseSongDeleteRequest):
             raise HTTPException(status_code=400, detail="삭제할 찬양곡을 지정해 주세요.")
         count = praise_db.delete_songs(song_ids=req.ids, titles=req.titles)
         return {"status": "success", "deleted_count": count}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/praise/export")
+async def export_praise_songs(ids: Optional[str] = Query(None)):
+    try:
+        if ids:
+            id_list = [int(i.strip()) for i in ids.split(",") if i.strip().isdigit()]
+            songs = praise_db.get_songs_by_ids(id_list)
+        else:
+            songs = praise_db.get_all_songs()
+        
+        if not songs:
+            raise HTTPException(status_code=404, detail="내보낼 찬양 데이터가 없습니다.")
+
+        export_data = [{"title": s["title"], "lyrics": s["lyrics"]} for s in songs]
+        
+        if len(songs) == 1:
+            safe_title = "".join(c for c in songs[0]["title"] if c.isalnum() or c in (' ', '_', '-')).rstrip()
+            file_name = f"praise_{safe_title}.json"
+        else:
+            file_name = "praise_songs.json"
+
+        encoded_filename = urllib.parse.quote(file_name)
+        json_bytes = json.dumps(export_data, indent=2, ensure_ascii=False).encode('utf-8')
+        return Response(
+            content=json_bytes,
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/praise/import")
+async def import_praise_songs(file: UploadFile = File(...)):
+    try:
+        content = await file.read()
+        raw = json.loads(content.decode('utf-8'))
+        if not isinstance(raw, list):
+            raise HTTPException(status_code=400, detail="올바른 찬양 데이터 형식(JSON 배열)이 아닙니다.")
+        imported_count = praise_db.import_songs(raw)
+        return {"status": "success", "imported_count": imported_count}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="유효하지 않은 JSON 파일입니다.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/templates/export")
+async def export_templates(ids: Optional[str] = Query(None)):
+    try:
+        all_templates = await load_global_templates()
+        if ids:
+            selected_ids = [i.strip() for i in ids.split(",") if i.strip()]
+            templates = [t for t in all_templates if t.id in selected_ids]
+        else:
+            templates = all_templates
+
+        if not templates:
+            raise HTTPException(status_code=404, detail="내보낼 템플릿 데이터가 없습니다.")
+
+        export_data = [t.model_dump() for t in templates]
+
+        if len(templates) == 1:
+            safe_name = "".join(c for c in templates[0].name if c.isalnum() or c in (' ', '_', '-')).strip()
+            file_name = f"template_{safe_name}.json"
+        else:
+            file_name = "templates_export.json"
+
+        encoded_filename = urllib.parse.quote(file_name)
+        json_bytes = json.dumps(export_data, indent=2, ensure_ascii=False).encode('utf-8')
+        return Response(
+            content=json_bytes,
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/templates/import")
+async def import_templates(file: UploadFile = File(...)):
+    try:
+        content = await file.read()
+        raw = json.loads(content.decode('utf-8'))
+        if isinstance(raw, dict):
+            raw = [raw]
+        elif not isinstance(raw, list):
+            raise HTTPException(status_code=400, detail="올바른 템플릿 데이터 형식(JSON 또는 JSON 배열)이 아닙니다.")
+
+        existing_templates = await load_global_templates()
+        existing_names = {t.name for t in existing_templates}
+        existing_ids = {t.id for t in existing_templates}
+
+        imported_count = 0
+        from backend.schemas import SlideTemplate
+        for item in raw:
+            try:
+                tpl = SlideTemplate.model_validate(item)
+            except Exception:
+                continue
+
+            orig_name = tpl.name.strip() if tpl.name else "이름 없는 템플릿"
+            candidate_name = orig_name
+            counter = 1
+            while candidate_name in existing_names:
+                candidate_name = f"{orig_name} ({counter})"
+                counter += 1
+
+            tpl.name = candidate_name
+            existing_names.add(candidate_name)
+
+            if tpl.id in existing_ids or not tpl.id:
+                tpl.id = f"tpl_{uuid.uuid4().hex[:8]}"
+            existing_ids.add(tpl.id)
+
+            existing_templates.append(tpl)
+            imported_count += 1
+
+        await save_global_templates(existing_templates)
+        if manager.project_data:
+            manager.project_data.templates = existing_templates
+            await save_project_data(manager.project_data)
+            await manager.broadcast({
+                "type": "INITIAL_SYNC",
+                "data": manager.project_data.model_dump(),
+                "lockedSlides": manager.locked_slides
+            })
+        return {"status": "success", "imported_count": imported_count}
+    except HTTPException:
+        raise
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="유효하지 않은 JSON 파일입니다.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -470,10 +659,11 @@ async def check_update():
             download_url = None
             for asset in assets:
                 name = asset.get("name", "").lower()
-                if name.endswith(".zip") or name.endswith(".exe"):
+                if name.endswith(".exe"):
                     download_url = asset.get("browser_download_url")
-                    if name.endswith(".zip"):
-                        break
+                    break
+                elif name.endswith(".zip") and not download_url:
+                    download_url = asset.get("browser_download_url")
             
             return {
                 "has_update": has_update,
@@ -507,56 +697,50 @@ async def perform_auto_update(download_url: Optional[str] = Query(None)):
             raise HTTPException(status_code=400, detail="다운로드 가능한 업데이트 파일이 없습니다.")
             
         temp_dir = tempfile.mkdtemp(prefix="subcast_update_")
-        zip_path = os.path.join(temp_dir, "update.zip")
         
-        async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
+        is_exe = download_url.lower().endswith(".exe")
+        file_name = "update.exe" if is_exe else "update.zip"
+        download_path = os.path.join(temp_dir, file_name)
+        
+        async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
             res = await client.get(download_url, headers={"User-Agent": "Subcast-AutoUpdater"})
             if res.status_code != 200:
                 raise HTTPException(status_code=500, detail="업데이트 파일 다운로드 실패")
-            with open(zip_path, "wb") as f:
+            with open(download_path, "wb") as f:
                 f.write(res.content)
                 
-        extract_dir = os.path.join(temp_dir, "extracted")
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(extract_dir)
-            
-        app_dir = os.getcwd()
-        curr_pid = os.getpid()
-        
-        # executable 찾기 (subcast.exe 또는 python 실행)
-        target_exe = os.path.join(app_dir, "subcast.exe")
-        if not os.path.exists(target_exe):
-            target_exe = f'"{sys.executable}" backend/main.py'
+        if is_exe:
+            # .exe 설치 파일인 경우 직접 실행하여 UAC(관리자 권한) 요청 및 설치 유도
+            subprocess.Popen([download_path, '/VERYSILENT', '/SUPPRESSMSGBOXES', '/FORCECLOSEAPPLICATIONS', '/NOCANCEL'], creationflags=subprocess.CREATE_NO_WINDOW)
+            asyncio.create_task(_delayed_exit())
+            return {"status": "success", "message": "업데이트 관리자가 시작되었습니다. 앱이 종료되고 설치 후 자동 재시작됩니다."}
         else:
-            target_exe = f'"{target_exe}"'
+            # 기존 zip 덮어쓰기 로직
+            extract_dir = os.path.join(temp_dir, "extracted")
+            with zipfile.ZipFile(download_path, 'r') as zip_ref:
+                zip_ref.extractall(extract_dir)
+                
+            if getattr(sys, 'frozen', False):
+                app_dir = os.path.dirname(sys.executable)
+            else:
+                app_dir = os.getcwd()
+            curr_pid = os.getpid()
             
-        bat_path = os.path.join(temp_dir, "apply_update.bat")
-        
-        bat_content = f"""@echo off
-chcp 65001 > nul
-echo [Subcast Auto-Updater] 기존 프로세스 종료 중... (PID: {curr_pid})
-taskkill /F /PID {curr_pid} > nul 2>&1
-taskkill /F /IM subcast.exe > nul 2>&1
-timeout /t 3 /nobreak > nul
-
-echo [Subcast Auto-Updater] 최신 버전 패치 적용 중...
-xcopy /s /e /y /q "{extract_dir}\\*" "{app_dir}\\" > nul
-
-echo [Subcast Auto-Updater] 패치 완료. 애플리케이션 재시작 중...
-timeout /t 1 /nobreak > nul
-start "" {target_exe}
-
-del "%~f0"
-"""
-        with open(bat_path, "w", encoding="utf-8") as f:
-            f.write(bat_content)
+            target_exe = os.path.join(app_dir, "subcast.exe")
+            if not os.path.exists(target_exe):
+                target_exe = f'"{sys.executable}" backend/main.py'
+            else:
+                target_exe = f'"{target_exe}"'
+                
+            bat_path = os.path.join(temp_dir, "apply_update.bat")
+            bat_content = f"""@echo off\nchcp 65001 > nul\necho [Subcast Auto-Updater] 기존 프로세스 종료 중... (PID: {curr_pid})\ntaskkill /F /PID {curr_pid} > nul 2>&1\ntaskkill /F /IM subcast.exe > nul 2>&1\ntimeout /t 3 /nobreak > nul\n\necho [Subcast Auto-Updater] 최신 버전 패치 적용 중...\nxcopy /s /e /y /q "{extract_dir}\\*" "{app_dir}\\" > nul\n\necho [Subcast Auto-Updater] 패치 완료. 애플리케이션 재시작 중...\ntimeout /t 1 /nobreak > nul\nstart "" {target_exe}\n\ndel "%~f0"\n"""
+            with open(bat_path, "w", encoding="utf-8") as f:
+                f.write(bat_content)
+                
+            subprocess.Popen(["cmd.exe", "/c", bat_path], creationflags=subprocess.CREATE_NEW_CONSOLE)
+            asyncio.create_task(_delayed_exit())
             
-        subprocess.Popen(["cmd.exe", "/c", bat_path], creationflags=subprocess.CREATE_NEW_CONSOLE)
-        
-        # 1초 후 서버 안전 종료
-        asyncio.create_task(_delayed_exit())
-        
-        return {"status": "success", "message": "업데이트 패치 다운로드가 완료되었습니다. 앱이 종료되고 최신 버전으로 자동 재시작됩니다."}
+            return {"status": "success", "message": "업데이트 패치 다운로드가 완료되었습니다. 앱이 종료되고 최신 버전으로 자동 재시작됩니다."}
     except HTTPException:
         raise
     except Exception as e:
@@ -581,6 +765,30 @@ async def create_new_project(req: ProjectCreateRequest):
             raise HTTPException(status_code=400, detail="프로젝트 이름을 입력해주세요.")
         proj = await create_project(req.name.strip())
         return proj
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.patch("/api/projects/{project_id}")
+@app.put("/api/projects/{project_id}")
+async def rename_project(project_id: str, req: ProjectUpdateRequest):
+    try:
+        if not req.name or not req.name.strip():
+            raise HTTPException(status_code=400, detail="프로젝트 이름을 입력해주세요.")
+        proj = await update_project_name(project_id, req.name.strip())
+        if manager.project_data and manager.project_data.id == project_id:
+            manager.project_data.name = proj.name
+            await manager.broadcast({
+                "type": "INITIAL_SYNC",
+                "data": manager.project_data.model_dump(),
+                "lockedSlides": manager.locked_slides
+            })
+        return proj
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
     except HTTPException:
         raise
     except Exception as e:
@@ -648,6 +856,58 @@ async def delete_projects_batch(req: ProjectBatchRequest):
         return {"status": "success", "active_project_id": new_active_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/projects/{project_id}/export")
+async def export_project(project_id: str):
+    try:
+        project = await load_project_data(project_id)
+        file_name = f"project_{project.name}_{project.id}.json"
+        safe_filename = "".join(c for c in file_name if c.isalnum() or c in (' ', '_', '-')).rstrip() + ".json"
+        encoded_filename = urllib.parse.quote(safe_filename)
+        json_bytes = json.dumps(project.model_dump(), indent=2, ensure_ascii=False).encode('utf-8')
+        return Response(
+            content=json_bytes,
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/projects/export-bulk")
+async def export_projects_batch(req: ProjectBatchRequest):
+    try:
+        if not req.ids:
+            raise HTTPException(status_code=400, detail="내보낼 프로젝트 ID 목록이 비어있습니다.")
+        export_list = []
+        for pid in req.ids:
+            p = await load_project_data(pid)
+            export_list.append(p.model_dump())
+        json_bytes = json.dumps(export_list, indent=2, ensure_ascii=False).encode('utf-8')
+        return Response(
+            content=json_bytes,
+            media_type="application/json",
+            headers={"Content-Disposition": 'attachment; filename="projects_export.json"'}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/projects/import")
+async def import_project_endpoint(file: UploadFile = File(...)):
+    try:
+        content = await file.read()
+        raw = json.loads(content.decode('utf-8'))
+        if isinstance(raw, list):
+            imported_projects = []
+            for item in raw:
+                imported_projects.append(await import_project_data(item))
+            return {"status": "success", "imported_count": len(imported_projects), "projects": imported_projects}
+        else:
+            imported_project = await import_project_data(raw)
+            return {"status": "success", "imported_count": 1, "projects": [imported_project]}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="유효하지 않은 JSON 파일입니다.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"프로젝트 가져오기 실패: {str(e)}")
 
 @app.get("/")
 async def get_index():

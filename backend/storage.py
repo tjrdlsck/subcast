@@ -8,7 +8,8 @@ from typing import List, Optional
 from backend.schemas import ProjectData, SystemSettings, Slide, SlideTemplate, Element, ElementStyle, ProjectListItem
 
 # 데이터 저장 경로 설정
-DATA_DIR = Path("data")
+APP_DATA_DIR = Path(os.environ.get("SUBCAST_DATA_DIR", "."))
+DATA_DIR = APP_DATA_DIR / "data"
 PROJECTS_DIR = DATA_DIR / "projects"
 ACTIVE_PROJECT_FILE = DATA_DIR / "active_project_id.txt"
 OLD_DATA_FILE_PATH = DATA_DIR / "project_data.json"
@@ -242,6 +243,12 @@ async def list_projects() -> List[ProjectListItem]:
 
 async def create_project(name: str) -> ProjectData:
     """새로운 프로젝트를 생성합니다. (빈 슬라이드 1개 포함)"""
+    target_name = name.strip() if name and name.strip() else "새 프로젝트"
+    
+    existing = await list_projects()
+    if any(p.name == target_name for p in existing):
+        raise ValueError("이미 존재하는 프로젝트 이름입니다.")
+
     new_id = f"proj_{uuid.uuid4().hex[:8]}"
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     initial_slide_id = f"slide_{uuid.uuid4().hex[:8]}"
@@ -249,7 +256,7 @@ async def create_project(name: str) -> ProjectData:
     
     new_data = ProjectData(
         id=new_id,
-        name=name.strip() if name and name.strip() else "새 프로젝트",
+        name=target_name,
         createdAt=now_str,
         updatedAt=now_str,
         settings=SystemSettings(
@@ -264,6 +271,21 @@ async def create_project(name: str) -> ProjectData:
     
     await save_project_data(new_data)
     return new_data
+
+async def update_project_name(project_id: str, new_name: str) -> ProjectData:
+    """프로젝트 이름을 수정합니다."""
+    target_name = new_name.strip()
+    if not target_name:
+        raise ValueError("프로젝트 이름을 입력해주세요.")
+    
+    existing = await list_projects()
+    if any(p.name == target_name and p.id != project_id for p in existing):
+        raise ValueError("이미 존재하는 프로젝트 이름입니다.")
+    
+    project = await load_project_data(project_id)
+    project.name = target_name
+    await save_project_data(project)
+    return project
 
 async def delete_project(project_id: str) -> str:
     """프로젝트를 삭제합니다. 만약 활성화된 프로젝트였다면 새로운 활성 프로젝트 ID를 반환합니다."""
@@ -291,18 +313,28 @@ async def delete_project(project_id: str) -> str:
 async def duplicate_projects_bulk(project_ids: List[str]) -> List[ProjectData]:
     """선택한 프로젝트들을 복제하여 새로운 프로젝트로 생성합니다."""
     duplicated = []
+    existing = await list_projects()
+    existing_names = {p.name for p in existing}
+
     for pid in project_ids:
         orig = await load_project_data(pid)
         new_id = f"proj_{uuid.uuid4().hex[:8]}"
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
+        candidate_name = f"{orig.name} (복사본)"
+        counter = 2
+        while candidate_name in existing_names:
+            candidate_name = f"{orig.name} (복사본 {counter})"
+            counter += 1
+        
         new_data = orig.model_copy(deep=True)
         new_data.id = new_id
-        new_data.name = f"{orig.name} (복사본)"
+        new_data.name = candidate_name
         new_data.createdAt = now_str
         new_data.updatedAt = now_str
         
         await save_project_data(new_data)
+        existing_names.add(candidate_name)
         duplicated.append(new_data)
     return duplicated
 
@@ -335,3 +367,29 @@ async def delete_projects_bulk(project_ids: List[str]) -> str:
         return new_active_id
 
     return active_id
+
+async def import_project_data(raw_data: dict) -> ProjectData:
+    """가져온 JSON 데이터를 이용하여 새로운 프로젝트로 등록합니다."""
+    project = ProjectData.model_validate(raw_data)
+    
+    existing = await list_projects()
+    existing_names = {p.name for p in existing}
+    
+    orig_name = project.name.strip() if project.name and project.name.strip() else "가져온 프로젝트"
+    candidate_name = orig_name
+    counter = 1
+    while candidate_name in existing_names:
+        counter += 1
+        candidate_name = f"{orig_name} (가져옴 {counter})"
+    
+    new_id = f"proj_{uuid.uuid4().hex[:8]}"
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    project.id = new_id
+    project.name = candidate_name
+    project.createdAt = now_str
+    project.updatedAt = now_str
+    
+    await save_project_data(project)
+    return project
+
