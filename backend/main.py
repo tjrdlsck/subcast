@@ -23,7 +23,7 @@ from backend.storage import (
     load_global_templates, save_global_templates, duplicate_projects_bulk, delete_projects_bulk
 )
 
-CURRENT_VERSION = "1.3.1"
+CURRENT_VERSION = "1.3.2"
 GITHUB_REPO = "tjrdlsck/subcast"
 
 # 로그 설정
@@ -1097,3 +1097,9 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                 "type": "SLIDE_UNLOCKED",
                 "slideId": slide_id
             })
+
+if __name__ == "__main__":
+    import uvicorn
+    import multiprocessing
+    multiprocessing.freeze_support()
+    uvicorn.run(app, host="0.0.0.0", port=8000)
