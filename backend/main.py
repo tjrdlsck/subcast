@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import zipfile
 import shutil
+import asyncio
 import httpx
 from typing import Dict, List, Set, Optional
 from contextlib import asynccontextmanager
@@ -22,7 +23,7 @@ from backend.storage import (
     load_global_templates, save_global_templates, duplicate_projects_bulk, delete_projects_bulk
 )
 
-CURRENT_VERSION = "1.3.0"
+CURRENT_VERSION = "1.3.1"
 GITHUB_REPO = "tjrdlsck/subcast"
 
 # 로그 설정
@@ -520,15 +521,31 @@ async def perform_auto_update(download_url: Optional[str] = Query(None)):
             zip_ref.extractall(extract_dir)
             
         app_dir = os.getcwd()
+        curr_pid = os.getpid()
+        
+        # executable 찾기 (subcast.exe 또는 python 실행)
+        target_exe = os.path.join(app_dir, "subcast.exe")
+        if not os.path.exists(target_exe):
+            target_exe = f'"{sys.executable}" backend/main.py'
+        else:
+            target_exe = f'"{target_exe}"'
+            
         bat_path = os.path.join(temp_dir, "apply_update.bat")
         
         bat_content = f"""@echo off
 chcp 65001 > nul
-echo Subcast 자동 업데이트를 적용 중입니다...
-timeout /t 2 /nobreak > nul
-xcopy /s /e /y "{extract_dir}\\*" "{app_dir}\\"
-echo 업데이트가 완료되었습니다. 앱을 다시 시작합니다.
-start "" "{sys.executable}" {" ".join(sys.argv)}
+echo [Subcast Auto-Updater] 기존 프로세스 종료 중... (PID: {curr_pid})
+taskkill /F /PID {curr_pid} > nul 2>&1
+taskkill /F /IM subcast.exe > nul 2>&1
+timeout /t 3 /nobreak > nul
+
+echo [Subcast Auto-Updater] 최신 버전 패치 적용 중...
+xcopy /s /e /y /q "{extract_dir}\\*" "{app_dir}\\" > nul
+
+echo [Subcast Auto-Updater] 패치 완료. 애플리케이션 재시작 중...
+timeout /t 1 /nobreak > nul
+start "" {target_exe}
+
 del "%~f0"
 """
         with open(bat_path, "w", encoding="utf-8") as f:
@@ -536,12 +553,19 @@ del "%~f0"
             
         subprocess.Popen(["cmd.exe", "/c", bat_path], creationflags=subprocess.CREATE_NEW_CONSOLE)
         
-        return {"status": "success", "message": "업데이트 다운로드가 완료되어 앱이 재시작됩니다."}
+        # 1초 후 서버 안전 종료
+        asyncio.create_task(_delayed_exit())
+        
+        return {"status": "success", "message": "업데이트 패치 다운로드가 완료되었습니다. 앱이 종료되고 최신 버전으로 자동 재시작됩니다."}
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Auto update error: {e}")
         raise HTTPException(status_code=500, detail=f"자동 업데이트 실패: {str(e)}")
+
+async def _delayed_exit():
+    await asyncio.sleep(1.0)
+    os._exit(0)
 
 @app.get("/api/projects")
 async def get_projects():
