@@ -581,6 +581,8 @@ async def create_new_project(req: ProjectCreateRequest):
             raise HTTPException(status_code=400, detail="프로젝트 이름을 입력해주세요.")
         proj = await create_project(req.name.strip())
         return proj
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
     except HTTPException:
         raise
     except Exception as e:

@@ -152,5 +152,17 @@ def test_templates_persist_after_project_deletion():
 
     assert after_del_templates_count == orig_templates_count
 
+def test_duplicate_project_name_prevention():
+    name = "중복 방지 테스트 프로젝트"
+    res1 = client.post("/api/projects", json={"name": name})
+    assert res1.status_code == 200
+    p1 = res1.json()
+    created_test_project_ids.append(p1["id"])
+
+    # 동일한 이름으로 생성 시도 시 400 에러 발생 확인
+    res2 = client.post("/api/projects", json={"name": name})
+    assert res2.status_code == 400
+    assert "이미 존재하는 프로젝트 이름입니다" in res2.json()["detail"]
+
 
 

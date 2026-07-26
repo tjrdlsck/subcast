@@ -268,6 +268,40 @@
             background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
         }
 
+        /* 프로젝트 검색 UI */
+        .project-search-box {
+            position: relative;
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .project-search-input {
+            width: 100%;
+            padding: 10px 14px 10px 36px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border, rgba(255, 255, 255, 0.15));
+            border-radius: 10px;
+            color: #fff;
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .project-search-input:focus {
+            border-color: var(--primary, #6366f1);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        .project-search-icon {
+            position: absolute;
+            left: 12px;
+            color: #9ca3af;
+            font-size: 14px;
+            pointer-events: none;
+        }
+
         /* 프로젝트 리스트 UI */
         .project-list {
             display: flex;
@@ -653,6 +687,12 @@
                 </button>
             </div>
 
+            <!-- 프로젝트 검색창 -->
+            <div class="project-search-box">
+                <span class="project-search-icon">🔍</span>
+                <input type="text" id="project-search-input" class="project-search-input" placeholder="프로젝트 이름으로 검색..." />
+            </div>
+
             <!-- 단축키 안내 툴바 -->
             <div class="toolbar-info-bar">
                 <div class="shortcut-tips">
@@ -700,6 +740,7 @@
             const btnCloseModal = document.getElementById('btn-close-modal');
             const btnSubmitCreate = document.getElementById('btn-submit-create');
             const inputProjectName = document.getElementById('new-project-name');
+            const projectSearchInput = document.getElementById('project-search-input');
             const toastEl = document.getElementById('toast');
 
             // 로컬 상태 관리
@@ -707,6 +748,14 @@
             let selectedProjectIds = new Set();
             let clipboardProjectIds = [];
             let lastSelectedIndex = -1;
+            let searchQuery = '';
+
+            if (projectSearchInput) {
+                projectSearchInput.addEventListener('input', (e) => {
+                    searchQuery = e.target.value.trim().toLowerCase();
+                    renderProjects();
+                });
+            }
 
             // 토스트 알림 보이기
             function showToast(message, duration = 2500) {
@@ -769,7 +818,15 @@
             }
 
             function renderProjects() {
-                projectsCountBadge.textContent = `${currentProjects.length}개`;
+                const filteredProjects = currentProjects.filter(proj =>
+                    !searchQuery || (proj.name && proj.name.toLowerCase().includes(searchQuery))
+                );
+
+                if (searchQuery) {
+                    projectsCountBadge.textContent = `${filteredProjects.length}개 / 총 ${currentProjects.length}개`;
+                } else {
+                    projectsCountBadge.textContent = `${currentProjects.length}개`;
+                }
 
                 if (!currentProjects || currentProjects.length === 0) {
                     projectListContainer.innerHTML = `
@@ -782,7 +839,17 @@
                     return;
                 }
 
-                projectListContainer.innerHTML = currentProjects.map((proj, idx) => {
+                if (filteredProjects.length === 0) {
+                    projectListContainer.innerHTML = `
+                        <div class="empty-projects">
+                            '${escapeHtml(searchQuery)}' 검색 결과와 일치하는 프로젝트가 없습니다.
+                        </div>
+                    `;
+                    updateSelectedUI();
+                    return;
+                }
+
+                projectListContainer.innerHTML = filteredProjects.map((proj, idx) => {
                     const isActive = proj.isActive;
                     const isSelected = selectedProjectIds.has(proj.id);
                     const updatedAt = proj.updatedAt || '일시 정보 없음';
@@ -836,8 +903,8 @@
                                 selectedProjectIds.clear();
                             }
                             for (let i = start; i <= end; i++) {
-                                if (currentProjects[i]) {
-                                    selectedProjectIds.add(currentProjects[i].id);
+                                if (filteredProjects[i]) {
+                                    selectedProjectIds.add(filteredProjects[i].id);
                                 }
                             }
                         } else if (e.ctrlKey || e.metaKey) {
@@ -1021,6 +1088,13 @@
                 const name = inputProjectName.value.trim();
                 if (!name) {
                     alert('프로젝트 이름을 입력해 주세요.');
+                    inputProjectName.focus();
+                    return;
+                }
+
+                // 중복 이름 사전 검증
+                if (currentProjects.some(p => p.name.trim() === name)) {
+                    alert(`'${name}' 프로젝트가 이미 존재합니다. 다른 이름을 사용해 주세요.`);
                     inputProjectName.focus();
                     return;
                 }

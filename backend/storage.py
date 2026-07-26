@@ -242,6 +242,12 @@ async def list_projects() -> List[ProjectListItem]:
 
 async def create_project(name: str) -> ProjectData:
     """새로운 프로젝트를 생성합니다. (빈 슬라이드 1개 포함)"""
+    target_name = name.strip() if name and name.strip() else "새 프로젝트"
+    
+    existing = await list_projects()
+    if any(p.name == target_name for p in existing):
+        raise ValueError("이미 존재하는 프로젝트 이름입니다.")
+
     new_id = f"proj_{uuid.uuid4().hex[:8]}"
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     initial_slide_id = f"slide_{uuid.uuid4().hex[:8]}"
@@ -249,7 +255,7 @@ async def create_project(name: str) -> ProjectData:
     
     new_data = ProjectData(
         id=new_id,
-        name=name.strip() if name and name.strip() else "새 프로젝트",
+        name=target_name,
         createdAt=now_str,
         updatedAt=now_str,
         settings=SystemSettings(
@@ -291,18 +297,28 @@ async def delete_project(project_id: str) -> str:
 async def duplicate_projects_bulk(project_ids: List[str]) -> List[ProjectData]:
     """선택한 프로젝트들을 복제하여 새로운 프로젝트로 생성합니다."""
     duplicated = []
+    existing = await list_projects()
+    existing_names = {p.name for p in existing}
+
     for pid in project_ids:
         orig = await load_project_data(pid)
         new_id = f"proj_{uuid.uuid4().hex[:8]}"
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
+        candidate_name = f"{orig.name} (복사본)"
+        counter = 2
+        while candidate_name in existing_names:
+            candidate_name = f"{orig.name} (복사본 {counter})"
+            counter += 1
+        
         new_data = orig.model_copy(deep=True)
         new_data.id = new_id
-        new_data.name = f"{orig.name} (복사본)"
+        new_data.name = candidate_name
         new_data.createdAt = now_str
         new_data.updatedAt = now_str
         
         await save_project_data(new_data)
+        existing_names.add(candidate_name)
         duplicated.append(new_data)
     return duplicated
 
