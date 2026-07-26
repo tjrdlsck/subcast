@@ -1328,6 +1328,70 @@
             // 최초 목록 로드
             fetchProjects();
 
+            // ────────────────────────────────────────────────
+            // 자동 업데이트 오버레이 (캐시 클리어 강제 새로고침 포함)
+            // ────────────────────────────────────────────────
+            function showUpdateOverlay(message, isCountdown = false, countdownSec = 10) {
+                let overlay = document.getElementById('update-overlay');
+                if (!overlay) {
+                    overlay = document.createElement('div');
+                    overlay.id = 'update-overlay';
+                    overlay.style.cssText = `
+                        position:fixed;inset:0;z-index:99999;
+                        background:rgba(10,10,20,0.92);backdrop-filter:blur(12px);
+                        display:flex;flex-direction:column;align-items:center;justify-content:center;
+                        color:#fff;font-family:'Outfit',sans-serif;gap:18px;
+                    `;
+                    document.body.appendChild(overlay);
+                }
+                overlay.innerHTML = `
+                    <div style="font-size:3rem;">🚀</div>
+                    <div style="font-size:1.25rem;font-weight:700;color:#818cf8;">${message}</div>
+                    <div id="update-countdown" style="font-size:0.95rem;color:#9ca3af;"></div>
+                    <div style="width:200px;height:4px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;">
+                        <div id="update-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#6366f1,#818cf8);transition:width 0.5s ease;border-radius:4px;"></div>
+                    </div>
+                `;
+                if (isCountdown) {
+                    let remaining = countdownSec;
+                    const bar = document.getElementById('update-progress-bar');
+                    const cd = document.getElementById('update-countdown');
+                    const tick = setInterval(() => {
+                        remaining--;
+                        const pct = ((countdownSec - remaining) / countdownSec * 100).toFixed(0);
+                        if (bar) bar.style.width = pct + '%';
+                        if (cd) cd.textContent = `서버 재시작 후 자동으로 새로고침됩니다 (${remaining}초)`;
+                        if (remaining <= 0) clearInterval(tick);
+                    }, 1000);
+                }
+                return overlay;
+            }
+
+            function pollUntilServerReady(onReady, maxWaitMs = 60000) {
+                const start = Date.now();
+                const interval = setInterval(async () => {
+                    if (Date.now() - start > maxWaitMs) {
+                        clearInterval(interval);
+                        onReady(); // 타임아웃 시에도 새로고침 시도
+                        return;
+                    }
+                    try {
+                        const r = await fetch('/api/system/version', { cache: 'no-store' });
+                        if (r.ok) {
+                            clearInterval(interval);
+                            onReady();
+                        }
+                    } catch (_) { /* 서버 아직 재시작 중 */ }
+                }, 1500);
+            }
+
+            function hardReload() {
+                // 캐시 버스팅: 타임스탬프 쿼리스트링으로 강제 새로고침
+                const url = new URL(window.location.href);
+                url.searchParams.set('_v', Date.now());
+                window.location.replace(url.toString());
+            }
+
             // 업데이트 확인 이벤트 핸들러
             const btnCheckUpdate = document.getElementById('btn-check-update');
             if (btnCheckUpdate) {
@@ -1340,19 +1404,36 @@
                         if (data.has_update) {
                             const confirmUpdate = confirm(`🚀 새 버전 [${data.latest_version}]이 출시되었습니다!\n현재 버전: ${data.current_version}\n\n지금 자동으로 업데이트를 진행하시겠습니까?`);
                             if (confirmUpdate) {
-                                btnCheckUpdate.innerText = '업데이트 중...';
+                                btnCheckUpdate.innerText = '다운로드 중...';
+                                showUpdateOverlay('업데이트를 다운로드하고 있습니다...');
+
                                 const updateRes = await fetch('/api/system/auto-update', { method: 'POST' });
-                                const updateData = await updateRes.json();
-                                alert(updateData.message || '업데이트 다운로드가 완료되어 앱이 곧 재시작됩니다.');
+                                if (!updateRes.ok) {
+                                    const errData = await updateRes.json().catch(() => ({}));
+                                    throw new Error(errData.detail || '업데이트 요청 실패');
+                                }
+
+                                // 서버가 인스톨러를 실행하고 종료되기까지 대기 후 폴링
+                                showUpdateOverlay('업데이트 설치 중... 앱이 재시작됩니다.', true, 15);
+                                await new Promise(r => setTimeout(r, 8000)); // 서버 종료 대기
+
+                                pollUntilServerReady(() => {
+                                    showUpdateOverlay('업데이트 완료! 페이지를 새로고침합니다.');
+                                    setTimeout(hardReload, 1500);
+                                }, 60000);
                             }
                         } else {
                             alert(`현재 최신 버전(v${data.current_version})을 사용 중입니다.`);
                         }
                     } catch (err) {
-                        alert('업데이트 확인 실패: ' + err.message);
+                        const overlay = document.getElementById('update-overlay');
+                        if (overlay) overlay.remove();
+                        alert('업데이트 오류: ' + err.message);
                     } finally {
-                        btnCheckUpdate.disabled = false;
-                        btnCheckUpdate.innerHTML = `<svg style="width: 14px; height: 14px; fill: currentColor;" viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg> 업데이트 확인`;
+                        if (!document.getElementById('update-overlay')) {
+                            btnCheckUpdate.disabled = false;
+                            btnCheckUpdate.innerHTML = `<svg style="width: 14px; height: 14px; fill: currentColor;" viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg> 업데이트 확인`;
+                        }
                     }
                 });
             }

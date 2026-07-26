@@ -25,7 +25,20 @@ from backend.storage import (
     import_project_data
 )
 
-CURRENT_VERSION = "1.3.11"
+def _read_version() -> str:
+    base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    # _MEIPASS 기준 또는 프로젝트 루트(backend/../) 기준
+    for candidate in [os.path.join(base, 'version.txt'), os.path.join(base, '..', 'version.txt')]:
+        try:
+            with open(candidate, 'r', encoding='utf-8') as f:
+                v = f.read().strip()
+                if v:
+                    return v
+        except Exception:
+            pass
+    return "1.3.11"
+
+CURRENT_VERSION = _read_version()
 GITHUB_REPO = "tjrdlsck/subcast"
 
 # 로그 설정
@@ -702,20 +715,23 @@ async def perform_auto_update(download_url: Optional[str] = Query(None)):
         file_name = "update.exe" if is_exe else "update.zip"
         download_path = os.path.join(temp_dir, file_name)
         
-        async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
-            res = await client.get(download_url, headers={"User-Agent": "Subcast-AutoUpdater"})
-            if res.status_code != 200:
-                raise HTTPException(status_code=500, detail="업데이트 파일 다운로드 실패")
-            with open(download_path, "wb") as f:
-                f.write(res.content)
-                
+        async with httpx.AsyncClient(timeout=300.0, follow_redirects=True) as client:
+            async with client.stream("GET", download_url, headers={"User-Agent": "Subcast-AutoUpdater"}) as res:
+                if res.status_code != 200:
+                    raise HTTPException(status_code=500, detail="업데이트 파일 다운로드 실패")
+                with open(download_path, "wb") as f:
+                    async for chunk in res.aiter_bytes(chunk_size=65536):
+                        f.write(chunk)
+
         if is_exe:
-            # .exe 설치 파일인 경우 직접 실행하여 UAC(관리자 권한) 요청 및 설치 유도
-            subprocess.Popen([download_path, '/VERYSILENT', '/SUPPRESSMSGBOXES', '/FORCECLOSEAPPLICATIONS', '/NOCANCEL'], creationflags=subprocess.CREATE_NO_WINDOW)
-            asyncio.create_task(_delayed_exit())
-            return {"status": "success", "message": "업데이트 관리자가 시작되었습니다. 앱이 종료되고 설치 후 자동 재시작됩니다."}
+            # .exe 설치 파일: 기존 프로세스가 종료되기 전에 브라우저에 재로드 알림 전송
+            asyncio.create_task(_broadcast_update_and_exit(
+                installer_path=download_path,
+                flags=['/VERYSILENT', '/SUPPRESSMSGBOXES', '/FORCECLOSEAPPLICATIONS', '/RESTARTAPPLICATIONS', '/NOCANCEL']
+            ))
+            return {"status": "success", "message": "업데이트 다운로드 완료. 잠시 후 앱이 재시작됩니다."}
         else:
-            # 기존 zip 덮어쓰기 로직
+            # ZIP 포터블 업데이트: bat 패처 방식
             extract_dir = os.path.join(temp_dir, "extracted")
             with zipfile.ZipFile(download_path, 'r') as zip_ref:
                 zip_ref.extractall(extract_dir)
@@ -736,16 +752,31 @@ async def perform_auto_update(download_url: Optional[str] = Query(None)):
             bat_content = f"""@echo off\nchcp 65001 > nul\necho [Subcast Auto-Updater] 기존 프로세스 종료 중... (PID: {curr_pid})\ntaskkill /F /PID {curr_pid} > nul 2>&1\ntaskkill /F /IM subcast.exe > nul 2>&1\ntimeout /t 3 /nobreak > nul\n\necho [Subcast Auto-Updater] 최신 버전 패치 적용 중...\nxcopy /s /e /y /q "{extract_dir}\\*" "{app_dir}\\" > nul\n\necho [Subcast Auto-Updater] 패치 완료. 애플리케이션 재시작 중...\ntimeout /t 1 /nobreak > nul\nstart "" {target_exe}\n\ndel "%~f0"\n"""
             with open(bat_path, "w", encoding="utf-8") as f:
                 f.write(bat_content)
-                
-            subprocess.Popen(["cmd.exe", "/c", bat_path], creationflags=subprocess.CREATE_NEW_CONSOLE)
-            asyncio.create_task(_delayed_exit())
             
-            return {"status": "success", "message": "업데이트 패치 다운로드가 완료되었습니다. 앱이 종료되고 최신 버전으로 자동 재시작됩니다."}
+            # ZIP 업데이트도 브라우저 알림 후 종료
+            asyncio.create_task(_broadcast_update_and_exit(
+                bat_path=bat_path
+            ))
+            return {"status": "success", "message": "업데이트 패치 완료. 잠시 후 앱이 재시작됩니다."}
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Auto update error: {e}")
         raise HTTPException(status_code=500, detail=f"자동 업데이트 실패: {str(e)}")
+
+async def _broadcast_update_and_exit(installer_path: str = None, flags: list = None, bat_path: str = None):
+    """브라우저에 RELOAD_APP 신호를 먼저 보내고, 인스톨러/bat 실행 후 앱 종료"""
+    try:
+        await manager.broadcast({"type": "RELOAD_APP", "delay_ms": 8000})
+    except Exception:
+        pass
+    await asyncio.sleep(1.5)  # 브로드캐스트 전달 대기
+    if installer_path and flags:
+        subprocess.Popen([installer_path] + flags, creationflags=subprocess.CREATE_NO_WINDOW)
+    elif bat_path:
+        subprocess.Popen(["cmd.exe", "/c", bat_path], creationflags=subprocess.CREATE_NEW_CONSOLE)
+    await asyncio.sleep(0.5)
+    os._exit(0)
 
 async def _delayed_exit():
     await asyncio.sleep(1.0)
