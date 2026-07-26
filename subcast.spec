@@ -10,6 +10,7 @@ a = Analysis(
     datas=[
         ('frontend', 'frontend'),
         ('GAE_Bible.db', '.'),
+        ('version.txt', '.'),
     ],
     hiddenimports=[
         'uvicorn.logging',

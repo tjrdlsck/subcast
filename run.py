@@ -4,6 +4,7 @@ import webbrowser
 import uvicorn
 import json
 import subprocess
+import threading
 from threading import Timer, Thread
 import urllib.request
 import tempfile
@@ -11,9 +12,21 @@ import tempfile
 import pystray
 from PIL import Image, ImageDraw
 
-CURRENT_VERSION = "1.3.11"
+def get_current_version():
+    base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    vfile = os.path.join(base_path, "version.txt")
+    if os.path.exists(vfile):
+        try:
+            with open(vfile, "r", encoding="utf-8") as f:
+                return f.read().strip()
+        except Exception:
+            pass
+    return "1.3.11"
+
+CURRENT_VERSION = get_current_version()
 REPO_OWNER = "tjrdlsck"
 REPO_NAME = "subcast"
+icon = None
 
 import shutil
 from pathlib import Path
@@ -178,13 +191,19 @@ def parse_version(v_str):
     return [int(x) for x in v_str.replace('v', '').split('.') if x.isdigit()]
 
 def download_and_update(asset_url, installer_name):
+    global icon
     try:
         temp_dir = tempfile.gettempdir()
         installer_path = os.path.join(temp_dir, installer_name)
         
         req = urllib.request.Request(asset_url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req) as response, open(installer_path, 'wb') as out_file:
-            out_file.write(response.read())
+            chunk_size = 65536
+            while True:
+                chunk = response.read(chunk_size)
+                if not chunk:
+                    break
+                out_file.write(chunk)
             
         script = f'''
         Add-Type -AssemblyName PresentationFramework
@@ -192,11 +211,15 @@ def download_and_update(asset_url, installer_name):
         '''
         subprocess.run(["powershell", "-Command", script], creationflags=0x08000000)
         
-        # Run installer
-        subprocess.Popen([installer_path, '/VERYSILENT', '/SUPPRESSMSGBOXES', '/FORCECLOSEAPPLICATIONS', '/NOCANCEL'])
+        # Run installer with restart
+        subprocess.Popen([installer_path, '/VERYSILENT', '/SUPPRESSMSGBOXES', '/FORCECLOSEAPPLICATIONS', '/RESTARTAPPLICATIONS', '/NOCANCEL'])
         
         # Exit current app
-        exit_app(icon, None)
+        if icon is not None:
+            exit_app(icon, None)
+        else:
+            stop_server()
+            sys.exit(0)
     except Exception as e:
         if hasattr(sys, "stderr") and sys.stderr is not None:
             sys.stderr.write(f"Update failed: {e}\n")

@@ -1,5 +1,7 @@
-#define MyAppName "Subcast"
+#ifndef MyAppVersion
 #define MyAppVersion "1.3.11"
+#endif
+#define MyAppName "Subcast"
 #define MyAppPublisher "Subcast Inc."
 #define MyAppURL "https://github.com/tjrdlsck/subcast"
 #define MyAppExeName "subcast.exe"
@@ -27,7 +29,8 @@ Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "dist\subcast\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\subcast\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "GAE_Bible.db"
+Source: "dist\subcast\GAE_Bible.db"; DestDir: "{app}"; Flags: onlyifdoesntexist
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
