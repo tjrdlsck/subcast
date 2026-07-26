@@ -12,7 +12,7 @@ from backend.schemas import ProjectData, SystemSettings, Slide, ProjectCreateReq
 from backend.storage import (
     load_project_data, save_project_data, list_projects,
     create_project, delete_project, get_active_project_id, set_active_project_id,
-    save_global_templates, duplicate_projects_bulk, delete_projects_bulk
+    load_global_templates, save_global_templates, duplicate_projects_bulk, delete_projects_bulk
 )
 
 # 로그 설정
@@ -64,6 +64,10 @@ class ConnectionManager:
             self.sessions[role].add(websocket)
             logger.info(f"Client connected: role={role}, total_{role}s={len(self.sessions[role])}")
             
+            # 클라이언트 연결 시 전역 템플릿 최신 목록 동기화
+            if self.project_data:
+                self.project_data.templates = await load_global_templates()
+
             # 최초 연결 시, 현재 캐시된 전체 데이터를 전송하여 동기화
             initial_payload = {
                 "type": "INITIAL_SYNC",
