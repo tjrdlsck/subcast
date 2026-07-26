@@ -271,6 +271,21 @@ async def create_project(name: str) -> ProjectData:
     await save_project_data(new_data)
     return new_data
 
+async def update_project_name(project_id: str, new_name: str) -> ProjectData:
+    """프로젝트 이름을 수정합니다."""
+    target_name = new_name.strip()
+    if not target_name:
+        raise ValueError("프로젝트 이름을 입력해주세요.")
+    
+    existing = await list_projects()
+    if any(p.name == target_name and p.id != project_id for p in existing):
+        raise ValueError("이미 존재하는 프로젝트 이름입니다.")
+    
+    project = await load_project_data(project_id)
+    project.name = target_name
+    await save_project_data(project)
+    return project
+
 async def delete_project(project_id: str) -> str:
     """프로젝트를 삭제합니다. 만약 활성화된 프로젝트였다면 새로운 활성 프로젝트 ID를 반환합니다."""
     PROJECTS_DIR.mkdir(parents=True, exist_ok=True)

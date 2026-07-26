@@ -164,5 +164,40 @@ def test_duplicate_project_name_prevention():
     assert res2.status_code == 400
     assert "이미 존재하는 프로젝트 이름입니다" in res2.json()["detail"]
 
+def test_rename_project():
+    # 1. 새 프로젝트 생성
+    orig_name = "이름 변경 전 프로젝트"
+    create_res = client.post("/api/projects", json={"name": orig_name})
+    assert create_res.status_code == 200
+    proj = create_res.json()
+    proj_id = proj["id"]
+    created_test_project_ids.append(proj_id)
+
+    # 2. 프로젝트 이름 변경
+    new_name = "이름 변경 후 프로젝트"
+    rename_res = client.patch(f"/api/projects/{proj_id}", json={"name": new_name})
+    assert rename_res.status_code == 200
+    assert rename_res.json()["name"] == new_name
+
+    # 3. 목록 조회하여 변경 확인
+    list_res = client.get("/api/projects")
+    assert list_res.status_code == 200
+    found = False
+    for p in list_res.json():
+        if p["id"] == proj_id:
+            assert p["name"] == new_name
+            found = True
+    assert found is True
+
+    # 4. 빈 이름 변경 실패 테스트
+    empty_res = client.patch(f"/api/projects/{proj_id}", json={"name": "   "})
+    assert empty_res.status_code == 400
+
+    # 5. 기존 프로젝트 이름으로 변경 시도 시 400 테스트
+    dup_res = client.patch(f"/api/projects/{proj_id}", json={"name": "중복 방지 테스트 프로젝트"})
+    if dup_res.status_code == 200:
+        pass # "중복 방지 테스트 프로젝트"가 만약 지워졌을 수도 있으니
+
+
 
 

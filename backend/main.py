@@ -17,10 +17,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
 from pathlib import Path
 
-from backend.schemas import ProjectData, SystemSettings, Slide, ProjectCreateRequest, ProjectListItem, ProjectBatchRequest
+from backend.schemas import ProjectData, SystemSettings, Slide, ProjectCreateRequest, ProjectUpdateRequest, ProjectListItem, ProjectBatchRequest
 from backend.storage import (
     load_project_data, save_project_data, list_projects,
-    create_project, delete_project, get_active_project_id, set_active_project_id,
+    create_project, update_project_name, delete_project, get_active_project_id, set_active_project_id,
     load_global_templates, save_global_templates, duplicate_projects_bulk, delete_projects_bulk,
     import_project_data
 )
@@ -679,6 +679,28 @@ async def create_new_project(req: ProjectCreateRequest):
         if not req.name or not req.name.strip():
             raise HTTPException(status_code=400, detail="프로젝트 이름을 입력해주세요.")
         proj = await create_project(req.name.strip())
+        return proj
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.patch("/api/projects/{project_id}")
+@app.put("/api/projects/{project_id}")
+async def rename_project(project_id: str, req: ProjectUpdateRequest):
+    try:
+        if not req.name or not req.name.strip():
+            raise HTTPException(status_code=400, detail="프로젝트 이름을 입력해주세요.")
+        proj = await update_project_name(project_id, req.name.strip())
+        if manager.project_data and manager.project_data.id == project_id:
+            manager.project_data.name = proj.name
+            await manager.broadcast({
+                "type": "INITIAL_SYNC",
+                "data": manager.project_data.model_dump(),
+                "lockedSlides": manager.locked_slides
+            })
         return proj
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
