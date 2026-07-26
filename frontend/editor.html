@@ -2228,145 +2228,6 @@
                             style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 6px; border: 1px solid var(--panel-border); border-radius: var(--radius-sm); background: rgba(0,0,0,0.15); min-height: 150px;">
                             <!-- 찬양곡 리스트가 백엔드 DB 데이터 기반으로 렌더링됨 -->
                         </div>
-
-                        <!-- 3) 선택된 찬양곡 세부 사항 및 슬라이드 추가 제어 -->
-                        <div id="praise-selection-control"
-                            style="border-top: 1px solid var(--panel-border); padding-top: 10px; display: none; flex-direction: column; gap: 8px; flex-shrink: 0;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
-                                <div
-                                    style="font-size: 0.75rem; color: var(--text-main); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;">
-                                    선택된 곡: <span id="lbl-selected-praise-title"
-                                        style="color: var(--primary); font-weight: bold;">없음</span>
-                                </div>
-                                <div style="display: flex; gap: 4px;">
-                                    <button id="btn-praise-edit-selected"
-                                        style="padding: 3px 8px; font-size: 0.7rem; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-xs); cursor: pointer;">수정</button>
-                                    <button id="btn-praise-delete-selected"
-                                        style="padding: 3px 8px; font-size: 0.7rem; background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #ef4444; border-radius: var(--radius-xs); cursor: pointer;">삭제</button>
-                                </div>
-                            </div>
-
-                            <!-- ⚙️ 디자인 프리셋 및 커스터마이징 영역 -->
-                            <div
-                                style="background: rgba(255,255,255,0.02); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 8px; margin-top: 2px;">
-                                <div
-                                    style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
-                                    <span style="font-size: 0.7rem; color: var(--text-main); font-weight: 500;">디자인
-                                        프리셋</span>
-                                    <select id="select-praise-design-preset"
-                                        style="padding: 4px 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.7rem;">
-                                        <option value="type-a">타입 A (하단 좌측형)</option>
-                                        <option value="type-b">타입 B (상단 중앙형)</option>
-                                        <option value="type-black">블랙 채우기 (성경형)</option>
-                                        <option value="custom">상세 커스텀</option>
-                                        <option value="template">🎨 사용자 템플릿 적용</option>
-                                    </select>
-                                </div>
-
-                                <!-- 템플릿 선택기 영역 -->
-                                <div id="praise-template-select-container"
-                                    style="display: none; align-items: center; justify-content: space-between; gap: 6px; border-top: 1px dashed var(--panel-border); padding-top: 8px; margin-top: 2px;">
-                                    <span style="font-size: 0.65rem; color: var(--text-muted);">디자인 템플릿</span>
-                                    <select id="select-praise-user-template"
-                                        style="padding: 4px 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.7rem; flex: 1; max-width: 150px;">
-                                    </select>
-                                </div>
-
-                                <!-- 대입 타겟 텍스트 박스 선택기 영역 -->
-                                <div id="praise-textbox-select-container"
-                                    style="display: none; align-items: center; justify-content: space-between; gap: 6px; border-top: 1px dashed var(--panel-border); padding-top: 8px; margin-top: 2px;">
-                                    <span style="font-size: 0.65rem; color: var(--text-muted);">대입할 텍스트 상자</span>
-                                    <select id="select-praise-target-textbox"
-                                        style="padding: 4px 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.7rem; flex: 1; max-width: 150px;">
-                                    </select>
-                                </div>
-
-                                <!-- 세부 커스텀 컨트롤 패널 -->
-                                <div id="praise-custom-style-panel"
-                                    style="display: none; flex-direction: column; gap: 8px; border-top: 1px dashed var(--panel-border); padding-top: 8px; margin-top: 2px;">
-                                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                                        <span style="font-size: 0.65rem; color: var(--text-muted);">글자 색상</span>
-                                        <div style="display: flex; align-items: center; gap: 4px;">
-                                            <input type="color" id="input-praise-font-color" value="#ffffff"
-                                                style="border: 1px solid var(--panel-border); background: none; width: 28px; height: 20px; cursor: pointer; padding: 0;">
-                                            <input type="range" id="input-praise-font-opacity" min="0" max="100"
-                                                value="100" style="width: 45px; height: 3px; cursor: pointer;"
-                                                title="글자 투명도">
-                                            <span id="input-praise-font-opacity-val"
-                                                style="font-size: 0.6rem; color: var(--text-muted); min-width: 22px;">100%</span>
-                                        </div>
-                                    </div>
-                                    <div
-                                        style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-                                        <span style="font-size: 0.65rem; color: var(--text-muted);">글자 크기 (<span
-                                                id="lbl-praise-font-size-val">3.5</span>vw)</span>
-                                        <input type="range" id="input-praise-font-size" min="1.5" max="6.0" step="0.1"
-                                            value="3.5" style="flex: 1; height: 4px; cursor: pointer;">
-                                    </div>
-                                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                                        <span style="font-size: 0.65rem; color: var(--text-muted);">글자 정렬</span>
-                                        <select id="select-praise-text-align"
-                                            style="padding: 3px 6px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-xs); font-size: 0.65rem;">
-                                            <option value="left">왼쪽 정렬</option>
-                                            <option value="center" selected>가운데 정렬</option>
-                                            <option value="right">오른쪽 정렬</option>
-                                        </select>
-                                    </div>
-                                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                                        <span style="font-size: 0.65rem; color: var(--text-muted);">자막 위치</span>
-                                        <select id="select-praise-position"
-                                            style="padding: 3px 6px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-xs); font-size: 0.65rem;">
-                                            <option value="top">상단형 (Top)</option>
-                                            <option value="middle">중앙형 (Middle)</option>
-                                            <option value="bottom" selected>하단형 (Bottom)</option>
-                                        </select>
-                                    </div>
-                                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                                        <span style="font-size: 0.65rem; color: var(--text-muted);">배경 스타일</span>
-                                        <select id="select-praise-bg-type"
-                                            style="padding: 3px 6px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-xs); font-size: 0.65rem;">
-                                            <option value="transparent" selected>투명 배경</option>
-                                            <option value="black">블랙 단색 채우기</option>
-                                            <option value="bar">반투명 자막 바(Band)</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 찬양 가사 분해 미리보기 (Slide Preview List) -->
-                            <div
-                                style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--panel-border); padding-top: 8px; margin-top: 4px;">
-                                <label style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">분할 슬라이드
-                                    미리보기</label>
-                                <div style="display: flex; align-items: center; gap: 4px;">
-                                    <input type="checkbox" id="chk-select-all-praise"
-                                        style="cursor: pointer; width: 12px; height: 12px;" checked>
-                                    <label for="chk-select-all-praise"
-                                        style="font-size: 0.65rem; color: var(--text-muted); cursor: pointer; user-select: none;">전체
-                                        선택</label>
-                                </div>
-                            </div>
-                            <div id="praise-preview-list" class="custom-scrollbar"
-                                style="max-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 4px; border: 1px solid var(--panel-border); border-radius: var(--radius-sm); background: rgba(0,0,0,0.2); font-size: 0.7rem; margin-top: 2px;">
-                                <div
-                                    style="color: var(--text-muted); font-size: 0.7rem; text-align: center; padding: 10px 0;">
-                                    곡을 선택하면 분해 결과가 표시됩니다.</div>
-                            </div>
-
-                            <!-- 예상 슬라이드 개수 실시간 피드백 컴포넌트 -->
-                            <div id="praise-generation-status"
-                                style="font-size: 0.72rem; color: var(--text-muted); background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 6px 10px; display: flex; align-items: center; justify-content: space-between; margin-top: 4px;">
-                                <span>가사 글자수: <strong id="val-praise-char-count"
-                                        style="color: var(--primary);">0</strong>자</span>
-                                <span>선택 슬라이드: <strong id="val-praise-expected-slides"
-                                        style="color: #10b981;">0</strong>장</span>
-                            </div>
-
-                            <button class="btn-template-action" id="btn-add-praise-slides"
-                                style="background: #10b981; border: none; height: 38px; font-weight: 600; cursor: pointer; margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%;">
-                                <span>➕ 슬라이드 추가</span>
-                            </button>
-                        </div>
                     </div>
                 </div>
             </aside>
@@ -2449,6 +2310,164 @@
                                     <!-- 동적 생성 -->
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+
+                    <!-- 찬양 세부 제어 및 가사 분할 미리보기 뷰어 (중앙 슬라이드 영역 오버레이) -->
+                    <div id="praise-main-viewer-overlay"
+                        style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark, #121212); z-index: 100; flex-direction: column; box-shadow: inset 0 0 12px rgba(0,0,0,0.6);">
+                        <!-- 뷰어 상단 헤더 -->
+                        <div id="praise-main-viewer-header"
+                            style="display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; background: rgba(0, 0, 0, 0.35); border-bottom: 1px solid var(--panel-border, #3f3f46); flex-shrink: 0;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <span style="font-size: 1.05rem; font-weight: 700; color: #10b981;"
+                                    id="praise-viewer-title">🎵 찬양 가사 분할 및 디자인 설정</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <button id="btn-close-praise-viewer" title="뷰어 닫기"
+                                    style="background: transparent; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 4px; line-height: 1; transition: color 0.2s;"
+                                    onmouseover="this.style.color='#ef4444'"
+                                    onmouseout="this.style.color='var(--text-muted)'">✕</button>
+                            </div>
+                        </div>
+
+                        <!-- 뷰어 본문 콘텐츠 (2컬럼 오버레이) -->
+                        <div id="praise-main-viewer-body"
+                            style="flex: 1; overflow: hidden; display: flex; padding: 16px; gap: 16px;">
+                            <!-- 선택된 찬양곡 세부 사항 및 슬라이드 추가 제어 -->
+                            <div id="praise-selection-control"
+                                style="display: none; flex: 1; width: 100%; height: 100%; gap: 16px; overflow: hidden;">
+                                <!-- 좌측 커스텀/디자인 설정 영역 -->
+                                <div style="width: 360px; min-width: 320px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; padding-right: 4px;" class="custom-scrollbar">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); padding: 10px; border-radius: var(--radius-sm);">
+                                        <div style="font-size: 0.85rem; color: var(--text-main); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 65%;">
+                                            선택곡: <span id="lbl-selected-praise-title" style="color: var(--primary); font-weight: bold;">없음</span>
+                                        </div>
+                                        <div style="display: flex; gap: 6px;">
+                                            <button id="btn-praise-edit-selected"
+                                                style="padding: 4px 10px; font-size: 0.75rem; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-xs); cursor: pointer;">수정</button>
+                                            <button id="btn-praise-delete-selected"
+                                                style="padding: 4px 10px; font-size: 0.75rem; background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #ef4444; border-radius: var(--radius-xs); cursor: pointer;">삭제</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- ⚙️ 디자인 프리셋 및 커스터마이징 영역 -->
+                                    <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+                                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                                            <span style="font-size: 0.78rem; color: var(--text-main); font-weight: 500;">디자인 프리셋</span>
+                                            <select id="select-praise-design-preset"
+                                                style="padding: 5px 10px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.78rem;">
+                                                <option value="type-a">타입 A (하단 좌측형)</option>
+                                                <option value="type-b">타입 B (상단 중앙형)</option>
+                                                <option value="type-black">블랙 채우기 (성경형)</option>
+                                                <option value="custom">상세 커스텀</option>
+                                                <option value="template">🎨 사용자 템플릿 적용</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- 템플릿 선택기 영역 -->
+                                        <div id="praise-template-select-container"
+                                            style="display: none; align-items: center; justify-content: space-between; gap: 6px; border-top: 1px dashed var(--panel-border); padding-top: 10px; margin-top: 2px;">
+                                            <span style="font-size: 0.72rem; color: var(--text-muted);">디자인 템플릿</span>
+                                            <select id="select-praise-user-template"
+                                                style="padding: 5px 10px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.75rem; flex: 1; max-width: 180px;">
+                                            </select>
+                                        </div>
+
+                                        <!-- 대입 타겟 텍스트 박스 선택기 영역 -->
+                                        <div id="praise-textbox-select-container"
+                                            style="display: none; align-items: center; justify-content: space-between; gap: 6px; border-top: 1px dashed var(--panel-border); padding-top: 10px; margin-top: 2px;">
+                                            <span style="font-size: 0.72rem; color: var(--text-muted);">대입할 텍스트 상자</span>
+                                            <select id="select-praise-target-textbox"
+                                                style="padding: 5px 10px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.75rem; flex: 1; max-width: 180px;">
+                                            </select>
+                                        </div>
+
+                                        <!-- 세부 커스텀 컨트롤 패널 -->
+                                        <div id="praise-custom-style-panel"
+                                            style="display: none; flex-direction: column; gap: 10px; border-top: 1px dashed var(--panel-border); padding-top: 10px; margin-top: 2px;">
+                                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                                <span style="font-size: 0.72rem; color: var(--text-muted);">글자 색상</span>
+                                                <div style="display: flex; align-items: center; gap: 6px;">
+                                                    <input type="color" id="input-praise-font-color" value="#ffffff"
+                                                        style="border: 1px solid var(--panel-border); background: none; width: 32px; height: 24px; cursor: pointer; padding: 0;">
+                                                    <input type="range" id="input-praise-font-opacity" min="0" max="100"
+                                                        value="100" style="width: 60px; height: 4px; cursor: pointer;"
+                                                        title="글자 투명도">
+                                                    <span id="input-praise-font-opacity-val"
+                                                        style="font-size: 0.7rem; color: var(--text-muted); min-width: 28px;">100%</span>
+                                                </div>
+                                            </div>
+                                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                                <span style="font-size: 0.72rem; color: var(--text-muted);">글자 크기 (<span
+                                                        id="lbl-praise-font-size-val">3.5</span>vw)</span>
+                                                <input type="range" id="input-praise-font-size" min="1.5" max="6.0" step="0.1"
+                                                    value="3.5" style="flex: 1; height: 4px; cursor: pointer;">
+                                            </div>
+                                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                                <span style="font-size: 0.72rem; color: var(--text-muted);">글자 정렬</span>
+                                                <select id="select-praise-text-align"
+                                                    style="padding: 4px 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-xs); font-size: 0.72rem;">
+                                                    <option value="left">왼쪽 정렬</option>
+                                                    <option value="center" selected>가운데 정렬</option>
+                                                    <option value="right">오른쪽 정렬</option>
+                                                </select>
+                                            </div>
+                                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                                <span style="font-size: 0.72rem; color: var(--text-muted);">자막 위치</span>
+                                                <select id="select-praise-position"
+                                                    style="padding: 4px 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-xs); font-size: 0.72rem;">
+                                                    <option value="top">상단형 (Top)</option>
+                                                    <option value="middle">중앙형 (Middle)</option>
+                                                    <option value="bottom" selected>하단형 (Bottom)</option>
+                                                </select>
+                                            </div>
+                                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                                <span style="font-size: 0.72rem; color: var(--text-muted);">배경 스타일</span>
+                                                <select id="select-praise-bg-type"
+                                                    style="padding: 4px 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-xs); font-size: 0.72rem;">
+                                                    <option value="transparent" selected>투명 배경</option>
+                                                    <option value="black">블랙 단색 채우기</option>
+                                                    <option value="bar">반투명 자막 바(Band)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- 예상 슬라이드 개수 실시간 피드백 컴포넌트 -->
+                                    <div id="praise-generation-status"
+                                        style="font-size: 0.8rem; color: var(--text-muted); background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;">
+                                        <span>가사 글자수: <strong id="val-praise-char-count"
+                                                style="color: var(--primary);">0</strong>자</span>
+                                        <span>선택 슬라이드: <strong id="val-praise-expected-slides"
+                                                style="color: #10b981;">0</strong>장</span>
+                                    </div>
+
+                                    <button class="btn-template-action" id="btn-add-praise-slides"
+                                        style="background: #10b981; border: none; height: 42px; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; border-radius: var(--radius-sm); margin-top: auto;">
+                                        <span>➕ 슬라이드 추가</span>
+                                    </button>
+                                </div>
+
+                                <!-- 우측 찬양 가사 분해 미리보기 (Slide Preview List) -->
+                                <div style="flex: 1; display: flex; flex-direction: column; gap: 8px; height: 100%; overflow: hidden; background: rgba(0,0,0,0.2); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 12px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 6px; border-bottom: 1px solid var(--panel-border);">
+                                        <label style="font-size: 0.85rem; color: var(--text-main); font-weight: 600;">분할 슬라이드 미리보기</label>
+                                        <div style="display: flex; align-items: center; gap: 6px;">
+                                            <input type="checkbox" id="chk-select-all-praise"
+                                                style="cursor: pointer; width: 14px; height: 14px;" checked>
+                                            <label for="chk-select-all-praise"
+                                                style="font-size: 0.78rem; color: var(--text-muted); cursor: pointer; user-select: none;">전체 선택</label>
+                                        </div>
+                                    </div>
+                                    <div id="praise-preview-list" class="custom-scrollbar"
+                                        style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 6px; font-size: 0.82rem;">
+                                        <div style="color: var(--text-muted); font-size: 0.8rem; text-align: center; padding: 20px 0;">
+                                            곡을 선택하면 분해 결과가 표시됩니다.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2966,6 +2985,10 @@
             // 성경 탭이 아닐 경우 성경 메인 표 뷰어 숨김
             if (tabId !== 'panel-bible') {
                 hideBibleMainViewer();
+            }
+            // 찬양 탭이 아닐 경우 찬양 메인 뷰어 숨김
+            if (tabId !== 'panel-praise') {
+                hidePraiseMainViewer();
             }
         }
 
@@ -7208,33 +7231,23 @@
             }
         }
 
-        function adjustPraisePanelLayout(isSelected) {
-            const songsList = document.getElementById("praise-songs-list");
-            const selectionControl = document.getElementById("praise-selection-control");
-            const previewList = document.getElementById("praise-preview-list");
+        function hidePraiseMainViewer() {
+            selectedPraiseSongs = [];
+            updatePraiseSelectionUI();
+        }
 
-            if (!songsList || !selectionControl || !previewList) return;
+        function adjustPraisePanelLayout(isSelected) {
+            const overlay = document.getElementById("praise-main-viewer-overlay");
+            const selectionControl = document.getElementById("praise-selection-control");
+
+            if (!overlay || !selectionControl) return;
 
             if (isSelected) {
-                songsList.style.flex = "none";
-                songsList.style.height = "120px";
-
                 selectionControl.style.display = "flex";
-                selectionControl.style.flex = "1";
-                selectionControl.style.overflow = "hidden";
-
-                previewList.style.maxHeight = "none";
-                previewList.style.flex = "1";
+                overlay.style.display = "flex";
             } else {
-                songsList.style.flex = "1";
-                songsList.style.height = "";
-
                 selectionControl.style.display = "none";
-                selectionControl.style.flex = "";
-                selectionControl.style.overflow = "";
-
-                previewList.style.maxHeight = "120px";
-                previewList.style.flex = "";
+                overlay.style.display = "none";
             }
         }
 
@@ -7510,6 +7523,11 @@
 
             const chkAllPraise = document.getElementById("chk-select-all-praise");
             const previewList = document.getElementById("praise-preview-list");
+
+            const btnCloseViewer = document.getElementById("btn-close-praise-viewer");
+            if (btnCloseViewer) {
+                btnCloseViewer.onclick = hidePraiseMainViewer;
+            }
 
             if (chkAllPraise && previewList) {
                 chkAllPraise.onchange = (e) => {
