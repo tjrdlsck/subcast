@@ -8,11 +8,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
 from pathlib import Path
 
-from backend.schemas import ProjectData, SystemSettings, Slide, ProjectCreateRequest, ProjectListItem
+from backend.schemas import ProjectData, SystemSettings, Slide, ProjectCreateRequest, ProjectListItem, ProjectBatchRequest
 from backend.storage import (
     load_project_data, save_project_data, list_projects,
     create_project, delete_project, get_active_project_id, set_active_project_id,
-    save_global_templates
+    save_global_templates, duplicate_projects_bulk, delete_projects_bulk
 )
 
 # 로그 설정
@@ -458,6 +458,35 @@ async def remove_project(project_id: str):
     try:
         new_active_id = await delete_project(project_id)
         if manager.project_data and manager.project_data.id == project_id:
+            manager.project_data = await load_project_data(new_active_id)
+            manager.project_history.clear()
+            manager.locked_slides.clear()
+            await manager.broadcast({
+                "type": "INITIAL_SYNC",
+                "data": manager.project_data.model_dump(),
+                "lockedSlides": manager.locked_slides
+            })
+        return {"status": "success", "active_project_id": new_active_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/projects/duplicate-bulk")
+async def duplicate_projects_batch(req: ProjectBatchRequest):
+    try:
+        if not req.ids:
+            raise HTTPException(status_code=400, detail="복제할 프로젝트 ID 목록이 비어있습니다.")
+        duplicated = await duplicate_projects_bulk(req.ids)
+        return {"status": "success", "duplicated": duplicated}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/projects/delete-bulk")
+async def delete_projects_batch(req: ProjectBatchRequest):
+    try:
+        if not req.ids:
+            raise HTTPException(status_code=400, detail="삭제할 프로젝트 ID 목록이 비어있습니다.")
+        new_active_id = await delete_projects_bulk(req.ids)
+        if manager.project_data and manager.project_data.id in req.ids:
             manager.project_data = await load_project_data(new_active_id)
             manager.project_history.clear()
             manager.locked_slides.clear()

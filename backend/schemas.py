@@ -72,3 +72,6 @@ class ProjectListItem(BaseModel):
     slideCount: int = 0
     isActive: bool = False
 
+class ProjectBatchRequest(BaseModel):
+    ids: List[str]
+

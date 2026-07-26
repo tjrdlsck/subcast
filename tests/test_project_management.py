@@ -101,3 +101,35 @@ def test_global_template_sharing():
 
     assert templates_a == templates_b
 
+def test_bulk_duplicate_and_delete():
+    # 1. 두 개의 테스트 프로젝트 생성
+    p1 = client.post("/api/projects", json={"name": "원본 프로젝트 1"}).json()
+    p2 = client.post("/api/projects", json={"name": "원본 프로젝트 2"}).json()
+    id1, id2 = p1["id"], p2["id"]
+    created_test_project_ids.extend([id1, id2])
+
+    # 2. 다중 복제 테스트 (Ctrl+C / Ctrl+V 에 대응)
+    dup_res = client.post("/api/projects/duplicate-bulk", json={"ids": [id1, id2]})
+    assert dup_res.status_code == 200
+    dup_data = dup_res.json()
+    assert dup_data["status"] == "success"
+    duplicated_list = dup_data["duplicated"]
+    assert len(duplicated_list) == 2
+    dup_ids = [p["id"] for p in duplicated_list]
+    created_test_project_ids.extend(dup_ids)
+
+    assert duplicated_list[0]["name"] == "원본 프로젝트 1 (복사본)"
+    assert duplicated_list[1]["name"] == "원본 프로젝트 2 (복사본)"
+
+    # 3. 다중 삭제 테스트 (Delete 키에 대응)
+    del_res = client.post("/api/projects/delete-bulk", json={"ids": dup_ids})
+    assert del_res.status_code == 200
+    assert del_res.json()["status"] == "success"
+
+    # 목록 조회 시 복제본들이 지워졌는지 확인
+    list_after_del = client.get("/api/projects").json()
+    remaining = [p["id"] for p in list_after_del]
+    for d_id in dup_ids:
+        assert d_id not in remaining
+
+

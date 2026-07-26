@@ -287,3 +287,51 @@ async def delete_project(project_id: str) -> str:
         return new_active_id
     
     return active_id
+
+async def duplicate_projects_bulk(project_ids: List[str]) -> List[ProjectData]:
+    """선택한 프로젝트들을 복제하여 새로운 프로젝트로 생성합니다."""
+    duplicated = []
+    for pid in project_ids:
+        orig = await load_project_data(pid)
+        new_id = f"proj_{uuid.uuid4().hex[:8]}"
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        new_data = orig.model_copy(deep=True)
+        new_data.id = new_id
+        new_data.name = f"{orig.name} (복사본)"
+        new_data.createdAt = now_str
+        new_data.updatedAt = now_str
+        
+        await save_project_data(new_data)
+        duplicated.append(new_data)
+    return duplicated
+
+async def delete_projects_bulk(project_ids: List[str]) -> str:
+    """여러 프로젝트를 일괄 삭제합니다."""
+    PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
+    active_id = get_active_project_id()
+    active_deleted = False
+
+    for pid in project_ids:
+        target_path = PROJECTS_DIR / f"{pid}.json"
+        if target_path.exists():
+            try:
+                target_path.unlink()
+            except Exception:
+                pass
+        if pid == active_id:
+            active_deleted = True
+
+    remaining = list(PROJECTS_DIR.glob("*.json"))
+    if not remaining:
+        new_active_id = "proj_default"
+        await load_project_data(new_active_id)
+        set_active_project_id(new_active_id)
+        return new_active_id
+
+    if active_deleted:
+        new_active_id = remaining[0].stem
+        set_active_project_id(new_active_id)
+        return new_active_id
+
+    return active_id
