@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +8,9 @@
     <!-- Google Fonts: Inter & Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap"
+        rel="stylesheet">
     <!-- Fabric.js 안정 버전 5.3.0 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
     <style>
@@ -33,17 +36,34 @@
             --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.7);
         }
 
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
         body {
             background-color: var(--bg-color);
             background-image: radial-gradient(circle at top right, rgba(79, 70, 229, 0.06) 0%, transparent 45%),
-                              radial-gradient(circle at bottom left, rgba(239, 68, 68, 0.04) 0%, transparent 40%);
+                radial-gradient(circle at bottom left, rgba(239, 68, 68, 0.04) 0%, transparent 40%);
             color: var(--text-main);
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             min-height: 100vh;
@@ -54,15 +74,18 @@
 
         /* 헤더 스타일 고도화 */
         header {
-            display: flex; 
-            justify-content: space-between; 
+            display: flex;
+            justify-content: space-between;
             align-items: center;
-            padding: 12px 24px;
-            background: rgba(13, 13, 17, 0.75);
+            height: 56px;
+            padding: 0 24px;
+            background: rgba(17, 24, 39, 0.85);
             backdrop-filter: var(--panel-blur);
             -webkit-backdrop-filter: var(--panel-blur);
             border-bottom: 1px solid var(--panel-border);
-            position: sticky; top: 0; z-index: 100;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
         .header-logo-group {
@@ -71,13 +94,46 @@
             gap: 16px;
         }
 
+        .header-nav-menu {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 12px;
+        }
+
+        .header-nav-menu .nav-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 600;
+            padding: 5px 11px;
+            border-radius: var(--radius-sm);
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .header-nav-menu .nav-link:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .header-nav-menu .nav-link.active {
+            color: #fff;
+            background: var(--primary);
+            box-shadow: 0 2px 8px var(--primary-glow);
+        }
+
         header h1 {
             font-family: 'Outfit', sans-serif;
-            font-size: 1.3rem; 
+            font-size: 1.3rem;
             font-weight: 700;
             letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
             background: linear-gradient(135deg, #fff 40%, var(--text-muted) 100%);
-            -webkit-background-clip: text; 
+            -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
@@ -102,7 +158,7 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        
+
         .mini-preview-label .pulse-dot {
             width: 6px;
             height: 6px;
@@ -112,20 +168,31 @@
         }
 
         @keyframes pulse-glow {
-            0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-            70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
-            100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+            0% {
+                transform: scale(0.9);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+
+            70% {
+                transform: scale(1.1);
+                box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+            }
+
+            100% {
+                transform: scale(0.9);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
         }
 
         .preview-screen {
-            width: 140px; 
-            aspect-ratio: 16/9; 
+            width: 140px;
+            aspect-ratio: 16/9;
             background: #000;
-            border: 1px solid rgba(255, 255, 255, 0.1); 
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: var(--radius-sm);
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
             overflow: hidden;
             box-shadow: var(--shadow-sm);
         }
@@ -151,11 +218,13 @@
             transition: all 0.2s;
             font-size: 0.72rem;
         }
+
         .btn-quick-nav:hover {
             background: var(--primary);
             border-color: var(--primary);
             box-shadow: 0 0 8px var(--primary-glow);
         }
+
         .btn-quick-nav:active {
             transform: scale(0.95);
         }
@@ -188,29 +257,44 @@
             gap: 6px;
             transition: all 0.2s;
         }
+
         .btn-settings-trigger:hover {
             background: rgba(255, 255, 255, 0.1);
             border-color: rgba(255, 255, 255, 0.2);
         }
 
         .status-badge {
-            display: flex; align-items: center; gap: 8px;
-            font-size: 0.75rem; font-weight: 600;
-            padding: 8px 14px; border-radius: var(--radius-sm);
-            background: var(--panel-bg); border: 1px solid var(--panel-border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
         }
 
-        .status-dot { width: 6px; height: 6px; border-radius: 50%; background-color: var(--accent-live); }
-        .status-badge.connected .status-dot { background-color: var(--green-online); box-shadow: 0 0 6px var(--green-online); }
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--accent-live);
+        }
+
+        .status-badge.connected .status-dot {
+            background-color: var(--green-online);
+            box-shadow: 0 0 6px var(--green-online);
+        }
 
         /* 메인 레이아웃 및 5x4 Grid */
-        .workspace { 
-            flex: 1; 
-            padding: 24px;
-            overflow-y: auto; 
+        .workspace {
+            flex: 1;
+            padding: 10px 24px 24px 24px;
+            overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 12px;
         }
 
         .deck-header {
@@ -230,64 +314,146 @@
             gap: 8px;
         }
 
+        :root {
+            --card-min-width: 220px;
+        }
+
         .deck-grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 18px;
+            grid-template-columns: repeat(auto-fill, minmax(var(--card-min-width), 1fr));
+            gap: 16px;
             padding-bottom: 40px;
+            transition: grid-template-columns 0.15s ease-out;
         }
 
         /* 슬라이드 썸네일 카드 디자인 */
         .slide-item {
-            background: rgba(255, 255, 255, 0.02); 
+            background: rgba(255, 255, 255, 0.02);
             border: 1px solid var(--panel-border);
-            border-radius: var(--radius-md); 
-            padding: 10px; 
+            border-radius: var(--radius-md);
+            padding: 10px;
             cursor: pointer;
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative; 
-            user-select: none; 
+            position: relative;
+            user-select: none;
             box-shadow: var(--shadow-sm);
             display: flex;
             flex-direction: column;
             gap: 8px;
         }
-        .slide-item:hover { 
-            background: rgba(255, 255, 255, 0.05); 
+
+        .slide-item:hover {
+            background: rgba(255, 255, 255, 0.05);
             border-color: rgba(255, 255, 255, 0.15);
-            transform: translateY(-3px); 
+            transform: translateY(-3px);
             box-shadow: var(--shadow-md);
         }
 
-        .slide-item.live {
-            border-color: var(--accent-live); 
-            background: rgba(239, 68, 68, 0.05);
-            box-shadow: 0 0 16px var(--accent-live-glow);
+        /* 선택된 (Preview 대기) 슬라이드 - 초록색 하이라이트 */
+        .slide-item.selected {
+            border-color: var(--green-online) !important;
+            background: rgba(16, 185, 129, 0.06) !important;
+            box-shadow: 0 0 16px rgba(16, 185, 129, 0.35) !important;
         }
-        .slide-item.live::after {
-            content: 'LIVE'; 
-            position: absolute; 
-            top: 14px; 
-            right: 14px;
-            background: var(--accent-live); 
+
+        .slide-item.selected::after {
+            content: 'PREVIEW';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--green-online);
             color: white;
-            font-size: 0.6rem; 
-            font-weight: 800; 
+            font-size: 0.58rem;
+            font-weight: 800;
             letter-spacing: 0.5px;
-            padding: 3px 6px; 
+            padding: 2px 6px;
             border-radius: 4px;
-            box-shadow: 0 2px 6px var(--accent-live-glow);
+            box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+        }
+
+        /* LIVE 송출 상태 슬라이드 - 빨간색 하이라이트 */
+        .slide-item.live {
+            border-color: var(--accent-live) !important;
+            background: rgba(239, 68, 68, 0.08) !important;
+            box-shadow: 0 0 18px var(--accent-live-glow) !important;
+        }
+
+        .slide-item.live::after {
+            content: '';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent-live);
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8), 0 0 10px var(--accent-live);
+            animation: live-pulse 1.5s infinite;
+        }
+
+        @keyframes live-pulse {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8), 0 0 8px var(--accent-live);
+            }
+
+            70% {
+                transform: scale(1.15);
+                box-shadow: 0 0 0 6px rgba(239, 68, 68, 0), 0 0 12px var(--accent-live);
+            }
+
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0), 0 0 8px var(--accent-live);
+            }
+        }
+
+        /* 라이브 상단 헤더 배지 아이콘 */
+        .live-status-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: var(--radius-sm);
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--panel-border);
+            transition: all 0.3s ease;
+        }
+
+        .live-status-badge .live-icon-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--text-muted);
+            transition: all 0.3s ease;
+        }
+
+        .live-status-badge.on {
+            color: #fff;
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.5);
+            box-shadow: 0 0 12px var(--accent-live-glow);
+        }
+
+        .live-status-badge.on .live-icon-dot {
+            background-color: var(--accent-live);
+            box-shadow: 0 0 8px var(--accent-live);
+            animation: live-pulse 1.5s infinite;
         }
 
         .slide-thumbnail-wrapper {
-            width: 100%; 
-            aspect-ratio: 16/9; 
-            background: #000000; 
-            border-radius: var(--radius-sm); 
-            overflow: hidden; 
-            border: 1px solid rgba(255, 255, 255, 0.06); 
-            display: flex; 
-            align-items: center; 
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000000;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            display: flex;
+            align-items: center;
             justify-content: center;
         }
 
@@ -318,31 +484,50 @@
         }
 
         .slide-title-label {
-            font-size: 0.82rem; 
-            font-weight: 600; 
+            font-size: 0.82rem;
+            font-weight: 600;
             color: var(--text-main);
-            overflow: hidden; 
-            text-overflow: ellipsis; 
-            white-space: nowrap; 
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
             flex: 1;
             margin-left: 6px;
         }
 
         .slide-lock-indicator {
-            display: none; 
-            align-items: center; 
-            gap: 4px; 
-            font-size: 0.7rem;
-            color: #f87171; 
-            font-weight: 500;
-            margin-top: 2px;
+            display: none;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.68rem;
+            color: #fff;
+            background: rgba(239, 68, 68, 0.85);
+            backdrop-filter: blur(4px);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            z-index: 15;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+            max-width: calc(100% - 16px);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            pointer-events: none;
         }
-        .slide-item.locked .slide-lock-indicator { display: flex; }
+
+        .slide-item.locked .slide-lock-indicator {
+            display: flex;
+        }
 
         /* 모달창 (Settings Modal) 디자인 */
         .modal-overlay {
             position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             background: rgba(5, 5, 8, 0.7);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
@@ -354,7 +539,7 @@
             pointer-events: none;
             transition: opacity 0.25s ease;
         }
-        
+
         .modal-overlay.active {
             opacity: 1;
             pointer-events: auto;
@@ -405,6 +590,7 @@
             border-radius: 50%;
             transition: all 0.2s;
         }
+
         .modal-close-btn:hover {
             color: #fff;
             background: rgba(255, 255, 255, 0.05);
@@ -412,9 +598,148 @@
 
         .modal-body {
             padding: 24px;
+        }
+
+        /* 모니터링 모달 전용 대형 2열 분할 레이아웃 */
+        .modal-container.monitor-modal-container {
+            width: 1020px;
+            max-width: 95vw;
+            height: 660px;
+            max-height: 90vh;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+        }
+
+        .monitor-modal-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .monitor-settings-sidebar {
+            width: 340px;
+            flex-shrink: 0;
+            padding: 20px;
+            border-right: 1px solid var(--panel-border);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+            background: #121216;
+        }
+
+        .monitor-settings-sidebar .shortcut-info-box {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--panel-border);
+        }
+
+        .monitor-settings-sidebar .info-tip-box {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--panel-border);
+        }
+
+        /* 우측 대형 미리보기 영역 */
+        .monitor-preview-container {
+            flex: 1;
+            padding: 20px;
+            background: #09090b;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .preview-header-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            padding-bottom: 2px;
+        }
+
+        .monitor-preview-box {
+            display: flex;
+            flex-direction: column; /* 상하 분리 (Current 상단 / Next 하단) */
+            flex: 1;
+            width: 100%;
+            background: #050507;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 14px;
+            gap: 12px;
+            box-sizing: border-box;
+            overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+        }
+
+        .monitor-preview-section {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 14px 18px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-sizing: border-box;
+            transition: flex 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+
+        .monitor-preview-section.current {
+            border-color: rgba(239, 68, 68, 0.5);
+            background: rgba(239, 68, 68, 0.06);
+            flex: 5;
+        }
+
+        .monitor-preview-section.next {
+            border-color: rgba(79, 70, 229, 0.5);
+            background: rgba(79, 70, 229, 0.06);
+            flex: 5;
+        }
+
+        .preview-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            padding: 3px 8px;
+            border-radius: 5px;
+            margin-bottom: 8px;
+            width: fit-content;
+        }
+
+        .monitor-preview-section.current .preview-tag {
+            background: #ef4444;
+            color: #fff;
+        }
+
+        .monitor-preview-section.next .preview-tag {
+            background: #4f46e5;
+            color: #fff;
+        }
+
+        .preview-content {
+            font-size: 1.05rem;
+            line-height: 1.5;
+            font-weight: 600;
+            color: #ffffff;
+            white-space: pre-wrap;
+            word-break: keep-all;
+            overflow-y: auto;
         }
 
         .settings-group {
@@ -449,19 +774,20 @@
         }
 
         .form-input {
-            background: rgba(0, 0, 0, 0.3); 
+            background: rgba(0, 0, 0, 0.3);
             border: 1px solid var(--panel-border);
-            border-radius: var(--radius-sm); 
-            padding: 10px 14px; 
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
             color: white;
-            font-size: 0.88rem; 
-            outline: none; 
+            font-size: 0.88rem;
+            outline: none;
             transition: all 0.2s;
             width: 100%;
         }
-        .form-input:focus { 
-            border-color: var(--primary); 
-            box-shadow: 0 0 0 3px var(--primary-glow); 
+
+        .form-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
         }
 
         .btn-save-settings {
@@ -477,6 +803,7 @@
             margin-top: 10px;
             box-shadow: 0 4px 12px var(--primary-glow);
         }
+
         .btn-save-settings:hover {
             background: var(--primary-hover);
         }
@@ -527,28 +854,31 @@
         }
     </style>
 </head>
+
 <body>
     <header>
         <div class="header-logo-group">
-            <h1>Subcast Presenter</h1>
-            <!-- 미니 송출 미리보기 영역 -->
-            <div class="mini-preview-container">
-                <div class="mini-preview-label">
-                    <span class="pulse-dot"></span>LIVE 송출
-                </div>
-                <div class="preview-screen">
-                    <canvas id="presenter-preview-canvas"></canvas>
-                </div>
-                <!-- 퀵 컨트롤러 -->
-                <div class="quick-nav-controls">
-                    <button class="btn-quick-nav" id="btn-prev" title="이전 슬라이드 [←]">◀</button>
-                    <span class="slide-indicator-badge" id="slide-indicator">0 / 0</span>
-                    <button class="btn-quick-nav" id="btn-next" title="다음 슬라이드 [→]">▶</button>
-                </div>
-            </div>
+            <h1>
+                <svg style="width: 22px; height: 22px; fill: var(--primary);" viewBox="0 0 24 24">
+                    <path d="M12 2L2 22h20L12 2zm0 3.99L19.53 19H4.47L12 5.99zM13 16h-2v2h2v-2zm0-6h-2v4h2v-4z" />
+                </svg>
+                Subcast
+            </h1>
+            <nav class="header-nav-menu">
+                <a href="/static/index.html" class="nav-link">Home</a>
+                <a href="/static/editor.html" class="nav-link">Editor</a>
+                <a href="/static/presenter.html" class="nav-link active">Presenter</a>
+                <a href="/static/viewer.html" target="_blank" class="nav-link">Viewer</a>
+                <a href="/static/viewer.html?mode=monitor" target="_blank" class="nav-link">Monitor</a>
+            </nav>
         </div>
 
         <div class="header-right-group">
+            <button class="btn-settings-trigger" id="btn-open-monitoring">모니터링</button>
+            <div class="live-status-badge" id="live-status-badge" title="LIVE 송출 상태">
+                <span class="live-icon-dot"></span>
+                <span>LIVE</span>
+            </div>
             <button class="btn-settings-trigger" id="btn-open-settings">⚙ 설정</button>
             <div class="status-badge" id="status-badge">
                 <span class="status-dot"></span>
@@ -593,15 +923,11 @@
 
                 <!-- 배경 모드 설정 -->
                 <div class="settings-group">
-                    <h3>Chroma Key 배경 설정</h3>
+                    <h3>배경 설정</h3>
                     <div class="bg-mode-wrapper">
                         <label class="bg-mode-option">
                             <input type="radio" name="bg-mode" id="bg-transparent" value="transparent" checked>
                             <span>투명 배경 (OBS)</span>
-                        </label>
-                        <label class="bg-mode-option">
-                            <input type="radio" name="bg-mode" id="bg-chromakey" value="chromakey">
-                            <span>녹색 크로마키 (믹서)</span>
                         </label>
                     </div>
                 </div>
@@ -610,8 +936,10 @@
                 <div class="settings-group">
                     <h3>단축키 안내</h3>
                     <div class="shortcut-info-box">
-                        • 다음 슬라이드: <span class="shortcut-key">→</span> <span class="shortcut-key">Space</span> <span class="shortcut-key">PageDown</span><br>
-                        • 이전 슬라이드: <span class="shortcut-key">←</span> <span class="shortcut-key">Backspace</span> <span class="shortcut-key">PageUp</span>
+                        • 다음 슬라이드: <span class="shortcut-key">→</span> <span class="shortcut-key">Space</span> <span
+                            class="shortcut-key">PageDown</span><br>
+                        • 이전 슬라이드: <span class="shortcut-key">←</span> <span class="shortcut-key">Backspace</span> <span
+                            class="shortcut-key">PageUp</span>
                     </div>
                 </div>
 
@@ -620,15 +948,89 @@
         </div>
     </div>
 
+    <!-- 모니터링 설정 모달창 -->
+    <div class="modal-overlay" id="monitoring-modal">
+        <div class="modal-container monitor-modal-container">
+            <div class="modal-header">
+                <h2>🖥️ 발표자 모니터링 뷰어 설정</h2>
+                <button class="modal-close-btn" id="btn-close-monitoring">&times;</button>
+            </div>
+            <div class="monitor-modal-layout">
+                <!-- 좌측 설정 사이드바 -->
+                <div class="monitor-settings-sidebar">
+                    <div class="shortcut-info-box">
+                        • 발표자/설교자 모니터에 <b>현재 & 다음 슬라이드</b>를 상하로 동시에 표출하는 모니터링 뷰어 설정입니다.
+                    </div>
+
+                    <div class="settings-group">
+                        <h3>모니터링 뷰어 실행</h3>
+                        <button class="btn-save-settings" id="btn-open-monitor-window"
+                            style="margin-top:0; background:#10b981;">🖥️ 모니터링 뷰어 새창으로 열기</button>
+                    </div>
+
+                    <div class="settings-group">
+                        <h3>글씨 크기 (Font Size)</h3>
+                        <div class="info-tip-box">
+                            💡 모니터링 창에서 <b>Ctrl + 마우스 휠</b>로 글꼴 크기를 조정할 수 있으며 닫을 때 <b>자동 저장</b>됩니다.
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <h3>화면 비율 (Current : Next)</h3>
+                        <div class="bg-mode-wrapper">
+                            <label class="bg-mode-option"><input type="radio" name="monitor-layout" value="5:5" checked>
+                                <span>5:5 균등</span></label>
+                            <label class="bg-mode-option"><input type="radio" name="monitor-layout" value="7:3"> <span>7:3
+                                    (현재 강조)</span></label>
+                            <label class="bg-mode-option"><input type="radio" name="monitor-layout" value="3:7"> <span>3:7
+                                    (다음 강조)</span></label>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <h3>성경 구절 표출 옵션</h3>
+                        <div class="bg-mode-wrapper" style="flex-direction: column; gap: 8px;">
+                            <label class="bg-mode-option"><input type="radio" name="monitor-bible" value="summary" checked>
+                                <span>장/절 출처 + 첫 2줄 요약 (...) [권장]</span></label>
+                            <label class="bg-mode-option"><input type="radio" name="monitor-bible" value="ref_only">
+                                <span>장/절 출처만 표시</span></label>
+                            <label class="bg-mode-option"><input type="radio" name="monitor-bible" value="full"> <span>본문 전체
+                                    표시</span></label>
+                        </div>
+                    </div>
+
+                    <button class="btn-save-settings" id="btn-save-monitoring" style="margin-top: auto;">설정 저장</button>
+                </div>
+
+                <!-- 우측 대형 미리보기 메인 영역 -->
+                <div class="monitor-preview-container">
+                    <div class="preview-header-bar">
+                        <span>🖥️ 모니터링 화면 실시간 미리보기 (16:9 Monitor View)</span>
+                    </div>
+                    <div class="monitor-preview-box" id="monitor-preview-box">
+                        <div class="monitor-preview-section current" id="preview-current-sec">
+                            <div class="preview-tag current-tag">🔴 CURRENT (현재 송출 슬라이드)</div>
+                            <div class="preview-content" id="preview-current-text">송출 중인 슬라이드가 없습니다.</div>
+                        </div>
+                        <div class="monitor-preview-section next" id="preview-next-sec">
+                            <div class="preview-tag next-tag">🔵 NEXT (다음 슬라이드)</div>
+                            <div class="preview-content" id="preview-next-text">다음 슬라이드가 없습니다.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // CanvasTextBaseline 패치: 브라우저 확장 프로그램 등에서 'alphabetical'을 넣어 발생하는 경고 우회
-        (function() {
+        (function () {
             if (typeof CanvasRenderingContext2D !== 'undefined') {
                 const descriptor = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, 'textBaseline');
                 if (descriptor && descriptor.set) {
                     const originalSet = descriptor.set;
                     Object.defineProperty(CanvasRenderingContext2D.prototype, 'textBaseline', {
-                        set: function(value) {
+                        set: function (value) {
                             if (value === 'alphabetical') {
                                 value = 'alphabetic';
                             }
@@ -646,6 +1048,7 @@
         let projectData = null;
         let lockedSlides = {};
         let currentLiveIndex = -1;
+        let selectedSlideId = null;
         let canvas = null;
         let targetWidth = 1920;
         let targetHeight = 1080;
@@ -653,24 +1056,24 @@
         // 백그라운드에서 썸네일을 자동 생성하는 함수
         function autoGenerateThumbnail(slide) {
             if (slide.thumbnail) return Promise.resolve(slide.thumbnail);
-            
+
             return new Promise((resolve) => {
                 // 1. fabric.StaticCanvas용 임시 캔버스 생성 및 요소 렌더링
                 const fabricCanvasEl = document.createElement('canvas');
                 fabricCanvasEl.width = 768;
                 fabricCanvasEl.height = 432;
-                
+
                 const tempCanvas = new fabric.StaticCanvas(fabricCanvasEl, {
                     backgroundColor: '#000000'
                 });
-                
+
                 slide.elements.forEach(elem => {
                     const obj = deserializeElement(elem, 768, 432);
                     if (obj) tempCanvas.add(obj);
                 });
-                
+
                 tempCanvas.renderAll();
-                
+
                 // 2. 최종 출력용 캔버스에 검정 배경을 먼저 확실히 칠한 뒤
                 //    fabric 렌더링 결과를 그 위에 합성 (fabric의 backgroundColor 미적용 버그 방지)
                 const outputCanvasEl = document.createElement('canvas');
@@ -680,36 +1083,37 @@
                 ctx.fillStyle = '#000000';
                 ctx.fillRect(0, 0, 768, 432);
                 ctx.drawImage(fabricCanvasEl, 0, 0);
-                
+
                 const dataUrl = outputCanvasEl.toDataURL('image/jpeg', 0.4);
-                
+
                 tempCanvas.dispose();
                 slide.thumbnail = dataUrl;
-                
+
                 if (ws && ws.readyState === WebSocket.OPEN) {
                     ws.send(JSON.stringify({
                         type: "SAVE_SLIDE",
                         slide: slide
                     }));
                 }
-                
+
                 resolve(dataUrl);
             });
         }
 
         // 캔버스 초기화
         function initCanvas() {
+            if (!document.getElementById('presenter-preview-canvas')) return;
             if (canvas) {
                 canvas.dispose();
             }
-            
+
             // 프리뷰는 상호작용이 없는 StaticCanvas를 사용
             canvas = new fabric.StaticCanvas('presenter-preview-canvas', {
                 width: 480,
                 height: 270,
                 backgroundColor: '#000000'
             });
-            
+
             updateCanvasDimensions();
         }
 
@@ -777,8 +1181,8 @@
                     selectable: false,
                     paintFirst: 'stroke'
                 };
-                obj = isInsideGroup ? 
-                    new fabric.Text(elem.content, textOptions) : 
+                obj = isInsideGroup ?
+                    new fabric.Text(elem.content, textOptions) :
                     new fabric.Textbox(elem.content, Object.assign(textOptions, { splitByGrapheme: false }));
             } else if (elem.type === 'rect') {
                 obj = new fabric.Rect({ left: x, top: y, width: w, height: h, rx: elem.style?.cornerRadius || 0, ry: elem.style?.cornerRadius || 0, fill: elem.style?.fillColor || '#4f46e5', stroke: elem.style?.strokeColor || 'transparent', strokeWidth: elem.style?.strokeWidth !== undefined ? (elem.style.strokeWidth / 1920) * canvasWidth : 0, opacity: opacity, selectable: false });
@@ -830,15 +1234,44 @@
 
             document.getElementById("slide-count").innerText = `${projectData.slides.length} Slides`;
 
+            // 상단 LIVE 배지 아이콘 상태 및 클릭 이벤트 업데이트
+            const liveBadge = document.getElementById("live-status-badge");
+            const hasLiveSlide = !!projectData.settings?.currentLiveSlideId;
+            if (liveBadge) {
+                liveBadge.style.cursor = "pointer";
+                if (hasLiveSlide) {
+                    liveBadge.classList.add("on");
+                } else {
+                    liveBadge.classList.remove("on");
+                }
+                liveBadge.onclick = () => {
+                    if (hasLiveSlide) {
+                        // 송출 중일 때는 송출 끄기 (OFF)
+                        changeSlide(null);
+                    } else {
+                        // 송출 OFF일 때는 현재 선택된(초록색) 슬라이드를 송출 (LIVE ON)
+                        if (selectedSlideId) {
+                            changeSlide(selectedSlideId);
+                        } else if (projectData.slides.length > 0) {
+                            changeSlide(projectData.slides[0].id);
+                        }
+                    }
+                };
+            }
+
             projectData.slides.forEach((slide, index) => {
                 const item = document.createElement("div");
                 item.className = "slide-item";
                 item.id = `slide-item-${slide.id}`;
-                
-                const isLive = slide.id === projectData.settings.currentLiveSlideId;
+
+                const isLive = slide.id === projectData.settings?.currentLiveSlideId;
+                const isSelected = slide.id === selectedSlideId;
+
                 if (isLive) {
                     item.classList.add("live");
                     currentLiveIndex = index;
+                } else if (isSelected) {
+                    item.classList.add("selected");
                 }
 
                 const isLocked = lockedSlides[slide.id] !== undefined;
@@ -846,20 +1279,36 @@
                     item.classList.add("locked");
                 }
 
+                // 배지 색상 구분: LIVE면 빨간색, Selected(대기)면 초록색, 기본 보라색
+                let badgeBg = "var(--primary)";
+                let badgeShadow = "0 2px 5px rgba(0,0,0,0.5)";
+                if (isLive) {
+                    badgeBg = "var(--accent-live)";
+                    badgeShadow = "0 0 8px var(--accent-live-glow)";
+                } else if (isSelected) {
+                    badgeBg = "var(--green-online)";
+                    badgeShadow = "0 0 8px rgba(16, 185, 129, 0.5)";
+                }
+
                 item.innerHTML = `
+                    <!-- 슬라이드 순번 배지 -->
+                    <div style="position: absolute; top: -8px; left: -8px; background: ${badgeBg}; color: #fff; font-size: 0.7rem; font-weight: 800; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1.5px solid var(--bg-color); z-index: 20; font-family: 'Outfit', sans-serif; box-shadow: ${badgeShadow};">
+                        ${index + 1}
+                    </div>
                     <div class="slide-thumbnail-wrapper">
                         ${slide.thumbnail ? `<img src="${slide.thumbnail}">` : `<span style="font-size: 0.72rem; color: var(--text-muted);">미리보기 없음</span>`}
                     </div>
-                    <div class="slide-info-row">
-                        <span class="slide-index-label">${String(index + 1).padStart(2, '0')}</span>
-                        <span class="slide-title-label" title="${slide.name}">${slide.name}</span>
-                    </div>
-                    <div class="slide-lock-indicator">🔒 ${lockedSlides[slide.id] || ''} 편집 중</div>
+                    ${isLocked ? `<div class="slide-lock-indicator">🔒 ${lockedSlides[slide.id] || ''} 편집 중</div>` : ''}
                 `;
 
-                // 클릭 시 해당 슬라이드로 즉시 전환
+                // 클릭 시 슬라이드 선택 (LIVE ON 상태이면 클릭 시 즉시 라이브 전환!)
                 item.onclick = () => {
-                    changeSlide(slide.id);
+                    selectedSlideId = slide.id;
+                    if (projectData.settings?.currentLiveSlideId) {
+                        changeSlide(slide.id);
+                    } else {
+                        renderDeck();
+                    }
                 };
 
                 listEl.appendChild(item);
@@ -896,14 +1345,24 @@
             const len = projectData.slides.length;
             if (len === 0) return;
 
-            let nextIdx = currentLiveIndex;
+            let baseIdx = currentLiveIndex !== -1 ? currentLiveIndex : projectData.slides.findIndex(s => s.id === selectedSlideId);
+            if (baseIdx === -1) baseIdx = 0;
+
+            let nextIdx = baseIdx;
             if (direction === 'next') {
-                nextIdx = (currentLiveIndex + 1) % len;
+                nextIdx = (baseIdx + 1) % len;
             } else if (direction === 'prev') {
-                nextIdx = (currentLiveIndex - 1 + len) % len;
+                nextIdx = (baseIdx - 1 + len) % len;
             }
 
-            changeSlide(projectData.slides[nextIdx].id);
+            const targetSlideId = projectData.slides[nextIdx].id;
+            selectedSlideId = targetSlideId;
+
+            if (projectData.settings?.currentLiveSlideId) {
+                changeSlide(targetSlideId);
+            } else {
+                renderDeck();
+            }
         }
 
         // 웹소켓 연결
@@ -916,7 +1375,7 @@
             ws.onopen = () => {
                 const badge = document.getElementById("status-badge");
                 badge.classList.add("connected");
-                document.getElementById("status-text").innerText = "Connected (Presenter)";
+                document.getElementById("status-text").innerText = "Connected";
             };
 
             ws.onmessage = (event) => {
@@ -925,13 +1384,13 @@
                 if (message.type === 'INITIAL_SYNC') {
                     projectData = message.data;
                     lockedSlides = message.lockedSlides || {};
-                    
+
                     if (projectData.settings) {
                         document.getElementById("width-input").value = projectData.settings.targetWidth || 1920;
                         document.getElementById("height-input").value = projectData.settings.targetHeight || 1080;
                         targetWidth = projectData.settings.targetWidth || 1920;
                         targetHeight = projectData.settings.targetHeight || 1080;
-                        
+
                         const bgMode = projectData.settings.backgroundMode || "transparent";
                         const radioEl = document.getElementById(`bg-${bgMode}`);
                         if (radioEl) radioEl.checked = true;
@@ -948,7 +1407,7 @@
                         }
                         return Promise.resolve();
                     });
-                    
+
                     if (needsUpdate) {
                         Promise.all(promises).then(() => {
                             renderDeck();
@@ -965,6 +1424,9 @@
                 else if (message.type === 'SLIDE_CHANGE') {
                     if (projectData) {
                         projectData.settings.currentLiveSlideId = message.slideId;
+                        if (message.slideId) {
+                            selectedSlideId = message.slideId;
+                        }
                         renderDeck();
                     }
                 }
@@ -1027,15 +1489,183 @@
                 };
             }
 
+            // 모니터링 모달 제어 이벤트 바인딩
+            const monitorModal = document.getElementById("monitoring-modal");
+            const openMonitorBtn = document.getElementById("btn-open-monitoring");
+            const closeMonitorBtn = document.getElementById("btn-close-monitoring");
+            const saveMonitorBtn = document.getElementById("btn-save-monitoring");
+            const openMonitorWindowBtn = document.getElementById("btn-open-monitor-window");
+
+            // 모니터링 실시간 미리보기 업데이트 함수
+            function updateMonitorPreview() {
+                const layout = document.querySelector('input[name="monitor-layout"]:checked')?.value || "5:5";
+                const bibleMode = document.querySelector('input[name="monitor-bible"]:checked')?.value || "summary";
+
+                const currentSec = document.getElementById("preview-current-sec");
+                const nextSec = document.getElementById("preview-next-sec");
+                const currentTextEl = document.getElementById("preview-current-text");
+                const nextTextEl = document.getElementById("preview-next-text");
+
+                if (currentSec && nextSec) {
+                    if (layout === "7:3") {
+                        currentSec.style.flex = "7";
+                        nextSec.style.flex = "3";
+                    } else if (layout === "3:7") {
+                        currentSec.style.flex = "3";
+                        nextSec.style.flex = "7";
+                    } else {
+                        currentSec.style.flex = "5";
+                        nextSec.style.flex = "5";
+                    }
+                }
+
+                function extractText(slide) {
+                    if (!slide || !slide.elements) return "";
+                    const texts = [];
+                    function traverse(elems) {
+                        elems.forEach(el => {
+                            if (el.type === 'text' && el.content) {
+                                texts.push(el.content.trim());
+                            } else if (el.type === 'group' && el.children) {
+                                traverse(el.children);
+                            }
+                        });
+                    }
+                    traverse(slide.elements);
+                    return texts.join("\n");
+                }
+
+                let curText = "";
+                let nxtText = "";
+
+                const slides = projectData?.slides || [];
+                const currentLiveId = projectData?.settings?.currentLiveSlideId;
+                const curIdx = slides.findIndex(s => s.id === currentLiveId);
+
+                if (curIdx !== -1 && slides[curIdx]) {
+                    curText = extractText(slides[curIdx]) || "(빈 슬라이드)";
+                    if (curIdx + 1 < slides.length) {
+                        nxtText = extractText(slides[curIdx + 1]) || "(빈 슬라이드)";
+                    } else {
+                        nxtText = "다음 슬라이드가 없습니다 (마지막)";
+                    }
+                } else if (slides.length > 0) {
+                    curText = extractText(slides[0]) || "[요한복음 3:16] 하나님이 세상을 이처럼 사랑하사 독생자를 주셨으니 이는 그를 믿는 자마다 멸망하지 않고 영생을 얻게 하려 하심이라";
+                    if (slides.length > 1) {
+                        nxtText = extractText(slides[1]) || "[요한복음 3:17] 하나님이 그 아들을 세상에 보내신 것은 세상을 심판하려 하심이 아니요 그를 통하여 세상이 구원을 받게 하려 하심이라";
+                    } else {
+                        nxtText = "[요한복음 3:17] 하나님이 그 아들을 세상에 보내신 것은 세상을 심판하려 하심이 아니요 그를 통하여 세상이 구원을 받게 하려 하심이라";
+                    }
+                } else {
+                    curText = "[요한복음 3:16] 하나님이 세상을 이처럼 사랑하사 독생자를 주셨으니 이는 그를 믿는 자마다 멸망하지 않고 영생을 얻게 하려 하심이라";
+                    nxtText = "[요한복음 3:17] 하나님이 그 아들을 세상에 보내신 것은 세상을 심판하려 하심이 아니요 그를 통하여 세상이 구원을 받게 하려 하심이라";
+                }
+
+                function applyBibleMode(text) {
+                    if (!text) return "";
+                    if (bibleMode === "ref_only") {
+                        const match = text.match(/(\[[^\]]+\]|[가-힣]+\s*\d+:\d+)/);
+                        if (match) {
+                            return `${match[1]} (성경 구절 대기)`;
+                        }
+                    } else if (bibleMode === "summary") {
+                        if (text.length > 60) {
+                            return text.substring(0, 60) + "...";
+                        }
+                    }
+                    return text;
+                }
+
+                if (currentTextEl) currentTextEl.innerText = applyBibleMode(curText);
+                if (nextTextEl) nextTextEl.innerText = applyBibleMode(nxtText);
+            }
+
+            document.querySelectorAll('input[name="monitor-layout"], input[name="monitor-bible"]').forEach(radio => {
+                radio.addEventListener('change', updateMonitorPreview);
+            });
+
+            if (openMonitorBtn && monitorModal) {
+                openMonitorBtn.onclick = () => {
+                    // 저장된 설정을 라디오 버튼에 적용
+                    try {
+                        const saved = JSON.parse(localStorage.getItem("subcast_monitor_settings") || "{}");
+                        if (saved.layout) {
+                            const layoutEl = document.querySelector(`input[name="monitor-layout"][value="${saved.layout}"]`);
+                            if (layoutEl) layoutEl.checked = true;
+                        }
+                        if (saved.bibleMode) {
+                            const bibleEl = document.querySelector(`input[name="monitor-bible"][value="${saved.bibleMode}"]`);
+                            if (bibleEl) bibleEl.checked = true;
+                        }
+                    } catch (e) { }
+                    updateMonitorPreview();
+                    monitorModal.classList.add("active");
+                };
+            }
+            if (closeMonitorBtn && monitorModal) {
+                closeMonitorBtn.onclick = () => monitorModal.classList.remove("active");
+            }
+            if (monitorModal) {
+                monitorModal.onclick = (e) => {
+                    if (e.target === monitorModal) {
+                        monitorModal.classList.remove("active");
+                    }
+                };
+            }
+
+            if (openMonitorWindowBtn) {
+                openMonitorWindowBtn.onclick = () => {
+                    window.open('/static/viewer.html?mode=monitor', '_blank', 'width=1280,height=720');
+                };
+            }
+
+            if (saveMonitorBtn && monitorModal) {
+                saveMonitorBtn.onclick = () => {
+                    const saved = JSON.parse(localStorage.getItem("subcast_monitor_settings") || "{}");
+                    const fontSize = saved.fontSize || "125";
+                    const layout = document.querySelector('input[name="monitor-layout"]:checked')?.value || "5:5";
+                    const bibleMode = document.querySelector('input[name="monitor-bible"]:checked')?.value || "summary";
+
+                    const settings = { ...saved, fontSize, layout, bibleMode };
+                    localStorage.setItem("subcast_monitor_settings", JSON.stringify(settings));
+
+                    monitorModal.classList.remove("active");
+                };
+            }
+
+            // Ctrl + 마우스 휠로 슬라이드 격자 확대/축소 및 반응형 열 동적 조절
+            let cardMinWidth = 220;
+            const MIN_CARD_WIDTH = 120;
+            const MAX_CARD_WIDTH = 500;
+
+            const workspaceEl = document.querySelector(".workspace");
+            if (workspaceEl) {
+                workspaceEl.addEventListener("wheel", (e) => {
+                    if (e.ctrlKey) {
+                        e.preventDefault();
+                        if (e.deltaY < 0) {
+                            // 휠 위로: 확대 (카드 크기 증가, 열 감소)
+                            cardMinWidth = Math.min(MAX_CARD_WIDTH, cardMinWidth + 16);
+                        } else if (e.deltaY > 0) {
+                            // 휠 아래로: 축소 (카드 크기 감소, 빈 공간만큼 열 자동 증가)
+                            cardMinWidth = Math.max(MIN_CARD_WIDTH, cardMinWidth - 16);
+                        }
+                        document.documentElement.style.setProperty("--card-min-width", `${cardMinWidth}px`);
+                    }
+                }, { passive: false });
+            }
+
             // 이전/다음 버튼 리스너
-            document.getElementById("btn-prev").onclick = () => navigateSlide('prev');
-            document.getElementById("btn-next").onclick = () => navigateSlide('next');
+            const btnPrev = document.getElementById("btn-prev");
+            if (btnPrev) btnPrev.onclick = () => navigateSlide('prev');
+            const btnNext = document.getElementById("btn-next");
+            if (btnNext) btnNext.onclick = () => navigateSlide('next');
 
             // 해상도 및 배경 모드 전송 버튼 리스너
             document.getElementById("btn-apply-res").onclick = () => {
                 const w = parseInt(document.getElementById("width-input").value) || 1920;
                 const h = parseInt(document.getElementById("height-input").value) || 1080;
-                
+
                 if (ws && ws.readyState === WebSocket.OPEN) {
                     // 1. 해상도 설정 전송
                     ws.send(JSON.stringify({
@@ -1044,7 +1674,7 @@
                         height: h
                     }));
 
-                    // 2. 크로마키 배경 설정 전송
+                    // 2. 배경 설정 전송
                     const checkedRadio = document.querySelector('input[name="bg-mode"]:checked');
                     if (checkedRadio) {
                         ws.send(JSON.stringify({
@@ -1077,4 +1707,5 @@
         };
     </script>
 </body>
+
 </html>

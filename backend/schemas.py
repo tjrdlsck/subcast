@@ -52,7 +52,26 @@ class SystemSettings(BaseModel):
     backgroundMode: str = "transparent"
 
 class ProjectData(BaseModel):
+    id: str = "proj_default"
+    name: str = "기본 프로젝트"
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
     settings: SystemSettings = Field(default_factory=SystemSettings)
     slides: List[Slide] = Field(default_factory=list)
     templates: List[SlideTemplate] = Field(default_factory=list)
     customFonts: List[CustomFont] = Field(default_factory=list)
+
+class ProjectCreateRequest(BaseModel):
+    name: str
+
+class ProjectListItem(BaseModel):
+    id: str
+    name: str
+    createdAt: Optional[str] = None
+    updatedAt: Optional[str] = None
+    slideCount: int = 0
+    isActive: bool = False
+
+class ProjectBatchRequest(BaseModel):
+    ids: List[str]
+

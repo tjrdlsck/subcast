@@ -1,15 +1,29 @@
 import json
 import logging
 import uuid
-from typing import Dict, List, Set
+import sys
+import os
+import subprocess
+import tempfile
+import zipfile
+import shutil
+import httpx
+from typing import Dict, List, Set, Optional
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
 from pathlib import Path
 
-from backend.schemas import ProjectData, SystemSettings, Slide
-from backend.storage import load_project_data, save_project_data
+from backend.schemas import ProjectData, SystemSettings, Slide, ProjectCreateRequest, ProjectListItem, ProjectBatchRequest
+from backend.storage import (
+    load_project_data, save_project_data, list_projects,
+    create_project, delete_project, get_active_project_id, set_active_project_id,
+    load_global_templates, save_global_templates, duplicate_projects_bulk, delete_projects_bulk
+)
+
+CURRENT_VERSION = "1.3.0"
+GITHUB_REPO = "tjrdlsck/subcast"
 
 # 로그 설정
 logging.basicConfig(level=logging.INFO)
@@ -51,7 +65,8 @@ class ConnectionManager:
 
     async def initialize(self):
         """저장소로부터 데이터를 읽어 캐싱합니다."""
-        self.project_data = await load_project_data()
+        active_id = get_active_project_id()
+        self.project_data = await load_project_data(active_id)
 
     async def connect(self, websocket: WebSocket, role: str):
         await websocket.accept()
@@ -59,6 +74,10 @@ class ConnectionManager:
             self.sessions[role].add(websocket)
             logger.info(f"Client connected: role={role}, total_{role}s={len(self.sessions[role])}")
             
+            # 클라이언트 연결 시 전역 템플릿 최신 목록 동기화
+            if self.project_data:
+                self.project_data.templates = await load_global_templates()
+
             # 최초 연결 시, 현재 캐시된 전체 데이터를 전송하여 동기화
             initial_payload = {
                 "type": "INITIAL_SYNC",
@@ -117,22 +136,56 @@ import sqlite3
 class BibleDatabaseHelper:
     def __init__(self, db_path="GAE_Bible.db"):
         self.db_path = db_path
+        self.init_table()
 
     def get_connection(self):
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         return conn
 
-    def get_books(self):
+    def init_table(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS bible (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    version_code TEXT NOT NULL DEFAULT 'KRV',
+                    book_code TEXT NOT NULL,
+                    book_name TEXT NOT NULL,
+                    chapter INTEGER NOT NULL,
+                    verse INTEGER NOT NULL,
+                    content TEXT NOT NULL,
+                    title TEXT
+                )
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_bible_version_book_chap ON bible(version_code, book_code, chapter)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_bible_version_search ON bible(version_code, content)")
+            
+            # 테이블 데이터 존재 여부 확인 및 자동 파싱 연동
+            cursor.execute("SELECT COUNT(*) as cnt FROM bible")
+            cnt = cursor.fetchone()["cnt"]
+            if cnt == 0:
+                try:
+                    from parse_bible import parse_and_import_krv
+                    parse_and_import_krv(db_path=self.db_path)
+                except Exception as e:
+                    print(f"자동 성경 파싱 실패: {e}")
+            conn.commit()
+        finally:
+            conn.close()
+
+    def get_books(self, version_code: str = "KRV"):
         conn = self.get_connection()
         cursor = conn.cursor()
         query = """
             SELECT DISTINCT book_name, book_code
             FROM bible 
+            WHERE version_code = ?
             ORDER BY id ASC
         """
         try:
-            cursor.execute(query)
+            cursor.execute(query, (version_code,))
             rows = cursor.fetchall()
             books_map = {}
             for row in rows:
@@ -142,7 +195,7 @@ class BibleDatabaseHelper:
                     "max_chapter": 0
                 }
             
-            cursor.execute("SELECT book_code, MAX(chapter) as max_c FROM bible GROUP BY book_code")
+            cursor.execute("SELECT book_code, MAX(chapter) as max_c FROM bible WHERE version_code = ? GROUP BY book_code", (version_code,))
             for row in cursor.fetchall():
                 if row["book_code"] in books_map:
                     books_map[row["book_code"]]["max_chapter"] = row["max_c"]
@@ -151,35 +204,35 @@ class BibleDatabaseHelper:
         finally:
             conn.close()
 
-    def get_chapter(self, book_code: str, chapter: int, start_verse: int = 1, end_verse: int = 999):
+    def get_chapter(self, book_code: str, chapter: int, start_verse: int = 1, end_verse: int = 999, version_code: str = "KRV"):
         conn = self.get_connection()
         cursor = conn.cursor()
         query = """
             SELECT verse, content, title, book_name
             FROM bible 
-            WHERE book_code = ? AND chapter = ? AND verse >= ? AND verse <= ?
-            ORDER BY verse ASC
+            WHERE version_code = ? AND UPPER(book_code) = UPPER(?) AND chapter = ? AND verse >= ? AND verse <= ?
+            ORDER BY verse ASC, id ASC
         """
         try:
-            cursor.execute(query, (book_code, chapter, start_verse, end_verse))
+            cursor.execute(query, (version_code, book_code, chapter, start_verse, end_verse))
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
         finally:
             conn.close()
 
-    def search_keyword(self, keyword: str, limit: int = 50):
+    def search_keyword(self, keyword: str, limit: int = 50, version_code: str = "KRV"):
         conn = self.get_connection()
         cursor = conn.cursor()
         query = """
             SELECT book_name, book_code, chapter, verse, content 
             FROM bible 
-            WHERE content LIKE ?
+            WHERE version_code = ? AND content LIKE ?
             ORDER BY id ASC
             LIMIT ?
         """
         try:
             search_param = f"%{keyword}%"
-            cursor.execute(query, (search_param, limit))
+            cursor.execute(query, (version_code, search_param, limit))
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
         finally:
@@ -219,11 +272,11 @@ class PraiseDatabaseHelper:
         conn = self.get_connection()
         cursor = conn.cursor()
         if not query_str.strip():
-            sql = "SELECT title, lyrics FROM praise_songs ORDER BY title ASC LIMIT ?"
+            sql = "SELECT id, title, lyrics FROM praise_songs ORDER BY title ASC LIMIT ?"
             params = (limit,)
         else:
             sql = """
-                SELECT title, lyrics 
+                SELECT id, title, lyrics 
                 FROM praise_songs 
                 WHERE title LIKE ? OR lyrics LIKE ?
                 ORDER BY title ASC
@@ -238,33 +291,72 @@ class PraiseDatabaseHelper:
         finally:
             conn.close()
 
-    def save_song(self, title: str, lyrics: str):
+    def save_song(self, title: str, lyrics: str, song_id: Optional[int] = None, original_title: Optional[str] = None):
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
-            cursor.execute("SELECT id FROM praise_songs WHERE title = ?", (title,))
-            row = cursor.fetchone()
-            if row:
+            if song_id is not None:
                 cursor.execute("""
                     UPDATE praise_songs 
-                    SET lyrics = ?, updated_at = CURRENT_TIMESTAMP 
+                    SET title = ?, lyrics = ?, updated_at = CURRENT_TIMESTAMP 
                     WHERE id = ?
-                """, (lyrics, row["id"]))
-            else:
+                """, (title, lyrics, song_id))
+            elif original_title is not None:
                 cursor.execute("""
-                    INSERT INTO praise_songs (title, lyrics) 
-                    VALUES (?, ?)
-                """, (title, lyrics))
+                    UPDATE praise_songs 
+                    SET title = ?, lyrics = ?, updated_at = CURRENT_TIMESTAMP 
+                    WHERE title = ?
+                """, (title, lyrics, original_title))
+            else:
+                cursor.execute("SELECT id FROM praise_songs WHERE title = ?", (title,))
+                row = cursor.fetchone()
+                if row:
+                    cursor.execute("""
+                        UPDATE praise_songs 
+                        SET lyrics = ?, updated_at = CURRENT_TIMESTAMP 
+                        WHERE id = ?
+                    """, (lyrics, row["id"]))
+                else:
+                    cursor.execute("""
+                        INSERT INTO praise_songs (title, lyrics) 
+                        VALUES (?, ?)
+                    """, (title, lyrics))
             conn.commit()
+        finally:
+            conn.close()
+
+    def delete_songs(self, song_ids: Optional[List[int]] = None, titles: Optional[List[str]] = None):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        deleted_count = 0
+        try:
+            if song_ids:
+                placeholders = ",".join(["?"] * len(song_ids))
+                cursor.execute(f"DELETE FROM praise_songs WHERE id IN ({placeholders})", song_ids)
+                deleted_count += cursor.rowcount
+            if titles:
+                placeholders = ",".join(["?"] * len(titles))
+                cursor.execute(f"DELETE FROM praise_songs WHERE title IN ({placeholders})", titles)
+                deleted_count += cursor.rowcount
+            conn.commit()
+            return deleted_count
         finally:
             conn.close()
 
 praise_db = PraiseDatabaseHelper("GAE_Bible.db")
 
 from pydantic import BaseModel
+from typing import Optional, List
+
 class PraiseSongSaveRequest(BaseModel):
+    id: Optional[int] = None
     title: str
     lyrics: str
+    original_title: Optional[str] = None
+
+class PraiseSongDeleteRequest(BaseModel):
+    ids: Optional[List[int]] = None
+    titles: Optional[List[str]] = None
 
 @app.get("/api/praise/search")
 async def search_praise_songs(query: str = Query("")):
@@ -278,15 +370,25 @@ async def save_praise_song(req: PraiseSongSaveRequest):
     try:
         if not req.title.strip() or not req.lyrics.strip():
             raise HTTPException(status_code=400, detail="제목과 가사를 모두 입력해 주세요.")
-        praise_db.save_song(req.title.strip(), req.lyrics.strip())
+        praise_db.save_song(req.title.strip(), req.lyrics.strip(), song_id=req.id, original_title=req.original_title)
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/bible/books")
-async def get_bible_books():
+@app.post("/api/praise/delete")
+async def delete_praise_songs(req: PraiseSongDeleteRequest):
     try:
-        return db_helper.get_books()
+        if not req.ids and not req.titles:
+            raise HTTPException(status_code=400, detail="삭제할 찬양곡을 지정해 주세요.")
+        count = praise_db.delete_songs(song_ids=req.ids, titles=req.titles)
+        return {"status": "success", "deleted_count": count}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/bible/books")
+async def get_bible_books(version: str = Query("KRV")):
+    try:
+        return db_helper.get_books(version_code=version)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -295,10 +397,11 @@ async def read_bible(
     book_code: str,
     chapter: int,
     start_verse: int = Query(1),
-    end_verse: int = Query(999)
+    end_verse: int = Query(999),
+    version: str = Query("KRV")
 ):
     try:
-        verses = db_helper.get_chapter(book_code, chapter, start_verse, end_verse)
+        verses = db_helper.get_chapter(book_code, chapter, start_verse, end_verse, version_code=version)
         if not verses:
             return {"book_name": "", "book_code": book_code, "chapter": chapter, "verses": []}
         return {
@@ -313,17 +416,212 @@ async def read_bible(
 @app.get("/api/bible/search")
 async def search_bible(
     query: str,
-    limit: int = Query(50)
+    limit: int = Query(50),
+    version: str = Query("KRV")
 ):
     if len(query.strip()) < 2:
         raise HTTPException(status_code=400, detail="검색어는 공백 제외 2글자 이상 입력해 주세요.")
     try:
-        results = db_helper.search_keyword(query.strip(), limit)
+        results = db_helper.search_keyword(query.strip(), limit, version_code=version)
         return {
             "query": query,
             "total_results": len(results),
             "results": results
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def _parse_ver(v_str: str):
+    try:
+        clean = v_str.lstrip("v").strip()
+        parts = [int(x) for x in clean.split(".") if x.isdigit()]
+        return tuple(parts)
+    except Exception:
+        return (0, 0, 0)
+
+@app.get("/api/system/version")
+async def get_system_version():
+    return {"version": CURRENT_VERSION, "app": "Subcast"}
+
+@app.get("/api/system/check-update")
+async def check_update():
+    try:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            res = await client.get(url, headers={"User-Agent": "Subcast-AutoUpdater"})
+            if res.status_code != 200:
+                return {
+                    "has_update": False,
+                    "current_version": CURRENT_VERSION,
+                    "latest_version": CURRENT_VERSION,
+                    "message": "최신 버전 정보를 불러올 수 없습니다."
+                }
+            data = res.json()
+            latest_tag = data.get("tag_name", "v0.0.0")
+            latest_ver_str = latest_tag.lstrip("v")
+            
+            curr_ver_tuple = _parse_ver(CURRENT_VERSION)
+            latest_ver_tuple = _parse_ver(latest_ver_str)
+            
+            has_update = latest_ver_tuple > curr_ver_tuple
+            
+            assets = data.get("assets", [])
+            download_url = None
+            for asset in assets:
+                name = asset.get("name", "").lower()
+                if name.endswith(".zip") or name.endswith(".exe"):
+                    download_url = asset.get("browser_download_url")
+                    if name.endswith(".zip"):
+                        break
+            
+            return {
+                "has_update": has_update,
+                "current_version": CURRENT_VERSION,
+                "latest_version": latest_ver_str,
+                "latest_tag": latest_tag,
+                "release_name": data.get("name", latest_tag),
+                "release_notes": data.get("body", ""),
+                "download_url": download_url,
+                "html_url": data.get("html_url", "")
+            }
+    except Exception as e:
+        logger.error(f"Check update error: {e}")
+        return {
+            "has_update": False,
+            "current_version": CURRENT_VERSION,
+            "latest_version": CURRENT_VERSION,
+            "error": str(e)
+        }
+
+@app.post("/api/system/auto-update")
+async def perform_auto_update(download_url: Optional[str] = Query(None)):
+    try:
+        if not download_url:
+            check_res = await check_update()
+            if not check_res.get("has_update") and not check_res.get("download_url"):
+                raise HTTPException(status_code=400, detail="업데이트 가능한 새 버전이 없습니다.")
+            download_url = check_res.get("download_url")
+            
+        if not download_url:
+            raise HTTPException(status_code=400, detail="다운로드 가능한 업데이트 파일이 없습니다.")
+            
+        temp_dir = tempfile.mkdtemp(prefix="subcast_update_")
+        zip_path = os.path.join(temp_dir, "update.zip")
+        
+        async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
+            res = await client.get(download_url, headers={"User-Agent": "Subcast-AutoUpdater"})
+            if res.status_code != 200:
+                raise HTTPException(status_code=500, detail="업데이트 파일 다운로드 실패")
+            with open(zip_path, "wb") as f:
+                f.write(res.content)
+                
+        extract_dir = os.path.join(temp_dir, "extracted")
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_dir)
+            
+        app_dir = os.getcwd()
+        bat_path = os.path.join(temp_dir, "apply_update.bat")
+        
+        bat_content = f"""@echo off
+chcp 65001 > nul
+echo Subcast 자동 업데이트를 적용 중입니다...
+timeout /t 2 /nobreak > nul
+xcopy /s /e /y "{extract_dir}\\*" "{app_dir}\\"
+echo 업데이트가 완료되었습니다. 앱을 다시 시작합니다.
+start "" "{sys.executable}" {" ".join(sys.argv)}
+del "%~f0"
+"""
+        with open(bat_path, "w", encoding="utf-8") as f:
+            f.write(bat_content)
+            
+        subprocess.Popen(["cmd.exe", "/c", bat_path], creationflags=subprocess.CREATE_NEW_CONSOLE)
+        
+        return {"status": "success", "message": "업데이트 다운로드가 완료되어 앱이 재시작됩니다."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Auto update error: {e}")
+        raise HTTPException(status_code=500, detail=f"자동 업데이트 실패: {str(e)}")
+
+@app.get("/api/projects")
+async def get_projects():
+    try:
+        return await list_projects()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/projects")
+async def create_new_project(req: ProjectCreateRequest):
+    try:
+        if not req.name or not req.name.strip():
+            raise HTTPException(status_code=400, detail="프로젝트 이름을 입력해주세요.")
+        proj = await create_project(req.name.strip())
+        return proj
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/projects/{project_id}/select")
+async def select_project(project_id: str):
+    try:
+        set_active_project_id(project_id)
+        manager.project_data = await load_project_data(project_id)
+        manager.project_history.clear()
+        manager.locked_slides.clear()
+        
+        await manager.broadcast({
+            "type": "INITIAL_SYNC",
+            "data": manager.project_data.model_dump(),
+            "lockedSlides": manager.locked_slides
+        })
+        return {"status": "success", "active_project_id": project_id, "project": manager.project_data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/projects/{project_id}")
+async def remove_project(project_id: str):
+    try:
+        new_active_id = await delete_project(project_id)
+        if manager.project_data and manager.project_data.id == project_id:
+            manager.project_data = await load_project_data(new_active_id)
+            manager.project_history.clear()
+            manager.locked_slides.clear()
+            await manager.broadcast({
+                "type": "INITIAL_SYNC",
+                "data": manager.project_data.model_dump(),
+                "lockedSlides": manager.locked_slides
+            })
+        return {"status": "success", "active_project_id": new_active_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/projects/duplicate-bulk")
+async def duplicate_projects_batch(req: ProjectBatchRequest):
+    try:
+        if not req.ids:
+            raise HTTPException(status_code=400, detail="복제할 프로젝트 ID 목록이 비어있습니다.")
+        duplicated = await duplicate_projects_bulk(req.ids)
+        return {"status": "success", "duplicated": duplicated}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/projects/delete-bulk")
+async def delete_projects_batch(req: ProjectBatchRequest):
+    try:
+        if not req.ids:
+            raise HTTPException(status_code=400, detail="삭제할 프로젝트 ID 목록이 비어있습니다.")
+        new_active_id = await delete_projects_bulk(req.ids)
+        if manager.project_data and manager.project_data.id in req.ids:
+            manager.project_data = await load_project_data(new_active_id)
+            manager.project_history.clear()
+            manager.locked_slides.clear()
+            await manager.broadcast({
+                "type": "INITIAL_SYNC",
+                "data": manager.project_data.model_dump(),
+                "lockedSlides": manager.locked_slides
+            })
+        return {"status": "success", "active_project_id": new_active_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -464,19 +762,21 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                             break
                     else:
                         manager.project_data.templates.append(new_tpl)
+                    await save_global_templates(manager.project_data.templates)
                     await save_project_data(manager.project_data)
                     await manager.broadcast({
                         "type": "INITIAL_SYNC",
                         "data": manager.project_data.model_dump(),
                         "lockedSlides": manager.locked_slides
                     })
-                    logger.info(f"Template saved: {new_tpl.id}")
+                    logger.info(f"Template saved globally: {new_tpl.id}")
 
             elif msg_type == "DELETE_TEMPLATE":
                 tpl_id = message.get("templateId")
                 tpl_ids = message.get("templateIds")
                 if tpl_ids:
                     manager.project_data.templates = [t for t in manager.project_data.templates if t.id not in tpl_ids]
+                    await save_global_templates(manager.project_data.templates)
                     await save_project_data(manager.project_data)
                     await manager.broadcast({
                         "type": "INITIAL_SYNC",
@@ -486,6 +786,7 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                     logger.info(f"Templates deleted (bulk): {tpl_ids}")
                 elif tpl_id:
                     manager.project_data.templates = [t for t in manager.project_data.templates if t.id != tpl_id]
+                    await save_global_templates(manager.project_data.templates)
                     await save_project_data(manager.project_data)
                     await manager.broadcast({
                         "type": "INITIAL_SYNC",
