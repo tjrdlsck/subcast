@@ -11,7 +11,7 @@ import tempfile
 import pystray
 from PIL import Image, ImageDraw
 
-CURRENT_VERSION = "1.3.7"
+CURRENT_VERSION = "1.3.8"
 REPO_OWNER = "tjrdlsck"
 REPO_NAME = "subcast"
 
@@ -39,21 +39,22 @@ os.makedirs(subcast_appdata, exist_ok=True)
 
 install_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.getcwd()
 
-old_data_dir = os.path.join(install_dir, "data")
 new_data_dir = os.path.join(subcast_appdata, "data")
-if os.path.exists(old_data_dir):
-    try:
-        shutil.copytree(old_data_dir, new_data_dir, dirs_exist_ok=True)
-    except Exception as e:
-        print(f"Failed to migrate data dir: {e}")
+for old_dir in [os.path.join(install_dir, "data"), os.path.join(install_dir, "_internal", "data")]:
+    if os.path.exists(old_dir):
+        try:
+            shutil.copytree(old_dir, new_data_dir, dirs_exist_ok=True)
+        except Exception as e:
+            print(f"Failed to migrate data dir from {old_dir}: {e}")
 
-old_db_path = os.path.join(install_dir, "GAE_Bible.db")
 new_db_path = os.path.join(subcast_appdata, "GAE_Bible.db")
-if os.path.exists(old_db_path) and not os.path.exists(new_db_path):
-    try:
-        shutil.copy2(old_db_path, new_db_path)
-    except Exception as e:
-        print(f"Failed to migrate db: {e}")
+for old_db in [os.path.join(install_dir, "GAE_Bible.db"), os.path.join(install_dir, "_internal", "GAE_Bible.db")]:
+    if os.path.exists(old_db) and not os.path.exists(new_db_path):
+        try:
+            shutil.copy2(old_db, new_db_path)
+            break
+        except Exception as e:
+            print(f"Failed to migrate db from {old_db}: {e}")
 
 os.environ["SUBCAST_DATA_DIR"] = subcast_appdata
 
