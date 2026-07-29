@@ -5633,8 +5633,8 @@ function filterAndRenderStageBgLibrary() {
                 <div class="stage-bg-card-main ${isCurrent ? 'active' : ''}" onclick="selectStageBg({type: 'video', videoUrl: '${f.url}', title: '${escOldName}'})" 
                     style="background: rgba(255,255,255,0.04); border: 2px solid ${isCurrent ? '#38bdf8' : 'var(--panel-border, #3f3f46)'}; border-radius: 8px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; transition: all 0.2s; position: relative;">
                     ${isCurrent ? `<span style="position: absolute; top: 10px; right: 10px; background: #0284c7; color: #fff; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">적용 중</span>` : ''}
-                    <div style="width: 100%; aspect-ratio: 16/9; max-height: 140px; background: #0f172a; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-                        ${thumbUrl ? `<img src="${thumbUrl}" style="width: 100%; height: 100%; object-fit: cover;">` : `<div style="font-size: 2.2rem; color: #60a5fa;">🎬</div>`}
+                    <div style="width: 100%; aspect-ratio: 16/9; max-height: 140px; background: #0f172a; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative;">
+                        ${thumbUrl ? `<img src="${thumbUrl}" style="width: 100%; height: 100%; object-fit: cover;">` : `<video src="${f.url}#t=0.5" preload="metadata" muted style="width: 100%; height: 100%; object-fit: cover; pointer-events: none;"></video>`}
                     </div>
                     <div>
                         <div class="stage-bg-title" 
