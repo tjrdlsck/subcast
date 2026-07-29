@@ -5797,23 +5797,23 @@ function updatePipSlideOverlay() {
 
     try {
         isPipUpdating = true;
-        const targetEl = canvas.lowerCanvasEl || canvas.getElement();
-        if (!targetEl || targetEl.width <= 0 || targetEl.height <= 0) return;
+        const baseW = (typeof BASE_WIDTH !== 'undefined' && BASE_WIDTH) ? BASE_WIDTH : 1920;
+        const baseH = (typeof BASE_HEIGHT !== 'undefined' && BASE_HEIGHT) ? BASE_HEIGHT : 1080;
 
         if (!pipTempCanvas) {
             pipTempCanvas = document.createElement('canvas');
         }
-        if (pipTempCanvas.width !== targetEl.width || pipTempCanvas.height !== targetEl.height) {
-            pipTempCanvas.width = targetEl.width;
-            pipTempCanvas.height = targetEl.height;
+        if (pipTempCanvas.width !== baseW || pipTempCanvas.height !== baseH) {
+            pipTempCanvas.width = baseW;
+            pipTempCanvas.height = baseH;
         }
 
         const tempCtx = pipTempCanvas.getContext('2d');
-        tempCtx.clearRect(0, 0, pipTempCanvas.width, pipTempCanvas.height);
+        tempCtx.clearRect(0, 0, baseW, baseH);
 
-        const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+        // 에디터 캔버스 줌(canvasZoom) 및 여백 변환(transform)을 제외하고 1:1 슬라이드 원본 해상도로 고정 렌더링
         tempCtx.save();
-        tempCtx.transform(vpt[0], vpt[1], vpt[2], vpt[3], vpt[4], vpt[5]);
+        tempCtx.setTransform(1, 0, 0, 1, 0, 0);
 
         const objects = canvas.getObjects();
         for (let i = 0; i < objects.length; i++) {
@@ -5824,6 +5824,7 @@ function updatePipSlideOverlay() {
         }
         tempCtx.restore();
 
+        // 슬라이드 원본 레이어(1920x1080) 전체를 PiP 화면에 풀 스케일로 꽉 채워 합성
         ctx.drawImage(pipTempCanvas, 0, 0, slideCanvas.width, slideCanvas.height);
     } catch (e) {
         console.error("Failed to render PiP slide overlay", e);

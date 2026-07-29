@@ -1120,6 +1120,27 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                     })
                     logger.info(f"Resolution updated: {width}x{height}")
 
+            elif msg_type == "UPDATE_STAGE_RESOLUTION":
+                # 현장 모니터 해상도 설정 저장 및 전파
+                width = message.get("width")
+                height = message.get("height")
+                if width and height:
+                    if not hasattr(manager.project_data.settings, 'stageTargetWidth'):
+                        setattr(manager.project_data.settings, 'stageTargetWidth', int(width))
+                        setattr(manager.project_data.settings, 'stageTargetHeight', int(height))
+                    else:
+                        manager.project_data.settings.stageTargetWidth = int(width)
+                        manager.project_data.settings.stageTargetHeight = int(height)
+                    await save_project_data(manager.project_data)
+                    
+                    # 현장 모니터 해상도 변경 소식 브로드캐스트
+                    await manager.broadcast({
+                        "type": "UPDATE_STAGE_RESOLUTION",
+                        "width": width,
+                        "height": height
+                    })
+                    logger.info(f"Stage resolution updated: {width}x{height}")
+
             elif msg_type == "LOCK_SLIDE":
                 # 슬라이드 편집 락 요청
                 slide_id = message.get("slideId")

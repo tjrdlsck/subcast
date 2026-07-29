@@ -184,8 +184,18 @@
                 if (message.type === 'INITIAL_SYNC') {
                     projectData = message.data;
                     if (projectData.settings) {
-                        targetWidth = projectData.settings.targetWidth || 1920;
-                        targetHeight = projectData.settings.targetHeight || 1080;
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const channel = urlParams.get('channel');
+                        const isStageMode = channel === 'stage' || urlParams.get('mode') === 'stage';
+
+                        if (isStageMode && projectData.settings.stageTargetWidth && projectData.settings.stageTargetHeight) {
+                            targetWidth = projectData.settings.stageTargetWidth;
+                            targetHeight = projectData.settings.stageTargetHeight;
+                        } else {
+                            targetWidth = projectData.settings.targetWidth || 1920;
+                            targetHeight = projectData.settings.targetHeight || 1080;
+                        }
+
                         const bgMode = projectData.settings.backgroundMode || 'transparent';
                         document.body.classList.toggle('chromakey-mode', bgMode === 'chromakey');
                         if (projectData.settings.stageBackground) {
@@ -213,9 +223,24 @@
                     }
                 } 
                 else if (message.type === 'UPDATE_RESOLUTION') {
-                    targetWidth = message.width;
-                    targetHeight = message.height;
-                    updateCanvasDimensions();
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const channel = urlParams.get('channel');
+                    const isStageMode = channel === 'stage' || urlParams.get('mode') === 'stage';
+                    if (!isStageMode) {
+                        targetWidth = message.width;
+                        targetHeight = message.height;
+                        updateCanvasDimensions();
+                    }
+                } 
+                else if (message.type === 'UPDATE_STAGE_RESOLUTION') {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const channel = urlParams.get('channel');
+                    const isStageMode = channel === 'stage' || urlParams.get('mode') === 'stage';
+                    if (isStageMode) {
+                        targetWidth = message.width;
+                        targetHeight = message.height;
+                        updateCanvasDimensions();
+                    }
                 } 
                 else if (message.type === 'SLIDE_UPDATED') {
                     // 슬라이드 갱신 (송출 중인 라이브 슬라이드 갱신인 경우에만 렌더링)

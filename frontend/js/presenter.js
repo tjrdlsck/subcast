@@ -363,6 +363,11 @@
                     if (projectData.settings) {
                         document.getElementById("width-input").value = projectData.settings.targetWidth || 1920;
                         document.getElementById("height-input").value = projectData.settings.targetHeight || 1080;
+                        const stageWInput = document.getElementById("stage-width-input");
+                        const stageHInput = document.getElementById("stage-height-input");
+                        if (stageWInput) stageWInput.value = projectData.settings.stageTargetWidth || 1920;
+                        if (stageHInput) stageHInput.value = projectData.settings.stageTargetHeight || 1080;
+
                         targetWidth = projectData.settings.targetWidth || 1920;
                         targetHeight = projectData.settings.targetHeight || 1080;
 
@@ -411,6 +416,12 @@
                     targetWidth = message.width;
                     targetHeight = message.height;
                     updateCanvasDimensions();
+                }
+                else if (message.type === 'UPDATE_STAGE_RESOLUTION') {
+                    const stageWInput = document.getElementById("stage-width-input");
+                    const stageHInput = document.getElementById("stage-height-input");
+                    if (stageWInput) stageWInput.value = message.width;
+                    if (stageHInput) stageHInput.value = message.height;
                 }
                 else if (message.type === 'SLIDE_LOCKED') {
                     lockedSlides[message.slideId] = message.editorName;
@@ -640,16 +651,27 @@
             document.getElementById("btn-apply-res").onclick = () => {
                 const w = parseInt(document.getElementById("width-input").value) || 1920;
                 const h = parseInt(document.getElementById("height-input").value) || 1080;
+                const stageWInput = document.getElementById("stage-width-input");
+                const stageHInput = document.getElementById("stage-height-input");
+                const stageW = stageWInput ? (parseInt(stageWInput.value) || 1920) : 1920;
+                const stageH = stageHInput ? (parseInt(stageHInput.value) || 1080) : 1080;
 
                 if (ws && ws.readyState === WebSocket.OPEN) {
-                    // 1. 해상도 설정 전송
+                    // 1. OBS 해상도 설정 전송
                     ws.send(JSON.stringify({
                         type: "UPDATE_RESOLUTION",
                         width: w,
                         height: h
                     }));
 
-                    // 2. 배경 설정 전송
+                    // 2. 현장 모니터 해상도 설정 전송
+                    ws.send(JSON.stringify({
+                        type: "UPDATE_STAGE_RESOLUTION",
+                        width: stageW,
+                        height: stageH
+                    }));
+
+                    // 3. 배경 설정 전송
                     const checkedRadio = document.querySelector('input[name="bg-mode"]:checked');
                     if (checkedRadio) {
                         ws.send(JSON.stringify({
