@@ -93,16 +93,20 @@ async def download_youtube_background(req: YouTubeDownloadRequest):
 
     try:
         ydl_opts = {
-            'format': 'bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            'format': 'best[ext=mp4]/bestvideo[ext=mp4]/best',
             'outtmpl': str(backgrounds_dir / '%(id)s.%(ext)s'),
+            'noplaylist': True,
             'quiet': True,
             'no_warnings': True,
-            'overwrites': True
+            'overwrites': True,
+            'merge_output_format': 'mp4'
         }
         
         def _download():
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
+                if 'entries' in info and info['entries']:
+                    info = info['entries'][0]
                 video_id = info.get('id')
                 ext = info.get('ext', 'mp4')
                 title = info.get('title', 'YouTube Video')
@@ -111,10 +115,13 @@ async def download_youtube_background(req: YouTubeDownloadRequest):
         loop = asyncio.get_running_loop()
         video_id, ext, title = await loop.run_in_executor(None, _download)
 
+        if not video_id:
+            raise ValueError("비디오 ID를 추출하지 못했습니다.")
+
         filename = f"{video_id}.{ext}"
-        video_path = backgrounds_dir / filename
-        if not video_path.exists():
-            candidates = list(backgrounds_dir.glob(f"{video_id}.*"))
+        target_path = backgrounds_dir / filename
+        if not target_path.exists():
+            candidates = [p for p in backgrounds_dir.glob(f"{video_id}.*") if p.suffix.lower() in ['.mp4', '.webm', '.mkv', '.mov']]
             if candidates:
                 filename = candidates[0].name
 

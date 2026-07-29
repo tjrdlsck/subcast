@@ -5561,47 +5561,55 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputYtUrl = document.getElementById('input-yt-bg-url');
     const statusYt = document.getElementById('yt-download-status');
 
-    if (btnYtDl && inputYtUrl) {
-        btnYtDl.addEventListener('click', async () => {
-            const url = inputYtUrl.value.trim();
-            if (!url) {
-                alert("유튜브 URL을 입력해 주세요.");
-                return;
-            }
-            if (statusYt) {
-                statusYt.style.display = 'block';
-                statusYt.style.color = '#fbbf24';
-                statusYt.innerText = "⏳ 백엔드에서 고화질 비디오를 다운로드하는 중입니다...";
-            }
-            btnYtDl.disabled = true;
+    async function handleYtDownload() {
+        const url = inputYtUrl.value.trim();
+        if (!url) {
+            alert("유튜브 URL을 입력해 주세요.");
+            return;
+        }
+        if (statusYt) {
+            statusYt.style.display = 'block';
+            statusYt.style.color = '#fbbf24';
+            statusYt.innerText = "⏳ 백엔드에서 고화질 비디오를 다운로드하는 중입니다...";
+        }
+        if (btnYtDl) btnYtDl.disabled = true;
 
-            try {
-                const res = await fetch('/api/backgrounds/download-youtube', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: url })
-                });
-                const data = await res.json();
-                if (res.ok && data.success) {
-                    if (statusYt) {
-                        statusYt.style.color = '#34d399';
-                        statusYt.innerText = `✅ 다운로드 완료! (${data.title})`;
-                    }
-                    inputYtUrl.value = '';
-                    selectStageBg({ type: 'video', videoUrl: data.videoUrl, title: data.title });
-                } else {
-                    if (statusYt) {
-                        statusYt.style.color = '#ef4444';
-                        statusYt.innerText = `❌ 실패: ${data.detail || '다운로드 중 오류가 발생했습니다.'}`;
-                    }
+        try {
+            const res = await fetch('/api/backgrounds/download-youtube', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                if (statusYt) {
+                    statusYt.style.color = '#34d399';
+                    statusYt.innerText = `✅ 다운로드 완료! (${data.title})`;
                 }
-            } catch (e) {
+                inputYtUrl.value = '';
+                selectStageBg({ type: 'video', videoUrl: data.videoUrl, title: data.title });
+            } else {
                 if (statusYt) {
                     statusYt.style.color = '#ef4444';
-                    statusYt.innerText = `❌ 서버 통신 오류: ${e.message}`;
+                    statusYt.innerText = `❌ 실패: ${data.detail || '다운로드 중 오류가 발생했습니다.'}`;
                 }
-            } finally {
-                btnYtDl.disabled = false;
+            }
+        } catch (e) {
+            if (statusYt) {
+                statusYt.style.color = '#ef4444';
+                statusYt.innerText = `❌ 서버 통신 오류: ${e.message}`;
+            }
+        } finally {
+            if (btnYtDl) btnYtDl.disabled = false;
+        }
+    }
+
+    if (btnYtDl && inputYtUrl) {
+        btnYtDl.addEventListener('click', handleYtDownload);
+        inputYtUrl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleYtDownload();
             }
         });
     }
