@@ -557,7 +557,7 @@
                                 </div>
                             </div>
 
-                            <!-- 2. 다운로드 & 연출 효과 상단 패널 (stage-bg-main-grid-body 상단 컨트롤 영역) -->
+                            <!-- 2. 다운로드 상단 패널 (stage-bg-main-grid-body 상단 컨트롤 영역) -->
                             <div style="display: flex; flex-wrap: wrap; gap: 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 14px; align-items: center; justify-content: space-between;">
                                 <!-- 유튜브/파일 다운로드 -->
                                 <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 320px;">
@@ -566,20 +566,6 @@
                                     <button id="btn-yt-bg-download-main" style="padding: 5px 10px; background: var(--primary, #3b82f6); color: #fff; border: none; border-radius: 4px; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap;">다운로드</button>
                                     <input type="file" id="file-upload-bg-input-main" accept="video/mp4,video/webm" style="display: none;">
                                     <button id="btn-upload-bg-file-main" style="padding: 5px 10px; background: rgba(255,255,255,0.1); border: 1px solid var(--panel-border); color: #fff; border-radius: 4px; font-size: 0.72rem; cursor: pointer; white-space: nowrap;">📁 로컬 파일</button>
-                                </div>
-
-                                <!-- 불투명도 및 블러 슬라이더 -->
-                                <div style="display: flex; align-items: center; gap: 16px; min-width: 280px;">
-                                    <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
-                                        <span style="font-size: 0.72rem; color: var(--text-muted); white-space: nowrap;">밝기:</span>
-                                        <input type="range" id="range-stage-bg-opacity-main" min="10" max="100" value="80" style="flex: 1;">
-                                        <span id="val-stage-bg-opacity-main" style="font-size: 0.72rem; color: #60a5fa; min-width: 30px;">80%</span>
-                                    </div>
-                                    <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
-                                        <span style="font-size: 0.72rem; color: var(--text-muted); white-space: nowrap;">블러:</span>
-                                        <input type="range" id="range-stage-bg-blur-main" min="0" max="20" value="0" style="flex: 1;">
-                                        <span id="val-stage-bg-blur-main" style="font-size: 0.72rem; color: #60a5fa; min-width: 26px;">0px</span>
-                                    </div>
                                 </div>
                             </div>
                         </div>
