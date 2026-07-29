@@ -3498,6 +3498,9 @@
                     const isStageBgTabActive = document.getElementById('panel-stage-bg')?.classList.contains('active');
                     const isStageBgVisible = document.getElementById('stage-bg-main-viewer-overlay')?.style.display !== 'none';
                     if (isStageBgTabActive || isStageBgVisible) {
+                        if (selectedStageBgFiles && selectedStageBgFiles.length > 0) {
+                            if (typeof deleteSelectedStageBgFilesWithConfirm === 'function') deleteSelectedStageBgFilesWithConfirm();
+                        }
                         return;
                     }
                     if (activeObj || currentEditingElement) {
@@ -5719,6 +5722,12 @@ window.deleteSelectedStageBgFilesWithConfirm = async function(confirmRequired = 
             if (typeof showToast === 'function') {
                 showToast(`${data.deleted_count || 0}개의 현장 배경이 삭제되었습니다.`);
             }
+
+            const deletedNames = selectedStageBgFiles.map(f => f.name);
+            if (currentStageBg.type === 'video' && deletedNames.some(name => currentStageBg.videoUrl === `/static/backgrounds/${name}`)) {
+                selectStageBg({ type: 'ambient' }, false);
+            }
+
             selectedStageBgFiles = [];
             await loadStageBgLibrary();
         } else {
