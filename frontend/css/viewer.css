@@ -4,7 +4,6 @@
     margin: 0;
     padding: 0;
 }
-
 body {
     background-color: transparent !important; /* OBS 투명 오버레이를 위해 투명 설정 */
     color: #ffffff;
@@ -16,7 +15,6 @@ body {
     align-items: center;
     justify-content: center;
 }
-
 #canvas-container {
     position: relative;
     width: 100%;
@@ -28,13 +26,11 @@ body {
     transition: opacity 0.8s ease-in-out; /* 부드러운 사라짐 효과 */
     background: transparent;
 }
-
 /* 연결 유실 시 강제 페이드 아웃 */
 body.system-disconnected #canvas-container {
     opacity: 0 !important;
     pointer-events: none;
 }
-
 /* 네트워크 끊김 경고 오버레이 (디버깅용 또는 OBS가 아닌 브라우저 확인용 - opacity는 0이지만 콘솔이나 개발자용 표시) */
 .disconnect-banner {
     display: none;
@@ -50,11 +46,9 @@ body.system-disconnected #canvas-container {
     z-index: 9999;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
-
 body.system-disconnected .disconnect-banner {
     display: block;
 }
-
 /* 크로마키 녹색 배경 모드 */
 body.chromakey-mode {
     background-color: #00ff00 !important;
