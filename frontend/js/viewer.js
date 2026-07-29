@@ -291,9 +291,65 @@
             }
         }
 
+        function initStageMotionBg() {
+            document.body.classList.add('stage-mode');
+            if (document.getElementById('stage-motion-bg')) return;
+            
+            const bgCanvas = document.createElement('canvas');
+            bgCanvas.id = 'stage-motion-bg';
+            document.body.prepend(bgCanvas);
+            
+            const ctx = bgCanvas.getContext('2d');
+            let width = bgCanvas.width = window.innerWidth;
+            let height = bgCanvas.height = window.innerHeight;
+            
+            window.addEventListener('resize', () => {
+                width = bgCanvas.width = window.innerWidth;
+                height = bgCanvas.height = window.innerHeight;
+            });
+
+            const particles = Array.from({ length: 24 }, () => ({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                radius: Math.random() * 180 + 70,
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: (Math.random() - 0.5) * 0.5,
+                hue: Math.random() * 70 + 190,
+                alpha: Math.random() * 0.28 + 0.08
+            }));
+
+            function animate() {
+                ctx.clearRect(0, 0, width, height);
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    if (p.x < -p.radius) p.x = width + p.radius;
+                    if (p.x > width + p.radius) p.x = -p.radius;
+                    if (p.y < -p.radius) p.y = height + p.radius;
+                    if (p.y > height + p.radius) p.y = -p.radius;
+
+                    const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius);
+                    grad.addColorStop(0, `hsla(${p.hue}, 80%, 60%, ${p.alpha})`);
+                    grad.addColorStop(1, `hsla(${p.hue}, 80%, 60%, 0)`);
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
         window.onload = () => {
             const urlParams = new URLSearchParams(window.location.search);
             const isMonitorMode = urlParams.get('mode') === 'monitor';
+            const channel = urlParams.get('channel');
+            const isStageMode = channel === 'stage' || urlParams.get('mode') === 'stage';
+
+            if (isStageMode && !isMonitorMode) {
+                initStageMotionBg();
+            }
 
             if (isMonitorMode) {
                 document.body.classList.add('monitor-mode');
