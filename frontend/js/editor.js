@@ -203,6 +203,12 @@
             if (tabId !== 'panel-praise') {
                 hidePraiseMainViewer();
             }
+            // 현장 배경 탭 처리
+            if (tabId === 'panel-stage-bg') {
+                showStageBgMainViewer();
+            } else {
+                hideStageBgMainViewer();
+            }
         }
 
         function initCanvas() {
@@ -5461,65 +5467,126 @@
             return vPos + " " + hPos;
         }
 
-// === 현장 모니터 배경 연출 모듈 ===
+// === 현장 모니터 배경 연출 & 라이브러리 & PiP 미리보기 모듈 ===
 let currentStageBg = {
     type: 'ambient',
     videoUrl: '',
     opacity: 0.8,
     blur: 0
 };
+let allStageBgFiles = [];
+let pipAmbientAnimId = null;
 
+// 현장 배경 메인 뷰어 열기/닫기
+function showStageBgMainViewer() {
+    const overlay = document.getElementById('stage-bg-main-viewer-overlay');
+    if (overlay) overlay.style.display = 'flex';
+    loadStageBgLibrary();
+    initPipPreview();
+    const pipContainer = document.getElementById('pip-stage-preview-container');
+    if (pipContainer) pipContainer.style.display = 'flex';
+}
+
+function hideStageBgMainViewer() {
+    const overlay = document.getElementById('stage-bg-main-viewer-overlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+// 백엔드 API에서 배경 라이브러리 목록 로드
 async function loadStageBgLibrary() {
     try {
         const res = await fetch('/api/backgrounds/list');
         if (res.ok) {
             const data = await res.json();
-            renderStageBgLibrary(data.files || []);
+            allStageBgFiles = data.files || [];
+            filterAndRenderStageBgLibrary();
         }
     } catch (e) {
         console.error("Failed to load stage bg list", e);
     }
 }
 
-function renderStageBgLibrary(files) {
-    const listContainer = document.getElementById('stage-bg-library-list');
-    if (!listContainer) return;
+// 오른쪽 메인 칸 배경 라이브러리 그리드 & 검색 필터링 렌더링
+function filterAndRenderStageBgLibrary() {
+    const gridContainer = document.getElementById('stage-bg-main-grid');
+    if (!gridContainer) return;
 
-    let html = `
-        <div class="stage-bg-card ${currentStageBg.type === 'ambient' ? 'active' : ''}" onclick="selectStageBg({type: 'ambient'})" style="background: rgba(255,255,255,0.05); border: 2px solid ${currentStageBg.type === 'ambient' ? 'var(--primary)' : 'var(--panel-border)'}; border-radius: 6px; padding: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px;">
-            <div style="width: 48px; height: 36px; background: linear-gradient(45deg, #0b0f19, #0369a1); border-radius: 4px; flex-shrink: 0;"></div>
-            <div style="flex: 1; min-width: 0;">
-                <div style="font-size: 0.8rem; font-weight: 600; color: #fff;">기본 앰비언트 파티클</div>
-                <div style="font-size: 0.7rem; color: var(--text-muted);">Canvas Gradient Motion</div>
-            </div>
-        </div>
-    `;
+    const searchInput = document.getElementById('input-stage-bg-search');
+    const filterSelect = document.getElementById('select-stage-bg-filter');
 
-    files.forEach(f => {
-        const isCurrent = currentStageBg.type === 'video' && currentStageBg.videoUrl === f.url;
-        const filenameWOExt = f.name.substring(0, f.name.lastIndexOf('.'));
-        const isYt = filenameWOExt.length === 11 && !f.name.startsWith('upload_');
-        const thumbUrl = isYt ? `https://img.youtube.com/vi/${filenameWOExt}/hqdefault.jpg` : '';
-        
+    const searchVal = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const filterVal = filterSelect ? filterSelect.value : 'all';
+
+    let filesToRender = allStageBgFiles.filter(f => {
+        if (searchVal && !f.name.toLowerCase().includes(searchVal)) return false;
+        if (filterVal === 'video') return true;
+        if (filterVal === 'ambient') return false;
+        return true;
+    });
+
+    let html = '';
+
+    // 1. 기본 앰비언트 파티클 카드
+    const showAmbient = filterVal !== 'video' && (!searchVal || '기본 앰비언트 파티클'.includes(searchVal) || 'ambient'.includes(searchVal));
+    if (showAmbient) {
+        const isAmbientActive = currentStageBg.type === 'ambient';
         html += `
-            <div class="stage-bg-card ${isCurrent ? 'active' : ''}" onclick="selectStageBg({type: 'video', videoUrl: '${f.url}', title: '${f.name}'})" style="background: rgba(255,255,255,0.05); border: 2px solid ${isCurrent ? 'var(--primary)' : 'var(--panel-border)'}; border-radius: 6px; padding: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px;">
-                ${thumbUrl ? `<img src="${thumbUrl}" style="width: 48px; height: 36px; object-fit: cover; border-radius: 4px; flex-shrink: 0;">` : `<div style="width: 48px; height: 36px; background: #1e1b4b; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; border-radius: 4px; flex-shrink: 0;">🎬</div>`}
-                <div style="flex: 1; min-width: 0;">
-                    <div style="font-size: 0.78rem; font-weight: 600; color: #fff; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${f.name}</div>
-                    <div style="font-size: 0.68rem; color: #34d399;">● 로컬 보관 완료</div>
+            <div class="stage-bg-card-main ${isAmbientActive ? 'active' : ''}" onclick="selectStageBg({type: 'ambient'})" 
+                style="background: rgba(255,255,255,0.04); border: 2px solid ${isAmbientActive ? '#38bdf8' : 'var(--panel-border, #3f3f46)'}; border-radius: 8px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; transition: all 0.2s; position: relative;">
+                ${isAmbientActive ? `<span style="position: absolute; top: 10px; right: 10px; background: #0284c7; color: #fff; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">적용 중</span>` : ''}
+                <div style="width: 100%; height: 110px; background: linear-gradient(135deg, #0b0f19, #0369a1, #1e1b4b); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 2rem;">
+                    ✨
+                </div>
+                <div>
+                    <div style="font-size: 0.88rem; font-weight: 700; color: #fff; margin-bottom: 2px;">기본 앰비언트 파티클</div>
+                    <div style="font-size: 0.72rem; color: var(--text-muted);">60fps Canvas Dynamic Motion</div>
                 </div>
             </div>
         `;
-    });
+    }
 
-    listContainer.innerHTML = html;
+    // 2. 동영상 라이브러리 카드들
+    if (filterVal !== 'ambient') {
+        filesToRender.forEach(f => {
+            const isCurrent = currentStageBg.type === 'video' && currentStageBg.videoUrl === f.url;
+            const filenameWOExt = f.name.substring(0, f.name.lastIndexOf('.'));
+            const isYt = filenameWOExt.length === 11 && !f.name.startsWith('upload_');
+            const thumbUrl = isYt ? `https://img.youtube.com/vi/${filenameWOExt}/hqdefault.jpg` : '';
+
+            html += `
+                <div class="stage-bg-card-main ${isCurrent ? 'active' : ''}" onclick="selectStageBg({type: 'video', videoUrl: '${f.url}', title: '${f.name}'})" 
+                    style="background: rgba(255,255,255,0.04); border: 2px solid ${isCurrent ? '#38bdf8' : 'var(--panel-border, #3f3f46)'}; border-radius: 8px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; transition: all 0.2s; position: relative;">
+                    ${isCurrent ? `<span style="position: absolute; top: 10px; right: 10px; background: #0284c7; color: #fff; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">적용 중</span>` : ''}
+                    <div style="width: 100%; height: 110px; background: #0f172a; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                        ${thumbUrl ? `<img src="${thumbUrl}" style="width: 100%; height: 100%; object-fit: cover;">` : `<div style="font-size: 2.2rem; color: #60a5fa;">🎬</div>`}
+                    </div>
+                    <div>
+                        <div style="font-size: 0.85rem; font-weight: 600; color: #fff; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; margin-bottom: 2px;" title="${f.name}">${f.name}</div>
+                        <div style="font-size: 0.7rem; color: #34d399; display: flex; align-items: center; gap: 4px;">
+                            <span>● 로컬 고화질 보관됨</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    if (!showAmbient && filesToRender.length === 0) {
+        html = `
+            <div style="grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+                🔍 검색 조건에 일치하는 현장 배경이 없습니다.
+            </div>
+        `;
+    }
+
+    gridContainer.innerHTML = html;
 }
 
 window.selectStageBg = function(config) {
     currentStageBg.type = config.type;
     if (config.videoUrl) currentStageBg.videoUrl = config.videoUrl;
     applyAndBroadcastStageBg();
-    loadStageBgLibrary();
+    filterAndRenderStageBgLibrary();
 };
 
 function applyAndBroadcastStageBg() {
@@ -5534,10 +5601,234 @@ function applyAndBroadcastStageBg() {
             background: currentStageBg
         }));
     }
+
+    updatePipBgLayer();
+}
+
+// === PiP (Picture-in-Picture) 미리보기 구현 ===
+window.togglePipPreview = function() {
+    const pipContainer = document.getElementById('pip-stage-preview-container');
+    if (!pipContainer) return;
+    if (pipContainer.style.display === 'none' || !pipContainer.style.display) {
+        pipContainer.style.display = 'flex';
+        initPipPreview();
+    } else {
+        pipContainer.style.display = 'none';
+    }
+};
+
+function initPipPreview() {
+    initPipDragging();
+    initPipResizing();
+    updatePipCanvasDimensions();
+    updatePipBgLayer();
+    updatePipSlideOverlay();
+
+    if (canvas && !canvas._pipBound) {
+        canvas.on('after:render', () => {
+            updatePipSlideOverlay();
+        });
+        canvas._pipBound = true;
+    }
+}
+
+function initPipDragging() {
+    const pipContainer = document.getElementById('pip-stage-preview-container');
+    const pipHeader = document.getElementById('pip-header');
+    if (!pipContainer || !pipHeader || pipHeader._dragBound) return;
+
+    let isDragging = false;
+    let startX, startY, initialLeft, initialTop;
+
+    pipHeader.addEventListener('mousedown', (e) => {
+        if (e.target.tagName === 'BUTTON') return;
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+
+        const rect = pipContainer.getBoundingClientRect();
+        initialLeft = rect.left;
+        initialTop = rect.top;
+
+        pipContainer.style.bottom = 'auto';
+        pipContainer.style.right = 'auto';
+        pipContainer.style.left = initialLeft + 'px';
+        pipContainer.style.top = initialTop + 'px';
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    });
+
+    function onMouseMove(e) {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        pipContainer.style.left = Math.max(0, Math.min(window.innerWidth - pipContainer.offsetWidth, initialLeft + dx)) + 'px';
+        pipContainer.style.top = Math.max(0, Math.min(window.innerHeight - pipContainer.offsetHeight, initialTop + dy)) + 'px';
+    }
+
+    function onMouseUp() {
+        isDragging = false;
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+    }
+
+    pipHeader._dragBound = true;
+}
+
+function initPipResizing() {
+    const pipContainer = document.getElementById('pip-stage-preview-container');
+    if (!pipContainer || pipContainer._resizeBound) return;
+
+    if (window.ResizeObserver) {
+        const ro = new ResizeObserver(() => {
+            updatePipCanvasDimensions();
+            updatePipSlideOverlay();
+        });
+        ro.observe(pipContainer);
+    }
+    pipContainer._resizeBound = true;
+}
+
+function updatePipCanvasDimensions() {
+    const pipBody = document.getElementById('pip-body');
+    const slideCanvas = document.getElementById('pip-slide-canvas');
+    const ambientCanvas = document.getElementById('pip-bg-ambient-canvas');
+
+    if (!pipBody) return;
+    const w = pipBody.clientWidth || 340;
+    const h = pipBody.clientHeight || 180;
+
+    if (slideCanvas) {
+        slideCanvas.width = w;
+        slideCanvas.height = h;
+    }
+    if (ambientCanvas) {
+        ambientCanvas.width = w;
+        ambientCanvas.height = h;
+    }
+}
+
+function updatePipBgLayer() {
+    const video = document.getElementById('pip-bg-video');
+    const ambientCanvas = document.getElementById('pip-bg-ambient-canvas');
+    if (!video || !ambientCanvas) return;
+
+    if (currentStageBg.type === 'video' && currentStageBg.videoUrl) {
+        ambientCanvas.style.display = 'none';
+        video.style.display = 'block';
+        if (video.src !== window.location.origin + currentStageBg.videoUrl && !video.src.endsWith(currentStageBg.videoUrl)) {
+            video.src = currentStageBg.videoUrl;
+        }
+        video.style.opacity = currentStageBg.opacity;
+        video.style.filter = `blur(${currentStageBg.blur}px)`;
+        video.play().catch(() => {});
+        if (pipAmbientAnimId) {
+            cancelAnimationFrame(pipAmbientAnimId);
+            pipAmbientAnimId = null;
+        }
+    } else {
+        video.style.display = 'none';
+        video.pause();
+        ambientCanvas.style.display = 'block';
+        ambientCanvas.style.opacity = currentStageBg.opacity;
+        ambientCanvas.style.filter = `blur(${currentStageBg.blur}px)`;
+        startPipAmbientLoop();
+    }
+}
+
+function startPipAmbientLoop() {
+    if (pipAmbientAnimId) cancelAnimationFrame(pipAmbientAnimId);
+    const canvasEl = document.getElementById('pip-bg-ambient-canvas');
+    if (!canvasEl) return;
+    const ctx = canvasEl.getContext('2d');
+    let t = 0;
+
+    function render() {
+        t += 0.015;
+        const w = canvasEl.width || 340;
+        const h = canvasEl.height || 180;
+
+        const grad = ctx.createLinearGradient(
+            (Math.sin(t) * 0.5 + 0.5) * w,
+            0,
+            (Math.cos(t) * 0.5 + 0.5) * w,
+            h
+        );
+        grad.addColorStop(0, '#0b0f19');
+        grad.addColorStop(0.5, '#0369a1');
+        grad.addColorStop(1, '#1e1b4b');
+
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+        for (let i = 0; i < 15; i++) {
+            const x = (Math.sin(t + i * 1.3) * 0.5 + 0.5) * w;
+            const y = (Math.cos(t * 0.8 + i * 1.7) * 0.5 + 0.5) * h;
+            const r = (Math.sin(t + i) * 0.5 + 0.5) * 3 + 1;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        pipAmbientAnimId = requestAnimationFrame(render);
+    }
+    render();
+}
+
+function updatePipSlideOverlay() {
+    const slideCanvas = document.getElementById('pip-slide-canvas');
+    if (!slideCanvas) return;
+    const ctx = slideCanvas.getContext('2d');
+    ctx.clearRect(0, 0, slideCanvas.width, slideCanvas.height);
+
+    if (canvas) {
+        try {
+            const dataUrl = canvas.toDataURL({ format: 'png', multiplier: 0.4 });
+            const img = new Image();
+            img.onload = () => {
+                ctx.clearRect(0, 0, slideCanvas.width, slideCanvas.height);
+                ctx.drawImage(img, 0, 0, slideCanvas.width, slideCanvas.height);
+            };
+            img.src = dataUrl;
+        } catch (e) {
+            console.error("Failed to render PiP slide overlay", e);
+        }
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     loadStageBgLibrary();
+
+    const searchInput = document.getElementById('input-stage-bg-search');
+    const filterSelect = document.getElementById('select-stage-bg-filter');
+    if (searchInput) searchInput.addEventListener('input', filterAndRenderStageBgLibrary);
+    if (filterSelect) filterSelect.addEventListener('change', filterAndRenderStageBgLibrary);
+
+    const btnPipClose = document.getElementById('btn-pip-close');
+    const btnPipMin = document.getElementById('btn-pip-toggle-min');
+    if (btnPipClose) {
+        btnPipClose.addEventListener('click', () => {
+            const container = document.getElementById('pip-stage-preview-container');
+            if (container) container.style.display = 'none';
+        });
+    }
+    if (btnPipMin) {
+        btnPipMin.addEventListener('click', () => {
+            const body = document.getElementById('pip-body');
+            const container = document.getElementById('pip-stage-preview-container');
+            if (body && container) {
+                if (body.style.display === 'none') {
+                    body.style.display = 'flex';
+                    container.style.height = '215px';
+                } else {
+                    body.style.display = 'none';
+                    container.style.height = '36px';
+                }
+            }
+        });
+    }
 
     const opacityInput = document.getElementById('range-stage-bg-opacity');
     const opacityVal = document.getElementById('val-stage-bg-opacity');

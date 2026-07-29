@@ -1542,3 +1542,21 @@
             color: #ffffff;
             border-color: rgba(255, 255, 255, 0.3);
         }
+
+/* 현장 배경 라이브러리 메인 카드 & PiP 스타일 */
+.stage-bg-card-main:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    border-color: rgba(56, 189, 248, 0.5) !important;
+}
+
+#pip-stage-preview-container.pip-resizable {
+    resize: both;
+    overflow: hidden;
+}
+
+#pip-stage-preview-container.pip-resizable::-webkit-resizer {
+    background-color: var(--primary, #3b82f6);
+    border-top-left-radius: 4px;
+}
+

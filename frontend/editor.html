@@ -511,18 +511,15 @@
                             </div>
                         </div>
 
-                        <!-- 3. 저장된 배경 라이브러리 목록 -->
-                        <div>
-                            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-main); display: block; margin-bottom: 8px;">🖼️ 저장된 배경 라이브러리</label>
-                            <div id="stage-bg-library-list" style="display: grid; grid-template-columns: repeat(1, 1fr); gap: 8px;">
-                                <div class="stage-bg-card active" data-bg-type="ambient" style="background: rgba(255,255,255,0.05); border: 2px solid var(--primary); border-radius: 6px; padding: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px;">
-                                    <div style="width: 48px; height: 36px; background: linear-gradient(45deg, #0b0f19, #0369a1); border-radius: 4px; flex-shrink: 0;"></div>
-                                    <div style="flex: 1; min-width: 0;">
-                                        <div style="font-size: 0.8rem; font-weight: 600; color: #fff;">기본 앰비언트 파티클</div>
-                                        <div style="font-size: 0.7rem; color: var(--text-muted);">Canvas Gradient Motion</div>
-                                    </div>
-                                </div>
-                            </div>
+                        <!-- 3. 미리보기 & 라이브러리 안내 -->
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+                            <div style="font-size: 0.78rem; font-weight: 600; color: var(--text-main);">📺 실시간 미니 미리보기 (PiP)</div>
+                            <button id="btn-toggle-pip-preview" onclick="togglePipPreview()" style="padding: 7px 12px; background: rgba(59, 130, 246, 0.15); border: 1px solid #3b82f6; color: #60a5fa; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                                <span>📺 PiP 미리보기 창 열기 / 닫기</span>
+                            </button>
+                            <span style="font-size: 0.7rem; color: var(--text-muted); line-height: 1.3;">
+                                💡 오른쪽 카탈로그 영역에서 다양한 현장 연출 배경을 탐색하고 선택할 수 있습니다.
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -531,6 +528,38 @@
                     <div class="canvas-wrapper-outer">
                         <div class="canvas-wrapper">
                             <canvas id="editor-canvas"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 현장 배경 라이브러리 메인 뷰어 (오른쪽 메인 칸) -->
+                    <div id="stage-bg-main-viewer-overlay"
+                        style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark, #121212); z-index: 95; flex-direction: column; box-shadow: inset 0 0 12px rgba(0,0,0,0.6);">
+                        <!-- 라이브러리 상단 헤더 & 검색바 -->
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: rgba(0, 0, 0, 0.35); border-bottom: 1px solid var(--panel-border, #3f3f46); flex-shrink: 0; gap: 16px; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 1.05rem; font-weight: 700; color: #38bdf8;">🖼️ 현장 배경 라이브러리</span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted); background: rgba(255,255,255,0.06); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.08);">
+                                    무제한 동영상 & 파티클 모션 카탈로그
+                                </span>
+                            </div>
+                            
+                            <!-- 검색 및 필터 -->
+                            <div style="display: flex; align-items: center; gap: 10px; flex: 1; max-width: 460px;">
+                                <input type="text" id="input-stage-bg-search" placeholder="🔍 배경 제목 또는 파일명 검색..." 
+                                    style="flex: 1; padding: 7px 12px; background: rgba(0,0,0,0.4); border: 1px solid var(--panel-border, #3f3f46); border-radius: 6px; color: #fff; font-size: 0.8rem; outline: none;">
+                                <select id="select-stage-bg-filter" style="padding: 7px 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--panel-border, #3f3f46); border-radius: 6px; color: #fff; font-size: 0.78rem; cursor: pointer;">
+                                    <option value="all">전체 목록</option>
+                                    <option value="ambient">기본 앰비언트</option>
+                                    <option value="video">다운로드 비디오</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 배경 그리드 바디 -->
+                        <div id="stage-bg-main-grid-body" class="custom-scrollbar" style="flex: 1; overflow-y: auto; padding: 20px 24px;">
+                            <div id="stage-bg-main-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px;">
+                                <!-- 동적 라이브러리 카드가 렌더링됨 -->
+                            </div>
                         </div>
                     </div>
 
@@ -1233,6 +1262,32 @@
         <div class="slide-context-menu-divider"></div>
         <div class="slide-context-menu-item" id="menu-canvas-delete" style="color: #ff5555;">
             <span>삭제</span> <span style="color: var(--text-muted); font-size: 0.72rem;">Del</span>
+        </div>
+    </div>
+
+    <!-- PiP (Picture-in-Picture) 미리보기 플로팅 창 -->
+    <div id="pip-stage-preview-container" class="pip-resizable"
+        style="display: none; position: fixed; bottom: 24px; right: 24px; width: 340px; height: 215px; z-index: 9999; background: #0f172a; border: 2px solid var(--primary, #3b82f6); border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,0.7); flex-direction: column; overflow: hidden; resize: both; min-width: 240px; min-height: 150px;">
+        
+        <!-- PiP 창 헤더 (드래그 핸들) -->
+        <div id="pip-header" style="background: rgba(15, 23, 42, 0.95); cursor: move; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.12); user-select: none; flex-shrink: 0;">
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 700; color: #38bdf8;">
+                <span>📺 현장 실시간 미리보기 (PiP)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px;">
+                <button id="btn-pip-toggle-min" title="최소화/복원" style="background: transparent; border: none; color: #94a3b8; font-size: 0.8rem; cursor: pointer; padding: 2px 5px;">-</button>
+                <button id="btn-pip-close" title="미리보기 닫기" style="background: transparent; border: none; color: #94a3b8; font-size: 0.85rem; cursor: pointer; padding: 2px 5px;">✕</button>
+            </div>
+        </div>
+
+        <!-- PiP 캔버스/비디오 합성 뷰어 영역 -->
+        <div id="pip-body" style="position: relative; flex: 1; width: 100%; height: 100%; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+            <!-- 1. 배경 레이어 (비디오 / 앰비언트 파티클) -->
+            <video id="pip-bg-video" autoplay loop muted playsinline style="position: absolute; top:0; left:0; width:100%; height:100%; object-fit: cover; display: none;"></video>
+            <canvas id="pip-bg-ambient-canvas" style="position: absolute; top:0; left:0; width:100%; height:100%; display: none;"></canvas>
+
+            <!-- 2. 슬라이드 자막/텍스트 레이어 (합성 overlay) -->
+            <canvas id="pip-slide-canvas" style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none; object-fit: contain;"></canvas>
         </div>
     </div>
 </body>
