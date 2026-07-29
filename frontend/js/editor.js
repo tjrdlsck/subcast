@@ -469,9 +469,15 @@
             // 텍스트 인풋 상자, 폼 편집 상태 또는 캔버스 내 디자인 요소가 선택된 상태일 때는 방향키 슬라이드 이동을 바이패스
             const activeEl = document.activeElement;
             const hasActiveCanvasObj = typeof canvas !== 'undefined' && canvas && canvas.getActiveObject();
+            const isStageBgVisible = document.getElementById('stage-bg-main-viewer-overlay')?.style.display !== 'none';
+            const isBibleVisible = document.getElementById('bible-main-viewer-overlay')?.style.display !== 'none';
+            const isPraiseVisible = document.getElementById('praise-main-viewer-overlay')?.style.display !== 'none';
+            const isStageBgTabActive = document.getElementById('panel-stage-bg')?.classList.contains('active');
+
             if (
                 (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA" || activeEl.isContentEditable)) ||
-                hasActiveCanvasObj
+                hasActiveCanvasObj ||
+                isStageBgVisible || isBibleVisible || isPraiseVisible || isStageBgTabActive
             ) {
                 return;
             }
@@ -2565,6 +2571,15 @@
                     const activeObj = canvas.getActiveObject();
                     const isTemplateTabActive = document.getElementById('panel-templates')?.classList.contains('active');
                     const isPraiseTabActive = document.getElementById('panel-praise')?.classList.contains('active');
+                    const isStageBgTabActive = document.getElementById('panel-stage-bg')?.classList.contains('active');
+                    const isStageBgVisible = document.getElementById('stage-bg-main-viewer-overlay')?.style.display !== 'none';
+                    const isBibleVisible = document.getElementById('bible-main-viewer-overlay')?.style.display !== 'none';
+
+                    if (isStageBgTabActive || isStageBgVisible || isBibleVisible) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
+                    }
 
                     if (isPraiseTabActive || (selectedPraiseSongs && selectedPraiseSongs.length > 0)) {
                         e.preventDefault();
@@ -2621,7 +2636,11 @@
                         canvas.renderAll();
                         saveStateToHistory();
                     } else if (selectedSlideIds.length > 0) {
-                        cutSelectedSlides();
+                        const isStageBgTabActive = document.getElementById('panel-stage-bg')?.classList.contains('active');
+                        const isStageBgVisible = document.getElementById('stage-bg-main-viewer-overlay')?.style.display !== 'none';
+                        if (!isStageBgTabActive && !isStageBgVisible) {
+                            cutSelectedSlides();
+                        }
                     }
                 } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
                     // 복사 (Ctrl+C) - 시스템 클립보드 API 활용
@@ -2668,7 +2687,11 @@
                         }
                     } else if (selectedSlideIds.length > 0) {
                         // 2. 슬라이드 복사
-                        copySelectedSlides();
+                        const isStageBgTabActive = document.getElementById('panel-stage-bg')?.classList.contains('active');
+                        const isStageBgVisible = document.getElementById('stage-bg-main-viewer-overlay')?.style.display !== 'none';
+                        if (!isStageBgTabActive && !isStageBgVisible) {
+                            copySelectedSlides();
+                        }
                     }
                 } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
                     // 붙여넣기 (Ctrl+V)
@@ -3125,6 +3148,20 @@
 
         // 캔버스 편집 공간 우클릭 시 커스텀 우클릭 팝업 메뉴 표시
         document.addEventListener("contextmenu", (e) => {
+            const isStageBgVisible = document.getElementById('stage-bg-main-viewer-overlay')?.style.display !== 'none';
+            const isBibleVisible = document.getElementById('bible-main-viewer-overlay')?.style.display !== 'none';
+            const isPraiseVisible = document.getElementById('praise-main-viewer-overlay')?.style.display !== 'none';
+            const isStageBgTabActive = document.getElementById('panel-stage-bg')?.classList.contains('active');
+
+            if (e.target.closest("#stage-bg-main-viewer-overlay") || e.target.closest("#bible-main-viewer-overlay") || e.target.closest("#praise-main-viewer-overlay")) {
+                e.preventDefault();
+                return;
+            }
+
+            if (isStageBgVisible || isBibleVisible || isPraiseVisible || isStageBgTabActive) {
+                return;
+            }
+
             if (e.target.closest(".canvas-workspace") || e.target.closest(".canvas-wrapper-outer") || e.target.closest("#editor-canvas")) {
                 e.preventDefault();
                 showCanvasContextMenu(e.clientX, e.clientY);
@@ -3324,6 +3361,11 @@
                     hideCanvasContextMenu();
                     const activeObj = canvas.getActiveObject();
                     const isTemplateTabActive = document.getElementById('panel-templates')?.classList.contains('active');
+                    const isStageBgTabActive = document.getElementById('panel-stage-bg')?.classList.contains('active');
+                    const isStageBgVisible = document.getElementById('stage-bg-main-viewer-overlay')?.style.display !== 'none';
+                    if (isStageBgTabActive || isStageBgVisible) {
+                        return;
+                    }
                     if (activeObj || currentEditingElement) {
                         deleteElement();
                     } else if (isTemplateTabActive && selectedTemplateIds.length > 0) {
@@ -5480,7 +5522,13 @@ let pipAmbientAnimId = null;
 // 현장 배경 메인 뷰어 열기/닫기
 function showStageBgMainViewer() {
     const overlay = document.getElementById('stage-bg-main-viewer-overlay');
-    if (overlay) overlay.style.display = 'flex';
+    if (overlay) {
+        overlay.style.display = 'flex';
+        overlay.oncontextmenu = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        };
+    }
     loadStageBgLibrary();
     initPipPreview();
     const pipContainer = document.getElementById('pip-stage-preview-container');
