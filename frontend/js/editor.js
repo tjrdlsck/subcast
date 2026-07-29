@@ -5651,7 +5651,6 @@ let currentStageBg = {
     blur: 0
 };
 let allStageBgFiles = [];
-let hideDefaultAmbient = false;
 let selectedStageBgFiles = [];
 let stageBgClipboardFiles = [];
 let lastSelectedStageBgIndex = -1;
@@ -5668,11 +5667,10 @@ function updateStageBgGridColumns() {
 
 // 현장 배경 복사 / 붙여넣기 / 삭제 함수
 window.copySelectedStageBgFiles = function() {
-    const validFiles = (selectedStageBgFiles || []).filter(f => !f.isAmbient);
-    if (validFiles.length === 0) return;
-    stageBgClipboardFiles = JSON.parse(JSON.stringify(validFiles));
+    if (!selectedStageBgFiles || selectedStageBgFiles.length === 0) return;
+    stageBgClipboardFiles = JSON.parse(JSON.stringify(selectedStageBgFiles));
     if (typeof showToast === 'function') {
-        showToast(`${validFiles.length}개의 현장 배경이 복사되었습니다.`);
+        showToast(`${selectedStageBgFiles.length}개의 현장 배경이 복사되었습니다.`);
     }
 };
 
@@ -5710,11 +5708,10 @@ window.deleteSelectedStageBgFilesWithConfirm = async function(confirmRequired = 
     }
 
     try {
-        const deleteNames = selectedStageBgFiles.map(f => f.isAmbient ? 'ambient' : f.name);
         const res = await fetch('/api/backgrounds/delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ names: deleteNames })
+            body: JSON.stringify({ names: selectedStageBgFiles.map(f => f.name) })
         });
 
         if (res.ok) {
@@ -5738,7 +5735,7 @@ window.handleStageBgCardClick = function(e, index) {
     if (!fileObj) return;
 
     if (e.ctrlKey || e.metaKey) {
-        const existsIdx = selectedStageBgFiles.findIndex(f => (fileObj.isAmbient && f.isAmbient) || f.name === fileObj.name);
+        const existsIdx = selectedStageBgFiles.findIndex(f => f.name === fileObj.name);
         if (existsIdx !== -1) {
             selectedStageBgFiles.splice(existsIdx, 1);
         } else {
@@ -5750,18 +5747,14 @@ window.handleStageBgCardClick = function(e, index) {
         const end = Math.max(lastSelectedStageBgIndex, index);
         for (let i = start; i <= end; i++) {
             const targetFile = _renderedStageBgFiles[i];
-            if (targetFile && !selectedStageBgFiles.some(f => (targetFile.isAmbient && f.isAmbient) || f.name === targetFile.name)) {
+            if (targetFile && !selectedStageBgFiles.some(f => f.name === targetFile.name)) {
                 selectedStageBgFiles.push(targetFile);
             }
         }
     } else {
         selectedStageBgFiles = [fileObj];
         lastSelectedStageBgIndex = index;
-        if (fileObj.isAmbient) {
-            selectStageBg({type: 'ambient'}, false);
-        } else {
-            selectStageBg({type: 'video', videoUrl: fileObj.url, title: fileObj.name}, false);
-        }
+        selectStageBg({type: 'video', videoUrl: fileObj.url, title: fileObj.name}, false);
     }
 
     filterAndRenderStageBgLibrary();
@@ -5772,7 +5765,7 @@ window.handleStageBgCardContextMenu = function(e, index) {
     e.stopPropagation();
     const fileObj = _renderedStageBgFiles[index];
     if (fileObj) {
-        if (!selectedStageBgFiles.some(f => (fileObj.isAmbient && f.isAmbient) || f.name === fileObj.name)) {
+        if (!selectedStageBgFiles.some(f => f.name === fileObj.name)) {
             selectedStageBgFiles = [fileObj];
             lastSelectedStageBgIndex = index;
             filterAndRenderStageBgLibrary();
@@ -5821,7 +5814,6 @@ async function loadStageBgLibrary() {
         if (res.ok) {
             const data = await res.json();
             allStageBgFiles = data.files || [];
-            hideDefaultAmbient = !!data.hideAmbient;
             filterAndRenderStageBgLibrary();
         }
     } catch (e) {
@@ -5849,76 +5841,45 @@ function filterAndRenderStageBgLibrary() {
         return true;
     });
 
-    const showAmbient = !hideDefaultAmbient && filterVal !== 'video' && (!searchVal || '기본 앰비언트 파티클'.includes(searchVal) || 'ambient'.includes(searchVal));
-
-    let listToRender = [];
-    if (showAmbient) {
-        listToRender.push({ name: '기본 앰비언트 파티클', type: 'ambient', isAmbient: true });
-    }
-    listToRender = listToRender.concat(filesToRender);
-
-    _renderedStageBgFiles = listToRender;
+    _renderedStageBgFiles = filesToRender;
 
     let html = '';
 
-    listToRender.forEach((f, idx) => {
-        if (f.isAmbient) {
-            const isAmbientActive = currentStageBg.type === 'ambient';
-            const isSelected = selectedStageBgFiles.some(sel => sel.isAmbient);
-            const borderStyle = isSelected ? '2px solid #38bdf8' : (isAmbientActive ? '2px solid #0284c7' : '2px solid var(--panel-border, #3f3f46)');
-            const bgStyle = isSelected ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255,255,255,0.04)';
+    filesToRender.forEach((f, idx) => {
+        const isCurrent = currentStageBg.type === 'video' && currentStageBg.videoUrl === f.url;
+        const isSelected = selectedStageBgFiles.some(sel => sel.name === f.name);
+        const filenameWOExt = f.name.substring(0, f.name.lastIndexOf('.'));
+        const isYt = filenameWOExt.length === 11 && !f.name.startsWith('upload_');
+        const thumbUrl = f.thumbnailUrl || (isYt ? `https://img.youtube.com/vi/${filenameWOExt}/hqdefault.jpg` : '');
+        const escOldName = f.name.replace(/'/g, "\\'");
+        const safeName = f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-            html += `
-                <div class="stage-bg-card-main ${isAmbientActive ? 'active' : ''} ${isSelected ? 'selected' : ''}" 
-                    onclick="handleStageBgCardClick(event, ${idx})" 
-                    oncontextmenu="handleStageBgCardContextMenu(event, ${idx})"
-                    style="background: ${bgStyle}; border: ${borderStyle}; border-radius: 8px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; transition: all 0.2s; position: relative;">
-                    ${isAmbientActive ? `<span style="position: absolute; top: 10px; right: 10px; background: #0284c7; color: #fff; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">적용 중</span>` : ''}
-                    <div style="width: 100%; aspect-ratio: 16/9; max-height: 140px; background: linear-gradient(135deg, #0b0f19, #0369a1, #1e1b4b); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 2rem;">
-                        ✨
-                    </div>
-                    <div>
-                        <div style="font-size: 0.88rem; font-weight: 700; color: #fff; margin-bottom: 2px;">기본 앰비언트 파티클</div>
-                        <div style="font-size: 0.72rem; color: var(--text-muted);">60fps Canvas Dynamic Motion</div>
+        const borderStyle = isSelected ? '2px solid #38bdf8' : (isCurrent ? '2px solid #0284c7' : '2px solid var(--panel-border, #3f3f46)');
+        const bgStyle = isSelected ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255,255,255,0.04)';
+
+        html += `
+            <div class="stage-bg-card-main ${isCurrent ? 'active' : ''} ${isSelected ? 'selected' : ''}" 
+                onclick="handleStageBgCardClick(event, ${idx})" 
+                oncontextmenu="handleStageBgCardContextMenu(event, ${idx})"
+                style="background: ${bgStyle}; border: ${borderStyle}; border-radius: 8px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; transition: all 0.2s; position: relative;">
+                ${isCurrent ? `<span style="position: absolute; top: 10px; right: 10px; background: #0284c7; color: #fff; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">적용 중</span>` : ''}
+                <div style="width: 100%; aspect-ratio: 16/9; max-height: 140px; background: #0f172a; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative;">
+                    ${thumbUrl ? `<img src="${thumbUrl}" style="width: 100%; height: 100%; object-fit: cover;">` : `<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #60a5fa;"><span style="font-size: 2rem;">🎬</span><span style="font-size: 0.68rem; color: var(--text-muted);">로컬 미디어</span></div>`}
+                </div>
+                <div>
+                    <div class="stage-bg-title" 
+                         style="font-size: 0.85rem; font-weight: 600; color: #fff; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; margin-bottom: 2px; cursor: text;" 
+                         title="두 번 클릭하여 제목 수정" 
+                         onclick="event.stopPropagation();" 
+                         ondblclick="event.stopPropagation(); startInlineRenameStageBg(this, '${escOldName}')">
+                        ${safeName}
                     </div>
                 </div>
-            `;
-        } else {
-            const isCurrent = currentStageBg.type === 'video' && currentStageBg.videoUrl === f.url;
-            const isSelected = selectedStageBgFiles.some(sel => sel.name === f.name);
-            const filenameWOExt = f.name.substring(0, f.name.lastIndexOf('.'));
-            const isYt = filenameWOExt.length === 11 && !f.name.startsWith('upload_');
-            const thumbUrl = f.thumbnailUrl || (isYt ? `https://img.youtube.com/vi/${filenameWOExt}/hqdefault.jpg` : '');
-            const escOldName = f.name.replace(/'/g, "\\'");
-            const safeName = f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-            const borderStyle = isSelected ? '2px solid #38bdf8' : (isCurrent ? '2px solid #0284c7' : '2px solid var(--panel-border, #3f3f46)');
-            const bgStyle = isSelected ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255,255,255,0.04)';
-
-            html += `
-                <div class="stage-bg-card-main ${isCurrent ? 'active' : ''} ${isSelected ? 'selected' : ''}" 
-                    onclick="handleStageBgCardClick(event, ${idx})" 
-                    oncontextmenu="handleStageBgCardContextMenu(event, ${idx})"
-                    style="background: ${bgStyle}; border: ${borderStyle}; border-radius: 8px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; transition: all 0.2s; position: relative;">
-                    ${isCurrent ? `<span style="position: absolute; top: 10px; right: 10px; background: #0284c7; color: #fff; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">적용 중</span>` : ''}
-                    <div style="width: 100%; aspect-ratio: 16/9; max-height: 140px; background: #0f172a; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative;">
-                        ${thumbUrl ? `<img src="${thumbUrl}" style="width: 100%; height: 100%; object-fit: cover;">` : `<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #60a5fa;"><span style="font-size: 2rem;">🎬</span><span style="font-size: 0.68rem; color: var(--text-muted);">로컬 미디어</span></div>`}
-                    </div>
-                    <div>
-                        <div class="stage-bg-title" 
-                             style="font-size: 0.85rem; font-weight: 600; color: #fff; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; margin-bottom: 2px; cursor: text;" 
-                             title="두 번 클릭하여 제목 수정" 
-                             onclick="event.stopPropagation();" 
-                             ondblclick="event.stopPropagation(); startInlineRenameStageBg(this, '${escOldName}')">
-                            ${safeName}
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
+            </div>
+        `;
     });
 
-    if (listToRender.length === 0) {
+    if (filesToRender.length === 0) {
         html = `
             <div style="grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
                 🔍 검색 조건에 일치하는 현장 배경이 없습니다.

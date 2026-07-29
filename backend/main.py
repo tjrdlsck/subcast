@@ -152,10 +152,7 @@ async def list_background_files():
     if meta_updated:
         save_bg_meta(meta)
 
-    return {
-        "files": files,
-        "hideAmbient": meta.get("__hide_ambient__", False)
-    }
+    return {"files": files}
 
 
 @app.post("/api/backgrounds/download-youtube")
@@ -342,11 +339,6 @@ async def delete_background_files(req: DeleteBackgroundsRequest):
     for name in req.names:
         name = name.strip()
         if not name:
-            continue
-
-        if name in ["ambient", "기본 앰비언트 파티클", "__ambient__"]:
-            meta["__hide_ambient__"] = True
-            deleted_count += 1
             continue
         
         target_path = backgrounds_dir / name
