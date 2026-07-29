@@ -104,11 +104,6 @@ def generate_thumbnail_ffmpeg(video_path: Path, output_thumb_path: Path, timesta
         logger.error(f"Failed to generate thumbnail for {video_path.name}: {e}")
         return False
 
-
-class YouTubeDownloadRequest(BaseModel):
-    url: str
-
-
 @app.get("/api/backgrounds/list")
 async def list_background_files():
     files = []
@@ -153,96 +148,6 @@ async def list_background_files():
         save_bg_meta(meta)
 
     return {"files": files}
-
-
-@app.get("/api/backgrounds/yt-progress/{task_id}")
-async def get_yt_progress(task_id: str):
-    progress = yt_download_progress.get(task_id, 0)
-    return {"task_id": task_id, "progress": progress}
-
-
-@app.post("/api/backgrounds/download-youtube")
-async def download_youtube_background(req: YouTubeDownloadRequest):
-    url = req.url.strip()
-    task_id = req.task_id or url
-    if not url:
-        raise HTTPException(status_code=400, detail="유튜브 URL을 입력해주세요.")
-
-    try:
-        import yt_dlp
-    except ImportError:
-        raise HTTPException(status_code=500, detail="yt-dlp 패키지가 설치되어 있지 않습니다.")
-
-    try:
-        yt_download_progress[task_id] = 0
-
-        def progress_hook(d):
-            if d.get('status') == 'downloading':
-                total = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
-                downloaded = d.get('downloaded_bytes') or 0
-                if total > 0:
-                    percent = int((downloaded / total) * 100)
-                    yt_download_progress[task_id] = min(99, percent)
-            elif d.get('status') == 'finished':
-                yt_download_progress[task_id] = 100
-
-        ydl_opts = {
-            'format': 'b/bv*+ba/best',
-            'outtmpl': str(backgrounds_dir / '%(id)s.%(ext)s'),
-            'noplaylist': True,
-            'quiet': True,
-            'no_warnings': True,
-            'overwrites': True,
-            'merge_output_format': 'mp4',
-            'progress_hooks': [progress_hook]
-        }
-        
-        def _download():
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                if 'entries' in info and info['entries']:
-                    info = info['entries'][0]
-                video_id = info.get('id')
-                ext = info.get('ext', 'mp4')
-                title = info.get('title', 'YouTube Video')
-                return video_id, ext, title
-
-        loop = asyncio.get_running_loop()
-        video_id, ext, title = await loop.run_in_executor(None, _download)
-
-        if not video_id:
-            raise ValueError("비디오 ID를 추출하지 못했습니다.")
-
-        filename = f"{video_id}.{ext}"
-        target_path = backgrounds_dir / filename
-        if not target_path.exists():
-            candidates = [p for p in backgrounds_dir.glob(f"{video_id}.*") if p.suffix.lower() in ['.mp4', '.webm', '.mkv', '.mov']]
-            if candidates:
-                filename = candidates[0].name
-
-        thumbnail_url = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
-
-        meta = load_bg_meta()
-        meta[filename] = {
-            "thumbnailUrl": thumbnail_url,
-            "youtubeId": video_id,
-            "title": title
-        }
-        save_bg_meta(meta)
-
-        yt_download_progress[task_id] = 100
-
-        return {
-            "success": True,
-            "id": video_id,
-            "title": title,
-            "filename": filename,
-            "videoUrl": f"/static/backgrounds/{filename}",
-            "thumbnailUrl": thumbnail_url
-        }
-    except Exception as e:
-        logger.error(f"Failed to download YouTube video: {e}")
-        raise HTTPException(status_code=500, detail=f"유튜브 동영상 다운로드 실패: {str(e)}")
 
 
 @app.post("/api/backgrounds/upload")
