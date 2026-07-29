@@ -455,18 +455,6 @@
                         </div>
                     </div>
                 </div>
-            </aside>
-
-            <!-- Center Canvas Workspace -->
-            <main class="canvas-workspace">
-                <!-- 잠금 경고 배너 -->
-                <div class="lock-warning-banner" id="lock-banner" style="display: none;">
-                    ⚠️ 다른 사용자가 편집 중인 슬라이드입니다.
-                </div>
-                <div class="lock-warning-banner" id="offline-banner"
-                    style="background: rgba(239, 68, 68, 0.9); display: none; z-index: 1000;">
-                    ⚠️ 네트워크 연결이 단절되었습니다. 데이터 유실 방지를 위해 편집이 잠금 처리됩니다.
-                </div>
 
                 <!-- 8) 현장 배경 탭 패널 -->
                 <div class="sidebar-panel" id="panel-stage-bg">
@@ -492,7 +480,7 @@
 
                         <!-- 2. 배경 세부 조절 -->
                         <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 10px;">
-                            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-main);">🎛️ 배경 연출 효과</label>
+                            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-main);">🎛 배경 연출 효과</label>
                             
                             <div>
                                 <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-muted); margin-bottom: 4px;">
@@ -522,6 +510,18 @@
                             </span>
                         </div>
                     </div>
+                </div>
+            </aside>
+
+            <!-- Center Canvas Workspace -->
+            <main class="canvas-workspace">
+                <!-- 잠금 경고 배너 -->
+                <div class="lock-warning-banner" id="lock-banner" style="display: none;">
+                    ⚠️ 다른 사용자가 편집 중인 슬라이드입니다.
+                </div>
+                <div class="lock-warning-banner" id="offline-banner"
+                    style="background: rgba(239, 68, 68, 0.9); display: none; z-index: 1000;">
+                    ⚠️ 네트워크 연결이 단절되었습니다. 데이터 유실 방지를 위해 편집이 잠금 처리됩니다.
                 </div>
 
                 <div class="canvas-viewport" style="position: relative;">
