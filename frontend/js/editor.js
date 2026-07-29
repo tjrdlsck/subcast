@@ -5640,6 +5640,7 @@ function filterAndRenderStageBgLibrary() {
                         <div class="stage-bg-title" 
                              style="font-size: 0.85rem; font-weight: 600; color: #fff; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; margin-bottom: 2px; cursor: text;" 
                              title="두 번 클릭하여 제목 수정" 
+                             onclick="event.stopPropagation();" 
                              ondblclick="event.stopPropagation(); startInlineRenameStageBg(this, '${escOldName}')">
                             ${safeName}
                         </div>
@@ -5667,27 +5668,41 @@ function filterAndRenderStageBgLibrary() {
 window.startInlineRenameStageBg = function(containerEl, oldName) {
     if (containerEl.querySelector('input')) return;
 
+    // 확장자 및 순수 이름 분리 (예: test.mp4 -> base: test, ext: .mp4)
+    const lastDotIdx = oldName.lastIndexOf('.');
+    const ext = lastDotIdx !== -1 ? oldName.substring(lastDotIdx) : '';
+    const baseOldName = lastDotIdx !== -1 ? oldName.substring(0, lastDotIdx) : oldName;
+
     const input = document.createElement('input');
     input.type = 'text';
     input.className = 'stage-bg-name-input';
-    input.value = oldName;
-    input.style.cssText = "width: 100%; padding: 3px 6px; background: rgba(0,0,0,0.85); border: 1px solid #38bdf8; border-radius: 4px; color: #fff; font-size: 0.82rem; outline: none; font-weight: 600;";
+    input.value = baseOldName;
+    input.style.cssText = "width: 100%; padding: 3px 6px; background: rgba(0,0,0,0.9); border: 1.5px solid #38bdf8; border-radius: 4px; color: #fff; font-size: 0.82rem; outline: none; font-weight: 600; box-shadow: 0 0 6px rgba(56, 189, 248, 0.4);";
 
-    input.onclick = (e) => e.stopPropagation();
-    input.ondblclick = (e) => e.stopPropagation();
+    const stopEvents = (e) => e.stopPropagation();
+    input.onmousedown = stopEvents;
+    input.onclick = stopEvents;
+    input.ondblclick = stopEvents;
 
     let isSaved = false;
     const saveRename = async () => {
         if (isSaved) return;
         isSaved = true;
 
-        const newName = input.value.trim();
-        if (!newName) {
+        let inputVal = input.value.trim();
+        if (!inputVal) {
             if (typeof showToast === 'function') showToast('변경할 제목을 입력해주세요.');
             containerEl.textContent = oldName;
             return;
         }
-        if (newName === oldName) {
+
+        // 입력값에 원래 확장자가 없으면 자동 결합
+        let finalNewName = inputVal;
+        if (ext && !finalNewName.toLowerCase().endsWith(ext.toLowerCase())) {
+            finalNewName += ext;
+        }
+
+        if (finalNewName === oldName) {
             containerEl.textContent = oldName;
             return;
         }
@@ -5696,7 +5711,7 @@ window.startInlineRenameStageBg = function(containerEl, oldName) {
             const res = await fetch('/api/backgrounds/rename', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ old_name: oldName, new_name: newName })
+                body: JSON.stringify({ old_name: oldName, new_name: finalNewName })
             });
 
             if (!res.ok) {
