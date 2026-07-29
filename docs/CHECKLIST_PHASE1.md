@@ -1,0 +1,440 @@
+# 📋 Phase 1 CSS 추출 기능 체크리스트 & 1:1 대조 결과
+
+| HTML 파일명 | 추출된 CSS 파일 | 원본 셀렉터 수 | 추출 셀렉터 수 | 1:1 일치 여부 |
+|---|---|---|---|---|
+| `editor.html` | `frontend/css/editor.css` | 231 | 231 | ✅ 100% 일치 |
+| `index.html` | `frontend/css/index.css` | 80 | 80 | ✅ 100% 일치 |
+| `presenter.html` | `frontend/css/presenter.css` | 98 | 98 | ✅ 100% 일치 |
+
+## 🔍 세부 셀렉터 대조 목록
+
+### 📄 `editor.html` -> `css/editor.css`
+- 총 셀렉터 개수: 231개
+<details><summary>셀렉터 목록 보기</summary>
+
+- `:root`
+- `::-webkit-scrollbar`
+- `::-webkit-scrollbar-track`
+- `::-webkit-scrollbar-thumb`
+- `::-webkit-scrollbar-thumb:hover`
+- `*`
+- `body`
+- `header`
+- `header h1`
+- `.header-logo-group`
+- `.header-nav-menu`
+- `.header-nav-menu .nav-link`
+- `.header-nav-menu .nav-link:hover`
+- `.header-nav-menu .nav-link.active`
+- `.header-center`
+- `.header-center h2`
+- `.header-controls`
+- `.editor-name-group`
+- `.editor-name-group label`
+- `.editor-name-input`
+- `.editor-name-input:focus`
+- `.status-badge`
+- `.status-dot`
+- `.status-badge.connected .status-dot`
+- `.header-actions`
+- `@keyframes spin`
+- `from`
+- `to`
+- `.btn-header-action`
+- `.btn-header-action.btn-save`
+- `.btn-header-action.btn-save:hover:not(:disabled)`
+- `.btn-header-action.btn-save:disabled`
+- `.btn-header-action.btn-cancel:disabled`
+- `.btn-header-action.btn-cancel`
+- `.btn-header-action.btn-cancel:hover:not(:disabled)`
+- `.workspace`
+- `.left-sub-panel.collapsed`
+- `.left-sub-panel.collapsed .sidebar-panel`
+- `.left-sub-panel.collapsed+#left-panel-resizer`
+- `.sidebar-top-toggle`
+- `.sidebar-top-toggle:hover`
+- `.left-nav-sidebar`
+- `.left-nav-sidebar::-webkit-scrollbar`
+- `.nav-tab-btn`
+- `.nav-tab-btn:hover`
+- `.nav-tab-btn.active`
+- `.nav-tab-btn svg`
+- `.nav-tab-btn:hover svg`
+- `.nav-tab-btn.active svg`
+- `.left-sub-panel`
+- `#left-panel-resizer:hover`
+- `#left-panel-resizer.resizing`
+- `.sidebar-panel`
+- `.sidebar-panel.active`
+- `.panel-header`
+- `.panel-header h3`
+- `.panel-body`
+- `.slide-list`
+- `.slide-item`
+- `.slide-item:hover`
+- `.slide-item.editing`
+- `.slide-item.selected-multi`
+- `.slide-item.locked`
+- `.slide-item.editing::before`
+- `.slide-item.locked::before`
+- `.slide-item.editing::before`
+- `.slide-item.locked::before`
+- `.slide-item-checkbox`
+- `.slide-thumbnail-wrapper`
+- `.slide-thumbnail-wrapper img`
+- `.modal-overlay`
+- `.modal-content`
+- `.modal-header h3`
+- `.modal-body`
+- `.modal-slide-grid-container`
+- `.modal-slide-item`
+- `.modal-slide-item:hover`
+- `.modal-slide-item.selected`
+- `.modal-slide-item-badge`
+- `.modal-slide-thumbnail-wrapper`
+- `.modal-slide-thumbnail-wrapper img`
+- `.modal-warning-box`
+- `.modal-footer`
+- `.btn-modal`
+- `.btn-modal.btn-cancel`
+- `.btn-modal.btn-cancel:hover`
+- `.lock-owner-text`
+- `.template-actions`
+- `.template-actions .btn-template-action`
+- `.btn-template-action`
+- `.btn-template-action:hover:not(:disabled)`
+- `.btn-template-action:active:not(:disabled)`
+- `.btn-template-action:disabled`
+- `.template-selector-group`
+- `.template-selector-group label`
+- `.select-field`
+- `.select-field:focus`
+- `.template-buttons`
+- `.template-buttons .btn-template-action`
+- `.template-buttons .btn-apply`
+- `.template-buttons .btn-apply:hover:not(:disabled)`
+- `.template-buttons .btn-delete-tpl`
+- `.template-buttons .btn-delete-tpl:hover:not(:disabled)`
+- `.text-templates-grid`
+- `.btn-add-text-tpl`
+- `.btn-add-text-tpl:hover:not(:disabled)`
+- `.btn-add-text-tpl:disabled`
+- `.btn-add-text-tpl.tpl-title`
+- `.btn-add-text-tpl.tpl-subtitle`
+- `.btn-add-text-tpl.tpl-body`
+- `.shapes-grid`
+- `.btn-shape-item`
+- `.btn-shape-item:hover:not(:disabled)`
+- `.btn-shape-item:disabled`
+- `.shape-icon`
+- `.shape-icon svg`
+- `.canvas-workspace`
+- `.lock-warning-banner`
+- `.canvas-viewport`
+- `.canvas-wrapper-outer`
+- `.canvas-wrapper-outer:focus-within`
+- `.canvas-wrapper-outer.dragover`
+- `.canvas-wrapper`
+- `.canvas-bottom-bar`
+- `.right-inspector-panel`
+- `.right-inspector-panel .panel-header`
+- `.right-inspector-panel .panel-header:active`
+- `.inspector-content`
+- `.inspector-empty`
+- `.empty-icon`
+- `.inspector-empty p`
+- `.inspector-section`
+- `.inspector-section:last-child`
+- `.section-title`
+- `.property-row`
+- `.property-row:last-child`
+- `.property-row.inline`
+- `.property-col`
+- `.property-row label`
+- `.property-col label`
+- `.text-area-field`
+- `.text-area-field:focus`
+- `.fontSize-input`
+- `.fontSize-input:focus`
+- `.color-picker-wrapper`
+- `.fontColor-input`
+- `.fontColor-input::-webkit-color-swatch-wrapper`
+- `.fontColor-input::-webkit-color-swatch`
+- `.color-hex-val`
+- `.btn-group-toggle`
+- `.btn-toggle`
+- `.btn-toggle:hover:not(:disabled)`
+- `.btn-toggle.active`
+- `.btn-toggle:disabled`
+- `.btn-group-toggle .divider`
+- `.opacity-control`
+- `.opacity-control label`
+- `.opacity-control input[type="range"]`
+- `.arrange-grid`
+- `.arrange-grid .ribbon-action-btn`
+- `.arrange-grid .ribbon-action-btn:hover:not(:disabled)`
+- `.arrange-grid .ribbon-action-btn:disabled`
+- `.btn-group-action`
+- `.btn-group-action:hover:not(:disabled)`
+- `.btn-group-action:disabled`
+- `.btn-delete-element`
+- `.btn-delete-element:hover:not(:disabled)`
+- `.btn-delete-element:disabled`
+- `.layer-list`
+- `.layer-item`
+- `.layer-item:hover`
+- `.layer-item.active`
+- `.layer-info`
+- `.layer-icon`
+- `.layer-icon svg`
+- `.layer-name`
+- `.layer-actions`
+- `.layer-action-btn`
+- `.layer-action-btn:hover`
+- `.layer-action-btn.btn-summon:hover`
+- `.layer-action-btn.btn-delete:hover`
+- `.search-mode-tabs .mode-tab-btn.active`
+- `.search-mode-tabs .mode-tab-btn:hover:not(.active)`
+- `.bible-result-item`
+- `.bible-result-item:hover`
+- `.bible-result-item.selected`
+- `.bible-result-item-header`
+- `.bible-result-item-content`
+- `.btn-loading-spinner`
+- `@keyframes spin`
+- `0%`
+- `100%`
+- `.custom-scrollbar::-webkit-scrollbar`
+- `.custom-scrollbar::-webkit-scrollbar-track`
+- `.custom-scrollbar::-webkit-scrollbar-thumb`
+- `.custom-scrollbar::-webkit-scrollbar-thumb:hover`
+- `.bible-preview-overlay`
+- `.bible-preview-header`
+- `.bible-preview-content`
+- `select`
+- `select:focus`
+- `select option`
+- `.bible-book-dropdown-item`
+- `.bible-book-dropdown-item:hover`
+- `.bible-book-dropdown-item.active`
+- `.bible-modal-grid-item`
+- `.bible-modal-grid-item:hover`
+- `.bible-modal-grid-item.selected`
+- `.bible-modal-grid-item img`
+- `.bible-modal-grid-item-title`
+- `#table-bible-main-viewer`
+- `#table-bible-main-viewer tr`
+- `#table-bible-main-viewer tr:hover`
+- `#table-bible-main-viewer tr.selected`
+- `#table-bible-main-viewer td`
+- `#table-bible-main-viewer th`
+- `.slide-context-menu`
+- `.slide-context-menu-item`
+- `.slide-context-menu-item:hover:not(.disabled)`
+- `.slide-context-menu-item.disabled`
+- `.slide-context-menu-divider`
+- `.canvas-floating-toolbar`
+- `@keyframes fadeInFloating`
+- `from`
+- `to`
+- `.btn-compact-action`
+- `.btn-compact-action:hover`
+- `.btn-compact-action.btn-danger:hover`
+- `.compact-divider`
+- `.shortcut-badge`
+- `.btn-compact-action:hover .shortcut-badge`
+
+</details>
+
+### 📄 `index.html` -> `css/index.css`
+- 총 셀렉터 개수: 80개
+<details><summary>셀렉터 목록 보기</summary>
+
+- `:root`
+- `*`
+- `body`
+- `body::before`
+- `body::after`
+- `.top-nav-bar`
+- `.header-logo-group`
+- `.top-nav-bar h1`
+- `.header-nav-menu`
+- `.header-nav-menu .nav-link`
+- `.header-nav-menu .nav-link:hover`
+- `.header-nav-menu .nav-link.active`
+- `.container`
+- `.hero-section`
+- `.hero-section h2`
+- `.hero-section p`
+- `.projects-header`
+- `.projects-title`
+- `.projects-count-badge`
+- `.toolbar-info-bar`
+- `.shortcut-tips`
+- `kbd`
+- `.selected-count-badge`
+- `.selected-count-badge.show`
+- `.btn-create-project`
+- `.btn-create-project:hover`
+- `.project-search-box`
+- `.project-search-input`
+- `.project-search-input:focus`
+- `.project-search-icon`
+- `.project-list`
+- `.project-item`
+- `.project-item:hover`
+- `.project-item.active`
+- `.project-item.selected`
+- `.project-info`
+- `.project-title-row`
+- `.project-name`
+- `.project-name:hover`
+- `.project-name-input`
+- `.active-badge`
+- `.selected-badge`
+- `.project-meta`
+- `.project-actions`
+- `.action-btn`
+- `.btn-select`
+- `.btn-select:hover`
+- `.btn-select.current`
+- `.btn-editor`
+- `.btn-editor:hover`
+- `.btn-presenter`
+- `.btn-presenter:hover`
+- `.btn-export`
+- `.btn-export:hover`
+- `.btn-rename`
+- `.btn-rename:hover`
+- `.btn-delete`
+- `.btn-delete:hover`
+- `.toast-notification`
+- `.toast-notification.show`
+- `.empty-projects`
+- `.modal-overlay`
+- `.modal-overlay.show`
+- `.modal-box`
+- `.modal-overlay.show .modal-box`
+- `.modal-header`
+- `.form-group`
+- `.form-group label`
+- `.form-input`
+- `.form-input:focus`
+- `.modal-footer`
+- `.btn-cancel`
+- `.btn-cancel:hover`
+- `.btn-submit`
+- `.btn-submit:hover`
+- `footer`
+- `@media (max-width: 768px)`
+- `.project-item`
+- `.project-actions`
+- `.toolbar-info-bar`
+
+</details>
+
+### 📄 `presenter.html` -> `css/presenter.css`
+- 총 셀렉터 개수: 98개
+<details><summary>셀렉터 목록 보기</summary>
+
+- `:root`
+- `::-webkit-scrollbar`
+- `::-webkit-scrollbar-track`
+- `::-webkit-scrollbar-thumb`
+- `::-webkit-scrollbar-thumb:hover`
+- `*`
+- `body`
+- `header`
+- `.header-logo-group`
+- `.header-nav-menu`
+- `.header-nav-menu .nav-link`
+- `.header-nav-menu .nav-link:hover`
+- `.header-nav-menu .nav-link.active`
+- `header h1`
+- `.mini-preview-container`
+- `.mini-preview-label`
+- `.mini-preview-label .pulse-dot`
+- `@keyframes pulse-glow`
+- `0%`
+- `70%`
+- `100%`
+- `.preview-screen`
+- `.quick-nav-controls`
+- `.btn-quick-nav`
+- `.btn-quick-nav:hover`
+- `.btn-quick-nav:active`
+- `.slide-indicator-badge`
+- `.header-right-group`
+- `.btn-settings-trigger`
+- `.btn-settings-trigger:hover`
+- `.status-badge`
+- `.status-dot`
+- `.status-badge.connected .status-dot`
+- `.workspace`
+- `.deck-header`
+- `.deck-title`
+- `:root`
+- `.deck-grid`
+- `.slide-item`
+- `.slide-item:hover`
+- `.slide-item.selected`
+- `.slide-item.selected::after`
+- `.slide-item.live`
+- `.slide-item.live::after`
+- `@keyframes live-pulse`
+- `0%`
+- `70%`
+- `100%`
+- `.live-status-badge`
+- `.live-status-badge .live-icon-dot`
+- `.live-status-badge.on`
+- `.live-status-badge.on .live-icon-dot`
+- `.slide-thumbnail-wrapper`
+- `.slide-thumbnail-wrapper img`
+- `.slide-info-row`
+- `.slide-index-label`
+- `.slide-item.live .slide-index-label`
+- `.slide-title-label`
+- `.slide-lock-indicator`
+- `.slide-item.locked .slide-lock-indicator`
+- `.modal-overlay`
+- `.modal-overlay.active`
+- `.modal-container`
+- `.modal-overlay.active .modal-container`
+- `.modal-header`
+- `.modal-header h2`
+- `.modal-close-btn`
+- `.modal-close-btn:hover`
+- `.modal-body`
+- `.modal-container.monitor-modal-container`
+- `.monitor-modal-layout`
+- `.monitor-settings-sidebar`
+- `.monitor-settings-sidebar .shortcut-info-box`
+- `.monitor-settings-sidebar .info-tip-box`
+- `.monitor-preview-container`
+- `.preview-header-bar`
+- `.monitor-preview-box`
+- `.monitor-preview-section`
+- `.monitor-preview-section.current`
+- `.monitor-preview-section.next`
+- `.preview-tag`
+- `.monitor-preview-section.current .preview-tag`
+- `.monitor-preview-section.next .preview-tag`
+- `.preview-content`
+- `.settings-group`
+- `.settings-group h3`
+- `.settings-form-row`
+- `.form-field`
+- `.form-field label`
+- `.form-input`
+- `.form-input:focus`
+- `.btn-save-settings`
+- `.btn-save-settings:hover`
+- `.bg-mode-wrapper`
+- `.bg-mode-option`
+- `.bg-mode-option input`
+- `.shortcut-info-box`
+- `.shortcut-key`
+
+</details>
+
