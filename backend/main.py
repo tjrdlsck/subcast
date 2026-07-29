@@ -324,6 +324,110 @@ async def rename_background_file(req: RenameBackgroundRequest):
     }
 
 
+class DeleteBackgroundsRequest(BaseModel):
+    names: List[str]
+
+
+@app.post("/api/backgrounds/delete")
+async def delete_background_files(req: DeleteBackgroundsRequest):
+    if not req.names:
+        return {"success": True, "deleted_count": 0}
+
+    meta = load_bg_meta()
+    deleted_count = 0
+
+    for name in req.names:
+        name = name.strip()
+        if not name:
+            continue
+        
+        target_path = backgrounds_dir / name
+        if target_path.exists() and target_path.is_file():
+            try:
+                target_path.unlink()
+                deleted_count += 1
+
+                # 썸네일 파일 삭제
+                thumb_path = backgrounds_dir / f"thumb_{target_path.stem}.jpg"
+                if thumb_path.exists():
+                    try:
+                        thumb_path.unlink()
+                    except Exception as te:
+                        logger.warning(f"Failed to delete thumb file: {te}")
+
+                # 메타데이터 삭제
+                if name in meta:
+                    meta.pop(name)
+            except Exception as e:
+                logger.error(f"Failed to delete background file {name}: {e}")
+
+    save_bg_meta(meta)
+    return {"success": True, "deleted_count": deleted_count}
+
+
+class DuplicateBackgroundsRequest(BaseModel):
+    names: List[str]
+
+
+@app.post("/api/backgrounds/duplicate")
+async def duplicate_background_files(req: DuplicateBackgroundsRequest):
+    if not req.names:
+        return {"success": True, "new_files": []}
+
+    meta = load_bg_meta()
+    new_files = []
+
+    for name in req.names:
+        name = name.strip()
+        if not name:
+            continue
+
+        src_path = backgrounds_dir / name
+        if not src_path.exists() or not src_path.is_file():
+            continue
+
+        stem = src_path.stem
+        ext = src_path.suffix
+
+        # 사본 파일명 생성 (예: name_copy.mp4, name_copy(1).mp4)
+        counter = 0
+        while True:
+            copy_suffix = "_copy" if counter == 0 else f"_copy({counter})"
+            new_name = f"{stem}{copy_suffix}{ext}"
+            dst_path = backgrounds_dir / new_name
+            if not dst_path.exists():
+                break
+            counter += 1
+
+        try:
+            shutil.copy2(src_path, dst_path)
+
+            # 썸네일 복사
+            src_thumb = backgrounds_dir / f"thumb_{stem}.jpg"
+            dst_thumb = backgrounds_dir / f"thumb_{dst_path.stem}.jpg"
+            dst_thumb_url = ""
+            if src_thumb.exists():
+                try:
+                    shutil.copy2(src_thumb, dst_thumb)
+                    dst_thumb_url = f"/static/backgrounds/thumb_{dst_path.stem}.jpg"
+                except Exception as te:
+                    logger.warning(f"Failed to copy thumb file: {te}")
+
+            # 메타데이터 복사
+            if name in meta:
+                item_meta = dict(meta[name])
+                if dst_thumb_url:
+                    item_meta["thumbnailUrl"] = dst_thumb_url
+                meta[new_name] = item_meta
+
+            new_files.append(new_name)
+        except Exception as e:
+            logger.error(f"Failed to duplicate background file {name}: {e}")
+
+    save_bg_meta(meta)
+    return {"success": True, "new_files": new_files}
+
+
 class ConnectionManager:
     def __init__(self):
         # 각 역할별 세션 관리

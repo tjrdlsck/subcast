@@ -2575,7 +2575,18 @@
                     const isStageBgVisible = document.getElementById('stage-bg-main-viewer-overlay')?.style.display !== 'none';
                     const isBibleVisible = document.getElementById('bible-main-viewer-overlay')?.style.display !== 'none';
 
-                    if (isStageBgTabActive || isStageBgVisible || isBibleVisible) {
+                    if (isStageBgTabActive || isStageBgVisible) {
+                        if (selectedStageBgFiles && selectedStageBgFiles.length > 0) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (typeof deleteSelectedStageBgFilesWithConfirm === 'function') {
+                                deleteSelectedStageBgFilesWithConfirm();
+                            }
+                            return;
+                        }
+                    }
+
+                    if (isBibleVisible) {
                         e.preventDefault();
                         e.stopPropagation();
                         return;
@@ -2644,6 +2655,14 @@
                     }
                 } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
                     // 복사 (Ctrl+C) - 시스템 클립보드 API 활용
+                    const isStageBgTabActive = document.getElementById('panel-stage-bg')?.classList.contains('active');
+                    const isStageBgVisible = document.getElementById('stage-bg-main-viewer-overlay')?.style.display !== 'none';
+                    if ((isStageBgTabActive || isStageBgVisible) && selectedStageBgFiles && selectedStageBgFiles.length > 0) {
+                        e.preventDefault();
+                        if (typeof copySelectedStageBgFiles === 'function') copySelectedStageBgFiles();
+                        return;
+                    }
+
                     const isPraiseTabActive = document.getElementById('panel-praise')?.classList.contains('active');
                     if (isPraiseTabActive && selectedPraiseSongs && selectedPraiseSongs.length > 0) {
                         e.preventDefault();
@@ -2687,14 +2706,20 @@
                         }
                     } else if (selectedSlideIds.length > 0) {
                         // 2. 슬라이드 복사
-                        const isStageBgTabActive = document.getElementById('panel-stage-bg')?.classList.contains('active');
-                        const isStageBgVisible = document.getElementById('stage-bg-main-viewer-overlay')?.style.display !== 'none';
                         if (!isStageBgTabActive && !isStageBgVisible) {
                             copySelectedSlides();
                         }
                     }
                 } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
                     // 붙여넣기 (Ctrl+V)
+                    const isStageBgTabActive = document.getElementById('panel-stage-bg')?.classList.contains('active');
+                    const isStageBgVisible = document.getElementById('stage-bg-main-viewer-overlay')?.style.display !== 'none';
+                    if ((isStageBgTabActive || isStageBgVisible) && stageBgClipboardFiles && stageBgClipboardFiles.length > 0) {
+                        e.preventDefault();
+                        if (typeof pasteStageBgFiles === 'function') pasteStageBgFiles();
+                        return;
+                    }
+
                     const isPraiseTabActive = document.getElementById('panel-praise')?.classList.contains('active');
                     if (isPraiseTabActive) {
                         e.preventDefault();
@@ -3085,6 +3110,7 @@
         function showPraiseContextMenu(x, y) {
             hideSlideContextMenu();
             hideCanvasContextMenu();
+            hideStageBgContextMenu();
             const menu = document.getElementById("praise-context-menu");
             if (!menu) return;
 
@@ -3134,6 +3160,73 @@
             if (menu) menu.style.display = "none";
         }
 
+        function showStageBgContextMenu(x, y) {
+            hideSlideContextMenu();
+            hideCanvasContextMenu();
+            hidePraiseContextMenu();
+
+            const menu = document.getElementById("stage-bg-context-menu");
+            if (!menu) return;
+
+            const copyBtn = document.getElementById("menu-stage-bg-copy");
+            if (copyBtn) {
+                if (selectedStageBgFiles && selectedStageBgFiles.length > 0) {
+                    copyBtn.classList.remove("disabled");
+                    copyBtn.style.opacity = "1";
+                    copyBtn.style.pointerEvents = "auto";
+                } else {
+                    copyBtn.classList.add("disabled");
+                    copyBtn.style.opacity = "0.5";
+                    copyBtn.style.pointerEvents = "none";
+                }
+            }
+
+            const pasteBtn = document.getElementById("menu-stage-bg-paste");
+            if (pasteBtn) {
+                if (stageBgClipboardFiles && stageBgClipboardFiles.length > 0) {
+                    pasteBtn.classList.remove("disabled");
+                    pasteBtn.style.opacity = "1";
+                    pasteBtn.style.pointerEvents = "auto";
+                } else {
+                    pasteBtn.classList.add("disabled");
+                    pasteBtn.style.opacity = "0.5";
+                    pasteBtn.style.pointerEvents = "none";
+                }
+            }
+
+            const deleteBtn = document.getElementById("menu-stage-bg-delete");
+            if (deleteBtn) {
+                if (selectedStageBgFiles && selectedStageBgFiles.length > 0) {
+                    deleteBtn.classList.remove("disabled");
+                    deleteBtn.style.opacity = "1";
+                    deleteBtn.style.pointerEvents = "auto";
+                } else {
+                    deleteBtn.classList.add("disabled");
+                    deleteBtn.style.opacity = "0.5";
+                    deleteBtn.style.pointerEvents = "none";
+                }
+            }
+
+            menu.style.display = "block";
+            const menuWidth = menu.offsetWidth;
+            const menuHeight = menu.offsetHeight;
+            const winWidth = window.innerWidth;
+            const winHeight = window.innerHeight;
+
+            let posX = x;
+            let posY = y;
+            if (x + menuWidth > winWidth) posX = winWidth - menuWidth - 10;
+            if (y + menuHeight > winHeight) posY = winHeight - menuHeight - 10;
+
+            menu.style.left = `${posX}px`;
+            menu.style.top = `${posY}px`;
+        }
+
+        function hideStageBgContextMenu() {
+            const menu = document.getElementById("stage-bg-context-menu");
+            if (menu) menu.style.display = "none";
+        }
+
         document.addEventListener("mousedown", (e) => {
             if (!e.target.closest("#slide-context-menu")) {
                 hideSlideContextMenu();
@@ -3144,6 +3237,9 @@
             if (!e.target.closest("#praise-context-menu")) {
                 hidePraiseContextMenu();
             }
+            if (!e.target.closest("#stage-bg-context-menu")) {
+                hideStageBgContextMenu();
+            }
         });
 
         // 캔버스 편집 공간 우클릭 시 커스텀 우클릭 팝업 메뉴 표시
@@ -3153,7 +3249,15 @@
             const isPraiseVisible = document.getElementById('praise-main-viewer-overlay')?.style.display !== 'none';
             const isStageBgTabActive = document.getElementById('panel-stage-bg')?.classList.contains('active');
 
-            if (e.target.closest("#stage-bg-main-viewer-overlay") || e.target.closest("#bible-main-viewer-overlay") || e.target.closest("#praise-main-viewer-overlay")) {
+            if (e.target.closest("#stage-bg-main-viewer-overlay") || isStageBgTabActive) {
+                if (e.target.closest("#stage-bg-main-grid") || e.target.closest("#stage-bg-main-viewer-overlay") || e.target.closest("#panel-stage-bg")) {
+                    e.preventDefault();
+                    showStageBgContextMenu(e.clientX, e.clientY);
+                    return;
+                }
+            }
+
+            if (e.target.closest("#bible-main-viewer-overlay") || e.target.closest("#praise-main-viewer-overlay")) {
                 e.preventDefault();
                 return;
             }
@@ -3209,14 +3313,44 @@
             }
         }
 
+        function bindStageBgContextMenuEvents() {
+            const copyBtn = document.getElementById("menu-stage-bg-copy");
+            const pasteBtn = document.getElementById("menu-stage-bg-paste");
+            const deleteBtn = document.getElementById("menu-stage-bg-delete");
+
+            if (copyBtn) {
+                copyBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    hideStageBgContextMenu();
+                    if (typeof copySelectedStageBgFiles === 'function') copySelectedStageBgFiles();
+                };
+            }
+            if (pasteBtn) {
+                pasteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    hideStageBgContextMenu();
+                    if (typeof pasteStageBgFiles === 'function') pasteStageBgFiles();
+                };
+            }
+            if (deleteBtn) {
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    hideStageBgContextMenu();
+                    if (typeof deleteSelectedStageBgFilesWithConfirm === 'function') deleteSelectedStageBgFilesWithConfirm();
+                };
+            }
+        }
+
         if (document.readyState === "loading") {
             document.addEventListener("DOMContentLoaded", () => {
                 bindSlideContextMenuEvents();
                 bindCanvasContextMenuEvents();
+                bindStageBgContextMenuEvents();
             });
         } else {
             bindSlideContextMenuEvents();
             bindCanvasContextMenuEvents();
+            bindStageBgContextMenuEvents();
         }
 
         function bindCanvasContextMenuEvents() {
@@ -5517,6 +5651,10 @@ let currentStageBg = {
     blur: 0
 };
 let allStageBgFiles = [];
+let selectedStageBgFiles = [];
+let stageBgClipboardFiles = [];
+let lastSelectedStageBgIndex = -1;
+let _renderedStageBgFiles = [];
 let pipAmbientAnimId = null;
 let stageBgGridMinSize = 220;
 
@@ -5527,15 +5665,120 @@ function updateStageBgGridColumns() {
     }
 }
 
+// 현장 배경 복사 / 붙여넣기 / 삭제 함수
+window.copySelectedStageBgFiles = function() {
+    if (!selectedStageBgFiles || selectedStageBgFiles.length === 0) return;
+    stageBgClipboardFiles = JSON.parse(JSON.stringify(selectedStageBgFiles));
+    if (typeof showToast === 'function') {
+        showToast(`${selectedStageBgFiles.length}개의 현장 배경이 복사되었습니다.`);
+    }
+};
+
+window.pasteStageBgFiles = async function() {
+    if (!stageBgClipboardFiles || stageBgClipboardFiles.length === 0) return;
+    try {
+        const res = await fetch('/api/backgrounds/duplicate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ names: stageBgClipboardFiles.map(f => f.name) })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (typeof showToast === 'function') {
+                showToast(`${data.new_files?.length || 0}개의 현장 배경이 붙여넣기 되었습니다.`);
+            }
+            await loadStageBgLibrary();
+        } else {
+            const err = await res.json().catch(() => ({}));
+            alert("붙여넣기 실패: " + (err.detail || res.statusText));
+        }
+    } catch (e) {
+        console.error("Failed to paste stage bg files", e);
+    }
+};
+
+window.deleteSelectedStageBgFilesWithConfirm = async function(confirmRequired = true) {
+    if (!selectedStageBgFiles || selectedStageBgFiles.length === 0) return;
+
+    if (confirmRequired) {
+        const namesStr = selectedStageBgFiles.map(f => f.name).slice(0, 3).join(", ") + (selectedStageBgFiles.length > 3 ? ` 외 ${selectedStageBgFiles.length - 3}건` : "");
+        if (!confirm(`선택한 현장 배경 파일 (${selectedStageBgFiles.length}개: ${namesStr})을 삭제하시겠습니까?`)) {
+            return;
+        }
+    }
+
+    try {
+        const res = await fetch('/api/backgrounds/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ names: selectedStageBgFiles.map(f => f.name) })
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            if (typeof showToast === 'function') {
+                showToast(`${data.deleted_count || 0}개의 현장 배경이 삭제되었습니다.`);
+            }
+            selectedStageBgFiles = [];
+            await loadStageBgLibrary();
+        } else {
+            const err = await res.json().catch(() => ({}));
+            alert("삭제 실패: " + (err.detail || res.statusText));
+        }
+    } catch (e) {
+        console.error("Failed to delete stage bg files", e);
+    }
+};
+
+window.handleStageBgCardClick = function(e, index) {
+    const fileObj = _renderedStageBgFiles[index];
+    if (!fileObj) return;
+
+    if (e.ctrlKey || e.metaKey) {
+        const existsIdx = selectedStageBgFiles.findIndex(f => f.name === fileObj.name);
+        if (existsIdx !== -1) {
+            selectedStageBgFiles.splice(existsIdx, 1);
+        } else {
+            selectedStageBgFiles.push(fileObj);
+        }
+        lastSelectedStageBgIndex = index;
+    } else if (e.shiftKey && lastSelectedStageBgIndex >= 0) {
+        const start = Math.min(lastSelectedStageBgIndex, index);
+        const end = Math.max(lastSelectedStageBgIndex, index);
+        for (let i = start; i <= end; i++) {
+            const targetFile = _renderedStageBgFiles[i];
+            if (targetFile && !selectedStageBgFiles.some(f => f.name === targetFile.name)) {
+                selectedStageBgFiles.push(targetFile);
+            }
+        }
+    } else {
+        selectedStageBgFiles = [fileObj];
+        lastSelectedStageBgIndex = index;
+        selectStageBg({type: 'video', videoUrl: fileObj.url, title: fileObj.name}, false);
+    }
+
+    filterAndRenderStageBgLibrary();
+};
+
+window.handleStageBgCardContextMenu = function(e, index) {
+    e.preventDefault();
+    e.stopPropagation();
+    const fileObj = _renderedStageBgFiles[index];
+    if (fileObj) {
+        if (!selectedStageBgFiles.some(f => f.name === fileObj.name)) {
+            selectedStageBgFiles = [fileObj];
+            lastSelectedStageBgIndex = index;
+            filterAndRenderStageBgLibrary();
+        }
+    }
+    showStageBgContextMenu(e.clientX, e.clientY);
+};
+
 // 현장 배경 메인 뷰어 열기/닫기
 function showStageBgMainViewer() {
     const overlay = document.getElementById('stage-bg-main-viewer-overlay');
     if (overlay) {
         overlay.style.display = 'flex';
-        overlay.oncontextmenu = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        };
     }
 
     const gridBody = document.getElementById('stage-bg-main-grid-body');
@@ -5598,6 +5841,8 @@ function filterAndRenderStageBgLibrary() {
         return true;
     });
 
+    _renderedStageBgFiles = filesToRender;
+
     let html = '';
 
     // 1. 기본 앰비언트 파티클 카드
@@ -5621,17 +5866,23 @@ function filterAndRenderStageBgLibrary() {
 
     // 2. 동영상 라이브러리 카드들
     if (filterVal !== 'ambient') {
-        filesToRender.forEach(f => {
+        filesToRender.forEach((f, idx) => {
             const isCurrent = currentStageBg.type === 'video' && currentStageBg.videoUrl === f.url;
+            const isSelected = selectedStageBgFiles.some(sel => sel.name === f.name);
             const filenameWOExt = f.name.substring(0, f.name.lastIndexOf('.'));
             const isYt = filenameWOExt.length === 11 && !f.name.startsWith('upload_');
             const thumbUrl = f.thumbnailUrl || (isYt ? `https://img.youtube.com/vi/${filenameWOExt}/hqdefault.jpg` : '');
             const escOldName = f.name.replace(/'/g, "\\'");
             const safeName = f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+            const borderStyle = isSelected ? '2px solid #38bdf8' : (isCurrent ? '2px solid #0284c7' : '2px solid var(--panel-border, #3f3f46)');
+            const bgStyle = isSelected ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255,255,255,0.04)';
+
             html += `
-                <div class="stage-bg-card-main ${isCurrent ? 'active' : ''}" onclick="selectStageBg({type: 'video', videoUrl: '${f.url}', title: '${escOldName}'})" 
-                    style="background: rgba(255,255,255,0.04); border: 2px solid ${isCurrent ? '#38bdf8' : 'var(--panel-border, #3f3f46)'}; border-radius: 8px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; transition: all 0.2s; position: relative;">
+                <div class="stage-bg-card-main ${isCurrent ? 'active' : ''} ${isSelected ? 'selected' : ''}" 
+                    onclick="handleStageBgCardClick(event, ${idx})" 
+                    oncontextmenu="handleStageBgCardContextMenu(event, ${idx})"
+                    style="background: ${bgStyle}; border: ${borderStyle}; border-radius: 8px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; transition: all 0.2s; position: relative;">
                     ${isCurrent ? `<span style="position: absolute; top: 10px; right: 10px; background: #0284c7; color: #fff; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">적용 중</span>` : ''}
                     <div style="width: 100%; aspect-ratio: 16/9; max-height: 140px; background: #0f172a; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative;">
                         ${thumbUrl ? `<img src="${thumbUrl}" style="width: 100%; height: 100%; object-fit: cover;">` : `<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #60a5fa;"><span style="font-size: 2rem;">🎬</span><span style="font-size: 0.68rem; color: var(--text-muted);">로컬 미디어</span></div>`}
@@ -5643,9 +5894,6 @@ function filterAndRenderStageBgLibrary() {
                              onclick="event.stopPropagation();" 
                              ondblclick="event.stopPropagation(); startInlineRenameStageBg(this, '${escOldName}')">
                             ${safeName}
-                        </div>
-                        <div style="font-size: 0.7rem; color: #34d399; display: flex; align-items: center; gap: 4px;">
-                            <span>● 로컬 고화질 보관됨</span>
                         </div>
                     </div>
                 </div>
@@ -5751,11 +5999,16 @@ window.startInlineRenameStageBg = function(containerEl, oldName) {
     input.select();
 };
 
-window.selectStageBg = function(config) {
+window.selectStageBg = function(config, shouldRender = true) {
     currentStageBg.type = config.type;
+    if (config.type === 'ambient') {
+        selectedStageBgFiles = [];
+    }
     if (config.videoUrl) currentStageBg.videoUrl = config.videoUrl;
     applyAndBroadcastStageBg();
-    filterAndRenderStageBgLibrary();
+    if (shouldRender) {
+        filterAndRenderStageBgLibrary();
+    }
 };
 
 function applyAndBroadcastStageBg() {
