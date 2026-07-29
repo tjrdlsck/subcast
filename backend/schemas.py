@@ -50,6 +50,9 @@ class SystemSettings(BaseModel):
     targetHeight: int = 1080
     currentLiveSlideId: Optional[str] = None
     backgroundMode: str = "transparent"
+    stageBackground: Optional[Dict[str, Any]] = None
+    stageBgLibrary: Optional[List[Dict[str, Any]]] = None
+
 
 class ProjectData(BaseModel):
     id: str = "proj_default"

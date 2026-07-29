@@ -1,16 +1,17 @@
-/* viewer.css */
-* {
-    box-sizing: border-box;
+html, body {
+    width: 100vw;
+    height: 100vh;
     margin: 0;
     padding: 0;
+    overflow: hidden !important;
+    position: fixed;
+    top: 0;
+    left: 0;
 }
 body {
     background-color: transparent !important; /* OBS 투명 오버레이를 위해 투명 설정 */
     color: #ffffff;
     font-family: 'Inter', sans-serif;
-    overflow: hidden;
-    width: 100vw;
-    height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -25,6 +26,7 @@ body {
     opacity: 1;
     transition: opacity 0.8s ease-in-out; /* 부드러운 사라짐 효과 */
     background: transparent;
+    z-index: 10;
 }
 /* 연결 유실 시 강제 페이드 아웃 */
 body.system-disconnected #canvas-container {
@@ -78,7 +80,16 @@ body.stage-mode {
     opacity: 0.85;
 }
 
-#canvas-container {
-    z-index: 10;
+#stage-video-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    z-index: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
 }
+
 

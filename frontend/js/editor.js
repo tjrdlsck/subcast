@@ -5460,3 +5460,178 @@
             }
             return vPos + " " + hPos;
         }
+
+// === 현장 모니터 배경 연출 모듈 ===
+let currentStageBg = {
+    type: 'ambient',
+    videoUrl: '',
+    opacity: 0.8,
+    blur: 0
+};
+
+async function loadStageBgLibrary() {
+    try {
+        const res = await fetch('/api/backgrounds/list');
+        if (res.ok) {
+            const data = await res.json();
+            renderStageBgLibrary(data.files || []);
+        }
+    } catch (e) {
+        console.error("Failed to load stage bg list", e);
+    }
+}
+
+function renderStageBgLibrary(files) {
+    const listContainer = document.getElementById('stage-bg-library-list');
+    if (!listContainer) return;
+
+    let html = `
+        <div class="stage-bg-card ${currentStageBg.type === 'ambient' ? 'active' : ''}" onclick="selectStageBg({type: 'ambient'})" style="background: rgba(255,255,255,0.05); border: 2px solid ${currentStageBg.type === 'ambient' ? 'var(--primary)' : 'var(--panel-border)'}; border-radius: 6px; padding: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px;">
+            <div style="width: 48px; height: 36px; background: linear-gradient(45deg, #0b0f19, #0369a1); border-radius: 4px; flex-shrink: 0;"></div>
+            <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 0.8rem; font-weight: 600; color: #fff;">기본 앰비언트 파티클</div>
+                <div style="font-size: 0.7rem; color: var(--text-muted);">Canvas Gradient Motion</div>
+            </div>
+        </div>
+    `;
+
+    files.forEach(f => {
+        const isCurrent = currentStageBg.type === 'video' && currentStageBg.videoUrl === f.url;
+        const filenameWOExt = f.name.substring(0, f.name.lastIndexOf('.'));
+        const isYt = filenameWOExt.length === 11 && !f.name.startsWith('upload_');
+        const thumbUrl = isYt ? `https://img.youtube.com/vi/${filenameWOExt}/hqdefault.jpg` : '';
+        
+        html += `
+            <div class="stage-bg-card ${isCurrent ? 'active' : ''}" onclick="selectStageBg({type: 'video', videoUrl: '${f.url}', title: '${f.name}'})" style="background: rgba(255,255,255,0.05); border: 2px solid ${isCurrent ? 'var(--primary)' : 'var(--panel-border)'}; border-radius: 6px; padding: 10px; cursor: pointer; display: flex; align-items: center; gap: 10px;">
+                ${thumbUrl ? `<img src="${thumbUrl}" style="width: 48px; height: 36px; object-fit: cover; border-radius: 4px; flex-shrink: 0;">` : `<div style="width: 48px; height: 36px; background: #1e1b4b; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; border-radius: 4px; flex-shrink: 0;">🎬</div>`}
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 0.78rem; font-weight: 600; color: #fff; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${f.name}</div>
+                    <div style="font-size: 0.68rem; color: #34d399;">● 로컬 보관 완료</div>
+                </div>
+            </div>
+        `;
+    });
+
+    listContainer.innerHTML = html;
+}
+
+window.selectStageBg = function(config) {
+    currentStageBg.type = config.type;
+    if (config.videoUrl) currentStageBg.videoUrl = config.videoUrl;
+    applyAndBroadcastStageBg();
+    loadStageBgLibrary();
+};
+
+function applyAndBroadcastStageBg() {
+    const opacityInput = document.getElementById('range-stage-bg-opacity');
+    const blurInput = document.getElementById('range-stage-bg-blur');
+    if (opacityInput) currentStageBg.opacity = parseFloat(opacityInput.value) / 100;
+    if (blurInput) currentStageBg.blur = parseInt(blurInput.value) || 0;
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+            type: 'SET_STAGE_BACKGROUND',
+            background: currentStageBg
+        }));
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadStageBgLibrary();
+
+    const opacityInput = document.getElementById('range-stage-bg-opacity');
+    const opacityVal = document.getElementById('val-stage-bg-opacity');
+    if (opacityInput) {
+        opacityInput.addEventListener('input', (e) => {
+            if (opacityVal) opacityVal.innerText = `${e.target.value}%`;
+            applyAndBroadcastStageBg();
+        });
+    }
+
+    const blurInput = document.getElementById('range-stage-bg-blur');
+    const blurVal = document.getElementById('val-stage-bg-blur');
+    if (blurInput) {
+        blurInput.addEventListener('input', (e) => {
+            if (blurVal) blurVal.innerText = `${e.target.value}px`;
+            applyAndBroadcastStageBg();
+        });
+    }
+
+    const btnYtDl = document.getElementById('btn-yt-bg-download');
+    const inputYtUrl = document.getElementById('input-yt-bg-url');
+    const statusYt = document.getElementById('yt-download-status');
+
+    if (btnYtDl && inputYtUrl) {
+        btnYtDl.addEventListener('click', async () => {
+            const url = inputYtUrl.value.trim();
+            if (!url) {
+                alert("유튜브 URL을 입력해 주세요.");
+                return;
+            }
+            if (statusYt) {
+                statusYt.style.display = 'block';
+                statusYt.style.color = '#fbbf24';
+                statusYt.innerText = "⏳ 백엔드에서 고화질 비디오를 다운로드하는 중입니다...";
+            }
+            btnYtDl.disabled = true;
+
+            try {
+                const res = await fetch('/api/backgrounds/download-youtube', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    if (statusYt) {
+                        statusYt.style.color = '#34d399';
+                        statusYt.innerText = `✅ 다운로드 완료! (${data.title})`;
+                    }
+                    inputYtUrl.value = '';
+                    selectStageBg({ type: 'video', videoUrl: data.videoUrl, title: data.title });
+                } else {
+                    if (statusYt) {
+                        statusYt.style.color = '#ef4444';
+                        statusYt.innerText = `❌ 실패: ${data.detail || '다운로드 중 오류가 발생했습니다.'}`;
+                    }
+                }
+            } catch (e) {
+                if (statusYt) {
+                    statusYt.style.color = '#ef4444';
+                    statusYt.innerText = `❌ 서버 통신 오류: ${e.message}`;
+                }
+            } finally {
+                btnYtDl.disabled = false;
+            }
+        });
+    }
+
+    const btnUploadFile = document.getElementById('btn-upload-bg-file');
+    const inputUploadFile = document.getElementById('file-upload-bg-input');
+
+    if (btnUploadFile && inputUploadFile) {
+        btnUploadFile.addEventListener('click', () => inputUploadFile.click());
+        inputUploadFile.addEventListener('change', async () => {
+            if (!inputUploadFile.files || !inputUploadFile.files[0]) return;
+            const file = inputUploadFile.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch('/api/backgrounds/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    selectStageBg({ type: 'video', videoUrl: data.videoUrl, title: data.filename });
+                } else {
+                    alert(`업로드 실패: ${data.detail || '오류 발생'}`);
+                }
+            } catch (e) {
+                alert(`업로드 실패: ${e.message}`);
+            }
+        });
+    }
+});
+

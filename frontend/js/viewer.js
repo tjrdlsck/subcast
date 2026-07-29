@@ -183,6 +183,9 @@
                         targetHeight = projectData.settings.targetHeight || 1080;
                         const bgMode = projectData.settings.backgroundMode || 'transparent';
                         document.body.classList.toggle('chromakey-mode', bgMode === 'chromakey');
+                        if (projectData.settings.stageBackground) {
+                            applyStageBackground(projectData.settings.stageBackground);
+                        }
                     }
                     updateCanvasDimensions();
                 } 
@@ -191,6 +194,12 @@
                         projectData.settings.backgroundMode = message.mode;
                     }
                     document.body.classList.toggle('chromakey-mode', message.mode === 'chromakey');
+                }
+                else if (message.type === 'SET_STAGE_BACKGROUND') {
+                    if (projectData && projectData.settings) {
+                        projectData.settings.stageBackground = message.background;
+                    }
+                    applyStageBackground(message.background);
                 }
                 else if (message.type === 'SLIDE_CHANGE') {
                     if (projectData) {
@@ -288,6 +297,44 @@
                 localStorage.setItem("subcast_monitor_settings", JSON.stringify(settings));
             } catch (e) {
                 console.error("Failed to save monitor font size", e);
+            }
+        }
+
+        function applyStageBackground(bgConfig) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const channel = urlParams.get('channel');
+            const isStageMode = channel === 'stage' || urlParams.get('mode') === 'stage';
+            if (!isStageMode) return;
+
+            document.body.classList.add('stage-mode');
+
+            const videoEl = document.getElementById('stage-video-bg');
+            const motionCanvas = document.getElementById('stage-motion-bg');
+
+            if (!bgConfig || bgConfig.type === 'ambient') {
+                if (videoEl) {
+                    videoEl.pause();
+                    videoEl.style.display = 'none';
+                }
+                initStageMotionBg();
+                if (motionCanvas) motionCanvas.style.display = 'block';
+            } else if (bgConfig.type === 'video' && bgConfig.videoUrl) {
+                if (motionCanvas) motionCanvas.style.display = 'none';
+                if (videoEl) {
+                    videoEl.style.display = 'block';
+                    const fullUrl = bgConfig.videoUrl.startsWith('http') ? bgConfig.videoUrl : window.location.origin + bgConfig.videoUrl;
+                    if (videoEl.src !== fullUrl) {
+                        videoEl.src = bgConfig.videoUrl;
+                        videoEl.load();
+                        videoEl.play().catch(e => console.warn("Video autoplay prevented:", e));
+                    } else if (videoEl.paused) {
+                        videoEl.play().catch(e => console.warn("Video play failed:", e));
+                    }
+                    const opacity = bgConfig.opacity !== undefined ? bgConfig.opacity : 0.8;
+                    videoEl.style.opacity = opacity;
+                    const blur = bgConfig.blur !== undefined ? bgConfig.blur : 0;
+                    videoEl.style.filter = blur > 0 ? `blur(${blur}px)` : 'none';
+                }
             }
         }
 

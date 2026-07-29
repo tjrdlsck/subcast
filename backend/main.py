@@ -16,6 +16,8 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, HTTPExceptio
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
 from pathlib import Path
+from pydantic import BaseModel
+
 
 from backend.schemas import ProjectData, SystemSettings, Slide, ProjectCreateRequest, ProjectUpdateRequest, ProjectListItem, ProjectBatchRequest
 from backend.storage import (
@@ -57,6 +59,101 @@ app = FastAPI(title="Subcast API", version="1.4", lifespan=lifespan)
 # 정적 파일 디렉토리 설정 (없으면 임시 생성)
 frontend_dir = Path("frontend")
 frontend_dir.mkdir(exist_ok=True)
+
+backgrounds_dir = Path("data/backgrounds")
+backgrounds_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/static/backgrounds", StaticFiles(directory=backgrounds_dir), name="backgrounds")
+
+class YouTubeDownloadRequest(BaseModel):
+    url: str
+
+@app.get("/api/backgrounds/list")
+async def list_background_files():
+    files = []
+    if backgrounds_dir.exists():
+        for p in backgrounds_dir.glob("*"):
+            if p.suffix.lower() in [".mp4", ".webm", ".mov", ".avi", ".jpg", ".png"]:
+                files.append({
+                    "name": p.name,
+                    "url": f"/static/backgrounds/{p.name}",
+                    "size": p.stat().st_size
+                })
+    return {"files": files}
+
+@app.post("/api/backgrounds/download-youtube")
+async def download_youtube_background(req: YouTubeDownloadRequest):
+    url = req.url.strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="유튜브 URL을 입력해주세요.")
+
+    try:
+        import yt_dlp
+    except ImportError:
+        raise HTTPException(status_code=500, detail="yt-dlp 패키지가 설치되어 있지 않습니다.")
+
+    try:
+        ydl_opts = {
+            'format': 'bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            'outtmpl': str(backgrounds_dir / '%(id)s.%(ext)s'),
+            'quiet': True,
+            'no_warnings': True,
+            'overwrites': True
+        }
+        
+        def _download():
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                video_id = info.get('id')
+                ext = info.get('ext', 'mp4')
+                title = info.get('title', 'YouTube Video')
+                return video_id, ext, title
+
+        loop = asyncio.get_running_loop()
+        video_id, ext, title = await loop.run_in_executor(None, _download)
+
+        filename = f"{video_id}.{ext}"
+        video_path = backgrounds_dir / filename
+        if not video_path.exists():
+            candidates = list(backgrounds_dir.glob(f"{video_id}.*"))
+            if candidates:
+                filename = candidates[0].name
+
+        thumbnail_url = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
+
+        return {
+            "success": True,
+            "id": video_id,
+            "title": title,
+            "filename": filename,
+            "videoUrl": f"/static/backgrounds/{filename}",
+            "thumbnailUrl": thumbnail_url
+        }
+    except Exception as e:
+        logger.error(f"Failed to download YouTube video: {e}")
+        raise HTTPException(status_code=500, detail=f"유튜브 동영상 다운로드 실패: {str(e)}")
+
+@app.post("/api/backgrounds/upload")
+async def upload_background_file(file: UploadFile = File(...)):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="파일명이 올바르지 않습니다.")
+    
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in [".mp4", ".webm", ".mov", ".avi"]:
+        raise HTTPException(status_code=400, detail="동영상 파일(.mp4, .webm 등)만 업로드 가능합니다.")
+
+    unique_name = f"upload_{uuid.uuid4().hex[:8]}_{file.filename}"
+    save_path = backgrounds_dir / unique_name
+    
+    with open(save_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+
+    return {
+        "success": True,
+        "filename": unique_name,
+        "videoUrl": f"/static/backgrounds/{unique_name}"
+    }
+
 
 class ConnectionManager:
     def __init__(self):
@@ -986,6 +1083,18 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                         "mode": mode
                     })
                     logger.info(f"Background mode updated to: {mode}")
+
+            elif msg_type == "SET_STAGE_BACKGROUND":
+                bg_data = message.get("background", {})
+                if manager.project_data and manager.project_data.settings:
+                    setattr(manager.project_data.settings, "stageBackground", bg_data)
+                    await save_project_data(manager.project_data)
+                
+                await manager.broadcast({
+                    "type": "SET_STAGE_BACKGROUND",
+                    "background": bg_data
+                })
+                logger.info(f"Stage background updated: {bg_data.get('type')}")
 
             elif msg_type == "UPDATE_RESOLUTION":
                 # 해상도 설정 저장 및 전파
