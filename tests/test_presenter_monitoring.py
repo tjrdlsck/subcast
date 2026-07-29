@@ -21,14 +21,20 @@ def test_presenter_monitoring_button_and_modal():
     assert 'name="monitor-layout"' in content, "레이아웃 비율 옵션 라디오가 존재해야 합니다."
     assert 'name="monitor-bible"' in content, "성경 표출 옵션 라디오가 존재해야 합니다."
     assert 'id="monitor-preview-box"' in content, "모달 내 실시간 미리보기 컨테이너(#monitor-preview-box)가 존재해야 합니다."
-    assert 'updateMonitorPreview' in content, "실시간 미리보기 업데이트 로직(updateMonitorPreview)이 존재해야 합니다."
+    presenter_js_path = Path("frontend/js/presenter.js")
+    js_content = presenter_js_path.read_text(encoding="utf-8") if presenter_js_path.exists() else ""
+    full_content = content + js_content
+    assert 'updateMonitorPreview' in full_content, "실시간 미리보기 업데이트 로직(updateMonitorPreview)이 존재해야 합니다."
 
 def test_viewer_monitor_mode_support():
     viewer_path = Path("frontend/viewer.html")
     assert viewer_path.exists(), "viewer.html 파일이 존재해야 합니다."
     
     content = viewer_path.read_text(encoding="utf-8")
+    viewer_js_path = Path("frontend/js/viewer.js")
+    js_content = viewer_js_path.read_text(encoding="utf-8") if viewer_js_path.exists() else ""
+    full_content = content + js_content
     
     # mode=monitor 쿼리 파라미터 감지 및 모니터링 레이아웃 렌더링 지원 검증
-    assert "mode=monitor" in content or "urlParams.get('mode') === 'monitor'" in content, "mode=monitor 쿼리 파라미터 감지 로직이 존재해야 합니다."
-    assert "renderMonitorView" in content, "renderMonitorView 함수가 존재해야 합니다."
+    assert "mode=monitor" in full_content or "urlParams.get('mode') === 'monitor'" in full_content, "mode=monitor 쿼리 파라미터 감지 로직이 존재해야 합니다."
+    assert "renderMonitorView" in full_content, "renderMonitorView 함수가 존재해야 합니다."
