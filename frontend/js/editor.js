@@ -6294,23 +6294,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputYtUrl = document.getElementById('input-yt-bg-url');
     const statusYt = document.getElementById('yt-download-status');
 
-    const btnYtDlMain = document.getElementById('btn-yt-bg-download-main');
-    const inputYtUrlMain = document.getElementById('input-yt-bg-url-main');
-    const statusYtMain = document.getElementById('yt-download-status-main');
-
     function updateYtStatus(text, color = '#fbbf24', isVisible = true) {
-        [statusYt, statusYtMain].forEach(el => {
-            if (el) {
-                el.style.display = isVisible ? 'block' : 'none';
-                el.style.color = color;
-                el.innerText = text;
-            }
-        });
+        if (statusYt) {
+            statusYt.style.display = isVisible ? 'block' : 'none';
+            statusYt.style.color = color;
+            statusYt.innerText = text;
+        }
     }
 
-    async function handleYtDownload(targetInput = inputYtUrl) {
-        const urlInput = (targetInput && targetInput.value.trim()) ? targetInput : (inputYtUrl?.value.trim() ? inputYtUrl : inputYtUrlMain);
-        const url = urlInput ? urlInput.value.trim() : '';
+    async function handleYtDownload() {
+        const url = inputYtUrl ? inputYtUrl.value.trim() : '';
         if (!url) {
             alert("유튜브 URL을 입력해 주세요.");
             return;
@@ -6320,7 +6313,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateYtStatus("⏳ 백엔드에서 고화질 비디오를 다운로드하는 중입니다... 0%", '#fbbf24');
 
         if (btnYtDl) btnYtDl.disabled = true;
-        if (btnYtDlMain) btnYtDlMain.disabled = true;
 
         let pollInterval = setInterval(async () => {
             try {
@@ -6341,11 +6333,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ url: url, task_id: taskId })
             });
             clearInterval(pollInterval);
-            const data = await res.json();
+            let data = {};
+            try {
+                const text = await res.text();
+                data = JSON.parse(text);
+            } catch (jsonErr) {
+                data = { detail: `HTTP ${res.status} 서버 에러가 발생했습니다.` };
+            }
+
             if (res.ok && data.success) {
                 updateYtStatus(`✅ 다운로드 완료! 100% (${data.title})`, '#34d399');
                 if (inputYtUrl) inputYtUrl.value = '';
-                if (inputYtUrlMain) inputYtUrlMain.value = '';
                 selectStageBg({ type: 'video', videoUrl: data.videoUrl, title: data.title });
                 await loadStageBgLibrary();
             } else {
@@ -6356,29 +6354,24 @@ document.addEventListener('DOMContentLoaded', () => {
             updateYtStatus(`❌ 서버 통신 오류: ${e.message}`, '#ef4444');
         } finally {
             if (btnYtDl) btnYtDl.disabled = false;
-            if (btnYtDlMain) btnYtDlMain.disabled = false;
         }
     }
 
-    [ { btn: btnYtDl, input: inputYtUrl }, { btn: btnYtDlMain, input: inputYtUrlMain } ].forEach(({ btn, input }) => {
-        if (btn && input) {
-            btn.addEventListener('click', () => handleYtDownload(input));
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleYtDownload(input);
-                }
-            });
-        }
-    });
+    if (btnYtDl && inputYtUrl) {
+        btnYtDl.addEventListener('click', handleYtDownload);
+        inputYtUrl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleYtDownload();
+            }
+        });
+    }
 
     const btnUploadFile = document.getElementById('btn-upload-bg-file');
     const inputUploadFile = document.getElementById('file-upload-bg-input');
-    const btnUploadFileMain = document.getElementById('btn-upload-bg-file-main');
-    const inputUploadFileMain = document.getElementById('file-upload-bg-input-main');
 
     async function handleLocalFileUpload(fileInput) {
-        if (!fileInput.files || !fileInput.files[0]) return;
+        if (!fileInput || !fileInput.files || !fileInput.files[0]) return;
         const file = fileInput.files[0];
         const formData = new FormData();
         formData.append('file', file);
@@ -6423,11 +6416,9 @@ document.addEventListener('DOMContentLoaded', () => {
         xhr.send(formData);
     }
 
-    [ { btn: btnUploadFile, input: inputUploadFile }, { btn: btnUploadFileMain, input: inputUploadFileMain } ].forEach(({ btn, input }) => {
-        if (btn && input) {
-            btn.addEventListener('click', () => input.click());
-            input.addEventListener('change', () => handleLocalFileUpload(input));
-        }
-    });
+    if (btnUploadFile && inputUploadFile) {
+        btnUploadFile.addEventListener('click', () => inputUploadFile.click());
+        inputUploadFile.addEventListener('change', () => handleLocalFileUpload(inputUploadFile));
+    }
 });
 

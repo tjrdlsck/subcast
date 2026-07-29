@@ -187,7 +187,7 @@ async def download_youtube_background(req: YouTubeDownloadRequest):
                 yt_download_progress[task_id] = 100
 
         ydl_opts = {
-            'format': 'best[ext=mp4]/bestvideo[ext=mp4]/best',
+            'format': 'b/bv*+ba/best',
             'outtmpl': str(backgrounds_dir / '%(id)s.%(ext)s'),
             'noplaylist': True,
             'quiet': True,
