@@ -2,12 +2,19 @@
   "id": "proj_49f65a43",
   "name": "테스트",
   "createdAt": "2026-07-26 10:40:10",
-  "updatedAt": "2026-07-28 20:41:27",
+  "updatedAt": "2026-07-29 20:15:19",
   "settings": {
     "targetWidth": 1920,
     "targetHeight": 1080,
     "currentLiveSlideId": null,
-    "backgroundMode": "transparent"
+    "backgroundMode": "transparent",
+    "stageBackground": {
+      "type": "video",
+      "videoUrl": "/static/backgrounds/ve7RHhA240k.mp4",
+      "opacity": 0.8,
+      "blur": 0
+    },
+    "stageBgLibrary": null
   },
   "slides": [
     {

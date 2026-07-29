@@ -85,6 +85,26 @@ def save_bg_meta(meta: dict):
         logger.error(f"Failed to save bg meta: {e}")
 
 
+def generate_thumbnail_ffmpeg(video_path: Path, output_thumb_path: Path, timestamp_sec: float = 1.0) -> bool:
+    try:
+        import imageio_ffmpeg
+        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        cmd = [
+            ffmpeg_exe,
+            "-ss", str(timestamp_sec),
+            "-i", str(video_path),
+            "-vframes", "1",
+            "-q:v", "2",
+            "-y",
+            str(output_thumb_path)
+        ]
+        res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10)
+        return res.returncode == 0 and output_thumb_path.exists()
+    except Exception as e:
+        logger.error(f"Failed to generate thumbnail for {video_path.name}: {e}")
+        return False
+
+
 class YouTubeDownloadRequest(BaseModel):
     url: str
 
@@ -93,17 +113,34 @@ class YouTubeDownloadRequest(BaseModel):
 async def list_background_files():
     files = []
     meta = load_bg_meta()
+    meta_updated = False
+
     if backgrounds_dir.exists():
         for p in backgrounds_dir.glob("*"):
-            if p.name == "meta.json":
+            if p.name == "meta.json" or p.name.startswith("thumb_"):
                 continue
             if p.suffix.lower() in [".mp4", ".webm", ".mov", ".avi", ".jpg", ".png"]:
                 item_meta = meta.get(p.name, {})
                 thumb_url = item_meta.get("thumbnailUrl")
+
                 if not thumb_url:
                     filename_no_ext = p.stem
                     if len(filename_no_ext) == 11 and not p.name.startswith("upload_"):
                         thumb_url = f"https://img.youtube.com/vi/{filename_no_ext}/hqdefault.jpg"
+                    elif p.suffix.lower() in [".mp4", ".webm", ".mov", ".avi"]:
+                        thumb_filename = f"thumb_{p.stem}.jpg"
+                        thumb_path = backgrounds_dir / thumb_filename
+                        if not thumb_path.exists():
+                            if generate_thumbnail_ffmpeg(p, thumb_path):
+                                thumb_url = f"/static/backgrounds/{thumb_filename}"
+                        else:
+                            thumb_url = f"/static/backgrounds/{thumb_filename}"
+
+                    if thumb_url:
+                        if p.name not in meta:
+                            meta[p.name] = {}
+                        meta[p.name]["thumbnailUrl"] = thumb_url
+                        meta_updated = True
 
                 files.append({
                     "name": p.name,
@@ -111,6 +148,10 @@ async def list_background_files():
                     "size": p.stat().st_size,
                     "thumbnailUrl": thumb_url or ""
                 })
+
+    if meta_updated:
+        save_bg_meta(meta)
+
     return {"files": files}
 
 
@@ -198,10 +239,24 @@ async def upload_background_file(file: UploadFile = File(...)):
         content = await file.read()
         f.write(content)
 
+    thumb_filename = f"thumb_{Path(unique_name).stem}.jpg"
+    thumb_path = backgrounds_dir / thumb_filename
+    thumb_url = ""
+    if generate_thumbnail_ffmpeg(save_path, thumb_path):
+        thumb_url = f"/static/backgrounds/{thumb_filename}"
+
+    meta = load_bg_meta()
+    meta[unique_name] = {
+        "thumbnailUrl": thumb_url,
+        "title": file.filename
+    }
+    save_bg_meta(meta)
+
     return {
         "success": True,
         "filename": unique_name,
-        "videoUrl": f"/static/backgrounds/{unique_name}"
+        "videoUrl": f"/static/backgrounds/{unique_name}",
+        "thumbnailUrl": thumb_url
     }
 
 
@@ -234,9 +289,23 @@ async def rename_background_file(req: RenameBackgroundRequest):
 
     try:
         old_path.rename(new_path)
+
+        old_thumb = backgrounds_dir / f"thumb_{old_path.stem}.jpg"
+        new_thumb = backgrounds_dir / f"thumb_{new_path.stem}.jpg"
+        if old_thumb.exists():
+            try:
+                old_thumb.rename(new_thumb)
+            except Exception as te:
+                logger.warning(f"Failed to rename thumb file: {te}")
+
         meta = load_bg_meta()
         if old_name in meta:
-            meta[new_name] = meta.pop(old_name)
+            item_meta = meta.pop(old_name)
+            old_thumb_url = f"/static/backgrounds/thumb_{old_path.stem}.jpg"
+            new_thumb_url = f"/static/backgrounds/thumb_{new_path.stem}.jpg"
+            if item_meta.get("thumbnailUrl") == old_thumb_url:
+                item_meta["thumbnailUrl"] = new_thumb_url
+            meta[new_name] = item_meta
             save_bg_meta(meta)
     except Exception as e:
         logger.error(f"Failed to rename background file: {e}")
