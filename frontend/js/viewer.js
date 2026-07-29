@@ -49,8 +49,8 @@
             const windowWidth = window.innerWidth;
             const windowHeight = window.innerHeight;
             
-            // 타겟 해상도 종횡비 유지 (Letterboxing)
-            const targetRatio = targetWidth / targetHeight;
+            // 타겟 해상도 종횡비 유지 (Contain / Letterbox)
+            const targetRatio = (targetWidth && targetHeight) ? (targetWidth / targetHeight) : (16 / 9);
             const windowRatio = windowWidth / windowHeight;
             
             let drawWidth, drawHeight;
@@ -68,11 +68,16 @@
             canvas.setWidth(drawWidth);
             canvas.setHeight(drawHeight);
 
-            // 캔버스 요소를 중앙에 정렬하기 위해 컨테이너 마진 설정 가능
-            const canvasEl = canvas.getElement().parentNode;
-            if (canvasEl) {
-                canvasEl.style.width = `${drawWidth}px`;
-                canvasEl.style.height = `${drawHeight}px`;
+            // 캔버스 래퍼(.canvas-container)를 뷰포트 정중앙에 정확히 조율
+            const canvasWrapper = canvas.getElement().parentNode;
+            if (canvasWrapper && canvasWrapper.classList.contains('canvas-container')) {
+                canvasWrapper.style.width = `${drawWidth}px`;
+                canvasWrapper.style.height = `${drawHeight}px`;
+                canvasWrapper.style.position = 'absolute';
+                canvasWrapper.style.top = '50%';
+                canvasWrapper.style.left = '50%';
+                canvasWrapper.style.transform = 'translate(-50%, -50%)';
+                canvasWrapper.style.margin = '0';
             }
 
             renderCurrentSlide();
