@@ -503,13 +503,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // 중복 이름 사전 검증
-                if (currentProjects.some(p => p.name.trim() === name)) {
+                if (currentProjects.some(p => p.name && p.name.trim() === name)) {
                     alert(`'${name}' 프로젝트가 이미 존재합니다. 다른 이름을 사용해 주세요.`);
                     inputProjectName.focus();
                     return;
                 }
 
                 try {
+                    if (btnSubmitCreate) btnSubmitCreate.disabled = true;
                     const res = await fetch('/api/projects', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -521,10 +522,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     const newProj = await res.json();
                     createModal.classList.remove('show');
-                    // 새 프로젝트를 작업 중 상태로 설정
+                    inputProjectName.value = '';
+
+                    // 생성된 새 프로젝트 선택 및 리스트 즉각 새로고침
                     await window.selectProject(newProj.id);
+                    await fetchProjects();
+                    showToast(`'${name}' 프로젝트가 생성되었습니다.`);
                 } catch (err) {
                     alert('프로젝트 생성 오류: ' + err.message);
+                } finally {
+                    if (btnSubmitCreate) btnSubmitCreate.disabled = false;
                 }
             }
 
