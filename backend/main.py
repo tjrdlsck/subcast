@@ -155,9 +155,16 @@ async def list_background_files():
     return {"files": files}
 
 
+@app.get("/api/backgrounds/yt-progress/{task_id}")
+async def get_yt_progress(task_id: str):
+    progress = yt_download_progress.get(task_id, 0)
+    return {"task_id": task_id, "progress": progress}
+
+
 @app.post("/api/backgrounds/download-youtube")
 async def download_youtube_background(req: YouTubeDownloadRequest):
     url = req.url.strip()
+    task_id = req.task_id or url
     if not url:
         raise HTTPException(status_code=400, detail="유튜브 URL을 입력해주세요.")
 
@@ -167,6 +174,18 @@ async def download_youtube_background(req: YouTubeDownloadRequest):
         raise HTTPException(status_code=500, detail="yt-dlp 패키지가 설치되어 있지 않습니다.")
 
     try:
+        yt_download_progress[task_id] = 0
+
+        def progress_hook(d):
+            if d.get('status') == 'downloading':
+                total = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
+                downloaded = d.get('downloaded_bytes') or 0
+                if total > 0:
+                    percent = int((downloaded / total) * 100)
+                    yt_download_progress[task_id] = min(99, percent)
+            elif d.get('status') == 'finished':
+                yt_download_progress[task_id] = 100
+
         ydl_opts = {
             'format': 'best[ext=mp4]/bestvideo[ext=mp4]/best',
             'outtmpl': str(backgrounds_dir / '%(id)s.%(ext)s'),
@@ -174,7 +193,8 @@ async def download_youtube_background(req: YouTubeDownloadRequest):
             'quiet': True,
             'no_warnings': True,
             'overwrites': True,
-            'merge_output_format': 'mp4'
+            'merge_output_format': 'mp4',
+            'progress_hooks': [progress_hook]
         }
         
         def _download():
@@ -209,6 +229,8 @@ async def download_youtube_background(req: YouTubeDownloadRequest):
             "title": title
         }
         save_bg_meta(meta)
+
+        yt_download_progress[task_id] = 100
 
         return {
             "success": True,

@@ -6294,85 +6294,140 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputYtUrl = document.getElementById('input-yt-bg-url');
     const statusYt = document.getElementById('yt-download-status');
 
-    async function handleYtDownload() {
-        const url = inputYtUrl.value.trim();
+    const btnYtDlMain = document.getElementById('btn-yt-bg-download-main');
+    const inputYtUrlMain = document.getElementById('input-yt-bg-url-main');
+    const statusYtMain = document.getElementById('yt-download-status-main');
+
+    function updateYtStatus(text, color = '#fbbf24', isVisible = true) {
+        [statusYt, statusYtMain].forEach(el => {
+            if (el) {
+                el.style.display = isVisible ? 'block' : 'none';
+                el.style.color = color;
+                el.innerText = text;
+            }
+        });
+    }
+
+    async function handleYtDownload(targetInput = inputYtUrl) {
+        const urlInput = (targetInput && targetInput.value.trim()) ? targetInput : (inputYtUrl?.value.trim() ? inputYtUrl : inputYtUrlMain);
+        const url = urlInput ? urlInput.value.trim() : '';
         if (!url) {
             alert("유튜브 URL을 입력해 주세요.");
             return;
         }
-        if (statusYt) {
-            statusYt.style.display = 'block';
-            statusYt.style.color = '#fbbf24';
-            statusYt.innerText = "⏳ 백엔드에서 고화질 비디오를 다운로드하는 중입니다...";
-        }
+
+        const taskId = 'yt_task_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+        updateYtStatus("⏳ 백엔드에서 고화질 비디오를 다운로드하는 중입니다... 0%", '#fbbf24');
+
         if (btnYtDl) btnYtDl.disabled = true;
+        if (btnYtDlMain) btnYtDlMain.disabled = true;
+
+        let pollInterval = setInterval(async () => {
+            try {
+                const pRes = await fetch(`/api/backgrounds/yt-progress/${taskId}`);
+                if (pRes.ok) {
+                    const pData = await pRes.json();
+                    if (pData.progress > 0 && pData.progress < 100) {
+                        updateYtStatus(`⏳ 백엔드에서 고화질 비디오를 다운로드하는 중입니다... ${pData.progress}%`, '#fbbf24');
+                    }
+                }
+            } catch (e) {}
+        }, 400);
 
         try {
             const res = await fetch('/api/backgrounds/download-youtube', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: url })
+                body: JSON.stringify({ url: url, task_id: taskId })
             });
+            clearInterval(pollInterval);
             const data = await res.json();
             if (res.ok && data.success) {
-                if (statusYt) {
-                    statusYt.style.color = '#34d399';
-                    statusYt.innerText = `✅ 다운로드 완료! (${data.title})`;
-                }
-                inputYtUrl.value = '';
+                updateYtStatus(`✅ 다운로드 완료! 100% (${data.title})`, '#34d399');
+                if (inputYtUrl) inputYtUrl.value = '';
+                if (inputYtUrlMain) inputYtUrlMain.value = '';
                 selectStageBg({ type: 'video', videoUrl: data.videoUrl, title: data.title });
+                await loadStageBgLibrary();
             } else {
-                if (statusYt) {
-                    statusYt.style.color = '#ef4444';
-                    statusYt.innerText = `❌ 실패: ${data.detail || '다운로드 중 오류가 발생했습니다.'}`;
-                }
+                updateYtStatus(`❌ 실패: ${data.detail || '다운로드 중 오류가 발생했습니다.'}`, '#ef4444');
             }
         } catch (e) {
-            if (statusYt) {
-                statusYt.style.color = '#ef4444';
-                statusYt.innerText = `❌ 서버 통신 오류: ${e.message}`;
-            }
+            clearInterval(pollInterval);
+            updateYtStatus(`❌ 서버 통신 오류: ${e.message}`, '#ef4444');
         } finally {
             if (btnYtDl) btnYtDl.disabled = false;
+            if (btnYtDlMain) btnYtDlMain.disabled = false;
         }
     }
 
-    if (btnYtDl && inputYtUrl) {
-        btnYtDl.addEventListener('click', handleYtDownload);
-        inputYtUrl.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                handleYtDownload();
-            }
-        });
-    }
+    [ { btn: btnYtDl, input: inputYtUrl }, { btn: btnYtDlMain, input: inputYtUrlMain } ].forEach(({ btn, input }) => {
+        if (btn && input) {
+            btn.addEventListener('click', () => handleYtDownload(input));
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleYtDownload(input);
+                }
+            });
+        }
+    });
 
     const btnUploadFile = document.getElementById('btn-upload-bg-file');
     const inputUploadFile = document.getElementById('file-upload-bg-input');
+    const btnUploadFileMain = document.getElementById('btn-upload-bg-file-main');
+    const inputUploadFileMain = document.getElementById('file-upload-bg-input-main');
 
-    if (btnUploadFile && inputUploadFile) {
-        btnUploadFile.addEventListener('click', () => inputUploadFile.click());
-        inputUploadFile.addEventListener('change', async () => {
-            if (!inputUploadFile.files || !inputUploadFile.files[0]) return;
-            const file = inputUploadFile.files[0];
-            const formData = new FormData();
-            formData.append('file', file);
+    async function handleLocalFileUpload(fileInput) {
+        if (!fileInput.files || !fileInput.files[0]) return;
+        const file = fileInput.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
 
-            try {
-                const res = await fetch('/api/backgrounds/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await res.json();
-                if (res.ok && data.success) {
-                    selectStageBg({ type: 'video', videoUrl: data.videoUrl, title: data.filename });
-                } else {
-                    alert(`업로드 실패: ${data.detail || '오류 발생'}`);
-                }
-            } catch (e) {
-                alert(`업로드 실패: ${e.message}`);
+        updateYtStatus(`⏳ 로컬 비디오 파일 업로드 중... 0%`, '#fbbf24');
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/backgrounds/upload', true);
+
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                updateYtStatus(`⏳ 로컬 비디오 파일 업로드 중... ${percent}%`, '#fbbf24');
             }
-        });
+        };
+
+        xhr.onload = async () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    if (data.success) {
+                        updateYtStatus(`✅ 업로드 완료! 100% (${file.name})`, '#34d399');
+                        selectStageBg({ type: 'video', videoUrl: data.videoUrl, title: data.filename });
+                        await loadStageBgLibrary();
+                    } else {
+                        updateYtStatus(`❌ 업로드 실패: ${data.detail || '오류 발생'}`, '#ef4444');
+                    }
+                } catch (e) {
+                    updateYtStatus(`❌ 응답 처리 오류: ${e.message}`, '#ef4444');
+                }
+            } else {
+                updateYtStatus(`❌ 업로드 실패: HTTP ${xhr.status}`, '#ef4444');
+            }
+            fileInput.value = '';
+        };
+
+        xhr.onerror = () => {
+            updateYtStatus(`❌ 업로드 통신 오류 발생`, '#ef4444');
+            fileInput.value = '';
+        };
+
+        xhr.send(formData);
     }
+
+    [ { btn: btnUploadFile, input: inputUploadFile }, { btn: btnUploadFileMain, input: inputUploadFileMain } ].forEach(({ btn, input }) => {
+        if (btn && input) {
+            btn.addEventListener('click', () => input.click());
+            input.addEventListener('change', () => handleLocalFileUpload(input));
+        }
+    });
 });
 
