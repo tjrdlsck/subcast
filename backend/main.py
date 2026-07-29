@@ -64,21 +64,55 @@ backgrounds_dir = Path("data/backgrounds")
 backgrounds_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/static/backgrounds", StaticFiles(directory=backgrounds_dir), name="backgrounds")
 
+meta_file = backgrounds_dir / "meta.json"
+
+
+def load_bg_meta() -> dict:
+    if meta_file.exists():
+        try:
+            with open(meta_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+
+def save_bg_meta(meta: dict):
+    try:
+        with open(meta_file, "w", encoding="utf-8") as f:
+            json.dump(meta, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.error(f"Failed to save bg meta: {e}")
+
+
 class YouTubeDownloadRequest(BaseModel):
     url: str
+
 
 @app.get("/api/backgrounds/list")
 async def list_background_files():
     files = []
+    meta = load_bg_meta()
     if backgrounds_dir.exists():
         for p in backgrounds_dir.glob("*"):
+            if p.name == "meta.json":
+                continue
             if p.suffix.lower() in [".mp4", ".webm", ".mov", ".avi", ".jpg", ".png"]:
+                item_meta = meta.get(p.name, {})
+                thumb_url = item_meta.get("thumbnailUrl")
+                if not thumb_url:
+                    filename_no_ext = p.stem
+                    if len(filename_no_ext) == 11 and not p.name.startswith("upload_"):
+                        thumb_url = f"https://img.youtube.com/vi/{filename_no_ext}/hqdefault.jpg"
+
                 files.append({
                     "name": p.name,
                     "url": f"/static/backgrounds/{p.name}",
-                    "size": p.stat().st_size
+                    "size": p.stat().st_size,
+                    "thumbnailUrl": thumb_url or ""
                 })
     return {"files": files}
+
 
 @app.post("/api/backgrounds/download-youtube")
 async def download_youtube_background(req: YouTubeDownloadRequest):
@@ -127,6 +161,14 @@ async def download_youtube_background(req: YouTubeDownloadRequest):
 
         thumbnail_url = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
 
+        meta = load_bg_meta()
+        meta[filename] = {
+            "thumbnailUrl": thumbnail_url,
+            "youtubeId": video_id,
+            "title": title
+        }
+        save_bg_meta(meta)
+
         return {
             "success": True,
             "id": video_id,
@@ -138,6 +180,7 @@ async def download_youtube_background(req: YouTubeDownloadRequest):
     except Exception as e:
         logger.error(f"Failed to download YouTube video: {e}")
         raise HTTPException(status_code=500, detail=f"유튜브 동영상 다운로드 실패: {str(e)}")
+
 
 @app.post("/api/backgrounds/upload")
 async def upload_background_file(file: UploadFile = File(...)):
@@ -191,15 +234,24 @@ async def rename_background_file(req: RenameBackgroundRequest):
 
     try:
         old_path.rename(new_path)
+        meta = load_bg_meta()
+        if old_name in meta:
+            meta[new_name] = meta.pop(old_name)
+            save_bg_meta(meta)
     except Exception as e:
         logger.error(f"Failed to rename background file: {e}")
         raise HTTPException(status_code=500, detail=f"파일명 변경 실패: {str(e)}")
+
+    meta = load_bg_meta()
+    item_meta = meta.get(new_name, {})
+    thumb_url = item_meta.get("thumbnailUrl", "")
 
     return {
         "success": True,
         "old_name": old_name,
         "new_name": new_name,
-        "videoUrl": f"/static/backgrounds/{new_name}"
+        "videoUrl": f"/static/backgrounds/{new_name}",
+        "thumbnailUrl": thumb_url
     }
 
 
