@@ -534,24 +534,53 @@
                     <!-- 현장 배경 라이브러리 메인 뷰어 (오른쪽 메인 칸) -->
                     <div id="stage-bg-main-viewer-overlay"
                         style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark, #121212); z-index: 95; flex-direction: column; box-shadow: inset 0 0 12px rgba(0,0,0,0.6);">
-                        <!-- 라이브러리 상단 헤더 & 검색바 -->
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: rgba(0, 0, 0, 0.35); border-bottom: 1px solid var(--panel-border, #3f3f46); flex-shrink: 0; gap: 16px; flex-wrap: wrap;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="font-size: 1.05rem; font-weight: 700; color: #38bdf8;">🖼️ 현장 배경 라이브러리</span>
-                                <span style="font-size: 0.75rem; color: var(--text-muted); background: rgba(255,255,255,0.06); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.08);">
-                                    무제한 동영상 & 파티클 모션 카탈로그
-                                </span>
+                        
+                        <!-- 1. 라이브러리 상단 헤더 & 컨트롤 대시보드 (stage-bg-main-grid-body 위) -->
+                        <div style="padding: 16px 20px; background: rgba(0, 0, 0, 0.4); border-bottom: 1px solid var(--panel-border, #3f3f46); flex-shrink: 0; display: flex; flex-direction: column; gap: 12px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <span style="font-size: 1.1rem; font-weight: 700; color: #38bdf8;">🖼️ 현장 배경 라이브러리 & 연출</span>
+                                    <span style="font-size: 0.75rem; color: var(--text-muted); background: rgba(255,255,255,0.06); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.08);">
+                                        동영상 카탈로그 & 실시간 연출 효과
+                                    </span>
+                                </div>
+                                
+                                <!-- 검색 및 필터 -->
+                                <div style="display: flex; align-items: center; gap: 10px; flex: 1; max-width: 440px;">
+                                    <input type="text" id="input-stage-bg-search" placeholder="🔍 배경 제목 또는 파일명 검색..." 
+                                        style="flex: 1; padding: 7px 12px; background: rgba(0,0,0,0.5); border: 1px solid var(--panel-border, #3f3f46); border-radius: 6px; color: #fff; font-size: 0.8rem; outline: none;">
+                                    <select id="select-stage-bg-filter" style="padding: 7px 10px; background: rgba(0,0,0,0.5); border: 1px solid var(--panel-border, #3f3f46); border-radius: 6px; color: #fff; font-size: 0.78rem; cursor: pointer;">
+                                        <option value="all">전체 목록</option>
+                                        <option value="ambient">기본 앰비언트</option>
+                                        <option value="video">다운로드 비디오</option>
+                                    </select>
+                                </div>
                             </div>
-                            
-                            <!-- 검색 및 필터 -->
-                            <div style="display: flex; align-items: center; gap: 10px; flex: 1; max-width: 460px;">
-                                <input type="text" id="input-stage-bg-search" placeholder="🔍 배경 제목 또는 파일명 검색..." 
-                                    style="flex: 1; padding: 7px 12px; background: rgba(0,0,0,0.4); border: 1px solid var(--panel-border, #3f3f46); border-radius: 6px; color: #fff; font-size: 0.8rem; outline: none;">
-                                <select id="select-stage-bg-filter" style="padding: 7px 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--panel-border, #3f3f46); border-radius: 6px; color: #fff; font-size: 0.78rem; cursor: pointer;">
-                                    <option value="all">전체 목록</option>
-                                    <option value="ambient">기본 앰비언트</option>
-                                    <option value="video">다운로드 비디오</option>
-                                </select>
+
+                            <!-- 2. 다운로드 & 연출 효과 상단 패널 (stage-bg-main-grid-body 상단 컨트롤 영역) -->
+                            <div style="display: flex; flex-wrap: wrap; gap: 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 14px; align-items: center; justify-content: space-between;">
+                                <!-- 유튜브/파일 다운로드 -->
+                                <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 320px;">
+                                    <span style="font-size: 0.78rem; font-weight: 600; color: #38bdf8; white-space: nowrap;">🎬 비디오 다운로드:</span>
+                                    <input type="text" id="input-yt-bg-url-main" placeholder="유튜브 URL..." style="flex: 1; padding: 5px 8px; background: rgba(0,0,0,0.6); border: 1px solid var(--panel-border); color: #fff; border-radius: 4px; font-size: 0.75rem;">
+                                    <button id="btn-yt-bg-download-main" style="padding: 5px 10px; background: var(--primary, #3b82f6); color: #fff; border: none; border-radius: 4px; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap;">다운로드</button>
+                                    <input type="file" id="file-upload-bg-input-main" accept="video/mp4,video/webm" style="display: none;">
+                                    <button id="btn-upload-bg-file-main" style="padding: 5px 10px; background: rgba(255,255,255,0.1); border: 1px solid var(--panel-border); color: #fff; border-radius: 4px; font-size: 0.72rem; cursor: pointer; white-space: nowrap;">📁 로컬 파일</button>
+                                </div>
+
+                                <!-- 불투명도 및 블러 슬라이더 -->
+                                <div style="display: flex; align-items: center; gap: 16px; min-width: 280px;">
+                                    <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
+                                        <span style="font-size: 0.72rem; color: var(--text-muted); white-space: nowrap;">밝기:</span>
+                                        <input type="range" id="range-stage-bg-opacity-main" min="10" max="100" value="80" style="flex: 1;">
+                                        <span id="val-stage-bg-opacity-main" style="font-size: 0.72rem; color: #60a5fa; min-width: 30px;">80%</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 6px; flex: 1;">
+                                        <span style="font-size: 0.72rem; color: var(--text-muted); white-space: nowrap;">블러:</span>
+                                        <input type="range" id="range-stage-bg-blur-main" min="0" max="20" value="0" style="flex: 1;">
+                                        <span id="val-stage-bg-blur-main" style="font-size: 0.72rem; color: #60a5fa; min-width: 26px;">0px</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

@@ -5591,9 +5591,15 @@ window.selectStageBg = function(config) {
 
 function applyAndBroadcastStageBg() {
     const opacityInput = document.getElementById('range-stage-bg-opacity');
+    const opacityInputMain = document.getElementById('range-stage-bg-opacity-main');
     const blurInput = document.getElementById('range-stage-bg-blur');
-    if (opacityInput) currentStageBg.opacity = parseFloat(opacityInput.value) / 100;
-    if (blurInput) currentStageBg.blur = parseInt(blurInput.value) || 0;
+    const blurInputMain = document.getElementById('range-stage-bg-blur-main');
+
+    const valOpacity = opacityInputMain ? opacityInputMain.value : (opacityInput ? opacityInput.value : 80);
+    const valBlur = blurInputMain ? blurInputMain.value : (blurInput ? blurInput.value : 0);
+
+    currentStageBg.opacity = parseFloat(valOpacity) / 100;
+    currentStageBg.blur = parseInt(valBlur) || 0;
 
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
