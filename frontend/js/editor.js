@@ -5777,7 +5777,10 @@ function startPipAmbientLoop() {
     render();
 }
 
+let isPipUpdating = false;
+
 function updatePipSlideOverlay() {
+    if (isPipUpdating) return;
     const slideCanvas = document.getElementById('pip-slide-canvas');
     if (!slideCanvas) return;
     const ctx = slideCanvas.getContext('2d');
@@ -5785,15 +5788,15 @@ function updatePipSlideOverlay() {
 
     if (canvas) {
         try {
-            const dataUrl = canvas.toDataURL({ format: 'png', multiplier: 0.4 });
-            const img = new Image();
-            img.onload = () => {
-                ctx.clearRect(0, 0, slideCanvas.width, slideCanvas.height);
-                ctx.drawImage(img, 0, 0, slideCanvas.width, slideCanvas.height);
-            };
-            img.src = dataUrl;
+            isPipUpdating = true;
+            const targetEl = canvas.lowerCanvasEl || canvas.getElement();
+            if (targetEl && targetEl.width > 0 && targetEl.height > 0) {
+                ctx.drawImage(targetEl, 0, 0, slideCanvas.width, slideCanvas.height);
+            }
         } catch (e) {
             console.error("Failed to render PiP slide overlay", e);
+        } finally {
+            isPipUpdating = false;
         }
     }
 }
