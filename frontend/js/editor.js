@@ -5783,6 +5783,7 @@ function startPipAmbientLoop() {
     render();
 }
 
+let pipTempCanvas = null;
 let isPipUpdating = false;
 
 function updatePipSlideOverlay() {
@@ -5792,18 +5793,42 @@ function updatePipSlideOverlay() {
     const ctx = slideCanvas.getContext('2d');
     ctx.clearRect(0, 0, slideCanvas.width, slideCanvas.height);
 
-    if (canvas) {
-        try {
-            isPipUpdating = true;
-            const targetEl = canvas.lowerCanvasEl || canvas.getElement();
-            if (targetEl && targetEl.width > 0 && targetEl.height > 0) {
-                ctx.drawImage(targetEl, 0, 0, slideCanvas.width, slideCanvas.height);
-            }
-        } catch (e) {
-            console.error("Failed to render PiP slide overlay", e);
-        } finally {
-            isPipUpdating = false;
+    if (!canvas) return;
+
+    try {
+        isPipUpdating = true;
+        const targetEl = canvas.lowerCanvasEl || canvas.getElement();
+        if (!targetEl || targetEl.width <= 0 || targetEl.height <= 0) return;
+
+        if (!pipTempCanvas) {
+            pipTempCanvas = document.createElement('canvas');
         }
+        if (pipTempCanvas.width !== targetEl.width || pipTempCanvas.height !== targetEl.height) {
+            pipTempCanvas.width = targetEl.width;
+            pipTempCanvas.height = targetEl.height;
+        }
+
+        const tempCtx = pipTempCanvas.getContext('2d');
+        tempCtx.clearRect(0, 0, pipTempCanvas.width, pipTempCanvas.height);
+
+        const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+        tempCtx.save();
+        tempCtx.transform(vpt[0], vpt[1], vpt[2], vpt[3], vpt[4], vpt[5]);
+
+        const objects = canvas.getObjects();
+        for (let i = 0; i < objects.length; i++) {
+            const obj = objects[i];
+            if (obj && obj.visible !== false) {
+                obj.render(tempCtx);
+            }
+        }
+        tempCtx.restore();
+
+        ctx.drawImage(pipTempCanvas, 0, 0, slideCanvas.width, slideCanvas.height);
+    } catch (e) {
+        console.error("Failed to render PiP slide overlay", e);
+    } finally {
+        isPipUpdating = false;
     }
 }
 
