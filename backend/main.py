@@ -162,6 +162,47 @@ async def upload_background_file(file: UploadFile = File(...)):
     }
 
 
+class RenameBackgroundRequest(BaseModel):
+    old_name: str
+    new_name: str
+
+
+@app.post("/api/backgrounds/rename")
+async def rename_background_file(req: RenameBackgroundRequest):
+    old_name = req.old_name.strip()
+    new_name = req.new_name.strip()
+
+    if not old_name or not new_name:
+        raise HTTPException(status_code=400, detail="변경할 파일명을 입력해주세요.")
+
+    old_path = backgrounds_dir / old_name
+    if not old_path.exists() or not old_path.is_file():
+        raise HTTPException(status_code=404, detail="대상 라이브러리 파일을 찾을 수 없습니다.")
+
+    # 확장자 유지 보정
+    ext = old_path.suffix
+    if not new_name.lower().endswith(ext.lower()):
+        new_name = f"{new_name}{ext}"
+
+    new_path = backgrounds_dir / new_name
+
+    if new_path.exists() and old_path.resolve() != new_path.resolve():
+        raise HTTPException(status_code=400, detail="동일한 이름의 파일이 이미 존재합니다.")
+
+    try:
+        old_path.rename(new_path)
+    except Exception as e:
+        logger.error(f"Failed to rename background file: {e}")
+        raise HTTPException(status_code=500, detail=f"파일명 변경 실패: {str(e)}")
+
+    return {
+        "success": True,
+        "old_name": old_name,
+        "new_name": new_name,
+        "videoUrl": f"/static/backgrounds/{new_name}"
+    }
+
+
 class ConnectionManager:
     def __init__(self):
         # 각 역할별 세션 관리

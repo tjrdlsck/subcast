@@ -5518,6 +5518,14 @@ let currentStageBg = {
 };
 let allStageBgFiles = [];
 let pipAmbientAnimId = null;
+let stageBgGridMinSize = 220;
+
+function updateStageBgGridColumns() {
+    const gridContainer = document.getElementById('stage-bg-main-grid');
+    if (gridContainer) {
+        gridContainer.style.gridTemplateColumns = `repeat(auto-fill, minmax(${stageBgGridMinSize}px, 1fr))`;
+    }
+}
 
 // 현장 배경 메인 뷰어 열기/닫기
 function showStageBgMainViewer() {
@@ -5529,6 +5537,22 @@ function showStageBgMainViewer() {
             e.stopPropagation();
         };
     }
+
+    const gridBody = document.getElementById('stage-bg-main-grid-body');
+    if (gridBody && !gridBody.dataset.wheelBound) {
+        gridBody.dataset.wheelBound = "true";
+        gridBody.addEventListener('wheel', (e) => {
+            if (e.ctrlKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                const delta = e.deltaY > 0 ? -20 : 20;
+                stageBgGridMinSize = Math.max(100, Math.min(420, stageBgGridMinSize + delta));
+                updateStageBgGridColumns();
+            }
+        }, { passive: false });
+    }
+
+    updateStageBgGridColumns();
     loadStageBgLibrary();
     initPipPreview();
     const pipContainer = document.getElementById('pip-stage-preview-container');
@@ -5559,6 +5583,8 @@ function filterAndRenderStageBgLibrary() {
     const gridContainer = document.getElementById('stage-bg-main-grid');
     if (!gridContainer) return;
 
+    updateStageBgGridColumns();
+
     const searchInput = document.getElementById('input-stage-bg-search');
     const filterSelect = document.getElementById('select-stage-bg-filter');
 
@@ -5582,7 +5608,7 @@ function filterAndRenderStageBgLibrary() {
             <div class="stage-bg-card-main ${isAmbientActive ? 'active' : ''}" onclick="selectStageBg({type: 'ambient'})" 
                 style="background: rgba(255,255,255,0.04); border: 2px solid ${isAmbientActive ? '#38bdf8' : 'var(--panel-border, #3f3f46)'}; border-radius: 8px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; transition: all 0.2s; position: relative;">
                 ${isAmbientActive ? `<span style="position: absolute; top: 10px; right: 10px; background: #0284c7; color: #fff; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">적용 중</span>` : ''}
-                <div style="width: 100%; height: 110px; background: linear-gradient(135deg, #0b0f19, #0369a1, #1e1b4b); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 2rem;">
+                <div style="width: 100%; aspect-ratio: 16/9; max-height: 140px; background: linear-gradient(135deg, #0b0f19, #0369a1, #1e1b4b); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 2rem;">
                     ✨
                 </div>
                 <div>
@@ -5600,16 +5626,23 @@ function filterAndRenderStageBgLibrary() {
             const filenameWOExt = f.name.substring(0, f.name.lastIndexOf('.'));
             const isYt = filenameWOExt.length === 11 && !f.name.startsWith('upload_');
             const thumbUrl = isYt ? `https://img.youtube.com/vi/${filenameWOExt}/hqdefault.jpg` : '';
+            const escOldName = f.name.replace(/'/g, "\\'");
+            const safeName = f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
             html += `
-                <div class="stage-bg-card-main ${isCurrent ? 'active' : ''}" onclick="selectStageBg({type: 'video', videoUrl: '${f.url}', title: '${f.name}'})" 
+                <div class="stage-bg-card-main ${isCurrent ? 'active' : ''}" onclick="selectStageBg({type: 'video', videoUrl: '${f.url}', title: '${escOldName}'})" 
                     style="background: rgba(255,255,255,0.04); border: 2px solid ${isCurrent ? '#38bdf8' : 'var(--panel-border, #3f3f46)'}; border-radius: 8px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; transition: all 0.2s; position: relative;">
                     ${isCurrent ? `<span style="position: absolute; top: 10px; right: 10px; background: #0284c7; color: #fff; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">적용 중</span>` : ''}
-                    <div style="width: 100%; height: 110px; background: #0f172a; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                    <div style="width: 100%; aspect-ratio: 16/9; max-height: 140px; background: #0f172a; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
                         ${thumbUrl ? `<img src="${thumbUrl}" style="width: 100%; height: 100%; object-fit: cover;">` : `<div style="font-size: 2.2rem; color: #60a5fa;">🎬</div>`}
                     </div>
                     <div>
-                        <div style="font-size: 0.85rem; font-weight: 600; color: #fff; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; margin-bottom: 2px;" title="${f.name}">${f.name}</div>
+                        <div class="stage-bg-title" 
+                             style="font-size: 0.85rem; font-weight: 600; color: #fff; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; margin-bottom: 2px; cursor: text;" 
+                             title="두 번 클릭하여 제목 수정" 
+                             ondblclick="event.stopPropagation(); startInlineRenameStageBg(this, '${escOldName}')">
+                            ${safeName}
+                        </div>
                         <div style="font-size: 0.7rem; color: #34d399; display: flex; align-items: center; gap: 4px;">
                             <span>● 로컬 고화질 보관됨</span>
                         </div>
@@ -5629,6 +5662,79 @@ function filterAndRenderStageBgLibrary() {
 
     gridContainer.innerHTML = html;
 }
+
+// 배경 라이브러리 더블 클릭 인라인 이름 변경
+window.startInlineRenameStageBg = function(containerEl, oldName) {
+    if (containerEl.querySelector('input')) return;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'stage-bg-name-input';
+    input.value = oldName;
+    input.style.cssText = "width: 100%; padding: 3px 6px; background: rgba(0,0,0,0.85); border: 1px solid #38bdf8; border-radius: 4px; color: #fff; font-size: 0.82rem; outline: none; font-weight: 600;";
+
+    input.onclick = (e) => e.stopPropagation();
+    input.ondblclick = (e) => e.stopPropagation();
+
+    let isSaved = false;
+    const saveRename = async () => {
+        if (isSaved) return;
+        isSaved = true;
+
+        const newName = input.value.trim();
+        if (!newName) {
+            if (typeof showToast === 'function') showToast('변경할 제목을 입력해주세요.');
+            containerEl.textContent = oldName;
+            return;
+        }
+        if (newName === oldName) {
+            containerEl.textContent = oldName;
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/backgrounds/rename', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ old_name: oldName, new_name: newName })
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.detail || '제목 변경 실패');
+            }
+
+            const data = await res.json();
+            if (typeof showToast === 'function') showToast('라이브러리 제목이 변경되었습니다.');
+
+            // 만약 현재 적용 중인 비디오 배경이었다면 videoUrl 업데이트
+            if (currentStageBg.type === 'video' && currentStageBg.videoUrl === `/static/backgrounds/${oldName}`) {
+                currentStageBg.videoUrl = data.videoUrl;
+                applyAndBroadcastStageBg();
+            }
+
+            await loadStageBgLibrary();
+        } catch (err) {
+            alert('제목 변경 오류: ' + err.message);
+            containerEl.textContent = oldName;
+        }
+    };
+
+    input.onblur = saveRename;
+    input.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+            saveRename();
+        } else if (e.key === 'Escape') {
+            isSaved = true;
+            containerEl.textContent = oldName;
+        }
+    };
+
+    containerEl.innerHTML = '';
+    containerEl.appendChild(input);
+    input.focus();
+    input.select();
+};
 
 window.selectStageBg = function(config) {
     currentStageBg.type = config.type;
