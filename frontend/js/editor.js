@@ -5651,6 +5651,7 @@ let currentStageBg = {
     blur: 0
 };
 let allStageBgFiles = [];
+let hideDefaultAmbient = false;
 let selectedStageBgFiles = [];
 let stageBgClipboardFiles = [];
 let lastSelectedStageBgIndex = -1;
@@ -5667,10 +5668,11 @@ function updateStageBgGridColumns() {
 
 // 현장 배경 복사 / 붙여넣기 / 삭제 함수
 window.copySelectedStageBgFiles = function() {
-    if (!selectedStageBgFiles || selectedStageBgFiles.length === 0) return;
-    stageBgClipboardFiles = JSON.parse(JSON.stringify(selectedStageBgFiles));
+    const validFiles = (selectedStageBgFiles || []).filter(f => !f.isAmbient);
+    if (validFiles.length === 0) return;
+    stageBgClipboardFiles = JSON.parse(JSON.stringify(validFiles));
     if (typeof showToast === 'function') {
-        showToast(`${selectedStageBgFiles.length}개의 현장 배경이 복사되었습니다.`);
+        showToast(`${validFiles.length}개의 현장 배경이 복사되었습니다.`);
     }
 };
 
@@ -5702,16 +5704,17 @@ window.deleteSelectedStageBgFilesWithConfirm = async function(confirmRequired = 
 
     if (confirmRequired) {
         const namesStr = selectedStageBgFiles.map(f => f.name).slice(0, 3).join(", ") + (selectedStageBgFiles.length > 3 ? ` 외 ${selectedStageBgFiles.length - 3}건` : "");
-        if (!confirm(`선택한 현장 배경 파일 (${selectedStageBgFiles.length}개: ${namesStr})을 삭제하시겠습니까?`)) {
+        if (!confirm(`선택한 현장 배경 (${selectedStageBgFiles.length}개: ${namesStr})을 삭제하시겠습니까?`)) {
             return;
         }
     }
 
     try {
+        const deleteNames = selectedStageBgFiles.map(f => f.isAmbient ? 'ambient' : f.name);
         const res = await fetch('/api/backgrounds/delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ names: selectedStageBgFiles.map(f => f.name) })
+            body: JSON.stringify({ names: deleteNames })
         });
 
         if (res.ok) {
@@ -5735,7 +5738,7 @@ window.handleStageBgCardClick = function(e, index) {
     if (!fileObj) return;
 
     if (e.ctrlKey || e.metaKey) {
-        const existsIdx = selectedStageBgFiles.findIndex(f => f.name === fileObj.name);
+        const existsIdx = selectedStageBgFiles.findIndex(f => (fileObj.isAmbient && f.isAmbient) || f.name === fileObj.name);
         if (existsIdx !== -1) {
             selectedStageBgFiles.splice(existsIdx, 1);
         } else {
@@ -5747,14 +5750,18 @@ window.handleStageBgCardClick = function(e, index) {
         const end = Math.max(lastSelectedStageBgIndex, index);
         for (let i = start; i <= end; i++) {
             const targetFile = _renderedStageBgFiles[i];
-            if (targetFile && !selectedStageBgFiles.some(f => f.name === targetFile.name)) {
+            if (targetFile && !selectedStageBgFiles.some(f => (targetFile.isAmbient && f.isAmbient) || f.name === targetFile.name)) {
                 selectedStageBgFiles.push(targetFile);
             }
         }
     } else {
         selectedStageBgFiles = [fileObj];
         lastSelectedStageBgIndex = index;
-        selectStageBg({type: 'video', videoUrl: fileObj.url, title: fileObj.name}, false);
+        if (fileObj.isAmbient) {
+            selectStageBg({type: 'ambient'}, false);
+        } else {
+            selectStageBg({type: 'video', videoUrl: fileObj.url, title: fileObj.name}, false);
+        }
     }
 
     filterAndRenderStageBgLibrary();
@@ -5765,7 +5772,7 @@ window.handleStageBgCardContextMenu = function(e, index) {
     e.stopPropagation();
     const fileObj = _renderedStageBgFiles[index];
     if (fileObj) {
-        if (!selectedStageBgFiles.some(f => f.name === fileObj.name)) {
+        if (!selectedStageBgFiles.some(f => (fileObj.isAmbient && f.isAmbient) || f.name === fileObj.name)) {
             selectedStageBgFiles = [fileObj];
             lastSelectedStageBgIndex = index;
             filterAndRenderStageBgLibrary();
@@ -5814,6 +5821,7 @@ async function loadStageBgLibrary() {
         if (res.ok) {
             const data = await res.json();
             allStageBgFiles = data.files || [];
+            hideDefaultAmbient = !!data.hideAmbient;
             filterAndRenderStageBgLibrary();
         }
     } catch (e) {
@@ -5841,32 +5849,41 @@ function filterAndRenderStageBgLibrary() {
         return true;
     });
 
-    _renderedStageBgFiles = filesToRender;
+    const showAmbient = !hideDefaultAmbient && filterVal !== 'video' && (!searchVal || '기본 앰비언트 파티클'.includes(searchVal) || 'ambient'.includes(searchVal));
+
+    let listToRender = [];
+    if (showAmbient) {
+        listToRender.push({ name: '기본 앰비언트 파티클', type: 'ambient', isAmbient: true });
+    }
+    listToRender = listToRender.concat(filesToRender);
+
+    _renderedStageBgFiles = listToRender;
 
     let html = '';
 
-    // 1. 기본 앰비언트 파티클 카드
-    const showAmbient = filterVal !== 'video' && (!searchVal || '기본 앰비언트 파티클'.includes(searchVal) || 'ambient'.includes(searchVal));
-    if (showAmbient) {
-        const isAmbientActive = currentStageBg.type === 'ambient';
-        html += `
-            <div class="stage-bg-card-main ${isAmbientActive ? 'active' : ''}" onclick="selectStageBg({type: 'ambient'})" 
-                style="background: rgba(255,255,255,0.04); border: 2px solid ${isAmbientActive ? '#38bdf8' : 'var(--panel-border, #3f3f46)'}; border-radius: 8px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; transition: all 0.2s; position: relative;">
-                ${isAmbientActive ? `<span style="position: absolute; top: 10px; right: 10px; background: #0284c7; color: #fff; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">적용 중</span>` : ''}
-                <div style="width: 100%; aspect-ratio: 16/9; max-height: 140px; background: linear-gradient(135deg, #0b0f19, #0369a1, #1e1b4b); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 2rem;">
-                    ✨
-                </div>
-                <div>
-                    <div style="font-size: 0.88rem; font-weight: 700; color: #fff; margin-bottom: 2px;">기본 앰비언트 파티클</div>
-                    <div style="font-size: 0.72rem; color: var(--text-muted);">60fps Canvas Dynamic Motion</div>
-                </div>
-            </div>
-        `;
-    }
+    listToRender.forEach((f, idx) => {
+        if (f.isAmbient) {
+            const isAmbientActive = currentStageBg.type === 'ambient';
+            const isSelected = selectedStageBgFiles.some(sel => sel.isAmbient);
+            const borderStyle = isSelected ? '2px solid #38bdf8' : (isAmbientActive ? '2px solid #0284c7' : '2px solid var(--panel-border, #3f3f46)');
+            const bgStyle = isSelected ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255,255,255,0.04)';
 
-    // 2. 동영상 라이브러리 카드들
-    if (filterVal !== 'ambient') {
-        filesToRender.forEach((f, idx) => {
+            html += `
+                <div class="stage-bg-card-main ${isAmbientActive ? 'active' : ''} ${isSelected ? 'selected' : ''}" 
+                    onclick="handleStageBgCardClick(event, ${idx})" 
+                    oncontextmenu="handleStageBgCardContextMenu(event, ${idx})"
+                    style="background: ${bgStyle}; border: ${borderStyle}; border-radius: 8px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; transition: all 0.2s; position: relative;">
+                    ${isAmbientActive ? `<span style="position: absolute; top: 10px; right: 10px; background: #0284c7; color: #fff; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">적용 중</span>` : ''}
+                    <div style="width: 100%; aspect-ratio: 16/9; max-height: 140px; background: linear-gradient(135deg, #0b0f19, #0369a1, #1e1b4b); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 2rem;">
+                        ✨
+                    </div>
+                    <div>
+                        <div style="font-size: 0.88rem; font-weight: 700; color: #fff; margin-bottom: 2px;">기본 앰비언트 파티클</div>
+                        <div style="font-size: 0.72rem; color: var(--text-muted);">60fps Canvas Dynamic Motion</div>
+                    </div>
+                </div>
+            `;
+        } else {
             const isCurrent = currentStageBg.type === 'video' && currentStageBg.videoUrl === f.url;
             const isSelected = selectedStageBgFiles.some(sel => sel.name === f.name);
             const filenameWOExt = f.name.substring(0, f.name.lastIndexOf('.'));
@@ -5898,10 +5915,10 @@ function filterAndRenderStageBgLibrary() {
                     </div>
                 </div>
             `;
-        });
-    }
+        }
+    });
 
-    if (!showAmbient && filesToRender.length === 0) {
+    if (listToRender.length === 0) {
         html = `
             <div style="grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
                 🔍 검색 조건에 일치하는 현장 배경이 없습니다.
