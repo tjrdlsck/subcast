@@ -576,11 +576,18 @@ class PraiseDatabaseHelper:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     title TEXT NOT NULL,
                     lyrics TEXT NOT NULL,
+                    mood TEXT DEFAULT '기본/일반',
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            try:
+                cursor.execute("ALTER TABLE praise_songs ADD COLUMN mood TEXT DEFAULT '기본/일반'")
+            except Exception:
+                pass
+
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_praise_title ON praise_songs(title)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_praise_lyrics ON praise_songs(lyrics)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_praise_mood ON praise_songs(mood)")
             conn.commit()
         finally:
             conn.close()
@@ -589,18 +596,18 @@ class PraiseDatabaseHelper:
         conn = self.get_connection()
         cursor = conn.cursor()
         if not query_str.strip():
-            sql = "SELECT id, title, lyrics FROM praise_songs ORDER BY title ASC LIMIT ?"
+            sql = "SELECT id, title, lyrics, mood FROM praise_songs ORDER BY title ASC LIMIT ?"
             params = (limit,)
         else:
             sql = """
-                SELECT id, title, lyrics 
+                SELECT id, title, lyrics, mood 
                 FROM praise_songs 
-                WHERE title LIKE ? OR lyrics LIKE ?
+                WHERE title LIKE ? OR lyrics LIKE ? OR mood LIKE ?
                 ORDER BY title ASC
                 LIMIT ?
             """
             param = f"%{query_str}%"
-            params = (param, param, limit)
+            params = (param, param, param, limit)
         try:
             cursor.execute(sql, params)
             rows = cursor.fetchall()
@@ -608,36 +615,36 @@ class PraiseDatabaseHelper:
         finally:
             conn.close()
 
-    def save_song(self, title: str, lyrics: str, song_id: Optional[int] = None, original_title: Optional[str] = None):
+    def save_song(self, title: str, lyrics: str, song_id: Optional[int] = None, original_title: Optional[str] = None, mood: str = "기본/일반"):
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
             if song_id is not None:
                 cursor.execute("""
                     UPDATE praise_songs 
-                    SET title = ?, lyrics = ?, updated_at = CURRENT_TIMESTAMP 
+                    SET title = ?, lyrics = ?, mood = ?, updated_at = CURRENT_TIMESTAMP 
                     WHERE id = ?
-                """, (title, lyrics, song_id))
+                """, (title, lyrics, mood, song_id))
             elif original_title is not None:
                 cursor.execute("""
                     UPDATE praise_songs 
-                    SET title = ?, lyrics = ?, updated_at = CURRENT_TIMESTAMP 
+                    SET title = ?, lyrics = ?, mood = ?, updated_at = CURRENT_TIMESTAMP 
                     WHERE title = ?
-                """, (title, lyrics, original_title))
+                """, (title, lyrics, mood, original_title))
             else:
                 cursor.execute("SELECT id FROM praise_songs WHERE title = ?", (title,))
                 row = cursor.fetchone()
                 if row:
                     cursor.execute("""
                         UPDATE praise_songs 
-                        SET lyrics = ?, updated_at = CURRENT_TIMESTAMP 
+                        SET lyrics = ?, mood = ?, updated_at = CURRENT_TIMESTAMP 
                         WHERE id = ?
-                    """, (lyrics, row["id"]))
+                    """, (lyrics, mood, row["id"]))
                 else:
                     cursor.execute("""
-                        INSERT INTO praise_songs (title, lyrics) 
-                        VALUES (?, ?)
-                    """, (title, lyrics))
+                        INSERT INTO praise_songs (title, lyrics, mood) 
+                        VALUES (?, ?, ?)
+                    """, (title, lyrics, mood))
             conn.commit()
         finally:
             conn.close()
@@ -722,6 +729,8 @@ class PraiseSongSaveRequest(BaseModel):
     id: Optional[int] = None
     title: str
     lyrics: str
+    mood: Optional[str] = "기본/일반"
+    moods: Optional[List[str]] = None
     original_title: Optional[str] = None
 
 class PraiseSongDeleteRequest(BaseModel):
@@ -740,7 +749,8 @@ async def save_praise_song(req: PraiseSongSaveRequest):
     try:
         if not req.title.strip() or not req.lyrics.strip():
             raise HTTPException(status_code=400, detail="제목과 가사를 모두 입력해 주세요.")
-        praise_db.save_song(req.title.strip(), req.lyrics.strip(), song_id=req.id, original_title=req.original_title)
+        target_mood = req.mood or (req.moods[0] if req.moods else "기본/일반")
+        praise_db.save_song(req.title.strip(), req.lyrics.strip(), song_id=req.id, original_title=req.original_title, mood=target_mood)
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

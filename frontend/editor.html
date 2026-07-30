@@ -443,12 +443,23 @@
                         style="display: flex; flex-direction: column; overflow-y: auto; gap: 10px; flex: 1; min-height: 0;">
                         <!-- 1) 실시간 노래 통합 검색 인풋 -->
                         <div style="display: flex; flex-direction: column; gap: 4px; flex-shrink: 0;">
-                            <input type="text" id="input-praise-search" placeholder="🔍 노래 제목 또는 가사 검색"
+                            <input type="text" id="input-praise-search" placeholder="🔍 노래 제목, 가사 또는 태그 검색"
                                 style="width: 100%; padding: 8px 12px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; height: 36px; outline: none; transition: border-color 0.2s;"
                                 autocomplete="off">
                         </div>
 
-                        <!-- 2) 데이터베이스 내 찬양곡 리스트 (영구 스크롤 뷰) -->
+                        <!-- 2) 분위기 태그 필터 칩 바 -->
+                        <div id="praise-mood-filter-chips" style="display: flex; gap: 4px; overflow-x: auto; padding: 2px 0; flex-shrink: 0;" class="custom-scrollbar">
+                            <button type="button" class="praise-filter-chip active" data-filter="all" style="padding: 3px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid var(--primary); background: var(--primary); color: #ffffff; cursor: pointer; white-space: nowrap;">전체</button>
+                            <button type="button" class="praise-filter-chip" data-filter="경배/찬양" style="padding: 3px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid rgba(129, 140, 248, 0.4); background: rgba(99, 102, 241, 0.15); color: #818cf8; cursor: pointer; white-space: nowrap;">#경배/찬양</button>
+                            <button type="button" class="praise-filter-chip" data-filter="잔잔/묵상" style="padding: 3px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid rgba(52, 211, 153, 0.4); background: rgba(16, 185, 129, 0.15); color: #34d399; cursor: pointer; white-space: nowrap;">#잔잔/묵상</button>
+                            <button type="button" class="praise-filter-chip" data-filter="기도/회개" style="padding: 3px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid rgba(244, 63, 94, 0.4); background: rgba(244, 63, 94, 0.15); color: #f43f5e; cursor: pointer; white-space: nowrap;">#기도/회개</button>
+                            <button type="button" class="praise-filter-chip" data-filter="결단/헌금" style="padding: 3px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid rgba(251, 191, 36, 0.4); background: rgba(245, 158, 11, 0.15); color: #fbbf24; cursor: pointer; white-space: nowrap;">#결단/헌금</button>
+                            <button type="button" class="praise-filter-chip" data-filter="웅장/선포" style="padding: 3px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(14, 165, 233, 0.15); color: #38bdf8; cursor: pointer; white-space: nowrap;">#웅장/선포</button>
+                            <button type="button" class="praise-filter-chip" data-filter="절기/특별" style="padding: 3px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid rgba(168, 85, 247, 0.4); background: rgba(168, 85, 247, 0.15); color: #a855f7; cursor: pointer; white-space: nowrap;">#절기/특별</button>
+                        </div>
+
+                        <!-- 3) 데이터베이스 내 찬양곡 리스트 (영구 스크롤 뷰) -->
                         <div id="praise-songs-list" class="custom-scrollbar"
                             style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 6px; border: 1px solid var(--panel-border); border-radius: var(--radius-sm); background: rgba(0,0,0,0.15); min-height: 150px;">
                             <!-- 찬양곡 리스트가 백엔드 DB 데이터 기반으로 렌더링됨 -->

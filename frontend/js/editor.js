@@ -4841,11 +4841,16 @@
                 if (lblTitle) lblTitle.textContent = "없음";
                 adjustPraisePanelLayout(false);
             } else if (selectedPraiseSongs.length === 1) {
-                activeSelectedPraiseSong = selectedPraiseSongs[0];
-                if (lblTitle) lblTitle.textContent = selectedPraiseSongs[0].title;
-                if (charCount) charCount.textContent = selectedPraiseSongs[0].lyrics.length;
+                const s = selectedPraiseSongs[0];
+                activeSelectedPraiseSong = s;
+                const songMood = (s.moods && s.moods[0]) || s.mood || "기본/일반";
+                const badgeStyle = typeof getMoodBadgeStyle === "function" ? getMoodBadgeStyle(songMood) : "background: rgba(148, 163, 184, 0.2); color: #94a3b8;";
+                if (lblTitle) {
+                    lblTitle.innerHTML = `${s.title} <span style="font-size: 0.68rem; font-weight: 600; padding: 2px 7px; border-radius: 10px; ${badgeStyle} margin-left: 6px; display: inline-block;">#${songMood}</span>`;
+                }
+                if (charCount) charCount.textContent = s.lyrics.length;
                 adjustPraisePanelLayout(true);
-                renderPraisePreview(selectedPraiseSongs[0]);
+                renderPraisePreview(s);
             } else {
                 activeSelectedPraiseSong = selectedPraiseSongs[0];
                 if (lblTitle) lblTitle.textContent = `${selectedPraiseSongs[0].title} 외 ${selectedPraiseSongs.length - 1}건 (총 ${selectedPraiseSongs.length}곡)`;
@@ -5041,6 +5046,31 @@
             if (btnCloseViewer) {
                 btnCloseViewer.onclick = hidePraiseMainViewer;
             }
+
+            const filterChips = document.querySelectorAll(".praise-filter-chip");
+            filterChips.forEach(chip => {
+                chip.onclick = () => {
+                    filterChips.forEach(c => {
+                        c.classList.remove("active");
+                        c.style.background = "rgba(255,255,255,0.05)";
+                        c.style.borderColor = "var(--panel-border)";
+                        c.style.color = "#cbd5e1";
+                    });
+                    chip.classList.add("active");
+                    chip.style.background = "var(--primary)";
+                    chip.style.borderColor = "var(--primary)";
+                    chip.style.color = "#ffffff";
+
+                    const filterVal = chip.getAttribute("data-filter");
+                    if (filterVal === "all") {
+                        if (searchInput) searchInput.value = "";
+                        fetchPraiseSongs("");
+                    } else {
+                        if (searchInput) searchInput.value = filterVal;
+                        fetchPraiseSongs(filterVal);
+                    }
+                };
+            });
 
             const moodChipsContainer = document.getElementById("modal-praise-mood-chips");
             if (moodChipsContainer) {
@@ -5514,6 +5544,18 @@
             }
         }
 
+        function getMoodBadgeStyle(mood) {
+            switch(mood) {
+                case "경배/찬양": return "background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(129, 140, 248, 0.4); color: #818cf8;";
+                case "잔잔/묵상": return "background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(52, 211, 153, 0.4); color: #34d399;";
+                case "기도/회개": return "background: rgba(244, 63, 94, 0.2); border: 1px solid rgba(244, 63, 94, 0.4); color: #f43f5e;";
+                case "결단/헌금": return "background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(251, 191, 36, 0.4); color: #fbbf24;";
+                case "웅장/선포": return "background: rgba(14, 165, 233, 0.2); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8;";
+                case "절기/특별": return "background: rgba(168, 85, 247, 0.2); border: 1px solid rgba(168, 85, 247, 0.4); color: #a855f7;";
+                default: return "background: rgba(148, 163, 184, 0.2); border: 1px solid rgba(148, 163, 184, 0.4); color: #94a3b8;";
+            }
+        }
+
         // 찬양 목록 UI 그리기
         function renderPraiseSongsList(songs) {
             const songsList = document.getElementById("praise-songs-list");
@@ -5548,13 +5590,19 @@
                     div.classList.add("selected");
                 }
 
+                const songMood = (song.moods && song.moods[0]) || song.mood || "기본/일반";
+                const badgeStyle = getMoodBadgeStyle(songMood);
+
                 // 가사 첫줄 미리보기
                 const lines = song.lyrics.split("\n").filter(l => l.trim() !== "");
                 const previewText = lines.length > 0 ? lines[0] : "";
 
                 div.innerHTML = `
-                    <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-main); pointer-events: none;">${song.title}</span>
-                    <span style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;">${previewText}</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; pointer-events: none;">
+                        <span style="font-size: 0.81rem; font-weight: 600; color: var(--text-main); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 65%;">${song.title}</span>
+                        <span style="font-size: 0.65rem; font-weight: 600; padding: 2px 7px; border-radius: 10px; ${badgeStyle} flex-shrink: 0;">#${songMood}</span>
+                    </div>
+                    <span style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; margin-top: 1px;">${previewText}</span>
                 `;
 
                 // 클릭 (다중 선택, Shift, Ctrl)
