@@ -3345,17 +3345,7 @@
                     e.stopPropagation();
                     hideStageBgContextMenu();
                     if (selectedStageBgFiles && selectedStageBgFiles.length > 0) {
-                        const targetBg = selectedStageBgFiles[0];
-                        const currentMoods = (targetBg.moods || []).join(', ');
-                        const input = prompt(`배경 [${targetBg.name}]의 분위기 태그를 쉼표(,)로 구분하여 입력하세요:\n(예: 경배, 잔잔한, 빠른, 기도)`, currentMoods);
-                        if (input !== null) {
-                            const newMoods = input.split(',').map(s => s.trim()).filter(Boolean);
-                            targetBg.moods = newMoods;
-                            const isDefaultConfirm = confirm(`이 배경 [${targetBg.name}]을(를) 기본(Default) 배경으로 지정하시겠습니까?`);
-                            targetBg.isDefault = isDefaultConfirm;
-                            saveProjectData();
-                            renderStageBgGrid();
-                        }
+                        openStageBgMoodModal(selectedStageBgFiles);
                     }
                 };
             }
@@ -5861,8 +5851,192 @@ window.handleStageBgCardContextMenu = function(e, index) {
     showStageBgContextMenu(e.clientX, e.clientY);
 };
 
+window.toggleSelectStageBgCard = function(e, index) {
+    const fileObj = _renderedStageBgFiles[index];
+    if (!fileObj) return;
+    const existsIdx = selectedStageBgFiles.findIndex(f => f.name === fileObj.name);
+    if (existsIdx !== -1) {
+        selectedStageBgFiles.splice(existsIdx, 1);
+    } else {
+        selectedStageBgFiles.push(fileObj);
+    }
+    lastSelectedStageBgIndex = index;
+    filterAndRenderStageBgLibrary();
+};
+
+window.updateStageBgBulkBar = function() {
+    const bulkBar = document.getElementById('stage-bg-bulk-bar');
+    const bulkCount = document.getElementById('stage-bg-bulk-count');
+    if (!bulkBar || !bulkCount) return;
+
+    if (selectedStageBgFiles && selectedStageBgFiles.length > 0) {
+        bulkBar.style.display = 'flex';
+        bulkCount.textContent = `☑ ${selectedStageBgFiles.length}개 배경 선택됨`;
+    } else {
+        bulkBar.style.display = 'none';
+    }
+};
+
+let _stageBgMoodTargets = [];
+window.openStageBgMoodModal = function(targetFiles) {
+    _stageBgMoodTargets = targetFiles || selectedStageBgFiles || [];
+    if (_stageBgMoodTargets.length === 0) return;
+
+    const modal = document.getElementById('stage-bg-mood-modal');
+    const title = document.getElementById('modal-stage-bg-mood-title');
+    const desc = document.getElementById('modal-stage-bg-mood-desc');
+    const chipsContainer = document.getElementById('stage-bg-mood-chips-container');
+    const bulkModeContainer = document.getElementById('stage-bg-bulk-mode-container');
+
+    if (title) {
+        title.textContent = _stageBgMoodTargets.length === 1 
+            ? `🏷️ 배경 [${_stageBgMoodTargets[0].name}] 분위기 태그 설정` 
+            : `🏷️ 선택한 ${_stageBgMoodTargets.length}개 배경 분위기 태그 일괄 설정`;
+    }
+    if (desc) {
+        desc.textContent = _stageBgMoodTargets.length === 1
+            ? "영상에 부여할 분위기 태그를 선택하거나 신규 추가해 주세요."
+            : `선택된 ${_stageBgMoodTargets.length}개의 배경 영상에 일괄로 적용할 태그를 선택해 주세요.`;
+    }
+    if (bulkModeContainer) {
+        bulkModeContainer.style.display = _stageBgMoodTargets.length > 1 ? 'flex' : 'none';
+    }
+
+    const allKnownMoods = new Set(["경배", "잔잔한", "빠른/기쁨", "기도/회개", "웅장한", "절기/특별"]);
+    allStageBgFiles.forEach(f => (f.moods || []).forEach(m => allKnownMoods.add(m)));
+
+    const activeMoodsSet = new Set();
+    if (_stageBgMoodTargets.length === 1) {
+        (_stageBgMoodTargets[0].moods || []).forEach(m => activeMoodsSet.add(m));
+    }
+
+    function renderChips() {
+        if (!chipsContainer) return;
+        let html = '';
+        allKnownMoods.forEach(m => {
+            const isActive = activeMoodsSet.has(m);
+            const style = isActive 
+                ? 'padding: 5px 12px; font-size: 0.76rem; border-radius: 14px; border: 1px solid var(--primary); background: var(--primary); color: #fff; cursor: pointer; font-weight: 600;'
+                : 'padding: 5px 12px; font-size: 0.76rem; border-radius: 14px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: #cbd5e1; cursor: pointer;';
+            html += `<button type="button" class="stage-bg-mood-chip ${isActive ? 'active' : ''}" data-mood="${m}" style="${style}">#${m}</button>`;
+        });
+        chipsContainer.innerHTML = html;
+
+        chipsContainer.querySelectorAll('.stage-bg-mood-chip').forEach(btn => {
+            btn.onclick = () => {
+                const moodVal = btn.getAttribute('data-mood');
+                if (activeMoodsSet.has(moodVal)) {
+                    activeMoodsSet.delete(moodVal);
+                } else {
+                    activeMoodsSet.add(moodVal);
+                }
+                renderChips();
+            };
+        });
+    }
+
+    renderChips();
+
+    const addBtn = document.getElementById('btn-add-new-stage-bg-mood');
+    const addInput = document.getElementById('input-new-stage-bg-mood');
+    if (addBtn && addInput) {
+        addBtn.onclick = () => {
+            const val = addInput.value.trim();
+            if (val) {
+                const newTags = val.split(',').map(s => s.trim()).filter(Boolean);
+                newTags.forEach(t => {
+                    allKnownMoods.add(t);
+                    activeMoodsSet.add(t);
+                });
+                addInput.value = '';
+                renderChips();
+            }
+        };
+    }
+
+    if (modal) modal.style.display = 'flex';
+};
+
+function initStageBgMoodModalEvents() {
+    const modal = document.getElementById('stage-bg-mood-modal');
+    const closeBtn = document.getElementById('btn-stage-bg-mood-modal-close');
+    const cancelBtn = document.getElementById('btn-stage-bg-mood-modal-cancel');
+    const saveBtn = document.getElementById('btn-stage-bg-mood-modal-save');
+
+    const closeModal = () => { if (modal) modal.style.display = 'none'; };
+    if (closeBtn) closeBtn.onclick = closeModal;
+    if (cancelBtn) cancelBtn.onclick = closeModal;
+
+    if (saveBtn) {
+        saveBtn.onclick = () => {
+            const chipsContainer = document.getElementById('stage-bg-mood-chips-container');
+            if (!chipsContainer) return;
+
+            const selectedMoods = [];
+            chipsContainer.querySelectorAll('.stage-bg-mood-chip.active').forEach(b => {
+                const m = b.getAttribute('data-mood');
+                if (m) selectedMoods.push(m);
+            });
+
+            const modeRadio = document.querySelector('input[name="bulk-mood-mode"]:checked');
+            const bulkMode = modeRadio ? modeRadio.value : 'append';
+
+            _stageBgMoodTargets.forEach(targetBg => {
+                if (bulkMode === 'replace' || _stageBgMoodTargets.length === 1) {
+                    targetBg.moods = [...selectedMoods];
+                } else {
+                    const merged = new Set([...(targetBg.moods || []), ...selectedMoods]);
+                    targetBg.moods = Array.from(merged);
+                }
+            });
+
+            saveProjectData();
+            filterAndRenderStageBgLibrary();
+            closeModal();
+        };
+    }
+
+    const btnBulkMoods = document.getElementById('btn-stage-bg-bulk-moods');
+    if (btnBulkMoods) {
+        btnBulkMoods.onclick = () => {
+            openStageBgMoodModal(selectedStageBgFiles);
+        };
+    }
+
+    const btnBulkDefault = document.getElementById('btn-stage-bg-bulk-default');
+    if (btnBulkDefault) {
+        btnBulkDefault.onclick = () => {
+            if (!selectedStageBgFiles || selectedStageBgFiles.length === 0) return;
+            const isDef = confirm(`선택한 ${selectedStageBgFiles.length}개 배경을 기본(Default) 배경으로 지정하시겠습니까?`);
+            selectedStageBgFiles.forEach(f => {
+                f.isDefault = isDef;
+            });
+            saveProjectData();
+            filterAndRenderStageBgLibrary();
+        };
+    }
+
+    const btnBulkDelete = document.getElementById('btn-stage-bg-bulk-delete');
+    if (btnBulkDelete) {
+        btnBulkDelete.onclick = () => {
+            if (typeof deleteSelectedStageBgFilesWithConfirm === 'function') {
+                deleteSelectedStageBgFilesWithConfirm();
+            }
+        };
+    }
+
+    const btnBulkClear = document.getElementById('btn-stage-bg-bulk-clear');
+    if (btnBulkClear) {
+        btnBulkClear.onclick = () => {
+            selectedStageBgFiles = [];
+            filterAndRenderStageBgLibrary();
+        };
+    }
+}
+
 // 현장 배경 메인 뷰어 열기/닫기
 function showStageBgMainViewer() {
+    initStageBgMoodModalEvents();
     const overlay = document.getElementById('stage-bg-main-viewer-overlay');
     if (overlay) {
         overlay.style.display = 'flex';
@@ -5941,25 +6115,35 @@ function filterAndRenderStageBgLibrary() {
         const escOldName = f.name.replace(/'/g, "\\'");
         const safeName = f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-        const borderStyle = isSelected ? '2px solid #38bdf8' : (isCurrent ? '2px solid #0284c7' : '2px solid var(--panel-border, #3f3f46)');
-        const bgStyle = isSelected ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255,255,255,0.04)';
+        const moodsList = f.moods || [];
+        const moodChipsHtml = moodsList.map(m => `<span style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; border: 1px solid rgba(56, 189, 248, 0.3);">#${m}</span>`).join(' ');
+        const defaultBadgeHtml = (f.isDefault || f.is_default) ? `<span style="background: #eab308; color: #000; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">⭐ 기본</span>` : '';
 
         html += `
             <div class="stage-bg-card-main ${isCurrent ? 'active' : ''} ${isSelected ? 'selected' : ''}" 
                 onclick="handleStageBgCardClick(event, ${idx})" 
                 oncontextmenu="handleStageBgCardContextMenu(event, ${idx})"
                 style="background: ${bgStyle}; border: ${borderStyle}; border-radius: 8px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; transition: all 0.2s; position: relative;">
-                ${isCurrent ? `<span style="position: absolute; top: 10px; right: 10px; background: #0284c7; color: #fff; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">적용 중</span>` : ''}
+                <input type="checkbox" ${isSelected ? 'checked' : ''} 
+                       onclick="event.stopPropagation(); toggleSelectStageBgCard(event, ${idx})" 
+                       style="position: absolute; top: 10px; left: 10px; z-index: 10; width: 16px; height: 16px; cursor: pointer;">
+                <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 4px; z-index: 5;">
+                    ${defaultBadgeHtml}
+                    ${isCurrent ? `<span style="background: #0284c7; color: #fff; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;">적용 중</span>` : ''}
+                </div>
                 <div style="width: 100%; aspect-ratio: 16/9; max-height: 140px; background: #0f172a; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative;">
                     ${thumbUrl ? `<img src="${thumbUrl}" style="width: 100%; height: 100%; object-fit: cover;">` : `<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #60a5fa;"><span style="font-size: 2rem;">🎬</span><span style="font-size: 0.68rem; color: var(--text-muted);">로컬 미디어</span></div>`}
                 </div>
                 <div>
                     <div class="stage-bg-title" 
-                         style="font-size: 0.85rem; font-weight: 600; color: #fff; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; margin-bottom: 2px; cursor: text;" 
+                         style="font-size: 0.85rem; font-weight: 600; color: #fff; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; margin-bottom: 4px; cursor: text;" 
                          title="두 번 클릭하여 제목 수정" 
                          onclick="event.stopPropagation();" 
                          ondblclick="event.stopPropagation(); startInlineRenameStageBg(this, '${escOldName}')">
                         ${safeName}
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;">
+                        ${moodChipsHtml || '<span style="color: var(--text-muted); font-size: 0.68rem;">태그 없음</span>'}
                     </div>
                 </div>
             </div>
@@ -5975,6 +6159,7 @@ function filterAndRenderStageBgLibrary() {
     }
 
     gridContainer.innerHTML = html;
+    updateStageBgBulkBar();
 }
 
 // 배경 라이브러리 더블 클릭 인라인 이름 변경
