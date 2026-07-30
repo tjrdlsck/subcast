@@ -338,32 +338,64 @@
 
             document.body.classList.add('stage-mode');
 
-            const videoEl = document.getElementById('stage-video-bg');
+            let activeVideoIndex = window._activeStageVideoIndex || 1;
+            const videoEl1 = document.getElementById('stage-video-bg-1');
+            const videoEl2 = document.getElementById('stage-video-bg-2');
+            const legacyVideoEl = document.getElementById('stage-video-bg');
+            if (legacyVideoEl) legacyVideoEl.style.display = 'none';
+
             const motionCanvas = document.getElementById('stage-motion-bg');
+            const opacityTarget = bgConfig && bgConfig.opacity !== undefined ? bgConfig.opacity : 0.8;
+            const blurTarget = bgConfig && bgConfig.blur !== undefined ? bgConfig.blur : 0;
 
             if (!bgConfig || bgConfig.type === 'ambient') {
-                if (videoEl) {
-                    videoEl.pause();
-                    videoEl.style.display = 'none';
-                }
+                [videoEl1, videoEl2].forEach(v => {
+                    if (v) {
+                        v.style.opacity = '0';
+                        setTimeout(() => { v.style.display = 'none'; v.pause(); }, 800);
+                    }
+                });
                 initStageMotionBg();
                 if (motionCanvas) motionCanvas.style.display = 'block';
             } else if (bgConfig.type === 'video' && bgConfig.videoUrl) {
                 if (motionCanvas) motionCanvas.style.display = 'none';
-                if (videoEl) {
-                    videoEl.style.display = 'block';
-                    const fullUrl = bgConfig.videoUrl.startsWith('http') ? bgConfig.videoUrl : window.location.origin + bgConfig.videoUrl;
-                    if (videoEl.src !== fullUrl) {
-                        videoEl.src = bgConfig.videoUrl;
-                        videoEl.load();
-                        videoEl.play().catch(e => console.warn("Video autoplay prevented:", e));
-                    } else if (videoEl.paused) {
-                        videoEl.play().catch(e => console.warn("Video play failed:", e));
-                    }
-                    const opacity = bgConfig.opacity !== undefined ? bgConfig.opacity : 0.8;
-                    videoEl.style.opacity = opacity;
-                    const blur = bgConfig.blur !== undefined ? bgConfig.blur : 0;
-                    videoEl.style.filter = blur > 0 ? `blur(${blur}px)` : 'none';
+                
+                const activeEl = activeVideoIndex === 1 ? videoEl1 : videoEl2;
+                const nextEl = activeVideoIndex === 1 ? videoEl2 : videoEl1;
+                if (!activeEl || !nextEl) return;
+
+                const fullUrl = bgConfig.videoUrl.startsWith('http') ? bgConfig.videoUrl : window.location.origin + bgConfig.videoUrl;
+
+                // 이미 동일한 영상이 재생 중인 경우
+                if (activeEl.src === fullUrl && activeEl.style.display !== 'none' && parseFloat(activeEl.style.opacity) > 0) {
+                    activeEl.style.filter = blurTarget > 0 ? `blur(${blurTarget}px)` : 'none';
+                    activeEl.style.opacity = opacityTarget;
+                    if (activeEl.paused) activeEl.play().catch(e => console.warn("Video play failed:", e));
+                    return;
+                }
+
+                // 새로운 비디오로 디졸브 교체
+                nextEl.style.display = 'block';
+                nextEl.style.filter = blurTarget > 0 ? `blur(${blurTarget}px)` : 'none';
+                
+                const onCanPlay = () => {
+                    nextEl.play().then(() => {
+                        nextEl.style.opacity = opacityTarget;
+                        activeEl.style.opacity = '0';
+                        setTimeout(() => {
+                            activeEl.style.display = 'none';
+                            activeEl.pause();
+                        }, 800);
+                        window._activeStageVideoIndex = activeVideoIndex === 1 ? 2 : 1;
+                    }).catch(e => console.warn("Video autoplay prevented:", e));
+                };
+
+                if (nextEl.src !== fullUrl) {
+                    nextEl.src = bgConfig.videoUrl;
+                    nextEl.load();
+                    nextEl.addEventListener('canplay', onCanPlay, { once: true });
+                } else {
+                    onCanPlay();
                 }
             }
         }

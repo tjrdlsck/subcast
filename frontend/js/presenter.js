@@ -312,6 +312,17 @@
                 type: "SLIDE_CHANGE",
                 slideId: slideId
             }));
+
+            if (projectData && projectData.slides) {
+                const targetSlide = projectData.slides.find(s => s.id === slideId);
+                if (targetSlide) {
+                    ws.send(JSON.stringify({
+                        type: "SELECT_STAGE_BACKGROUND_BY_MOOD",
+                        slideMoods: targetSlide.moods || [],
+                        overrideBgId: targetSlide.overrideBgId || null
+                    }));
+                }
+            }
         }
 
         // 이전/다음 슬라이드 전환

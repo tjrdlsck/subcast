@@ -20,6 +20,9 @@ from pydantic import BaseModel
 
 
 from backend.schemas import ProjectData, SystemSettings, Slide, ProjectCreateRequest, ProjectUpdateRequest, ProjectListItem, ProjectBatchRequest
+from backend.services.mood_matching import select_stage_background
+
+stage_bg_history_queue = []
 from backend.storage import (
     load_project_data, save_project_data, list_projects,
     create_project, update_project_name, delete_project, get_active_project_id, set_active_project_id,
@@ -1295,6 +1298,28 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                     "background": bg_data
                 })
                 logger.info(f"Stage background updated: {bg_data.get('type')}")
+
+            elif msg_type == "SELECT_STAGE_BACKGROUND_BY_MOOD":
+                slide_moods = message.get("slideMoods", [])
+                override_bg_id = message.get("overrideBgId")
+                bg_library = getattr(manager.project_data.settings, "stageBgLibrary", []) if manager.project_data and manager.project_data.settings else []
+                
+                bg_data = select_stage_background(
+                    slide_moods=slide_moods,
+                    override_bg_id=override_bg_id,
+                    bg_library=bg_library,
+                    history_queue=stage_bg_history_queue
+                )
+                
+                if manager.project_data and manager.project_data.settings:
+                    setattr(manager.project_data.settings, "stageBackground", bg_data)
+                    await save_project_data(manager.project_data)
+                    
+                await manager.broadcast({
+                    "type": "SET_STAGE_BACKGROUND",
+                    "background": bg_data
+                })
+                logger.info(f"Stage background automatically matched by mood: {bg_data.get('type')}")
 
             elif msg_type == "UPDATE_RESOLUTION":
                 # 해상도 설정 저장 및 전파
