@@ -1321,6 +1321,13 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                 })
                 logger.info(f"Stage background automatically matched by mood: {bg_data.get('type')}")
 
+            elif msg_type == "UPDATE_STAGE_BG_LIBRARY":
+                library_data = message.get("library", [])
+                if manager.project_data and manager.project_data.settings:
+                    setattr(manager.project_data.settings, "stageBgLibrary", library_data)
+                    await save_project_data(manager.project_data)
+                logger.info(f"Stage background library updated: {len(library_data)} items")
+
             elif msg_type == "UPDATE_RESOLUTION":
                 # 해상도 설정 저장 및 전파
                 width = message.get("width")

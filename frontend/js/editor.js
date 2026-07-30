@@ -3291,7 +3291,7 @@
                             const input = prompt(`곡/슬라이드 [${slide.name}]의 분위기 태그를 쉼표(,)로 구분하여 입력하세요:\n(예: 경배, 잔잔한, 기도, 빠른)`, currentMoods);
                             if (input !== null) {
                                 slide.moods = input.split(',').map(s => s.trim()).filter(Boolean);
-                                saveProjectData();
+                                triggerAutoSave();
                                 renderSlides();
                             }
                         }
@@ -5877,6 +5877,18 @@ window.updateStageBgBulkBar = function() {
     }
 };
 
+function saveStageBgLibraryData() {
+    if (projectData && projectData.settings) {
+        projectData.settings.stageBgLibrary = allStageBgFiles;
+    }
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+            type: "UPDATE_STAGE_BG_LIBRARY",
+            library: allStageBgFiles
+        }));
+    }
+}
+
 let _stageBgMoodTargets = [];
 window.openStageBgMoodModal = function(targetFiles) {
     _stageBgMoodTargets = targetFiles || selectedStageBgFiles || [];
@@ -5990,7 +6002,7 @@ function initStageBgMoodModalEvents() {
                 }
             });
 
-            saveProjectData();
+            saveStageBgLibraryData();
             filterAndRenderStageBgLibrary();
             closeModal();
         };
@@ -6011,7 +6023,7 @@ function initStageBgMoodModalEvents() {
             selectedStageBgFiles.forEach(f => {
                 f.isDefault = isDef;
             });
-            saveProjectData();
+            saveStageBgLibraryData();
             filterAndRenderStageBgLibrary();
         };
     }
