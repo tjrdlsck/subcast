@@ -5,64 +5,66 @@ from backend.schemas import Slide
 
 def test_override_bg_selection():
     bg_library = [
-        {"id": "bg_1", "name": "호수", "url": "/bg1.mp4", "moods": ["잔잔한"]},
-        {"id": "bg_2", "name": "하늘", "url": "/bg2.mp4", "moods": ["경배"]}
+        {"id": "bg_1", "name": "호수", "url": "/bg1.mp4", "mood": "잔잔/묵상"},
+        {"id": "bg_2", "name": "하늘", "url": "/bg2.mp4", "mood": "경배/찬양"}
     ]
     res = select_stage_background(
-        slide_moods=["잔잔한"],
+        slide_moods="잔잔/묵상",
         override_bg_id="bg_2",
         bg_library=bg_library
     )
     assert res["id"] == "bg_2"
     assert res["videoUrl"] == "/bg2.mp4"
 
-def test_weighted_mood_matching():
+def test_single_tag_mood_matching():
     bg_library = [
-        {"id": "bg_1", "name": "잔잔", "url": "/bg1.mp4", "moods": ["잔잔한"]},
-        {"id": "bg_2", "name": "잔잔+경배", "url": "/bg2.mp4", "moods": ["잔잔한", "경배"]}
+        {"id": "bg_praise", "name": "찬양영상", "url": "/praise.mp4", "mood": "경배/찬양"},
+        {"id": "bg_quiet", "name": "묵상영상", "url": "/quiet.mp4", "mood": "잔잔/묵상"}
     ]
-    # 잔잔+경배가 가중치 2로 더 선택 확률이 높음
-    selected_ids = []
-    for _ in range(50):
-        res = select_stage_background(
-            slide_moods=["잔잔한", "경배"],
-            override_bg_id=None,
-            bg_library=bg_library,
-            history_queue=[]
-        )
-        selected_ids.append(res["id"])
-    
-    assert "bg_2" in selected_ids
-    assert "bg_1" in selected_ids
-    # bg_2 가중치가 2이고 bg_1 가중치가 1이므로 bg_2가 더 자주 선택됨
-    assert selected_ids.count("bg_2") > selected_ids.count("bg_1")
+    res = select_stage_background(
+        slide_moods="경배/찬양",
+        override_bg_id=None,
+        bg_library=bg_library,
+        history_queue=[]
+    )
+    assert res["id"] == "bg_praise"
 
-def test_dynamic_history_queue_deadlock_prevention():
-    # 후보군이 2개(M=2)인 경우, N=3 이력 큐로 인해 갇히거나 무한루프에 빠지지 않아야 함
+def test_anti_repetition_sequential_matching():
     bg_library = [
-        {"id": "bg_1", "name": "영상1", "url": "/bg1.mp4", "moods": ["기도"]},
-        {"id": "bg_2", "name": "영상2", "url": "/bg2.mp4", "moods": ["기도"]}
+        {"id": "bg_1", "name": "찬양영상1", "url": "/praise1.mp4", "mood": "경배/찬양"},
+        {"id": "bg_2", "name": "찬양영상2", "url": "/praise2.mp4", "mood": "경배/찬양"}
     ]
     history_queue = []
-    for _ in range(10):
-        res = select_stage_background(
-            slide_moods=["기도"],
-            override_bg_id=None,
-            bg_library=bg_library,
-            history_queue=history_queue,
-            max_history_size=3
-        )
-        assert res["id"] in ["bg_1", "bg_2"]
+    
+    # 1회차 추출
+    res1 = select_stage_background(
+        slide_moods="경배/찬양",
+        override_bg_id=None,
+        bg_library=bg_library,
+        history_queue=history_queue
+    )
+    first_id = res1["id"]
+    
+    # 2회차 추출 (동일 태그 연속 추출 시 바로 전 영상이 나오지 않는지 검증)
+    res2 = select_stage_background(
+        slide_moods="경배/찬양",
+        override_bg_id=None,
+        bg_library=bg_library,
+        history_queue=history_queue
+    )
+    second_id = res2["id"]
+    
+    assert first_id != second_id, "연속 추출 시 동일 배경이 나오지 않아야 함"
 
 def test_multitier_fallback():
     bg_library = [
-        {"id": "bg_def", "name": "기본배경", "url": "/default.mp4", "isDefault": True, "moods": []},
-        {"id": "bg_other", "name": "일반배경", "url": "/other.mp4", "isDefault": False, "moods": ["신나는"]}
+        {"id": "bg_def", "name": "기본배경", "url": "/default.mp4", "isDefault": True, "mood": "기본/일반"},
+        {"id": "bg_other", "name": "일반배경", "url": "/other.mp4", "isDefault": False, "mood": "절기/특별"}
     ]
     
     # 1. 일치 태그 없으면 Default 배경 선택
     res_def = select_stage_background(
-        slide_moods=["경배"],
+        slide_moods="경배/찬양",
         override_bg_id=None,
         bg_library=bg_library
     )
@@ -70,10 +72,10 @@ def test_multitier_fallback():
 
     # 2. Default 배경도 없으면 전체 배경 중 선택
     no_def_library = [
-        {"id": "bg_other", "name": "일반배경", "url": "/other.mp4", "isDefault": False, "moods": ["신나는"]}
+        {"id": "bg_other", "name": "일반배경", "url": "/other.mp4", "isDefault": False, "mood": "절기/특별"}
     ]
     res_all = select_stage_background(
-        slide_moods=["경배"],
+        slide_moods="경배/찬양",
         override_bg_id=None,
         bg_library=no_def_library
     )
@@ -81,7 +83,7 @@ def test_multitier_fallback():
 
     # 3. 비어있는 라이브러리면 ambient 반환
     res_ambient = select_stage_background(
-        slide_moods=["경배"],
+        slide_moods="경배/찬양",
         override_bg_id=None,
         bg_library=[]
     )
@@ -91,3 +93,4 @@ def test_slide_schema_defaults():
     slide = Slide(id="s1", name="은혜 아래 있네")
     assert slide.moods == []
     assert slide.overrideBgId is None
+

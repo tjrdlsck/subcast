@@ -1123,17 +1123,16 @@
                         style="width: 100%; padding: 8px 12px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; outline: none;">
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 6px;">
-                    <label style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">🏷️ 분위기 태그 (Mood Tags)</label>
+                    <label style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">🏷️ 분위기 태그 (1개 지정)</label>
                     <div id="modal-praise-mood-chips" style="display: flex; flex-wrap: wrap; gap: 6px;">
-                        <button type="button" class="mood-chip" data-mood="경배" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 12px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: #cbd5e1; cursor: pointer;">#경배</button>
-                        <button type="button" class="mood-chip" data-mood="잔잔한" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 12px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: #cbd5e1; cursor: pointer;">#잔잔한</button>
-                        <button type="button" class="mood-chip" data-mood="빠른/기쁨" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 12px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: #cbd5e1; cursor: pointer;">#빠른/기쁨</button>
+                        <button type="button" class="mood-chip active" data-mood="경배/찬양" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 12px; border: 1px solid var(--primary); background: var(--primary); color: #ffffff; cursor: pointer;">#경배/찬양</button>
+                        <button type="button" class="mood-chip" data-mood="잔잔/묵상" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 12px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: #cbd5e1; cursor: pointer;">#잔잔/묵상</button>
                         <button type="button" class="mood-chip" data-mood="기도/회개" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 12px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: #cbd5e1; cursor: pointer;">#기도/회개</button>
-                        <button type="button" class="mood-chip" data-mood="웅장한" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 12px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: #cbd5e1; cursor: pointer;">#웅장한</button>
+                        <button type="button" class="mood-chip" data-mood="결단/헌금" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 12px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: #cbd5e1; cursor: pointer;">#결단/헌금</button>
+                        <button type="button" class="mood-chip" data-mood="웅장/선포" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 12px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: #cbd5e1; cursor: pointer;">#웅장/선포</button>
                         <button type="button" class="mood-chip" data-mood="절기/특별" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 12px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: #cbd5e1; cursor: pointer;">#절기/특별</button>
+                        <button type="button" class="mood-chip" data-mood="기본/일반" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 12px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: #cbd5e1; cursor: pointer;">#기본/일반</button>
                     </div>
-                    <input type="text" id="modal-praise-moods" placeholder="추가 커스텀 태그 (쉼표 구분 예: 은혜, 헌금)"
-                        style="width: 100%; padding: 6px 10px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.75rem; outline: none; margin-top: 2px;">
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 4px;">
                     <label style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">가사 원문 (빈 줄 분할
@@ -1341,27 +1340,13 @@
             </div>
             <div class="modal-body" style="padding-top: 0; display: flex; flex-direction: column; gap: 14px;">
                 <div style="font-size: 0.78rem; color: var(--text-muted);" id="modal-stage-bg-mood-desc">
-                    선택된 배경 영상에 부여할 분위기 태그를 선택하거나 신규 추가해 주세요.
+                    선택된 배경 영상에 부여할 분위기 태그를 1개 지정해 주세요.
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 6px;">
-                    <label style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">등록된 분위기 태그 목록 (클릭하여 선택/해제)</label>
-                    <div id="stage-bg-mood-chips-container" style="display: flex; flex-wrap: wrap; gap: 6px; max-height: 150px; overflow-y: auto; padding: 4px;">
+                    <label style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">표준 분위기 태그 목록 (1개 선택)</label>
+                    <div id="stage-bg-mood-chips-container" style="display: flex; flex-wrap: wrap; gap: 6px; max-height: 180px; overflow-y: auto; padding: 4px;">
                         <!-- 동적 태그 칩 생성 -->
-                    </div>
-                </div>
-
-                <div style="display: flex; gap: 6px; align-items: center;">
-                    <input type="text" id="input-new-stage-bg-mood" placeholder="➕ 새 분위기 태그 입력 후 [추가] 클릭"
-                        style="flex: 1; padding: 7px 10px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.78rem; outline: none;">
-                    <button type="button" id="btn-add-new-stage-bg-mood" style="padding: 7px 14px; background: var(--primary); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 0.78rem; font-weight: 600; cursor: pointer;">추가</button>
-                </div>
-
-                <div id="stage-bg-bulk-mode-container" style="display: flex; flex-direction: column; gap: 4px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 6px; border: 1px solid var(--panel-border);">
-                    <label style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">일괄 적용 방식</label>
-                    <div style="display: flex; gap: 16px; font-size: 0.78rem; color: var(--text-main);">
-                        <label style="cursor: pointer;"><input type="radio" name="bulk-mood-mode" value="append" checked> 기존 태그 유지하며 추가</label>
-                        <label style="cursor: pointer;"><input type="radio" name="bulk-mood-mode" value="replace"> 기존 태그 전체 교체</label>
                     </div>
                 </div>
             </div>

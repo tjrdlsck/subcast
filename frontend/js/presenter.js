@@ -318,7 +318,8 @@
                 if (targetSlide) {
                     ws.send(JSON.stringify({
                         type: "SELECT_STAGE_BACKGROUND_BY_MOOD",
-                        slideMoods: targetSlide.moods || [],
+                        slideMood: targetSlide.mood || (targetSlide.moods && targetSlide.moods[0]) || "기본/일반",
+                        slideMoods: targetSlide.moods || (targetSlide.mood ? [targetSlide.mood] : ["기본/일반"]),
                         overrideBgId: targetSlide.overrideBgId || null
                     }));
                 }

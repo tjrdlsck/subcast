@@ -3287,10 +3287,12 @@
                     if (targetId && projectData && projectData.slides) {
                         const slide = projectData.slides.find(s => s.id === targetId);
                         if (slide) {
-                            const currentMoods = (slide.moods || []).join(', ');
-                            const input = prompt(`곡/슬라이드 [${slide.name}]의 분위기 태그를 쉼표(,)로 구분하여 입력하세요:\n(예: 경배, 잔잔한, 기도, 빠른)`, currentMoods);
-                            if (input !== null) {
-                                slide.moods = input.split(',').map(s => s.trim()).filter(Boolean);
+                            const currentMood = (slide.moods && slide.moods[0]) || slide.mood || "경배/찬양";
+                            const input = prompt(`곡/슬라이드 [${slide.name}]의 분위기 태그를 선택/입력하세요:\n(표준 태그: 경배/찬양, 잔잔/묵상, 기도/회개, 결단/헌금, 웅장/선포, 절기/특별, 기본/일반)`, currentMood);
+                            if (input !== null && input.trim()) {
+                                const val = input.trim();
+                                slide.mood = val;
+                                slide.moods = [val];
                                 triggerAutoSave();
                                 renderSlides();
                             }
@@ -4865,6 +4867,27 @@
             if (headerTitle) headerTitle.textContent = "🎵 찬양곡 수정";
             if (inputTitle) inputTitle.value = song.title;
             if (inputLyrics) inputLyrics.value = song.lyrics;
+
+            const moodChipsContainer = document.getElementById("modal-praise-mood-chips");
+            if (moodChipsContainer) {
+                const targetMood = (song.moods && song.moods[0]) || song.mood || "경배/찬양";
+                const chips = moodChipsContainer.querySelectorAll(".mood-chip");
+                chips.forEach(chip => {
+                    const m = chip.getAttribute("data-mood");
+                    if (m === targetMood) {
+                        chip.classList.add("active");
+                        chip.style.background = "var(--primary)";
+                        chip.style.borderColor = "var(--primary)";
+                        chip.style.color = "#ffffff";
+                    } else {
+                        chip.classList.remove("active");
+                        chip.style.background = "rgba(255,255,255,0.05)";
+                        chip.style.borderColor = "var(--panel-border)";
+                        chip.style.color = "#cbd5e1";
+                    }
+                });
+            }
+
             if (addModal) addModal.style.display = "flex";
         }
 
@@ -4879,6 +4902,25 @@
             if (headerTitle) headerTitle.textContent = "🎵 신규 찬양곡 등록 및 가사 입력";
             if (inputTitle) inputTitle.value = "";
             if (inputLyrics) inputLyrics.value = "";
+
+            const moodChipsContainer = document.getElementById("modal-praise-mood-chips");
+            if (moodChipsContainer) {
+                const chips = moodChipsContainer.querySelectorAll(".mood-chip");
+                chips.forEach((chip, idx) => {
+                    if (idx === 0) {
+                        chip.classList.add("active");
+                        chip.style.background = "var(--primary)";
+                        chip.style.borderColor = "var(--primary)";
+                        chip.style.color = "#ffffff";
+                    } else {
+                        chip.classList.remove("active");
+                        chip.style.background = "rgba(255,255,255,0.05)";
+                        chip.style.borderColor = "var(--panel-border)";
+                        chip.style.color = "#cbd5e1";
+                    }
+                });
+            }
+
             if (addModal) addModal.style.display = "flex";
         }
 
@@ -5005,18 +5047,16 @@
                 const chips = moodChipsContainer.querySelectorAll(".mood-chip");
                 chips.forEach(chip => {
                     chip.onclick = () => {
-                        const isSelected = chip.classList.contains("active");
-                        if (isSelected) {
-                            chip.classList.remove("active");
-                            chip.style.background = "rgba(255,255,255,0.05)";
-                            chip.style.borderColor = "var(--panel-border)";
-                            chip.style.color = "#cbd5e1";
-                        } else {
-                            chip.classList.add("active");
-                            chip.style.background = "var(--primary)";
-                            chip.style.borderColor = "var(--primary)";
-                            chip.style.color = "#ffffff";
-                        }
+                        chips.forEach(c => {
+                            c.classList.remove("active");
+                            c.style.background = "rgba(255,255,255,0.05)";
+                            c.style.borderColor = "var(--panel-border)";
+                            c.style.color = "#cbd5e1";
+                        });
+                        chip.classList.add("active");
+                        chip.style.background = "var(--primary)";
+                        chip.style.borderColor = "var(--primary)";
+                        chip.style.color = "#ffffff";
                     };
                 });
             }
@@ -5187,23 +5227,17 @@
                     modalSaveBtn.disabled = true;
                     modalSaveBtn.textContent = "⏳ 저장 중...";
 
-                    const moods = [];
+                    let selectedMood = "경배/찬양";
                     const moodChipsContainer = document.getElementById("modal-praise-mood-chips");
                     if (moodChipsContainer) {
-                        const activeChips = moodChipsContainer.querySelectorAll(".mood-chip.active");
-                        activeChips.forEach(chip => {
-                            const m = chip.getAttribute("data-mood");
-                            if (m) moods.push(m);
-                        });
+                        const activeChip = moodChipsContainer.querySelector(".mood-chip.active");
+                        if (activeChip) {
+                            const m = activeChip.getAttribute("data-mood");
+                            if (m) selectedMood = m;
+                        }
                     }
-                    const customInput = document.getElementById("modal-praise-moods");
-                    if (customInput && customInput.value.trim()) {
-                        const customMoods = customInput.value.split(",").map(s => s.trim()).filter(Boolean);
-                        moods.push(...customMoods);
-                    }
-                    const finalMoods = Array.from(new Set(moods));
 
-                    const savePayload = { title, lyrics, moods: finalMoods };
+                    const savePayload = { title, lyrics, mood: selectedMood, moods: [selectedMood] };
                     if (currentEditingPraiseSong) {
                         if (currentEditingPraiseSong.id) {
                             savePayload.id = currentEditingPraiseSong.id;
@@ -5914,19 +5948,18 @@ window.openStageBgMoodModal = function(targetFiles) {
         bulkModeContainer.style.display = _stageBgMoodTargets.length > 1 ? 'flex' : 'none';
     }
 
-    const allKnownMoods = new Set(["경배", "잔잔한", "빠른/기쁨", "기도/회개", "웅장한", "절기/특별"]);
-    allStageBgFiles.forEach(f => (f.moods || []).forEach(m => allKnownMoods.add(m)));
-
-    const activeMoodsSet = new Set();
-    if (_stageBgMoodTargets.length === 1) {
-        (_stageBgMoodTargets[0].moods || []).forEach(m => activeMoodsSet.add(m));
+    const standardPresets = ["경배/찬양", "잔잔/묵상", "기도/회개", "결단/헌금", "웅장/선포", "절기/특별", "기본/일반"];
+    let currentSelectedMood = "경배/찬양";
+    if (_stageBgMoodTargets.length > 0) {
+        const firstBg = _stageBgMoodTargets[0];
+        currentSelectedMood = (firstBg.moods && firstBg.moods[0]) || firstBg.mood || "경배/찬양";
     }
 
     function renderChips() {
         if (!chipsContainer) return;
         let html = '';
-        allKnownMoods.forEach(m => {
-            const isActive = activeMoodsSet.has(m);
+        standardPresets.forEach(m => {
+            const isActive = m === currentSelectedMood;
             const style = isActive 
                 ? 'padding: 5px 12px; font-size: 0.76rem; border-radius: 14px; border: 1px solid var(--primary); background: var(--primary); color: #fff; cursor: pointer; font-weight: 600;'
                 : 'padding: 5px 12px; font-size: 0.76rem; border-radius: 14px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: #cbd5e1; cursor: pointer;';
@@ -5936,35 +5969,13 @@ window.openStageBgMoodModal = function(targetFiles) {
 
         chipsContainer.querySelectorAll('.stage-bg-mood-chip').forEach(btn => {
             btn.onclick = () => {
-                const moodVal = btn.getAttribute('data-mood');
-                if (activeMoodsSet.has(moodVal)) {
-                    activeMoodsSet.delete(moodVal);
-                } else {
-                    activeMoodsSet.add(moodVal);
-                }
+                currentSelectedMood = btn.getAttribute('data-mood');
                 renderChips();
             };
         });
     }
 
     renderChips();
-
-    const addBtn = document.getElementById('btn-add-new-stage-bg-mood');
-    const addInput = document.getElementById('input-new-stage-bg-mood');
-    if (addBtn && addInput) {
-        addBtn.onclick = () => {
-            const val = addInput.value.trim();
-            if (val) {
-                const newTags = val.split(',').map(s => s.trim()).filter(Boolean);
-                newTags.forEach(t => {
-                    allKnownMoods.add(t);
-                    activeMoodsSet.add(t);
-                });
-                addInput.value = '';
-                renderChips();
-            }
-        };
-    }
 
     if (modal) modal.style.display = 'flex';
 };
@@ -5981,25 +5992,12 @@ function initStageBgMoodModalEvents() {
 
     if (saveBtn) {
         saveBtn.onclick = () => {
-            const chipsContainer = document.getElementById('stage-bg-mood-chips-container');
-            if (!chipsContainer) return;
-
-            const selectedMoods = [];
-            chipsContainer.querySelectorAll('.stage-bg-mood-chip.active').forEach(b => {
-                const m = b.getAttribute('data-mood');
-                if (m) selectedMoods.push(m);
-            });
-
-            const modeRadio = document.querySelector('input[name="bulk-mood-mode"]:checked');
-            const bulkMode = modeRadio ? modeRadio.value : 'append';
+            const activeChip = document.querySelector('.stage-bg-mood-chip.active');
+            const selectedMood = activeChip ? activeChip.getAttribute('data-mood') : "기본/일반";
 
             _stageBgMoodTargets.forEach(targetBg => {
-                if (bulkMode === 'replace' || _stageBgMoodTargets.length === 1) {
-                    targetBg.moods = [...selectedMoods];
-                } else {
-                    const merged = new Set([...(targetBg.moods || []), ...selectedMoods]);
-                    targetBg.moods = Array.from(merged);
-                }
+                targetBg.mood = selectedMood;
+                targetBg.moods = [selectedMood];
             });
 
             saveStageBgLibraryData();

@@ -1,18 +1,18 @@
 import random
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 
 def select_stage_background(
-    slide_moods: Optional[List[str]],
-    override_bg_id: Optional[str],
-    bg_library: Optional[List[Dict[str, Any]]],
+    slide_moods: Optional[Union[List[str], str]] = None,
+    override_bg_id: Optional[str] = None,
+    bg_library: Optional[List[Dict[str, Any]]] = None,
     history_queue: Optional[List[str]] = None,
     max_history_size: int = 3
 ) -> Dict[str, Any]:
     """
-    곡의 분위기 태그 및 오버라이드 배경 정보를 바탕으로 최적의 배경을 선택하는 매칭 엔진.
-    - 가중 무작위 매칭 (Weighted Random Selection)
-    - 교착 상태 방지 동적 이력 큐 (Dynamic History Queue)
-    - 4단계 다단계 폴백 (Multi-tier Fallback Cascade)
+    곡의 단일 분위기 태그 및 오버라이드 배경 정보를 바탕으로 최적의 배경을 선택하는 매칭 엔진.
+    - 단일 태그 일치 필터링 (Single Tag Matching)
+    - 직전 사용 배경 중복 방지 이력 큐 (Anti-Repetition History Queue)
+    - 다단계 폴백 (Multi-tier Fallback Cascade)
     """
     if history_queue is None:
         history_queue = []
@@ -26,27 +26,29 @@ def select_stage_background(
         if target:
             return {"type": "video", "videoUrl": target.get("url") or target.get("file_path"), "id": target.get("id"), "item": target}
     
-    slide_moods_set = set(slide_moods) if slide_moods else set()
+    # slide_moods에서 단일 태그 추출
+    target_tag = None
+    if isinstance(slide_moods, str):
+        target_tag = slide_moods.trim() if hasattr(slide_moods, 'trim') else slide_moods.strip()
+    elif isinstance(slide_moods, list) and slide_moods:
+        target_tag = str(slide_moods[0]).strip()
     
-    # Helper: 동적 이력 큐 필터링 후 선택
-    def pick_from_candidates(candidates_with_weights: List[tuple]):
-        if not candidates_with_weights:
+    # Helper: 동적 이력 큐 필터링 후 선택 (직전 배경 연속 재생 방지)
+    def pick_from_candidates(candidates: List[Dict[str, Any]]):
+        if not candidates:
             return None
         
-        M = len(candidates_with_weights)
+        M = len(candidates)
         N_eff = max(0, min(max_history_size, M - 1))
         
         recent_history = set(history_queue[-N_eff:]) if N_eff > 0 else set()
         
-        # history에 없는 후보 우선 필터링
-        filtered = [item for item in candidates_with_weights if item[0].get("id") not in recent_history]
+        # 최근 history에 없는 후보 우선 필터링 (직전 재생 영상 중복 차단)
+        filtered = [bg for bg in candidates if bg.get("id") not in recent_history]
         if not filtered:
-            filtered = candidates_with_weights
+            filtered = candidates
         
-        items = [f[0] for f in filtered]
-        weights = [f[1] for f in filtered]
-        
-        chosen = random.choices(items, weights=weights, k=1)[0]
+        chosen = random.choice(filtered)
         
         bg_id = chosen.get("id")
         if bg_id:
@@ -56,30 +58,38 @@ def select_stage_background(
                 
         return {"type": "video", "videoUrl": chosen.get("url") or chosen.get("file_path"), "id": chosen.get("id"), "item": chosen}
 
-    # 1차: 태그 매칭 (Weighted Matching)
-    if slide_moods_set:
-        weighted_candidates = []
+    # 1차: 단일 태그 일치 검색
+    if target_tag:
+        tag_candidates = []
         for bg in bg_library:
-            bg_moods = set(bg.get("moods") or [])
-            overlap = len(slide_moods_set.intersection(bg_moods))
-            if overlap > 0:
-                weighted_candidates.append((bg, overlap))
+            bg_mood = bg.get("mood")
+            bg_moods = bg.get("moods") or []
+            if isinstance(bg_moods, str):
+                bg_moods = [bg_moods]
+            
+            # 태그가 일치하는 경우
+            if bg_mood == target_tag or target_tag in bg_moods:
+                tag_candidates.append(bg)
         
-        res = pick_from_candidates(weighted_candidates)
+        res = pick_from_candidates(tag_candidates)
         if res:
             return res
             
-    # 2차: Default 배경 (isDefault: True)
-    default_candidates = [(bg, 1) for bg in bg_library if bg.get("isDefault") or bg.get("is_default")]
+    # 2차: Default 배경 (isDefault 또는 mood가 '기본/일반'인 경우)
+    default_candidates = [
+        bg for bg in bg_library 
+        if bg.get("isDefault") or bg.get("is_default") or bg.get("mood") == "기본/일반" or "기본/일반" in (bg.get("moods") or [])
+    ]
     res = pick_from_candidates(default_candidates)
     if res:
         return res
         
     # 3차: 전체 라이브러리 배경 중 무작위
-    all_candidates = [(bg, 1) for bg in bg_library if bg.get("url") or bg.get("file_path")]
+    all_candidates = [bg for bg in bg_library if bg.get("url") or bg.get("file_path")]
     res = pick_from_candidates(all_candidates)
     if res:
         return res
         
     # 4차: Ambient Canvas Fallback
     return {"type": "ambient"}
+
