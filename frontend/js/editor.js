@@ -3273,10 +3273,30 @@
         });
 
         function bindSlideContextMenuEvents() {
+            const moodBtn = document.getElementById("menu-slide-moods");
             const copyBtn = document.getElementById("menu-slide-copy");
             const cutBtn = document.getElementById("menu-slide-cut");
             const pasteBtn = document.getElementById("menu-slide-paste");
             const deleteBtn = document.getElementById("menu-slide-delete");
+
+            if (moodBtn) {
+                moodBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    hideSlideContextMenu();
+                    if (currentSlideId && projectData && projectData.slides) {
+                        const slide = projectData.slides.find(s => s.id === currentSlideId);
+                        if (slide) {
+                            const currentMoods = (slide.moods || []).join(', ');
+                            const input = prompt(`곡/슬라이드 [${slide.name}]의 분위기 태그를 쉼표(,)로 구분하여 입력하세요:\n(예: 경배, 잔잔한, 기도, 빠른)`, currentMoods);
+                            if (input !== null) {
+                                slide.moods = input.split(',').map(s => s.trim()).filter(Boolean);
+                                saveProjectData();
+                                renderSlides();
+                            }
+                        }
+                    }
+                };
+            }
 
             if (copyBtn) {
                 copyBtn.onclick = (e) => {
@@ -3314,10 +3334,30 @@
         }
 
         function bindStageBgContextMenuEvents() {
+            const moodBtn = document.getElementById("menu-stage-bg-moods");
             const copyBtn = document.getElementById("menu-stage-bg-copy");
             const pasteBtn = document.getElementById("menu-stage-bg-paste");
             const deleteBtn = document.getElementById("menu-stage-bg-delete");
 
+            if (moodBtn) {
+                moodBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    hideStageBgContextMenu();
+                    if (selectedStageBgFiles && selectedStageBgFiles.length > 0) {
+                        const targetBg = selectedStageBgFiles[0];
+                        const currentMoods = (targetBg.moods || []).join(', ');
+                        const input = prompt(`배경 [${targetBg.name}]의 분위기 태그를 쉼표(,)로 구분하여 입력하세요:\n(예: 경배, 잔잔한, 빠른, 기도)`, currentMoods);
+                        if (input !== null) {
+                            const newMoods = input.split(',').map(s => s.trim()).filter(Boolean);
+                            targetBg.moods = newMoods;
+                            const isDefaultConfirm = confirm(`이 배경 [${targetBg.name}]을(를) 기본(Default) 배경으로 지정하시겠습니까?`);
+                            targetBg.isDefault = isDefaultConfirm;
+                            saveProjectData();
+                            renderStageBgGrid();
+                        }
+                    }
+                };
+            }
             if (copyBtn) {
                 copyBtn.onclick = (e) => {
                     e.stopPropagation();
