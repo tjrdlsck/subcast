@@ -3283,8 +3283,9 @@
                 moodBtn.onclick = (e) => {
                     e.stopPropagation();
                     hideSlideContextMenu();
-                    if (currentSlideId && projectData && projectData.slides) {
-                        const slide = projectData.slides.find(s => s.id === currentSlideId);
+                    const targetId = selectedSlideId || (selectedSlideIds && selectedSlideIds[0]);
+                    if (targetId && projectData && projectData.slides) {
+                        const slide = projectData.slides.find(s => s.id === targetId);
                         if (slide) {
                             const currentMoods = (slide.moods || []).join(', ');
                             const input = prompt(`곡/슬라이드 [${slide.name}]의 분위기 태그를 쉼표(,)로 구분하여 입력하세요:\n(예: 경배, 잔잔한, 기도, 빠른)`, currentMoods);
@@ -5009,6 +5010,27 @@
                 btnCloseViewer.onclick = hidePraiseMainViewer;
             }
 
+            const moodChipsContainer = document.getElementById("modal-praise-mood-chips");
+            if (moodChipsContainer) {
+                const chips = moodChipsContainer.querySelectorAll(".mood-chip");
+                chips.forEach(chip => {
+                    chip.onclick = () => {
+                        const isSelected = chip.classList.contains("active");
+                        if (isSelected) {
+                            chip.classList.remove("active");
+                            chip.style.background = "rgba(255,255,255,0.05)";
+                            chip.style.borderColor = "var(--panel-border)";
+                            chip.style.color = "#cbd5e1";
+                        } else {
+                            chip.classList.add("active");
+                            chip.style.background = "var(--primary)";
+                            chip.style.borderColor = "var(--primary)";
+                            chip.style.color = "#ffffff";
+                        }
+                    };
+                });
+            }
+
             if (chkAllPraise && previewList) {
                 chkAllPraise.onchange = (e) => {
                     const checkboxes = previewList.querySelectorAll(".praise-preview-item-chk");
@@ -5175,7 +5197,23 @@
                     modalSaveBtn.disabled = true;
                     modalSaveBtn.textContent = "⏳ 저장 중...";
 
-                    const savePayload = { title, lyrics };
+                    const moods = [];
+                    const moodChipsContainer = document.getElementById("modal-praise-mood-chips");
+                    if (moodChipsContainer) {
+                        const activeChips = moodChipsContainer.querySelectorAll(".mood-chip.active");
+                        activeChips.forEach(chip => {
+                            const m = chip.getAttribute("data-mood");
+                            if (m) moods.push(m);
+                        });
+                    }
+                    const customInput = document.getElementById("modal-praise-moods");
+                    if (customInput && customInput.value.trim()) {
+                        const customMoods = customInput.value.split(",").map(s => s.trim()).filter(Boolean);
+                        moods.push(...customMoods);
+                    }
+                    const finalMoods = Array.from(new Set(moods));
+
+                    const savePayload = { title, lyrics, moods: finalMoods };
                     if (currentEditingPraiseSong) {
                         if (currentEditingPraiseSong.id) {
                             savePayload.id = currentEditingPraiseSong.id;

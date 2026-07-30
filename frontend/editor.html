@@ -1111,6 +1111,19 @@
                     <input type="text" id="modal-praise-title" placeholder="예: 은혜, 내 마음에 주를 향한"
                         style="width: 100%; padding: 8px 12px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; outline: none;">
                 </div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">🏷️ 분위기 태그 (Mood Tags)</label>
+                    <div id="modal-praise-mood-chips" style="display: flex; flex-wrap: wrap; gap: 6px;">
+                        <button type="button" class="mood-chip" data-mood="경배" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 12px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: #cbd5e1; cursor: pointer;">#경배</button>
+                        <button type="button" class="mood-chip" data-mood="잔잔한" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 12px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: #cbd5e1; cursor: pointer;">#잔잔한</button>
+                        <button type="button" class="mood-chip" data-mood="빠른/기쁨" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 12px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: #cbd5e1; cursor: pointer;">#빠른/기쁨</button>
+                        <button type="button" class="mood-chip" data-mood="기도/회개" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 12px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: #cbd5e1; cursor: pointer;">#기도/회개</button>
+                        <button type="button" class="mood-chip" data-mood="웅장한" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 12px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: #cbd5e1; cursor: pointer;">#웅장한</button>
+                        <button type="button" class="mood-chip" data-mood="절기/특별" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 12px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: #cbd5e1; cursor: pointer;">#절기/특별</button>
+                    </div>
+                    <input type="text" id="modal-praise-moods" placeholder="추가 커스텀 태그 (쉼표 구분 예: 은혜, 헌금)"
+                        style="width: 100%; padding: 6px 10px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.75rem; outline: none; margin-top: 2px;">
+                </div>
                 <div style="display: flex; flex-direction: column; gap: 4px;">
                     <label style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">가사 원문 (빈 줄 분할
                         적용)</label>
