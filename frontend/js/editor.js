@@ -6114,6 +6114,8 @@ function filterAndRenderStageBgLibrary() {
         const thumbUrl = f.thumbnailUrl || (isYt ? `https://img.youtube.com/vi/${filenameWOExt}/hqdefault.jpg` : '');
         const escOldName = f.name.replace(/'/g, "\\'");
         const safeName = f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const borderStyle = isSelected ? '2px solid #38bdf8' : (isCurrent ? '2px solid #0284c7' : '2px solid var(--panel-border, #3f3f46)');
+        const bgStyle = isSelected ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255,255,255,0.04)';
 
         const moodsList = f.moods || [];
         const moodChipsHtml = moodsList.map(m => `<span style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; border: 1px solid rgba(56, 189, 248, 0.3);">#${m}</span>`).join(' ');
