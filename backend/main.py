@@ -289,28 +289,33 @@ async def delete_background_files(req: DeleteBackgroundsRequest):
         target_path = backgrounds_dir / name
         if target_path.exists() and target_path.is_file():
             is_deleted = False
-            for attempt in range(2):
+            for attempt in range(5):
                 try:
                     target_path.unlink()
                     is_deleted = True
                     break
                 except Exception:
-                    await asyncio.sleep(0.05)
+                    await asyncio.sleep(0.1)
 
             if not is_deleted:
-                try:
-                    trash_name = f".trash_{uuid.uuid4().hex}_{name}"
-                    trash_path = backgrounds_dir / trash_name
-                    target_path.rename(trash_path)
-                    is_deleted = True
+                for attempt in range(5):
                     try:
-                        trash_path.unlink()
-                    except Exception:
-                        pass
-                except Exception as re:
-                    logger.error(f"Failed to delete/rename background file {name}: {re}")
-                    failed_files.append(name)
-                    continue
+                        trash_name = f".trash_{uuid.uuid4().hex}_{name}"
+                        trash_path = backgrounds_dir / trash_name
+                        target_path.rename(trash_path)
+                        is_deleted = True
+                        try:
+                            trash_path.unlink()
+                        except Exception:
+                            pass
+                        break
+                    except Exception as re:
+                        await asyncio.sleep(0.1)
+
+            if not is_deleted:
+                logger.error(f"Failed to delete/rename background file {name} after retries")
+                failed_files.append(name)
+                continue
 
             if is_deleted:
                 deleted_count += 1
