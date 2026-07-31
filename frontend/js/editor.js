@@ -209,6 +209,10 @@
             } else {
                 hideStageBgMainViewer();
             }
+            // 모니터링 탭 처리
+            if (tabId === 'panel-monitor') {
+                loadMonitorSettingsToEditor();
+            }
         }
 
         function initCanvas() {
@@ -6967,4 +6971,83 @@ document.addEventListener('DOMContentLoaded', () => {
         inputUploadFile.addEventListener('change', () => handleLocalFileUpload(inputUploadFile));
     }
 });
+
+/* 모니터링 화면 설정 관련 에디터 함수 */
+function loadMonitorSettingsToEditor() {
+    try {
+        const saved = JSON.parse(localStorage.getItem("subcast_monitor_settings") || "{}");
+        
+        const layoutVal = saved.layout || "5:5";
+        const layoutRadio = document.querySelector(`input[name="ed-monitor-layout"][value="${layoutVal}"]`);
+        if (layoutRadio) layoutRadio.checked = true;
+
+        const bibleVal = saved.bibleMode || "summary";
+        const bibleRadio = document.querySelector(`input[name="ed-monitor-bible"][value="${bibleVal}"]`);
+        if (bibleRadio) bibleRadio.checked = true;
+
+        const fontSize = saved.fontSize || "125";
+        const fontSizeRange = document.getElementById("range-monitor-fontsize");
+        const fontSizeVal = document.getElementById("val-monitor-fontsize");
+        if (fontSizeRange) fontSizeRange.value = fontSize;
+        if (fontSizeVal) fontSizeVal.innerText = `${fontSize}%`;
+
+        if (saved.currentBg && document.getElementById("color-monitor-curr-bg")) {
+            document.getElementById("color-monitor-curr-bg").value = saved.currentBg;
+        }
+        if (saved.currentTextColor && document.getElementById("color-monitor-curr-text")) {
+            document.getElementById("color-monitor-curr-text").value = saved.currentTextColor;
+        }
+        if (saved.nextBg && document.getElementById("color-monitor-next-bg")) {
+            document.getElementById("color-monitor-next-bg").value = saved.nextBg;
+        }
+        if (saved.nextTextColor && document.getElementById("color-monitor-next-text")) {
+            document.getElementById("color-monitor-next-text").value = saved.nextTextColor;
+        }
+    } catch(e) {
+        console.error("Failed to load monitor settings to editor", e);
+    }
+}
+
+function updateMonitorEditorSettings() {
+    const fontSizeRange = document.getElementById("range-monitor-fontsize");
+    const fontSizeVal = document.getElementById("val-monitor-fontsize");
+    if (fontSizeRange && fontSizeVal) {
+        fontSizeVal.innerText = `${fontSizeRange.value}%`;
+    }
+}
+
+function saveMonitorSettingsFromEditor() {
+    try {
+        const layout = document.querySelector('input[name="ed-monitor-layout"]:checked')?.value || "5:5";
+        const bibleMode = document.querySelector('input[name="ed-monitor-bible"]:checked')?.value || "summary";
+        const fontSize = document.getElementById("range-monitor-fontsize")?.value || "125";
+        const currentBg = document.getElementById("color-monitor-curr-bg")?.value || "#1E1E1E";
+        const currentTextColor = document.getElementById("color-monitor-curr-text")?.value || "#FFFFFF";
+        const nextBg = document.getElementById("color-monitor-next-bg")?.value || "#181818";
+        const nextTextColor = document.getElementById("color-monitor-next-text")?.value || "#A0A0A0";
+
+        const settings = {
+            layout,
+            bibleMode,
+            fontSize,
+            currentBg,
+            currentTextColor,
+            nextBg,
+            nextTextColor
+        };
+
+        localStorage.setItem("subcast_monitor_settings", JSON.stringify(settings));
+        if (typeof showToast === "function") {
+            showToast("🖥️ 모니터링 화면 설정이 저장되었습니다.");
+        } else {
+            alert("🖥️ 모니터링 화면 설정이 저장되었습니다.");
+        }
+    } catch(e) {
+        console.error("Failed to save monitor settings", e);
+        if (typeof showToast === "function") {
+            showToast("⚠️ 저장에 실패했습니다.");
+        }
+    }
+}
+
 

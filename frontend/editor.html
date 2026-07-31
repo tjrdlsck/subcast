@@ -134,6 +134,14 @@
                     </svg>
                     <span>현장 배경</span>
                 </button>
+                <button class="nav-tab-btn" data-target="panel-monitor" onclick="switchLeftTab('panel-monitor')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                    </svg>
+                    <span>모니터링</span>
+                </button>
             </aside>
 
             <!-- Left Sub Panel (드로어 패널) -->
@@ -513,6 +521,93 @@
                             <span style="font-size: 0.7rem; color: var(--text-muted); line-height: 1.3;">
                                 💡 오른쪽 카탈로그 영역에서 다양한 현장 연출 배경을 탐색하고 선택할 수 있습니다.
                             </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 9) 모니터링 편집 탭 패널 -->
+                <div class="sidebar-panel" id="panel-monitor">
+                    <div class="panel-header">
+                        <h3>모니터링 화면 연출 편집</h3>
+                    </div>
+                    <div class="panel-body" style="display: flex; flex-direction: column; gap: 14px; overflow-y: auto;">
+                        <!-- 1. 화면 비율 선택 -->
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+                            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-main);">🖥️ 화면 비율 (Current : Next)</label>
+                            <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.75rem;">
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="radio" name="ed-monitor-layout" value="5:5" checked onchange="updateMonitorEditorSettings()">
+                                    <span>5:5 균등 분할</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="radio" name="ed-monitor-layout" value="7:3" onchange="updateMonitorEditorSettings()">
+                                    <span>7:3 (현재 송출 강조)</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="radio" name="ed-monitor-layout" value="3:7" onchange="updateMonitorEditorSettings()">
+                                    <span>3:7 (다음 슬라이드 강조)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 2. 성경 구절 표출 옵션 -->
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+                            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-main);">📖 성경 구절 표출 모드</label>
+                            <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.75rem;">
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="radio" name="ed-monitor-bible" value="summary" checked onchange="updateMonitorEditorSettings()">
+                                    <span>출처 + 첫 2줄 요약 (...)</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="radio" name="ed-monitor-bible" value="ref_only" onchange="updateMonitorEditorSettings()">
+                                    <span>장/절 출처만 표시</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="radio" name="ed-monitor-bible" value="full" onchange="updateMonitorEditorSettings()">
+                                    <span>본문 전체 표시</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 3. 글자 크기 조절 -->
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 600; color: var(--text-main);">
+                                <span>🔤 기준 글꼴 크기</span>
+                                <span id="val-monitor-fontsize" style="color: var(--primary);">125%</span>
+                            </div>
+                            <input type="range" id="range-monitor-fontsize" min="50" max="250" value="125" style="width: 100%;" oninput="updateMonitorEditorSettings()">
+                        </div>
+
+                        <!-- 4. 색상 커스텀 (Current / Next) -->
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+                            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-main);">🎨 색상 커스텀</label>
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
+                                <span>🔴 현재 슬라이드 배경</span>
+                                <input type="color" id="color-monitor-curr-bg" value="#1E1E1E" style="border:none; width:28px; height:24px; cursor:pointer; background:none;" onchange="updateMonitorEditorSettings()">
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
+                                <span>🔴 현재 슬라이드 글자색</span>
+                                <input type="color" id="color-monitor-curr-text" value="#FFFFFF" style="border:none; width:28px; height:24px; cursor:pointer; background:none;" onchange="updateMonitorEditorSettings()">
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
+                                <span>🔵 다음 슬라이드 배경</span>
+                                <input type="color" id="color-monitor-next-bg" value="#181818" style="border:none; width:28px; height:24px; cursor:pointer; background:none;" onchange="updateMonitorEditorSettings()">
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
+                                <span>🔵 다음 슬라이드 글자색</span>
+                                <input type="color" id="color-monitor-next-text" value="#A0A0A0" style="border:none; width:28px; height:24px; cursor:pointer; background:none;" onchange="updateMonitorEditorSettings()">
+                            </div>
+                        </div>
+
+                        <!-- 5. 모니터 창 열기 및 저장 -->
+                        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+                            <button onclick="saveMonitorSettingsFromEditor()" style="padding: 8px 12px; background: var(--primary); color: #fff; border: none; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer;">
+                                💾 모니터링 디자인 저장
+                            </button>
+                            <button onclick="window.open('/static/viewer.html?mode=monitor', '_blank', 'width=1280,height=720')" style="padding: 8px 12px; background: rgba(59, 130, 246, 0.15); border: 1px solid #3b82f6; color: #60a5fa; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer;">
+                                🖥️ 모니터링 창 미리보기 열기
+                            </button>
                         </div>
                     </div>
                 </div>

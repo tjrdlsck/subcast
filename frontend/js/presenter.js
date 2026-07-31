@@ -515,6 +515,14 @@
                         currentSec.style.flex = "5";
                         nextSec.style.flex = "5";
                     }
+
+                    try {
+                        const saved = JSON.parse(localStorage.getItem("subcast_monitor_settings") || "{}");
+                        if (saved.currentBg) currentSec.style.backgroundColor = saved.currentBg;
+                        if (saved.currentTextColor && currentTextEl) currentTextEl.style.color = saved.currentTextColor;
+                        if (saved.nextBg) nextSec.style.backgroundColor = saved.nextBg;
+                        if (saved.nextTextColor && nextTextEl) nextTextEl.style.color = saved.nextTextColor;
+                    } catch(e) {}
                 }
 
                 function extractText(slide) {

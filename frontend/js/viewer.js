@@ -625,6 +625,17 @@
                 nextSec.style.flex = "1";
             }
 
+            if (settings.currentBg) currentSec.style.backgroundColor = settings.currentBg;
+            if (settings.currentTextColor) {
+                currentSec.style.color = settings.currentTextColor;
+                if (currentTextEl) currentTextEl.style.color = settings.currentTextColor;
+            }
+            if (settings.nextBg) nextSec.style.backgroundColor = settings.nextBg;
+            if (settings.nextTextColor) {
+                nextSec.style.color = settings.nextTextColor;
+                if (nextTextEl) nextTextEl.style.color = settings.nextTextColor;
+            }
+
             const currentLiveId = projectData.settings?.currentLiveSlideId;
             const slides = projectData.slides;
             const currentIdx = slides.findIndex(s => s.id === currentLiveId);
