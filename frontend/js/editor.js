@@ -3287,32 +3287,14 @@
                     if (targetId && projectData && projectData.slides) {
                         const slide = projectData.slides.find(s => s.id === targetId);
                         if (slide) {
-                            const currentMood = (slide.moods && slide.moods[0]) || slide.mood || "경배/찬양";
-                            const input = prompt(`곡/슬라이드 [${slide.name}]의 분위기 태그를 선택/입력하세요:\n(표준 태그: 경배/찬양, 잔잔/묵상, 기도/회개, 결단/헌금, 웅장/선포, 절기/특별, 기본/일반)`, currentMood);
-                            if (input !== null && input.trim()) {
-                                const val = input.trim();
-                                const newFixedBgId = typeof matchStageBgForSong === 'function' ? matchStageBgForSong(val) : null;
-
-                                // 찬양 곡 슬라이드인 경우 동일 찬양곡 슬라이드 전체 분위기/고정 배경 일괄 적용
-                                if (slide.songTitle) {
-                                    const relatedSlides = projectData.slides.filter(s => s.songTitle === slide.songTitle);
-                                    relatedSlides.forEach(s => {
-                                        s.mood = val;
-                                        s.moods = [val];
-                                        s.overrideBgId = newFixedBgId;
-                                    });
-                                } else {
-                                    slide.mood = val;
-                                    slide.moods = [val];
-                                    slide.overrideBgId = newFixedBgId;
-                                }
-                                triggerAutoSave();
-                                renderSlides();
-                            }
+                            showSlideBgSelectModal(slide);
                         }
                     }
                 };
             }
+
+            // 슬라이드 현장 배경 지정 모달 이벤트 바인딩
+            bindSlideBgModalEvents();
 
             if (copyBtn) {
                 copyBtn.onclick = (e) => {
@@ -5348,6 +5330,204 @@
                 return chosenBg ? (chosenBg.id || chosenBg.name) : null;
             }
 
+            // === 슬라이드 현장 배경 직접 지정 모달 제어 ===
+            let activeTargetSlideForBgModal = null;
+
+            function showSlideBgSelectModal(slide) {
+                if (!slide) return;
+                activeTargetSlideForBgModal = slide;
+
+                const modal = document.getElementById("slide-bg-select-modal");
+                if (!modal) return;
+
+                const searchInput = document.getElementById("input-slide-bg-modal-search");
+                if (searchInput) searchInput.value = "";
+
+                const filterChips = document.querySelectorAll(".slide-bg-modal-chip");
+                filterChips.forEach(chip => {
+                    const isAll = chip.getAttribute("data-filter") === "all";
+                    chip.classList.toggle("active", isAll);
+                    if (isAll) {
+                        chip.style.background = "var(--primary)";
+                        chip.style.borderColor = "var(--primary)";
+                        chip.style.color = "#ffffff";
+                    } else {
+                        chip.style.background = "rgba(255,255,255,0.05)";
+                        chip.style.borderColor = "var(--panel-border)";
+                        chip.style.color = "#cbd5e1";
+                    }
+                });
+
+                const chkApplyAll = document.getElementById("chk-slide-bg-modal-apply-all-song");
+                if (chkApplyAll) {
+                    const isPraise = Boolean(slide.praiseGroupId || slide.songTitle);
+                    chkApplyAll.checked = isPraise;
+                    chkApplyAll.disabled = !isPraise;
+                    const label = chkApplyAll.nextElementSibling;
+                    if (label) {
+                        label.textContent = isPraise
+                            ? `🎵 해당 찬양 곡 [${slide.songTitle || slide.name}] 전체 슬라이드에 일괄 적용`
+                            : "🎵 단일 일반 슬라이드 (곡 일괄 적용 불가)";
+                    }
+                }
+
+                renderSlideBgModalGrid();
+                modal.style.display = "flex";
+            }
+
+            function renderSlideBgModalGrid() {
+                const container = document.getElementById("slide-bg-modal-grid-container");
+                if (!container) return;
+
+                const searchInput = document.getElementById("input-slide-bg-modal-search");
+                const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+
+                const activeChip = document.querySelector(".slide-bg-modal-chip.active");
+                const filterVal = activeChip ? activeChip.getAttribute("data-filter") : "all";
+
+                const bgList = (projectData && projectData.settings && projectData.settings.stageBgLibrary && projectData.settings.stageBgLibrary.length > 0)
+                    ? projectData.settings.stageBgLibrary
+                    : (allStageBgFiles || []);
+
+                let filtered = bgList.filter(bg => {
+                    const nameMatch = !query || bg.name.toLowerCase().includes(query);
+                    if (!nameMatch) return false;
+
+                    if (filterVal === "all") return true;
+
+                    const bgMood = bg.mood || bg.tag;
+                    const bgMoods = bg.moods || (bgMood ? [bgMood] : []);
+                    return bgMood === filterVal || bgMoods.includes(filterVal);
+                });
+
+                const currentOverrideId = activeTargetSlideForBgModal ? activeTargetSlideForBgModal.overrideBgId : null;
+
+                let html = "";
+                filtered.forEach(f => {
+                    const filenameWOExt = f.name.substring(0, f.name.lastIndexOf('.'));
+                    const isYt = filenameWOExt.length === 11 && !f.name.startsWith('upload_');
+                    const thumbUrl = f.thumbnailUrl || (isYt ? `https://img.youtube.com/vi/${filenameWOExt}/hqdefault.jpg` : '');
+                    const isSelected = currentOverrideId && (f.id === currentOverrideId || f.name === currentOverrideId);
+                    const safeName = f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    const moodsList = f.moods || [];
+                    const moodChipsHtml = moodsList.map(m => `<span style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-size: 0.62rem; padding: 1px 5px; border-radius: 8px;">#${m}</span>`).join(' ');
+
+                    const borderStyle = isSelected ? '2px solid #38bdf8' : '1px solid var(--panel-border)';
+                    const bgStyle = isSelected ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.03)';
+
+                    html += `
+                        <div class="slide-bg-modal-item-card" data-id="${f.id || f.name}"
+                            style="background: ${bgStyle}; border: ${borderStyle}; border-radius: 8px; padding: 8px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; transition: all 0.15s; position: relative;">
+                            ${isSelected ? `<span style="position: absolute; top: 6px; right: 6px; background: #0284c7; color: #fff; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; z-index: 5;">✓ 지정됨</span>` : ''}
+                            <div style="width: 100%; aspect-ratio: 16/9; background: #0f172a; border-radius: 4px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                                ${thumbUrl ? `<img src="${thumbUrl}" style="width: 100%; height: 100%; object-fit: cover;">` : `<div style="color: #60a5fa; font-size: 1.5rem;">🎬</div>`}
+                            </div>
+                            <div style="font-size: 0.78rem; font-weight: 600; color: #fff; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" title="${safeName}">
+                                ${safeName}
+                            </div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 3px;">
+                                ${moodChipsHtml || '<span style="color: var(--text-muted); font-size: 0.65rem;">태그 없음</span>'}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                if (filtered.length === 0) {
+                    html = `<div style="grid-column: 1 / -1; padding: 30px; text-align: center; color: var(--text-muted); font-size: 0.82rem;">🔍 검색된 현장 배경이 없습니다.</div>`;
+                }
+
+                container.innerHTML = html;
+
+                const cards = container.querySelectorAll(".slide-bg-modal-item-card");
+                cards.forEach(card => {
+                    card.onclick = () => {
+                        const chosenBgId = card.getAttribute("data-id");
+                        applySelectedBgToSlide(chosenBgId);
+                    };
+                });
+            }
+
+            function applySelectedBgToSlide(bgId) {
+                if (!activeTargetSlideForBgModal || !projectData || !projectData.slides) return;
+
+                const chkApplyAll = document.getElementById("chk-slide-bg-modal-apply-all-song");
+                const applyAll = chkApplyAll ? chkApplyAll.checked : false;
+
+                if (applyAll) {
+                    const targetGroupId = activeTargetSlideForBgModal.praiseGroupId;
+                    const targetSongTitle = activeTargetSlideForBgModal.songTitle;
+
+                    projectData.slides.forEach(s => {
+                        let isTarget = false;
+                        if (targetGroupId && s.praiseGroupId === targetGroupId) {
+                            isTarget = true;
+                        } else if (!targetGroupId && targetSongTitle && s.songTitle === targetSongTitle) {
+                            isTarget = true;
+                        }
+
+                        if (isTarget) {
+                            s.overrideBgId = bgId;
+                        }
+                    });
+                } else {
+                    activeTargetSlideForBgModal.overrideBgId = bgId;
+                }
+
+                triggerAutoSave();
+                renderSlides();
+
+                const modal = document.getElementById("slide-bg-select-modal");
+                if (modal) modal.style.display = "none";
+            }
+
+            function bindSlideBgModalEvents() {
+                const modal = document.getElementById("slide-bg-select-modal");
+                if (!modal) return;
+
+                const closeBtn = document.getElementById("btn-slide-bg-modal-close");
+                const cancelBtn = document.getElementById("btn-slide-bg-modal-cancel");
+                const clearBtn = document.getElementById("btn-slide-bg-modal-clear-override");
+                const searchInput = document.getElementById("input-slide-bg-modal-search");
+
+                const closeModal = () => {
+                    modal.style.display = "none";
+                    activeTargetSlideForBgModal = null;
+                };
+
+                if (closeBtn) closeBtn.onclick = closeModal;
+                if (cancelBtn) cancelBtn.onclick = closeModal;
+
+                if (clearBtn) {
+                    clearBtn.onclick = () => {
+                        if (!confirm("이 슬라이드(또는 곡)의 고정 배경을 해제하고 자동 분위기 매칭으로 초기화하시겠습니까?")) return;
+                        applySelectedBgToSlide(null);
+                    };
+                }
+
+                if (searchInput) {
+                    searchInput.oninput = () => {
+                        renderSlideBgModalGrid();
+                    };
+                }
+
+                const filterChips = document.querySelectorAll(".slide-bg-modal-chip");
+                filterChips.forEach(chip => {
+                    chip.onclick = () => {
+                        filterChips.forEach(c => {
+                            c.classList.remove("active");
+                            c.style.background = "rgba(255,255,255,0.05)";
+                            c.style.borderColor = "var(--panel-border)";
+                            c.style.color = "#cbd5e1";
+                        });
+                        chip.classList.add("active");
+                        chip.style.background = "var(--primary)";
+                        chip.style.borderColor = "var(--primary)";
+                        chip.style.color = "#ffffff";
+                        renderSlideBgModalGrid();
+                    };
+                });
+            }
+
             // 5) 디자인 프리셋 선택 반응형 이벤트 리스너
             const fontOpacityInput = document.getElementById("input-praise-font-opacity");
             const fontOpacityVal = document.getElementById("input-praise-font-opacity-val");
@@ -5523,6 +5703,7 @@
 
                 const songMood = activeSelectedPraiseSong.mood || (activeSelectedPraiseSong.moods && activeSelectedPraiseSong.moods[0]) || "경배/찬양";
                 const fixedBgId = matchStageBgForSong(songMood);
+                const praiseGroupId = "praise_grp_" + Math.random().toString(36).substr(2, 9);
 
                 if (presetSelect && presetSelect.value === "template") {
                     const selectTpl = document.getElementById("select-praise-user-template");
@@ -5550,6 +5731,7 @@
                         slideObj.moods = [songMood];
                         slideObj.overrideBgId = fixedBgId;
                         slideObj.songTitle = title;
+                        slideObj.praiseGroupId = praiseGroupId;
                         tempPraiseSlidesToAdd.push(slideObj);
                     });
                 } else {
@@ -5573,6 +5755,7 @@
                         slideObj.moods = [songMood];
                         slideObj.overrideBgId = fixedBgId;
                         slideObj.songTitle = title;
+                        slideObj.praiseGroupId = praiseGroupId;
                         tempPraiseSlidesToAdd.push(slideObj);
                     });
                 }

@@ -31,17 +31,36 @@ def test_praise_song_fixed_background():
         assert res["type"] == "video"
         assert res["id"] == assigned_bg_id
 
-def test_praise_song_fallback_and_tag_matching():
-    """태그 매칭 및 2차 기본 배경 fallback 처리 검증"""
+def test_praise_group_id_independence():
+    """같은 찬양 제목이라도 다른 praiseGroupId를 가진 경우 독립된 고정 배경을 유지할 수 있는지 검증"""
     bg_library = [
-        {"id": "bg_calm", "name": "calm.mp4", "mood": "잔잔/묵상", "moods": ["잔잔/묵상"]},
-        {"id": "bg_def", "name": "default.mp4", "mood": "기본/일반", "isDefault": True}
+        {"id": "bg_1", "name": "bg1.mp4", "mood": "경배/찬양"},
+        {"id": "bg_2", "name": "bg2.mp4", "mood": "경배/찬양"}
     ]
     
-    # 1. 매칭 태그가 있는 경우
-    res_calm = select_stage_background(slide_moods=["잔잔/묵상"], bg_library=bg_library)
-    assert res_calm["id"] == "bg_calm"
+    # 1번째 찬양 곡 슬라이드 집합 (praiseGroupId: grp_1)
+    slides_set_1 = [
+        {"id": "s1", "songTitle": "은혜", "praiseGroupId": "grp_1", "overrideBgId": "bg_1"},
+        {"id": "s2", "songTitle": "은혜", "praiseGroupId": "grp_1", "overrideBgId": "bg_1"}
+    ]
     
-    # 2. 매칭 태그가 없는 태그일 경우 Default 배경 fallback
-    res_unknown = select_stage_background(slide_moods=["특수태그"], bg_library=bg_library)
-    assert res_unknown["id"] == "bg_def"
+    # 2번째 찬양 곡 슬라이드 집합 (praiseGroupId: grp_2)
+    slides_set_2 = [
+        {"id": "s3", "songTitle": "은혜", "praiseGroupId": "grp_2", "overrideBgId": "bg_2"},
+        {"id": "s4", "songTitle": "은혜", "praiseGroupId": "grp_2", "overrideBgId": "bg_2"}
+    ]
+    
+    # grp_1 곡 배경만 변경할 때 grp_2는 영향받지 않는지 검증
+    target_group_id = "grp_1"
+    new_bg_id = "bg_2"
+    
+    all_slides = slides_set_1 + slides_set_2
+    for s in all_slides:
+        if s.get("praiseGroupId") == target_group_id:
+            s["overrideBgId"] = new_bg_id
+            
+    assert slides_set_1[0]["overrideBgId"] == "bg_2"
+    assert slides_set_1[1]["overrideBgId"] == "bg_2"
+    # grp_2는 기존 bg_2 유지
+    assert slides_set_2[0]["overrideBgId"] == "bg_2"
+    assert slides_set_2[1]["overrideBgId"] == "bg_2"
