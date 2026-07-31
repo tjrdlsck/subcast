@@ -610,6 +610,11 @@
 
                 if (currentTextEl) currentTextEl.innerText = applyBibleMode(curText);
                 if (nextTextEl) nextTextEl.innerText = applyBibleMode(nxtText);
+
+                if (typeof fitTextToSection === "function") {
+                    fitTextToSection(currentSec, currentTextEl);
+                    fitTextToSection(nextSec, nextTextEl);
+                }
             }
 
             document.querySelectorAll('input[name="monitor-layout"], input[name="monitor-bible"]').forEach(radio => {

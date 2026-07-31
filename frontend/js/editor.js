@@ -7008,14 +7008,14 @@ function loadMonitorCanvasToEditor() {
 
         // 좌표 계산 (퍼센트 -> 1920x1080 픽셀)
         const cLeft = saved.currentBox?.leftPct !== undefined ? (saved.currentBox.leftPct / 100) * 1920 : 96;
-        const cTop = saved.currentBox?.topPct !== undefined ? (saved.currentBox.topPct / 100) * 1080 : 54;
+        const cTop = saved.currentBox?.topPct !== undefined ? (saved.currentBox.topPct / 100) * 1080 : 64;
         const cWidth = saved.currentBox?.widthPct !== undefined ? (saved.currentBox.widthPct / 100) * 1920 : 1728;
-        const cHeight = saved.currentBox?.heightPct !== undefined ? (saved.currentBox.heightPct / 100) * 1080 : 453;
+        const cHeight = saved.currentBox?.heightPct !== undefined ? (saved.currentBox.heightPct / 100) * 1080 : 380;
 
         const nLeft = saved.nextBox?.leftPct !== undefined ? (saved.nextBox.leftPct / 100) * 1920 : 96;
-        const nTop = saved.nextBox?.topPct !== undefined ? (saved.nextBox.topPct / 100) * 1080 : 561;
+        const nTop = saved.nextBox?.topPct !== undefined ? (saved.nextBox.topPct / 100) * 1080 : 520;
         const nWidth = saved.nextBox?.widthPct !== undefined ? (saved.nextBox.widthPct / 100) * 1920 : 1728;
-        const nHeight = saved.nextBox?.heightPct !== undefined ? (saved.nextBox.heightPct / 100) * 1080 : 453;
+        const nHeight = saved.nextBox?.heightPct !== undefined ? (saved.nextBox.heightPct / 100) * 1080 : 380;
 
         // Fabric.js Textbox 생성 (🔴 CURRENT)
         const currentBoxObj = new fabric.Textbox("🔴 CURRENT (현재 송출 슬라이드)\n여기에 현재 송출 중인 자막 텍스트가 표시됩니다.", {
@@ -7023,7 +7023,7 @@ function loadMonitorCanvasToEditor() {
             top: cTop,
             width: cWidth,
             height: cHeight,
-            fontSize: 48,
+            fontSize: 44,
             fill: currentTextColor,
             backgroundColor: currentBg,
             stroke: '#ef4444',
@@ -7045,7 +7045,7 @@ function loadMonitorCanvasToEditor() {
             top: nTop,
             width: nWidth,
             height: nHeight,
-            fontSize: 40,
+            fontSize: 36,
             fill: nextTextColor,
             backgroundColor: nextBg,
             stroke: '#3b82f6',
@@ -7119,8 +7119,8 @@ function saveMonitorSettingsFromEditor() {
             };
         };
 
-        const currentMetrics = calcMetrics(currObj, 5, 5, 90, 42);
-        const nextMetrics = calcMetrics(nextObj, 5, 52, 90, 42);
+        const currentMetrics = calcMetrics(currObj, 5, 5.9, 90, 35.1);
+        const nextMetrics = calcMetrics(nextObj, 5, 48.1, 90, 35.1);
 
         const settings = {
             layoutMode: "custom_canvas",

@@ -714,6 +714,32 @@
                     nextTextEl.innerText = "등록된 슬라이드가 없습니다.";
                 }
             }
+
+            // 박스 영역에 맞춰 폰트 크기 동적 자동 조절 (Auto-fit)
+            fitTextToSection(currentSec, currentTextEl);
+            fitTextToSection(nextSec, nextTextEl);
+        }
+
+        function fitTextToSection(secEl, textEl) {
+            if (!secEl || !textEl) return;
+            const secHeight = secEl.clientHeight;
+            if (secHeight <= 0) return;
+
+            // 컨테이너 높이 대비 적정 폰트 크기 계산 (최대 높이의 25%)
+            const baseFontSize = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--monitor-font-size')) || 1.8;
+            let fontPx = Math.min(baseFontSize * 16, secHeight * 0.28);
+            fontPx = Math.max(fontPx, 14);
+
+            textEl.style.fontSize = `${fontPx}px`;
+
+            // 오버플로우 발생 시 폰트 크기 자동 조절 (Auto-fit)
+            let count = 0;
+            const maxScroll = secHeight - 50;
+            while (textEl.scrollHeight > maxScroll && fontPx > 14 && count < 10) {
+                fontPx -= 2;
+                textEl.style.fontSize = `${fontPx}px`;
+                count++;
+            }
         }
 
         window.onresize = () => {
