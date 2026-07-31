@@ -6121,6 +6121,20 @@ window.deleteSelectedStageBgFilesWithConfirm = async function(confirmRequired = 
 
     const deletedNames = selectedStageBgFiles.map(f => f.name);
 
+    // 삭제 후 자동으로 선택 및 미리보기 재생할 다음 배경 영상 결정
+    let nextFileToSelect = null;
+    if (_renderedStageBgFiles && _renderedStageBgFiles.length > 0) {
+        const firstDelIdx = _renderedStageBgFiles.findIndex(f => deletedNames.includes(f.name));
+        const remainingFiles = _renderedStageBgFiles.filter(f => !deletedNames.includes(f.name));
+        if (remainingFiles.length > 0) {
+            if (firstDelIdx >= 0 && firstDelIdx < remainingFiles.length) {
+                nextFileToSelect = remainingFiles[firstDelIdx];
+            } else {
+                nextFileToSelect = remainingFiles[remainingFiles.length - 1];
+            }
+        }
+    }
+
     // Windows 파일 잠금(File Locking) 해제를 위해 삭제 대상 동영상 연결 및 media element 소스 즉시 해제
     if (currentStageBg.type === 'video' && deletedNames.some(name => currentStageBg.videoUrl === `/static/backgrounds/${name}`)) {
         selectStageBg({ type: 'ambient' }, false);
@@ -6151,6 +6165,14 @@ window.deleteSelectedStageBgFilesWithConfirm = async function(confirmRequired = 
 
             selectedStageBgFiles = [];
             await loadStageBgLibrary();
+
+            // 삭제 후 다음 배경 영상 자동 선택 및 미리보기 재생 (남은 영상이 없으면 ambient)
+            if (nextFileToSelect && allStageBgFiles.some(f => f.name === nextFileToSelect.name)) {
+                selectedStageBgFiles = [nextFileToSelect];
+                selectStageBg({ type: 'video', videoUrl: nextFileToSelect.url, title: nextFileToSelect.name }, true);
+            } else if (allStageBgFiles.length === 0 || !nextFileToSelect) {
+                selectStageBg({ type: 'ambient' }, true);
+            }
         } else {
             const err = await res.json().catch(() => ({}));
             alert("삭제 실패: " + (err.detail || res.statusText));
