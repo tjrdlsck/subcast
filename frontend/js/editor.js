@@ -6121,7 +6121,7 @@ window.deleteSelectedStageBgFilesWithConfirm = async function(confirmRequired = 
 
     const deletedNames = selectedStageBgFiles.map(f => f.name);
 
-    // 삭제 후 자동으로 선택 및 미리보기 재생할 다음 배경 영상 결정
+    // 1. 삭제 후 자동으로 선택 및 미리보기 재생할 다음 배경 영상 결정
     let nextFileToSelect = null;
     if (_renderedStageBgFiles && _renderedStageBgFiles.length > 0) {
         const firstDelIdx = _renderedStageBgFiles.findIndex(f => deletedNames.includes(f.name));
@@ -6135,58 +6135,45 @@ window.deleteSelectedStageBgFilesWithConfirm = async function(confirmRequired = 
         }
     }
 
-    // 삭제 대상 중 현재 적용 중인 비디오 배경이 있는 경우 Ambient로 먼저 전환
+    // 2. 프론트엔드 메모리 목록에서 삭제 대상 즉시 제거 (Optimistic UI Update)
+    allStageBgFiles = allStageBgFiles.filter(f => !deletedNames.includes(f.name));
+    _renderedStageBgFiles = _renderedStageBgFiles.filter(f => !deletedNames.includes(f.name));
+
+    // 3. 삭제 대상 중 현재 적용 중인 비디오 배경이 있는 경우 미리보기 릴리즈
     const isDeletingCurrent = currentStageBg.type === 'video' && deletedNames.some(name => currentStageBg.videoUrl === `/static/backgrounds/${name}`);
-    if (isDeletingCurrent) {
-        selectStageBg({ type: 'ambient' }, false);
-    }
-
-    // 삭제 전 현재 재생 중인 미리보기 미디어 리소스 릴리즈를 수행하여 파일 점유(Lock) 해제
     const pipVideo = document.getElementById('pip-bg-video');
-    if (pipVideo) {
-        pipVideo.pause();
-        pipVideo.removeAttribute('src');
-        pipVideo.load();
+    if (isDeletingCurrent || pipVideo) {
+        if (pipVideo) {
+            pipVideo.pause();
+            pipVideo.removeAttribute('src');
+            pipVideo.load();
+        }
     }
 
-    // 브라우저 미디어 커넥션 릴리즈를 위한 안정적 지연 (250ms)
-    await new Promise(resolve => setTimeout(resolve, 250));
+    // 4. 즉시 다음 배경 영상으로 화면 선택 및 미리보기 전환 (남은 영상이 없으면 Ambient)
+    if (nextFileToSelect) {
+        selectedStageBgFiles = [nextFileToSelect];
+        selectStageBg({ type: 'video', videoUrl: nextFileToSelect.url, title: nextFileToSelect.name }, true);
+    } else {
+        selectedStageBgFiles = [];
+        selectStageBg({ type: 'ambient' }, true);
+    }
 
+    // 5. UI 카드 그리드 즉시 갱신 및 완료 토스트 출력 (사용자 화면에서 즉각 삭제 처리)
+    filterAndRenderStageBgLibrary();
+    if (typeof showToast === 'function') {
+        showToast(`${deletedNames.length}개의 현장 배경이 삭제되었습니다.`);
+    }
+
+    // 6. 백엔드 비동기 삭제 API 호출 (백엔드가 메타 제거 및 백그라운드 파일 정리 수행)
     try {
-        const res = await fetch('/api/backgrounds/delete', {
+        await fetch('/api/backgrounds/delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ names: deletedNames })
         });
-
-        if (res.ok) {
-            const data = await res.json();
-            if (data.deleted_count > 0) {
-                if (typeof showToast === 'function') {
-                    showToast(`${data.deleted_count}개의 현장 배경이 삭제되었습니다.`);
-                }
-            } else {
-                alert("삭제 실패: 선택한 파일이 사용 중이거나 존재하지 않습니다.");
-            }
-
-            await loadStageBgLibrary();
-
-            // 백엔드 파일 삭제 완료 후 다음 배경 영상으로 자동 선택 & 미리보기 전환
-            if (nextFileToSelect && allStageBgFiles.some(f => f.name === nextFileToSelect.name)) {
-                selectedStageBgFiles = [nextFileToSelect];
-                selectStageBg({ type: 'video', videoUrl: nextFileToSelect.url, title: nextFileToSelect.name }, true);
-            } else {
-                selectedStageBgFiles = [];
-                selectStageBg({ type: 'ambient' }, true);
-            }
-            filterAndRenderStageBgLibrary();
-        } else {
-            const err = await res.json().catch(() => ({}));
-            alert("삭제 실패: " + (err.detail || res.statusText));
-        }
     } catch (e) {
-        console.error("Failed to delete stage bg files", e);
-        alert("삭제 중 오류가 발생했습니다.");
+        console.error("Failed to call background delete API", e);
     }
 };
 

@@ -65,6 +65,7 @@ frontend_dir.mkdir(exist_ok=True)
 
 backgrounds_dir = Path("data/backgrounds")
 backgrounds_dir.mkdir(parents=True, exist_ok=True)
+pending_delete_bg_files = set()
 app.mount("/static/backgrounds", StaticFiles(directory=backgrounds_dir), name="backgrounds")
 
 meta_file = backgrounds_dir / "meta.json"
@@ -272,75 +273,108 @@ def cleanup_trash_backgrounds():
             pass
 
 
+async def _async_delete_background_worker(names: List[str]):
+    await asyncio.sleep(0.3)
+    meta = load_bg_meta()
+    meta_changed = False
+
+    for name in names:
+        if name in meta:
+            meta.pop(name)
+            meta_changed = True
+
+        target_path = backgrounds_dir / name
+        thumb_path = backgrounds_dir / f"thumb_{target_path.stem}.jpg"
+
+        # 물리 파일 삭제 시도 (최대 15회, 총 3초간 비동기 재시도)
+        for attempt in range(15):
+            if not target_path.exists():
+                break
+            try:
+                target_path.unlink()
+                break
+            except Exception:
+                try:
+                    trash_name = f".trash_{uuid.uuid4().hex}_{name}"
+                    trash_path = backgrounds_dir / trash_name
+                    target_path.rename(trash_path)
+                    try:
+                        trash_path.unlink()
+                    except Exception:
+                        pass
+                    break
+                except Exception:
+                    pass
+            await asyncio.sleep(0.2)
+
+        if thumb_path.exists():
+            try:
+                thumb_path.unlink()
+            except Exception:
+                pass
+
+        pending_delete_bg_files.discard(name)
+
+    if meta_changed:
+        save_bg_meta(meta)
+    cleanup_trash_backgrounds()
+
+
 @app.post("/api/backgrounds/delete")
 async def delete_background_files(req: DeleteBackgroundsRequest):
     if not req.names:
         return {"success": True, "deleted_count": 0}
 
+    valid_names = [n.strip() for n in req.names if n.strip()]
     meta = load_bg_meta()
-    deleted_count = 0
-    failed_files = []
+    meta_changed = False
+    async_pending_names = []
 
-    for name in req.names:
-        name = name.strip()
-        if not name:
-            continue
-        
+    for name in valid_names:
+        if name in meta:
+            meta.pop(name)
+            meta_changed = True
+
         target_path = backgrounds_dir / name
+        thumb_path = backgrounds_dir / f"thumb_{target_path.stem}.jpg"
+        is_deleted = False
+
         if target_path.exists() and target_path.is_file():
-            is_deleted = False
-            for attempt in range(5):
+            try:
+                target_path.unlink()
+                is_deleted = True
+            except Exception:
                 try:
-                    target_path.unlink()
-                    is_deleted = True
-                    break
-                except Exception:
-                    await asyncio.sleep(0.1)
-
-            if not is_deleted:
-                for attempt in range(5):
+                    trash_name = f".trash_{uuid.uuid4().hex}_{name}"
+                    trash_path = backgrounds_dir / trash_name
+                    target_path.rename(trash_path)
                     try:
-                        trash_name = f".trash_{uuid.uuid4().hex}_{name}"
-                        trash_path = backgrounds_dir / trash_name
-                        target_path.rename(trash_path)
-                        is_deleted = True
-                        try:
-                            trash_path.unlink()
-                        except Exception:
-                            pass
-                        break
-                    except Exception as re:
-                        await asyncio.sleep(0.1)
-
-            if not is_deleted:
-                logger.error(f"Failed to delete/rename background file {name} after retries")
-                failed_files.append(name)
-                continue
-
-            if is_deleted:
-                deleted_count += 1
-                thumb_path = backgrounds_dir / f"thumb_{target_path.stem}.jpg"
-                if thumb_path.exists():
-                    try:
-                        thumb_path.unlink()
+                        trash_path.unlink()
                     except Exception:
-                        try:
-                            thumb_trash = backgrounds_dir / f".trash_thumb_{uuid.uuid4().hex}_{thumb_path.name}"
-                            thumb_path.rename(thumb_trash)
-                            thumb_trash.unlink()
-                        except Exception:
-                            pass
+                        pass
+                    is_deleted = True
+                except Exception:
+                    pass
 
-                if name in meta:
-                    meta.pop(name)
+        if is_deleted:
+            if thumb_path.exists():
+                try:
+                    thumb_path.unlink()
+                except Exception:
+                    pass
+        else:
+            if target_path.exists():
+                pending_delete_bg_files.add(name)
+                async_pending_names.append(name)
 
-    save_bg_meta(meta)
+    if meta_changed:
+        save_bg_meta(meta)
+
+    if async_pending_names:
+        asyncio.create_task(_async_delete_background_worker(async_pending_names))
+
     cleanup_trash_backgrounds()
-
-    if failed_files and deleted_count == 0:
-        raise HTTPException(status_code=409, detail=f"파일이 사용 중이거나 권한이 없어 삭제할 수 없습니다. ({', '.join(failed_files[:3])})")
-
-    return {"success": True, "deleted_count": deleted_count, "failed_files": failed_files}
+    return {"success": True, "deleted_count": len(valid_names)}
 
 
 class DuplicateBackgroundsRequest(BaseModel):
