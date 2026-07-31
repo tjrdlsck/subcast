@@ -6983,11 +6983,58 @@ document.addEventListener('DOMContentLoaded', () => {
 /* 모니터링 화면 자유 캔버스 레이아웃 편집기 */
 let isMonitorEditMode = false;
 
+function bindMonitorCanvasEvents() {
+    if (!canvas) return;
+    canvas.off('object:moving');
+    canvas.off('object:scaling');
+
+    const constrain = (e) => {
+        const obj = e.target;
+        if (!obj || !obj.monitorRole) return;
+
+        obj.setCoords();
+        const actualW = obj.width * (obj.scaleX || 1);
+        const actualH = obj.height * (obj.scaleY || 1);
+
+        if (obj.left < 0) obj.left = 0;
+        if (obj.top < 0) obj.top = 0;
+        if (obj.left + actualW > 1920) obj.left = 1920 - actualW;
+        if (obj.top + actualH > 1080) obj.top = 1080 - actualH;
+    };
+
+    canvas.on('object:moving', constrain);
+    canvas.on('object:scaling', constrain);
+}
+
+function createMonitorRectBox(role, sampleText, left, top, width, height, bgColor, textColor, strokeColor) {
+    return new fabric.Rect({
+        left: left,
+        top: top,
+        width: width,
+        height: height,
+        fill: bgColor,
+        stroke: strokeColor,
+        strokeWidth: 4,
+        rx: 16,
+        ry: 16,
+        cornerColor: strokeColor,
+        cornerSize: 14,
+        cornerStyle: 'circle',
+        transparentCorners: false,
+        lockRotation: true,
+        hasRotatingPoint: false,
+        monitorRole: role,
+        id: `monitor_${role}_box`,
+        sampleText: sampleText,
+        textColor: textColor
+    });
+}
+
 function loadMonitorCanvasToEditor() {
     if (!canvas) return;
     try {
         canvas.clear();
-        canvas.backgroundColor = '#111827';
+        canvas.backgroundColor = '#0b0f17';
 
         const saved = JSON.parse(localStorage.getItem("subcast_monitor_settings") || "{}");
 
@@ -7006,62 +7053,38 @@ function loadMonitorCanvasToEditor() {
         if (document.getElementById("color-monitor-next-bg")) document.getElementById("color-monitor-next-bg").value = nextBg;
         if (document.getElementById("color-monitor-next-text")) document.getElementById("color-monitor-next-text").value = nextTextColor;
 
-        // 좌표 계산 (퍼센트 -> 1920x1080 픽셀)
-        const cLeft = saved.currentBox?.leftPct !== undefined ? (saved.currentBox.leftPct / 100) * 1920 : 96;
-        const cTop = saved.currentBox?.topPct !== undefined ? (saved.currentBox.topPct / 100) * 1080 : 64;
-        const cWidth = saved.currentBox?.widthPct !== undefined ? (saved.currentBox.widthPct / 100) * 1920 : 1728;
-        const cHeight = saved.currentBox?.heightPct !== undefined ? (saved.currentBox.heightPct / 100) * 1080 : 380;
+        // 좌표 안전 계산 (캔버스 1920x1080 내부로 제한)
+        const sanitizeCoord = (valPct, defaultPct, maxPct) => {
+            if (valPct === undefined || isNaN(valPct)) return defaultPct;
+            return Math.max(0, Math.min(maxPct, valPct));
+        };
 
-        const nLeft = saved.nextBox?.leftPct !== undefined ? (saved.nextBox.leftPct / 100) * 1920 : 96;
-        const nTop = saved.nextBox?.topPct !== undefined ? (saved.nextBox.topPct / 100) * 1080 : 520;
-        const nWidth = saved.nextBox?.widthPct !== undefined ? (saved.nextBox.widthPct / 100) * 1920 : 1728;
-        const nHeight = saved.nextBox?.heightPct !== undefined ? (saved.nextBox.heightPct / 100) * 1080 : 380;
+        const cLeftPct = sanitizeCoord(saved.currentBox?.leftPct, 5, 90);
+        const cTopPct = sanitizeCoord(saved.currentBox?.topPct, 5, 90);
+        const cWidthPct = sanitizeCoord(saved.currentBox?.widthPct, 90, 95);
+        const cHeightPct = Math.min(100 - cTopPct, sanitizeCoord(saved.currentBox?.heightPct, 42, 90));
 
-        // Fabric.js Textbox 생성 (🔴 CURRENT)
-        const currentBoxObj = new fabric.Textbox("🔴 CURRENT (현재 송출 슬라이드)\n여기에 현재 송출 중인 자막 텍스트가 표시됩니다.", {
-            left: cLeft,
-            top: cTop,
-            width: cWidth,
-            height: cHeight,
-            fontSize: 44,
-            fill: currentTextColor,
-            backgroundColor: currentBg,
-            stroke: '#ef4444',
-            strokeWidth: 3,
-            rx: 12,
-            ry: 12,
-            padding: 16,
-            cornerColor: '#ef4444',
-            cornerStyle: 'circle',
-            transparentCorners: false,
-            monitorRole: 'current',
-            id: 'monitor_current_box',
-            splitByGrapheme: true
-        });
+        const nLeftPct = sanitizeCoord(saved.nextBox?.leftPct, 5, 90);
+        const nTopPct = sanitizeCoord(saved.nextBox?.topPct, 51, 90);
+        const nWidthPct = sanitizeCoord(saved.nextBox?.widthPct, 90, 95);
+        const nHeightPct = Math.min(100 - nTopPct, sanitizeCoord(saved.nextBox?.heightPct, 42, 90));
 
-        // Fabric.js Textbox 생성 (🔵 NEXT)
-        const nextBoxObj = new fabric.Textbox("🔵 NEXT (다음 슬라이드)\n여기에 다음에 송출될 자막 텍스트가 표시됩니다.", {
-            left: nLeft,
-            top: nTop,
-            width: nWidth,
-            height: nHeight,
-            fontSize: 36,
-            fill: nextTextColor,
-            backgroundColor: nextBg,
-            stroke: '#3b82f6',
-            strokeWidth: 3,
-            rx: 12,
-            ry: 12,
-            padding: 16,
-            cornerColor: '#3b82f6',
-            cornerStyle: 'circle',
-            transparentCorners: false,
-            monitorRole: 'next',
-            id: 'monitor_next_box',
-            splitByGrapheme: true
-        });
+        const cLeft = (cLeftPct / 100) * 1920;
+        const cTop = (cTopPct / 100) * 1080;
+        const cWidth = (cWidthPct / 100) * 1920;
+        const cHeight = (cHeightPct / 100) * 1080;
+
+        const nLeft = (nLeftPct / 100) * 1920;
+        const nTop = (nTopPct / 100) * 1080;
+        const nWidth = (nWidthPct / 100) * 1920;
+        const nHeight = (nHeightPct / 100) * 1080;
+
+        // 🔴 CURRENT 카드 및 🔵 NEXT 카드 생성 (Fabric.Rect)
+        const currentBoxObj = createMonitorRectBox('current', '🔴 CURRENT (현재 송출 슬라이드)', cLeft, cTop, cWidth, cHeight, currentBg, currentTextColor, '#ef4444');
+        const nextBoxObj = createMonitorRectBox('next', '🔵 NEXT (다음 슬라이드)', nLeft, nTop, nWidth, nHeight, nextBg, nextTextColor, '#3b82f6');
 
         canvas.add(currentBoxObj, nextBoxObj);
+        bindMonitorCanvasEvents();
         canvas.setActiveObject(currentBoxObj);
         canvas.renderAll();
     } catch(e) {
@@ -7080,10 +7103,10 @@ function updateMonitorEditorSettings() {
     const nextObj = canvas.getObjects().find(o => o.monitorRole === 'next');
 
     if (currObj) {
-        currObj.set({ backgroundColor: currentBg, fill: currentTextColor });
+        currObj.set({ fill: currentBg, textColor: currentTextColor });
     }
     if (nextObj) {
-        nextObj.set({ backgroundColor: nextBg, fill: nextTextColor });
+        nextObj.set({ fill: nextBg, textColor: nextTextColor });
     }
     canvas.renderAll();
 }
@@ -7112,15 +7135,15 @@ function saveMonitorSettingsFromEditor() {
             const actualW = obj.width * (obj.scaleX || 1);
             const actualH = obj.height * (obj.scaleY || 1);
             return {
-                leftPct: Math.max(0, Math.min(100, Math.round(((obj.left) / 1920) * 1000) / 10)),
-                topPct: Math.max(0, Math.min(100, Math.round(((obj.top) / 1080) * 1000) / 10)),
+                leftPct: Math.max(0, Math.min(95, Math.round(((obj.left) / 1920) * 1000) / 10)),
+                topPct: Math.max(0, Math.min(95, Math.round(((obj.top) / 1080) * 1000) / 10)),
                 widthPct: Math.max(5, Math.min(100, Math.round((actualW / 1920) * 1000) / 10)),
                 heightPct: Math.max(5, Math.min(100, Math.round((actualH / 1080) * 1000) / 10))
             };
         };
 
-        const currentMetrics = calcMetrics(currObj, 5, 5.9, 90, 35.1);
-        const nextMetrics = calcMetrics(nextObj, 5, 48.1, 90, 35.1);
+        const currentMetrics = calcMetrics(currObj, 5, 5, 90, 42);
+        const nextMetrics = calcMetrics(nextObj, 5, 51, 90, 42);
 
         const settings = {
             layoutMode: "custom_canvas",
@@ -7170,6 +7193,8 @@ function resetMonitorCanvasLayout() {
 function restoreNormalCanvas() {
     if (!canvas) return;
     try {
+        canvas.off('object:moving');
+        canvas.off('object:scaling');
         canvas.clear();
         if (typeof renderCurrentSlide === "function") {
             renderCurrentSlide();
@@ -7180,6 +7205,7 @@ function restoreNormalCanvas() {
         console.error("Failed to restore normal canvas", e);
     }
 }
+
 
 
 
