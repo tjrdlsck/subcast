@@ -3287,14 +3287,22 @@
                     if (targetId && projectData && projectData.slides) {
                         const slide = projectData.slides.find(s => s.id === targetId);
                         if (slide) {
-                            showSlideBgSelectModal(slide);
+                            if (typeof showSlideBgSelectModal === 'function') {
+                                showSlideBgSelectModal(slide);
+                            } else if (typeof window.showSlideBgSelectModal === 'function') {
+                                window.showSlideBgSelectModal(slide);
+                            }
                         }
                     }
                 };
             }
 
             // 슬라이드 현장 배경 지정 모달 이벤트 바인딩
-            bindSlideBgModalEvents();
+            if (typeof bindSlideBgModalEvents === 'function') {
+                bindSlideBgModalEvents();
+            } else if (typeof window.bindSlideBgModalEvents === 'function') {
+                window.bindSlideBgModalEvents();
+            }
 
             if (copyBtn) {
                 copyBtn.onclick = (e) => {
@@ -5527,6 +5535,12 @@
                     };
                 });
             }
+
+            window.matchStageBgForSong = matchStageBgForSong;
+            window.showSlideBgSelectModal = showSlideBgSelectModal;
+            window.renderSlideBgModalGrid = renderSlideBgModalGrid;
+            window.applySelectedBgToSlide = applySelectedBgToSlide;
+            window.bindSlideBgModalEvents = bindSlideBgModalEvents;
 
             // 5) 디자인 프리셋 선택 반응형 이벤트 리스너
             const fontOpacityInput = document.getElementById("input-praise-font-opacity");
