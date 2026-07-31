@@ -544,10 +544,21 @@
                             nextSec.style.flex = "5";
                         }
 
-                        if (saved.currentBg) currentSec.style.backgroundColor = saved.currentBg;
+                        if (saved.currentBox?.isTransparentBg || saved.currentBg === "transparent") {
+                            currentSec.style.backgroundColor = "transparent";
+                        } else if (saved.currentBg) {
+                            currentSec.style.backgroundColor = saved.currentBg;
+                        }
                         if (saved.currentTextColor && currentTextEl) currentTextEl.style.color = saved.currentTextColor;
-                        if (saved.nextBg) nextSec.style.backgroundColor = saved.nextBg;
+                        if (saved.currentBox?.fontSize && currentTextEl) currentTextEl.style.fontSize = `${saved.currentBox.fontSize}px`;
+
+                        if (saved.nextBox?.isTransparentBg || saved.nextBg === "transparent") {
+                            nextSec.style.backgroundColor = "transparent";
+                        } else if (saved.nextBg) {
+                            nextSec.style.backgroundColor = saved.nextBg;
+                        }
                         if (saved.nextTextColor && nextTextEl) nextTextEl.style.color = saved.nextTextColor;
+                        if (saved.nextBox?.fontSize && nextTextEl) nextTextEl.style.fontSize = `${saved.nextBox.fontSize}px`;
                     } catch(e) {}
                 }
 

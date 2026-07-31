@@ -570,23 +570,48 @@
 
                         <!-- 2. 색상 및 글자 스타일 (Current / Next) -->
                         <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 10px;">
-                            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-main);">🎨 색상 커스텀</label>
+                            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-main);">🎨 색상 및 글자 스타일 커스텀</label>
                             
-                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
-                                <span>🔴 현재 슬라이드 배경</span>
-                                <input type="color" id="color-monitor-curr-bg" value="#1E1E1E" style="border:none; width:28px; height:24px; cursor:pointer; background:none;" onchange="updateMonitorEditorSettings()">
+                            <!-- CURRENT 스타일 -->
+                            <div style="display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 8px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
+                                    <span style="color: #ef4444; font-weight: 600;">🔴 CURRENT 배경/글자색</span>
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <input type="color" id="color-monitor-curr-bg" value="#1E1E1E" style="border:none; width:24px; height:22px; cursor:pointer; background:none;" onchange="updateMonitorEditorSettings()" title="배경색">
+                                        <input type="color" id="color-monitor-curr-text" value="#FFFFFF" style="border:none; width:24px; height:22px; cursor:pointer; background:none;" onchange="updateMonitorEditorSettings()" title="글자색">
+                                    </div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem;">
+                                    <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; color: var(--text-muted);">
+                                        <input type="checkbox" id="chk-monitor-curr-transparent" onchange="updateMonitorEditorSettings()">
+                                        <span>배경 투명화</span>
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 4px; color: var(--text-muted);">
+                                        <span>글자 크기:</span>
+                                        <input type="number" id="num-monitor-curr-fontsize" value="24" min="10" max="120" style="width:50px; background:rgba(0,0,0,0.3); border:1px solid var(--panel-border); color:#fff; border-radius:4px; padding:2px 4px;" onchange="updateMonitorEditorSettings()">px
+                                    </label>
+                                </div>
                             </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
-                                <span>🔴 현재 슬라이드 글자색</span>
-                                <input type="color" id="color-monitor-curr-text" value="#FFFFFF" style="border:none; width:28px; height:24px; cursor:pointer; background:none;" onchange="updateMonitorEditorSettings()">
-                            </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
-                                <span>🔵 다음 슬라이드 배경</span>
-                                <input type="color" id="color-monitor-next-bg" value="#181818" style="border:none; width:28px; height:24px; cursor:pointer; background:none;" onchange="updateMonitorEditorSettings()">
-                            </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
-                                <span>🔵 다음 슬라이드 글자색</span>
-                                <input type="color" id="color-monitor-next-text" value="#A0A0A0" style="border:none; width:28px; height:24px; cursor:pointer; background:none;" onchange="updateMonitorEditorSettings()">
+
+                            <!-- NEXT 스타일 -->
+                            <div style="display: flex; flex-direction: column; gap: 6px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
+                                    <span style="color: #3b82f6; font-weight: 600;">🔵 NEXT 배경/글자색</span>
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <input type="color" id="color-monitor-next-bg" value="#181818" style="border:none; width:24px; height:22px; cursor:pointer; background:none;" onchange="updateMonitorEditorSettings()" title="배경색">
+                                        <input type="color" id="color-monitor-next-text" value="#A0A0A0" style="border:none; width:24px; height:22px; cursor:pointer; background:none;" onchange="updateMonitorEditorSettings()" title="글자색">
+                                    </div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem;">
+                                    <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; color: var(--text-muted);">
+                                        <input type="checkbox" id="chk-monitor-next-transparent" onchange="updateMonitorEditorSettings()">
+                                        <span>배경 투명화</span>
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 4px; color: var(--text-muted);">
+                                        <span>글자 크기:</span>
+                                        <input type="number" id="num-monitor-next-fontsize" value="20" min="10" max="120" style="width:50px; background:rgba(0,0,0,0.3); border:1px solid var(--panel-border); color:#fff; border-radius:4px; padding:2px 4px;" onchange="updateMonitorEditorSettings()">px
+                                    </label>
+                                </div>
                             </div>
                         </div>
 

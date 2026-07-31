@@ -7054,27 +7054,34 @@ function bindMonitorCanvasEvents() {
     canvas.on('object:scaling', constrain);
 }
 
-function createMonitorRectBox(role, sampleText, left, top, width, height, bgColor, textColor, strokeColor) {
-    return new fabric.Rect({
+function createMonitorBox(role, sampleText, left, top, width, height, bgColor, textColor, strokeColor, isTransparentBg = false, fontSize = 24) {
+    const isTrans = isTransparentBg || bgColor === 'transparent';
+    return new fabric.Textbox(sampleText, {
         left: left,
         top: top,
         width: width,
         height: height,
-        fill: bgColor,
+        fontSize: fontSize,
+        fontFamily: 'sans-serif',
+        fontWeight: 'bold',
+        fill: textColor,
+        backgroundColor: isTrans ? 'transparent' : bgColor,
         stroke: strokeColor,
-        strokeWidth: 4,
-        rx: 16,
-        ry: 16,
+        strokeWidth: isTrans ? 2 : 3,
+        strokeDashArray: isTrans ? [6, 4] : null,
+        padding: 10,
         cornerColor: strokeColor,
-        cornerSize: 14,
+        cornerSize: 12,
         cornerStyle: 'circle',
         transparentCorners: false,
         lockRotation: true,
         hasRotatingPoint: false,
+        splitByGrapheme: true,
         monitorRole: role,
         id: `monitor_${role}_box`,
         sampleText: sampleText,
-        textColor: textColor
+        textColor: textColor,
+        isTransparentBg: isTrans
     });
 }
 
@@ -7095,13 +7102,23 @@ function loadMonitorCanvasToEditor() {
 
         const currentBg = saved.currentBox?.bgColor || saved.currentBg || "#1E1E1E";
         const currentTextColor = saved.currentBox?.textColor || saved.currentTextColor || "#FFFFFF";
+        const currentTrans = saved.currentBox?.isTransparentBg || currentBg === "transparent";
+        const currentFontSize = saved.currentBox?.fontSize || 24;
+
         const nextBg = saved.nextBox?.bgColor || saved.nextBg || "#181818";
         const nextTextColor = saved.nextBox?.textColor || saved.nextTextColor || "#A0A0A0";
+        const nextTrans = saved.nextBox?.isTransparentBg || nextBg === "transparent";
+        const nextFontSize = saved.nextBox?.fontSize || 20;
 
-        if (document.getElementById("color-monitor-curr-bg")) document.getElementById("color-monitor-curr-bg").value = currentBg;
+        if (document.getElementById("color-monitor-curr-bg")) document.getElementById("color-monitor-curr-bg").value = currentBg === "transparent" ? "#1E1E1E" : currentBg;
         if (document.getElementById("color-monitor-curr-text")) document.getElementById("color-monitor-curr-text").value = currentTextColor;
-        if (document.getElementById("color-monitor-next-bg")) document.getElementById("color-monitor-next-bg").value = nextBg;
+        if (document.getElementById("chk-monitor-curr-transparent")) document.getElementById("chk-monitor-curr-transparent").checked = !!currentTrans;
+        if (document.getElementById("num-monitor-curr-fontsize")) document.getElementById("num-monitor-curr-fontsize").value = currentFontSize;
+
+        if (document.getElementById("color-monitor-next-bg")) document.getElementById("color-monitor-next-bg").value = nextBg === "transparent" ? "#181818" : nextBg;
         if (document.getElementById("color-monitor-next-text")) document.getElementById("color-monitor-next-text").value = nextTextColor;
+        if (document.getElementById("chk-monitor-next-transparent")) document.getElementById("chk-monitor-next-transparent").checked = !!nextTrans;
+        if (document.getElementById("num-monitor-next-fontsize")) document.getElementById("num-monitor-next-fontsize").value = nextFontSize;
 
         // 좌표 안전 계산 (캔버스 1920x1080 내부로 제한)
         const sanitizeCoord = (valPct, defaultPct, maxPct) => {
@@ -7129,9 +7146,9 @@ function loadMonitorCanvasToEditor() {
         const nWidth = (nWidthPct / 100) * baseW;
         const nHeight = (nHeightPct / 100) * baseH;
 
-        // 🔴 CURRENT 카드 및 🔵 NEXT 카드 생성 (Fabric.Rect)
-        const currentBoxObj = createMonitorRectBox('current', '🔴 CURRENT (현재 송출 슬라이드)', cLeft, cTop, cWidth, cHeight, currentBg, currentTextColor, '#ef4444');
-        const nextBoxObj = createMonitorRectBox('next', '🔵 NEXT (다음 슬라이드)', nLeft, nTop, nWidth, nHeight, nextBg, nextTextColor, '#3b82f6');
+        // 🔴 CURRENT 카드 및 🔵 NEXT 카드 생성 (Fabric.Textbox)
+        const currentBoxObj = createMonitorBox('current', '🔴 CURRENT (현재 송출 슬라이드)', cLeft, cTop, cWidth, cHeight, currentBg, currentTextColor, '#ef4444', currentTrans, currentFontSize);
+        const nextBoxObj = createMonitorBox('next', '🔵 NEXT (다음 슬라이드 미리보기)', nLeft, nTop, nWidth, nHeight, nextBg, nextTextColor, '#3b82f6', nextTrans, nextFontSize);
 
         canvas.add(currentBoxObj, nextBoxObj);
         bindMonitorCanvasEvents();
@@ -7145,19 +7162,42 @@ function loadMonitorCanvasToEditor() {
 
 function updateMonitorEditorSettings() {
     if (!canvas || !isMonitorEditMode) return;
-    const currentBg = document.getElementById("color-monitor-curr-bg")?.value || "#1E1E1E";
+    const currentBgInput = document.getElementById("color-monitor-curr-bg")?.value || "#1E1E1E";
     const currentTextColor = document.getElementById("color-monitor-curr-text")?.value || "#FFFFFF";
-    const nextBg = document.getElementById("color-monitor-next-bg")?.value || "#181818";
+    const currentTrans = !!document.getElementById("chk-monitor-curr-transparent")?.checked;
+    const currentFontSize = parseInt(document.getElementById("num-monitor-curr-fontsize")?.value, 10) || 24;
+    const currentBg = currentTrans ? "transparent" : currentBgInput;
+
+    const nextBgInput = document.getElementById("color-monitor-next-bg")?.value || "#181818";
     const nextTextColor = document.getElementById("color-monitor-next-text")?.value || "#A0A0A0";
+    const nextTrans = !!document.getElementById("chk-monitor-next-transparent")?.checked;
+    const nextFontSize = parseInt(document.getElementById("num-monitor-next-fontsize")?.value, 10) || 20;
+    const nextBg = nextTrans ? "transparent" : nextBgInput;
 
     const currObj = canvas.getObjects().find(o => o.monitorRole === 'current');
     const nextObj = canvas.getObjects().find(o => o.monitorRole === 'next');
 
     if (currObj) {
-        currObj.set({ fill: currentBg, textColor: currentTextColor });
+        currObj.set({
+            fill: currentTextColor,
+            textColor: currentTextColor,
+            backgroundColor: currentBg,
+            fontSize: currentFontSize,
+            isTransparentBg: currentTrans,
+            strokeDashArray: currentTrans ? [6, 4] : null,
+            strokeWidth: currentTrans ? 2 : 3
+        });
     }
     if (nextObj) {
-        nextObj.set({ fill: nextBg, textColor: nextTextColor });
+        nextObj.set({
+            fill: nextTextColor,
+            textColor: nextTextColor,
+            backgroundColor: nextBg,
+            fontSize: nextFontSize,
+            isTransparentBg: nextTrans,
+            strokeDashArray: nextTrans ? [6, 4] : null,
+            strokeWidth: nextTrans ? 2 : 3
+        });
     }
     canvas.renderAll();
 }
@@ -7233,10 +7273,17 @@ function saveMonitorSettingsFromEditor() {
         const baseH = (typeof BASE_HEIGHT !== 'undefined' && BASE_HEIGHT) ? BASE_HEIGHT : 432;
 
         const bibleMode = document.querySelector('input[name="ed-monitor-bible"]:checked')?.value || "summary";
-        const currentBg = document.getElementById("color-monitor-curr-bg")?.value || "#1E1E1E";
+        const currentBgInput = document.getElementById("color-monitor-curr-bg")?.value || "#1E1E1E";
         const currentTextColor = document.getElementById("color-monitor-curr-text")?.value || "#FFFFFF";
-        const nextBg = document.getElementById("color-monitor-next-bg")?.value || "#181818";
+        const currentTrans = !!document.getElementById("chk-monitor-curr-transparent")?.checked;
+        const currentFontSize = parseInt(document.getElementById("num-monitor-curr-fontsize")?.value, 10) || 24;
+        const currentBg = currentTrans ? "transparent" : currentBgInput;
+
+        const nextBgInput = document.getElementById("color-monitor-next-bg")?.value || "#181818";
         const nextTextColor = document.getElementById("color-monitor-next-text")?.value || "#A0A0A0";
+        const nextTrans = !!document.getElementById("chk-monitor-next-transparent")?.checked;
+        const nextFontSize = parseInt(document.getElementById("num-monitor-next-fontsize")?.value, 10) || 20;
+        const nextBg = nextTrans ? "transparent" : nextBgInput;
 
         const calcMetrics = (obj, defaultLeft, defaultTop, defaultW, defaultH) => {
             if (!obj) {
@@ -7271,12 +7318,16 @@ function saveMonitorSettingsFromEditor() {
             currentBox: {
                 ...currentMetrics,
                 bgColor: currentBg,
-                textColor: currentTextColor
+                textColor: currentTextColor,
+                fontSize: currObj ? Math.round(currObj.fontSize * (currObj.scaleY || 1)) : currentFontSize,
+                isTransparentBg: currentTrans
             },
             nextBox: {
                 ...nextMetrics,
                 bgColor: nextBg,
-                textColor: nextTextColor
+                textColor: nextTextColor,
+                fontSize: nextObj ? Math.round(nextObj.fontSize * (nextObj.scaleY || 1)) : nextFontSize,
+                isTransparentBg: nextTrans
             }
         };
 

@@ -670,15 +670,30 @@
                 nextSec.style.flex = "1";
             }
 
-            if (settings.currentBg) currentSec.style.backgroundColor = settings.currentBg;
+            if (settings.currentBox?.isTransparentBg || settings.currentBg === "transparent") {
+                currentSec.style.backgroundColor = "transparent";
+            } else if (settings.currentBg) {
+                currentSec.style.backgroundColor = settings.currentBg;
+            }
             if (settings.currentTextColor) {
                 currentSec.style.color = settings.currentTextColor;
                 if (currentTextEl) currentTextEl.style.color = settings.currentTextColor;
             }
-            if (settings.nextBg) nextSec.style.backgroundColor = settings.nextBg;
+            if (settings.currentBox?.fontSize && currentTextEl) {
+                currentTextEl.style.fontSize = `${settings.currentBox.fontSize}px`;
+            }
+
+            if (settings.nextBox?.isTransparentBg || settings.nextBg === "transparent") {
+                nextSec.style.backgroundColor = "transparent";
+            } else if (settings.nextBg) {
+                nextSec.style.backgroundColor = settings.nextBg;
+            }
             if (settings.nextTextColor) {
                 nextSec.style.color = settings.nextTextColor;
                 if (nextTextEl) nextTextEl.style.color = settings.nextTextColor;
+            }
+            if (settings.nextBox?.fontSize && nextTextEl) {
+                nextTextEl.style.fontSize = `${settings.nextBox.fontSize}px`;
             }
 
             const currentLiveId = projectData.settings?.currentLiveSlideId;
