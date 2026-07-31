@@ -3291,8 +3291,21 @@
                             const input = prompt(`곡/슬라이드 [${slide.name}]의 분위기 태그를 선택/입력하세요:\n(표준 태그: 경배/찬양, 잔잔/묵상, 기도/회개, 결단/헌금, 웅장/선포, 절기/특별, 기본/일반)`, currentMood);
                             if (input !== null && input.trim()) {
                                 const val = input.trim();
-                                slide.mood = val;
-                                slide.moods = [val];
+                                const newFixedBgId = typeof matchStageBgForSong === 'function' ? matchStageBgForSong(val) : null;
+
+                                // 찬양 곡 슬라이드인 경우 동일 찬양곡 슬라이드 전체 분위기/고정 배경 일괄 적용
+                                if (slide.songTitle) {
+                                    const relatedSlides = projectData.slides.filter(s => s.songTitle === slide.songTitle);
+                                    relatedSlides.forEach(s => {
+                                        s.mood = val;
+                                        s.moods = [val];
+                                        s.overrideBgId = newFixedBgId;
+                                    });
+                                } else {
+                                    slide.mood = val;
+                                    slide.moods = [val];
+                                    slide.overrideBgId = newFixedBgId;
+                                }
                                 triggerAutoSave();
                                 renderSlides();
                             }
@@ -5299,6 +5312,42 @@
                 };
             }
 
+            // 곡 분위기에 맞는 고정 현장 배경 1개 매칭 헬퍼 함수
+            function matchStageBgForSong(songMood) {
+                const bgList = (projectData && projectData.settings && projectData.settings.stageBgLibrary && projectData.settings.stageBgLibrary.length > 0)
+                    ? projectData.settings.stageBgLibrary
+                    : (allStageBgFiles || []);
+
+                if (!bgList || bgList.length === 0) return null;
+
+                const targetMood = songMood ? songMood.trim() : "기본/일반";
+
+                // 1차: 태그가 일치하는 배경 후보
+                const matchingCandidates = bgList.filter(bg => {
+                    const bgMood = bg.mood || bg.tag;
+                    const bgMoods = bg.moods || (bgMood ? [bgMood] : []);
+                    return bgMood === targetMood || bgMoods.includes(targetMood);
+                });
+
+                let chosenBg = null;
+                if (matchingCandidates.length > 0) {
+                    chosenBg = matchingCandidates[Math.floor(Math.random() * matchingCandidates.length)];
+                } else {
+                    // 2차: 기본/일반 후보
+                    const defaultCandidates = bgList.filter(bg =>
+                        bg.isDefault || bg.is_default || bg.mood === "기본/일반" || (bg.moods && bg.moods.includes("기본/일반"))
+                    );
+                    if (defaultCandidates.length > 0) {
+                        chosenBg = defaultCandidates[Math.floor(Math.random() * defaultCandidates.length)];
+                    } else {
+                        // 3차: 라이브러리 내 전체 배경 중 하나
+                        chosenBg = bgList[Math.floor(Math.random() * bgList.length)];
+                    }
+                }
+
+                return chosenBg ? (chosenBg.id || chosenBg.name) : null;
+            }
+
             // 5) 디자인 프리셋 선택 반응형 이벤트 리스너
             const fontOpacityInput = document.getElementById("input-praise-font-opacity");
             const fontOpacityVal = document.getElementById("input-praise-font-opacity-val");
@@ -5472,6 +5521,9 @@
 
                 tempPraiseSlidesToAdd = [];
 
+                const songMood = activeSelectedPraiseSong.mood || (activeSelectedPraiseSong.moods && activeSelectedPraiseSong.moods[0]) || "경배/찬양";
+                const fixedBgId = matchStageBgForSong(songMood);
+
                 if (presetSelect && presetSelect.value === "template") {
                     const selectTpl = document.getElementById("select-praise-user-template");
                     const tplId = selectTpl ? selectTpl.value : "";
@@ -5493,7 +5545,12 @@
                     blocks.forEach((block, idx) => {
                         if (!checkedIndices.includes(idx)) return;
                         const headerText = `${title} (${idx + 1}/${blocks.length})`;
-                        tempPraiseSlidesToAdd.push(createSlideFromTemplateExplicit(targetTpl, headerText, block, targetElementId));
+                        const slideObj = createSlideFromTemplateExplicit(targetTpl, headerText, block, targetElementId);
+                        slideObj.mood = songMood;
+                        slideObj.moods = [songMood];
+                        slideObj.overrideBgId = fixedBgId;
+                        slideObj.songTitle = title;
+                        tempPraiseSlidesToAdd.push(slideObj);
                     });
                 } else {
                     // 현재 디자인 옵션 수집 (RGBA 색상 변환 적용)
@@ -5511,7 +5568,12 @@
                     blocks.forEach((block, idx) => {
                         if (!checkedIndices.includes(idx)) return;
                         const headerText = `${title} (${idx + 1}/${blocks.length})`;
-                        tempPraiseSlidesToAdd.push(createPraiseSlideObject(headerText, block, styleOptions));
+                        const slideObj = createPraiseSlideObject(headerText, block, styleOptions);
+                        slideObj.mood = songMood;
+                        slideObj.moods = [songMood];
+                        slideObj.overrideBgId = fixedBgId;
+                        slideObj.songTitle = title;
+                        tempPraiseSlidesToAdd.push(slideObj);
                     });
                 }
 
