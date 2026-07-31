@@ -144,7 +144,10 @@ async def list_background_files():
                     "name": p.name,
                     "url": f"/static/backgrounds/{p.name}",
                     "size": p.stat().st_size,
-                    "thumbnailUrl": thumb_url or ""
+                    "thumbnailUrl": thumb_url or "",
+                    "mood": item_meta.get("mood", "기본/일반"),
+                    "moods": item_meta.get("moods", [item_meta.get("mood", "기본/일반")] if item_meta.get("mood") else []),
+                    "isDefault": item_meta.get("isDefault", False)
                 })
 
     if meta_updated:
@@ -1313,6 +1316,18 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                 slide_moods = message.get("slideMoods", [])
                 override_bg_id = message.get("overrideBgId")
                 bg_library = getattr(manager.project_data.settings, "stageBgLibrary", []) if manager.project_data and manager.project_data.settings else []
+                if not bg_library:
+                    meta = load_bg_meta()
+                    bg_library = []
+                    for name, item_meta in meta.items():
+                        bg_library.append({
+                            "name": name,
+                            "url": f"/static/backgrounds/{name}",
+                            "mood": item_meta.get("mood", "기본/일반"),
+                            "moods": item_meta.get("moods", [item_meta.get("mood", "기본/일반")] if item_meta.get("mood") else []),
+                            "isDefault": item_meta.get("isDefault", False),
+                            "thumbnailUrl": item_meta.get("thumbnailUrl", "")
+                        })
                 
                 bg_data = select_stage_background(
                     slide_moods=slide_moods,
@@ -1336,6 +1351,20 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                 if manager.project_data and manager.project_data.settings:
                     setattr(manager.project_data.settings, "stageBgLibrary", library_data)
                     await save_project_data(manager.project_data)
+                
+                meta = load_bg_meta()
+                for item in library_data:
+                    name = item.get("name")
+                    if name:
+                        if name not in meta:
+                            meta[name] = {}
+                        if "mood" in item:
+                            meta[name]["mood"] = item["mood"]
+                        if "moods" in item:
+                            meta[name]["moods"] = item["moods"]
+                        if "isDefault" in item:
+                            meta[name]["isDefault"] = item["isDefault"]
+                save_bg_meta(meta)
                 logger.info(f"Stage background library updated: {len(library_data)} items")
 
             elif msg_type == "UPDATE_RESOLUTION":

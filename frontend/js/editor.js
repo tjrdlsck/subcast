@@ -5969,6 +5969,9 @@ function saveStageBgLibraryData() {
             library: allStageBgFiles
         }));
     }
+    if (typeof triggerAutoSave === 'function') {
+        triggerAutoSave();
+    }
 }
 
 let _stageBgMoodTargets = [];
@@ -6046,6 +6049,11 @@ function initStageBgMoodModalEvents() {
             _stageBgMoodTargets.forEach(targetBg => {
                 targetBg.mood = selectedMood;
                 targetBg.moods = [selectedMood];
+                const matchInAll = allStageBgFiles.find(f => f.name === targetBg.name);
+                if (matchInAll) {
+                    matchInAll.mood = selectedMood;
+                    matchInAll.moods = [selectedMood];
+                }
             });
 
             saveStageBgLibraryData();
@@ -6068,6 +6076,10 @@ function initStageBgMoodModalEvents() {
             const isDef = confirm(`선택한 ${selectedStageBgFiles.length}개 배경을 기본(Default) 배경으로 지정하시겠습니까?`);
             selectedStageBgFiles.forEach(f => {
                 f.isDefault = isDef;
+                const matchInAll = allStageBgFiles.find(item => item.name === f.name);
+                if (matchInAll) {
+                    matchInAll.isDefault = isDef;
+                }
             });
             saveStageBgLibraryData();
             filterAndRenderStageBgLibrary();
