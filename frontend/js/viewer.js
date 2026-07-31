@@ -742,20 +742,22 @@
         function fitTextToSection(secEl, textEl) {
             if (!secEl || !textEl) return;
             const secHeight = secEl.clientHeight;
-            if (secHeight <= 0) return;
+            const secWidth = secEl.clientWidth;
+            if (secHeight <= 0 || secWidth <= 0) return;
 
-            // 컨테이너 높이 대비 적정 폰트 크기 계산 (최대 높이의 25%)
+            const tagEl = secEl.querySelector('.monitor-tag');
+            const tagHeight = tagEl ? tagEl.offsetHeight + 16 : 40;
+            const availableHeight = Math.max(20, secHeight - tagHeight - 24);
+
             const baseFontSize = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--monitor-font-size')) || 1.8;
-            let fontPx = Math.min(baseFontSize * 16, secHeight * 0.28);
-            fontPx = Math.max(fontPx, 14);
+            let fontPx = Math.min(baseFontSize * 16, availableHeight * 0.45);
+            fontPx = Math.max(fontPx, 12);
 
             textEl.style.fontSize = `${fontPx}px`;
 
-            // 오버플로우 발생 시 폰트 크기 자동 조절 (Auto-fit)
             let count = 0;
-            const maxScroll = secHeight - 50;
-            while (textEl.scrollHeight > maxScroll && fontPx > 14 && count < 10) {
-                fontPx -= 2;
+            while ((textEl.scrollHeight > availableHeight || textEl.scrollWidth > secWidth - 32) && fontPx > 12 && count < 20) {
+                fontPx -= 1.5;
                 textEl.style.fontSize = `${fontPx}px`;
                 count++;
             }

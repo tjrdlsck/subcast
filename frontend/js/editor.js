@@ -1129,8 +1129,17 @@
         function onObjectModified(e) {
             const activeObj = e.target;
             if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'text')) {
-                // 줌이 반영되지 않은 768 기본 너비 기준으로 vw를 환산해 저장
-                activeObj.originalVwSize = `${((activeObj.fontSize * (activeObj.scaleX || 1) / BASE_WIDTH) * 100).toFixed(2)}vw`;
+                if (activeObj.scaleX && activeObj.scaleX !== 1) {
+                    const newFontSize = Math.round(activeObj.fontSize * activeObj.scaleX);
+                    const newWidth = Math.round(activeObj.width * activeObj.scaleX);
+                    activeObj.set({
+                        fontSize: newFontSize,
+                        width: newWidth,
+                        scaleX: 1,
+                        scaleY: 1
+                    });
+                }
+                activeObj.originalVwSize = `${((activeObj.fontSize / BASE_WIDTH) * 100).toFixed(2)}vw`;
             }
         }
 
