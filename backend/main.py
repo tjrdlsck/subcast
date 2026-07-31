@@ -268,6 +268,7 @@ async def delete_background_files(req: DeleteBackgroundsRequest):
 
     meta = load_bg_meta()
     deleted_count = 0
+    failed_files = []
 
     for name in req.names:
         name = name.strip()
@@ -293,9 +294,14 @@ async def delete_background_files(req: DeleteBackgroundsRequest):
                     meta.pop(name)
             except Exception as e:
                 logger.error(f"Failed to delete background file {name}: {e}")
+                failed_files.append(name)
 
     save_bg_meta(meta)
-    return {"success": True, "deleted_count": deleted_count}
+
+    if failed_files and deleted_count == 0:
+        raise HTTPException(status_code=409, detail=f"파일이 사용 중이거나 권한이 없어 삭제할 수 없습니다. ({', '.join(failed_files[:3])})")
+
+    return {"success": True, "deleted_count": deleted_count, "failed_files": failed_files}
 
 
 class DuplicateBackgroundsRequest(BaseModel):

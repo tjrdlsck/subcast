@@ -6119,22 +6119,34 @@ window.deleteSelectedStageBgFilesWithConfirm = async function(confirmRequired = 
         }
     }
 
+    const deletedNames = selectedStageBgFiles.map(f => f.name);
+
+    // Windows 파일 잠금(File Locking) 해제를 위해 삭제 대상 동영상 연결 및 media element 소스 즉시 해제
+    if (currentStageBg.type === 'video' && deletedNames.some(name => currentStageBg.videoUrl === `/static/backgrounds/${name}`)) {
+        selectStageBg({ type: 'ambient' }, false);
+    }
+    const pipVideo = document.getElementById('pip-bg-video');
+    if (pipVideo) {
+        pipVideo.pause();
+        pipVideo.removeAttribute('src');
+        pipVideo.load();
+    }
+
     try {
         const res = await fetch('/api/backgrounds/delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ names: selectedStageBgFiles.map(f => f.name) })
+            body: JSON.stringify({ names: deletedNames })
         });
 
         if (res.ok) {
             const data = await res.json();
-            if (typeof showToast === 'function') {
-                showToast(`${data.deleted_count || 0}개의 현장 배경이 삭제되었습니다.`);
-            }
-
-            const deletedNames = selectedStageBgFiles.map(f => f.name);
-            if (currentStageBg.type === 'video' && deletedNames.some(name => currentStageBg.videoUrl === `/static/backgrounds/${name}`)) {
-                selectStageBg({ type: 'ambient' }, false);
+            if (data.deleted_count > 0) {
+                if (typeof showToast === 'function') {
+                    showToast(`${data.deleted_count}개의 현장 배경이 삭제되었습니다.`);
+                }
+            } else {
+                alert("삭제 실패: 선택한 파일이 사용 중이거나 존재하지 않습니다.");
             }
 
             selectedStageBgFiles = [];
@@ -6145,6 +6157,7 @@ window.deleteSelectedStageBgFilesWithConfirm = async function(confirmRequired = 
         }
     } catch (e) {
         console.error("Failed to delete stage bg files", e);
+        alert("삭제 중 오류가 발생했습니다.");
     }
 };
 
