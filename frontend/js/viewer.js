@@ -472,6 +472,25 @@
                 monitorFontSize = parseFloat(savedSettings.fontSize) || 125;
                 updateMonitorFontSize();
 
+                // BroadcastChannel 및 storage 이벤트로 실시간 갱신 수신
+                try {
+                    const bc = new BroadcastChannel("subcast_monitor_channel");
+                    bc.onmessage = (event) => {
+                        if (event.data && event.data.type === "MONITOR_SETTINGS_UPDATED") {
+                            renderMonitorView();
+                        }
+                    };
+                } catch(e) {}
+
+                window.addEventListener("storage", (e) => {
+                    if (e.key === "subcast_monitor_settings") {
+                        renderMonitorView();
+                    }
+                });
+                window.addEventListener("subcast_monitor_updated", () => {
+                    renderMonitorView();
+                });
+
                 // Ctrl + 마우스 휠로 글꼴 크기 자유 조절
                 window.addEventListener('wheel', (e) => {
                     if (e.ctrlKey) {

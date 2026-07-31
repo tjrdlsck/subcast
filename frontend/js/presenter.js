@@ -666,6 +666,13 @@
                     const settings = { ...saved, fontSize, layout, bibleMode };
                     localStorage.setItem("subcast_monitor_settings", JSON.stringify(settings));
 
+                    try {
+                        const bc = new BroadcastChannel("subcast_monitor_channel");
+                        bc.postMessage({ type: "MONITOR_SETTINGS_UPDATED", settings });
+                        bc.close();
+                    } catch(e) {}
+                    window.dispatchEvent(new CustomEvent("subcast_monitor_updated", { detail: settings }));
+
                     monitorModal.classList.remove("active");
                 };
             }

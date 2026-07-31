@@ -6983,6 +6983,35 @@ document.addEventListener('DOMContentLoaded', () => {
 /* 모니터링 화면 자유 캔버스 레이아웃 편집기 */
 let isMonitorEditMode = false;
 
+function syncMonitorNumericInputs() {
+    if (!canvas || !isMonitorEditMode) return;
+    const currObj = canvas.getObjects().find(o => o.monitorRole === 'current');
+    const nextObj = canvas.getObjects().find(o => o.monitorRole === 'next');
+
+    const updateInputs = (obj, role) => {
+        if (!obj) return;
+        const actualW = obj.width * (obj.scaleX || 1);
+        const actualH = obj.height * (obj.scaleY || 1);
+        const leftPct = Math.max(0, Math.min(100, Math.round((obj.left / 1920) * 100)));
+        const topPct = Math.max(0, Math.min(100, Math.round((obj.top / 1080) * 100)));
+        const widthPct = Math.max(5, Math.min(100, Math.round((actualW / 1920) * 100)));
+        const heightPct = Math.max(5, Math.min(100, Math.round((actualH / 1080) * 100)));
+
+        const elX = document.getElementById(`num-monitor-${role}-x`);
+        const elY = document.getElementById(`num-monitor-${role}-y`);
+        const elW = document.getElementById(`num-monitor-${role}-w`);
+        const elH = document.getElementById(`num-monitor-${role}-h`);
+
+        if (elX) elX.value = leftPct;
+        if (elY) elY.value = topPct;
+        if (elW) elW.value = widthPct;
+        if (elH) elH.value = heightPct;
+    };
+
+    updateInputs(currObj, 'curr');
+    updateInputs(nextObj, 'next');
+}
+
 function bindMonitorCanvasEvents() {
     if (!canvas) return;
     canvas.off('object:moving');
@@ -7000,6 +7029,8 @@ function bindMonitorCanvasEvents() {
         if (obj.top < 0) obj.top = 0;
         if (obj.left + actualW > 1920) obj.left = 1920 - actualW;
         if (obj.top + actualH > 1080) obj.top = 1080 - actualH;
+
+        syncMonitorNumericInputs();
     };
 
     canvas.on('object:moving', constrain);
@@ -7087,6 +7118,7 @@ function loadMonitorCanvasToEditor() {
         bindMonitorCanvasEvents();
         canvas.setActiveObject(currentBoxObj);
         canvas.renderAll();
+        syncMonitorNumericInputs();
     } catch(e) {
         console.error("Failed to load monitor canvas", e);
     }
@@ -7109,6 +7141,66 @@ function updateMonitorEditorSettings() {
         nextObj.set({ fill: nextBg, textColor: nextTextColor });
     }
     canvas.renderAll();
+}
+
+function applyMonitorNumericInputs() {
+    if (!canvas || !isMonitorEditMode) return;
+    const currObj = canvas.getObjects().find(o => o.monitorRole === 'current');
+    const nextObj = canvas.getObjects().find(o => o.monitorRole === 'next');
+
+    const updateObjFromInputs = (obj, role) => {
+        if (!obj) return;
+        const xPct = parseFloat(document.getElementById(`num-monitor-${role}-x`)?.value) || 0;
+        const yPct = parseFloat(document.getElementById(`num-monitor-${role}-y`)?.value) || 0;
+        const wPct = parseFloat(document.getElementById(`num-monitor-${role}-w`)?.value) || 10;
+        const hPct = parseFloat(document.getElementById(`num-monitor-${role}-h`)?.value) || 10;
+
+        obj.set({
+            left: (xPct / 100) * 1920,
+            top: (yPct / 100) * 1080,
+            width: (wPct / 100) * 1920,
+            height: (hPct / 100) * 1080,
+            scaleX: 1,
+            scaleY: 1
+        });
+        obj.setCoords();
+    };
+
+    updateObjFromInputs(currObj, 'curr');
+    updateObjFromInputs(nextObj, 'next');
+    canvas.renderAll();
+}
+
+function alignMonitorCanvasBoxes(mode) {
+    if (!canvas || !isMonitorEditMode) return;
+    const currObj = canvas.getObjects().find(o => o.monitorRole === 'current');
+    const nextObj = canvas.getObjects().find(o => o.monitorRole === 'next');
+
+    if (!currObj || !nextObj) return;
+
+    if (mode === 'swap') {
+        const cLeft = currObj.left;
+        const cTop = currObj.top;
+        const cW = currObj.width * (currObj.scaleX || 1);
+        const cH = currObj.height * (currObj.scaleY || 1);
+
+        currObj.set({
+            left: nextObj.left,
+            top: nextObj.top,
+            width: nextObj.width * (nextObj.scaleX || 1),
+            height: nextObj.height * (nextObj.scaleY || 1),
+            scaleX: 1, scaleY: 1
+        });
+        nextObj.set({
+            left: cLeft,
+            top: cTop,
+            width: cW,
+            height: cH,
+            scaleX: 1, scaleY: 1
+        });
+    }
+    canvas.renderAll();
+    syncMonitorNumericInputs();
 }
 
 function saveMonitorSettingsFromEditor() {
@@ -7147,6 +7239,7 @@ function saveMonitorSettingsFromEditor() {
 
         const settings = {
             layoutMode: "custom_canvas",
+            layout: "5:5",
             bibleMode,
             currentBg,
             currentTextColor,
@@ -7165,10 +7258,19 @@ function saveMonitorSettingsFromEditor() {
         };
 
         localStorage.setItem("subcast_monitor_settings", JSON.stringify(settings));
+
+        // 실시간 Multi-Tab / Multi-Window 전송 (BroadcastChannel & Storage Event)
+        try {
+            const bc = new BroadcastChannel("subcast_monitor_channel");
+            bc.postMessage({ type: "MONITOR_SETTINGS_UPDATED", settings });
+            bc.close();
+        } catch(err) {}
+        window.dispatchEvent(new CustomEvent("subcast_monitor_updated", { detail: settings }));
+
         if (typeof showToast === "function") {
-            showToast("🖥️ 모니터링 자유 레이아웃이 저장되었습니다!");
+            showToast("🖥️ 모니터링 레이아웃이 저장되었습니다!");
         } else {
-            alert("🖥️ 모니터링 자유 레이아웃이 저장되었습니다!");
+            alert("🖥️ 모니터링 레이아웃이 저장되었습니다!");
         }
     } catch(e) {
         console.error("Failed to save monitor settings", e);

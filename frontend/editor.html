@@ -532,16 +532,21 @@
                     </div>
                     <div class="panel-body" style="display: flex; flex-direction: column; gap: 14px; overflow-y: auto;">
                         <!-- 0. 자유 캔버스 편집 가이드 -->
-                        <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 6px;">
+                        <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
                             <span style="font-size: 0.78rem; font-weight: 700; color: #60a5fa; display: flex; align-items: center; gap: 4px;">
                                 💡 자유 캔버스 레이아웃 편집
                             </span>
                             <span style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.4;">
-                                중앙 캔버스에서 <b>[🔴 CURRENT]</b>와 <b>[🔵 NEXT]</b> 영역을 마우스로 직접 드래그하여 <b>위치</b>와 <b>크기</b>를 자유롭게 배치하세요.
+                                중앙 캔버스에서 <b>[🔴 CURRENT]</b>와 <b>[🔵 NEXT]</b> 영역을 직접 드래그하거나 아래 수치로 정밀 조절하세요.
                             </span>
-                            <button onclick="resetMonitorCanvasLayout()" style="margin-top: 4px; padding: 5px 10px; background: rgba(255,255,255,0.06); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: 4px; font-size: 0.72rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                                🔄 레이아웃 기본값 리셋 (5:5 분할)
-                            </button>
+                            <div style="display: flex; gap: 6px;">
+                                <button onclick="resetMonitorCanvasLayout()" style="flex: 1; padding: 6px 8px; background: rgba(255,255,255,0.06); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: 4px; font-size: 0.72rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                                    🔄 기본 5:5 분할
+                                </button>
+                                <button onclick="alignMonitorCanvasBoxes('swap')" style="flex: 1; padding: 6px 8px; background: rgba(255,255,255,0.06); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: 4px; font-size: 0.72rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                                    🔀 상하 위치 교체
+                                </button>
+                            </div>
                         </div>
 
                         <!-- 1. 성경 구절 표출 옵션 -->
@@ -585,7 +590,46 @@
                             </div>
                         </div>
 
-                        <!-- 3. 모니터 창 열기 및 저장 -->
+                        <!-- 3. 위치 및 크기 정밀 수치 조절 패널 -->
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+                            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-main);">📐 레이아웃 정밀 수치 (%)</label>
+                            
+                            <!-- CURRENT 수치 -->
+                            <div style="font-size: 0.72rem; color: #ef4444; font-weight: 700;">🔴 CURRENT (현재 슬라이드)</div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 0.72rem;">
+                                <label style="display:flex; align-items:center; gap:4px;">
+                                    X: <input type="number" id="num-monitor-curr-x" min="0" max="100" style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--panel-border); color:#fff; border-radius:4px; padding:3px 5px;" onchange="applyMonitorNumericInputs()">%
+                                </label>
+                                <label style="display:flex; align-items:center; gap:4px;">
+                                    Y: <input type="number" id="num-monitor-curr-y" min="0" max="100" style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--panel-border); color:#fff; border-radius:4px; padding:3px 5px;" onchange="applyMonitorNumericInputs()">%
+                                </label>
+                                <label style="display:flex; align-items:center; gap:4px;">
+                                    W: <input type="number" id="num-monitor-curr-w" min="10" max="100" style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--panel-border); color:#fff; border-radius:4px; padding:3px 5px;" onchange="applyMonitorNumericInputs()">%
+                                </label>
+                                <label style="display:flex; align-items:center; gap:4px;">
+                                    H: <input type="number" id="num-monitor-curr-h" min="10" max="100" style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--panel-border); color:#fff; border-radius:4px; padding:3px 5px;" onchange="applyMonitorNumericInputs()">%
+                                </label>
+                            </div>
+
+                            <!-- NEXT 수치 -->
+                            <div style="font-size: 0.72rem; color: #3b82f6; font-weight: 700; margin-top: 4px;">🔵 NEXT (다음 슬라이드)</div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 0.72rem;">
+                                <label style="display:flex; align-items:center; gap:4px;">
+                                    X: <input type="number" id="num-monitor-next-x" min="0" max="100" style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--panel-border); color:#fff; border-radius:4px; padding:3px 5px;" onchange="applyMonitorNumericInputs()">%
+                                </label>
+                                <label style="display:flex; align-items:center; gap:4px;">
+                                    Y: <input type="number" id="num-monitor-next-y" min="0" max="100" style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--panel-border); color:#fff; border-radius:4px; padding:3px 5px;" onchange="applyMonitorNumericInputs()">%
+                                </label>
+                                <label style="display:flex; align-items:center; gap:4px;">
+                                    W: <input type="number" id="num-monitor-next-w" min="10" max="100" style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--panel-border); color:#fff; border-radius:4px; padding:3px 5px;" onchange="applyMonitorNumericInputs()">%
+                                </label>
+                                <label style="display:flex; align-items:center; gap:4px;">
+                                    H: <input type="number" id="num-monitor-next-h" min="10" max="100" style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--panel-border); color:#fff; border-radius:4px; padding:3px 5px;" onchange="applyMonitorNumericInputs()">%
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 4. 모니터 창 열기 및 저장 -->
                         <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
                             <button onclick="saveMonitorSettingsFromEditor()" style="padding: 9px 12px; background: var(--primary); color: #fff; border: none; border-radius: 6px; font-size: 0.78rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
                                 💾 모니터링 레이아웃 저장
