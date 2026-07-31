@@ -531,26 +531,20 @@
                         <h3>모니터링 화면 연출 편집</h3>
                     </div>
                     <div class="panel-body" style="display: flex; flex-direction: column; gap: 14px; overflow-y: auto;">
-                        <!-- 1. 화면 비율 선택 -->
-                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
-                            <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-main);">🖥️ 화면 비율 (Current : Next)</label>
-                            <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.75rem;">
-                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                    <input type="radio" name="ed-monitor-layout" value="5:5" checked onchange="updateMonitorEditorSettings()">
-                                    <span>5:5 균등 분할</span>
-                                </label>
-                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                    <input type="radio" name="ed-monitor-layout" value="7:3" onchange="updateMonitorEditorSettings()">
-                                    <span>7:3 (현재 송출 강조)</span>
-                                </label>
-                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                    <input type="radio" name="ed-monitor-layout" value="3:7" onchange="updateMonitorEditorSettings()">
-                                    <span>3:7 (다음 슬라이드 강조)</span>
-                                </label>
-                            </div>
+                        <!-- 0. 자유 캔버스 편집 가이드 -->
+                        <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 6px;">
+                            <span style="font-size: 0.78rem; font-weight: 700; color: #60a5fa; display: flex; align-items: center; gap: 4px;">
+                                💡 자유 캔버스 레이아웃 편집
+                            </span>
+                            <span style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.4;">
+                                중앙 캔버스에서 <b>[🔴 CURRENT]</b>와 <b>[🔵 NEXT]</b> 영역을 마우스로 직접 드래그하여 <b>위치</b>와 <b>크기</b>를 자유롭게 배치하세요.
+                            </span>
+                            <button onclick="resetMonitorCanvasLayout()" style="margin-top: 4px; padding: 5px 10px; background: rgba(255,255,255,0.06); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: 4px; font-size: 0.72rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                                🔄 레이아웃 기본값 리셋 (5:5 분할)
+                            </button>
                         </div>
 
-                        <!-- 2. 성경 구절 표출 옵션 -->
+                        <!-- 1. 성경 구절 표출 옵션 -->
                         <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
                             <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-main);">📖 성경 구절 표출 모드</label>
                             <div style="display: flex; flex-direction: column; gap: 6px; font-size: 0.75rem;">
@@ -569,16 +563,7 @@
                             </div>
                         </div>
 
-                        <!-- 3. 글자 크기 조절 -->
-                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
-                            <div style="display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 600; color: var(--text-main);">
-                                <span>🔤 기준 글꼴 크기</span>
-                                <span id="val-monitor-fontsize" style="color: var(--primary);">125%</span>
-                            </div>
-                            <input type="range" id="range-monitor-fontsize" min="50" max="250" value="125" style="width: 100%;" oninput="updateMonitorEditorSettings()">
-                        </div>
-
-                        <!-- 4. 색상 커스텀 (Current / Next) -->
+                        <!-- 2. 색상 및 글자 스타일 (Current / Next) -->
                         <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 10px;">
                             <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-main);">🎨 색상 커스텀</label>
                             
@@ -600,12 +585,12 @@
                             </div>
                         </div>
 
-                        <!-- 5. 모니터 창 열기 및 저장 -->
+                        <!-- 3. 모니터 창 열기 및 저장 -->
                         <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
-                            <button onclick="saveMonitorSettingsFromEditor()" style="padding: 8px 12px; background: var(--primary); color: #fff; border: none; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer;">
-                                💾 모니터링 디자인 저장
+                            <button onclick="saveMonitorSettingsFromEditor()" style="padding: 9px 12px; background: var(--primary); color: #fff; border: none; border-radius: 6px; font-size: 0.78rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                                💾 모니터링 레이아웃 저장
                             </button>
-                            <button onclick="window.open('/static/viewer.html?mode=monitor', '_blank', 'width=1280,height=720')" style="padding: 8px 12px; background: rgba(59, 130, 246, 0.15); border: 1px solid #3b82f6; color: #60a5fa; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer;">
+                            <button onclick="window.open('/static/viewer.html?mode=monitor', '_blank', 'width=1280,height=720')" style="padding: 8px 12px; background: rgba(59, 130, 246, 0.15); border: 1px solid #3b82f6; color: #60a5fa; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
                                 🖥️ 모니터링 창 미리보기 열기
                             </button>
                         </div>

@@ -211,7 +211,15 @@
             }
             // 모니터링 탭 처리
             if (tabId === 'panel-monitor') {
-                loadMonitorSettingsToEditor();
+                if (!isMonitorEditMode) {
+                    isMonitorEditMode = true;
+                    loadMonitorCanvasToEditor();
+                }
+            } else {
+                if (isMonitorEditMode) {
+                    isMonitorEditMode = false;
+                    restoreNormalCanvas();
+                }
             }
         }
 
@@ -6972,82 +6980,206 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-/* 모니터링 화면 설정 관련 에디터 함수 */
-function loadMonitorSettingsToEditor() {
-    try {
-        const saved = JSON.parse(localStorage.getItem("subcast_monitor_settings") || "{}");
-        
-        const layoutVal = saved.layout || "5:5";
-        const layoutRadio = document.querySelector(`input[name="ed-monitor-layout"][value="${layoutVal}"]`);
-        if (layoutRadio) layoutRadio.checked = true;
+/* 모니터링 화면 자유 캔버스 레이아웃 편집기 */
+let isMonitorEditMode = false;
 
+function loadMonitorCanvasToEditor() {
+    if (!canvas) return;
+    try {
+        canvas.clear();
+        canvas.backgroundColor = '#111827';
+
+        const saved = JSON.parse(localStorage.getItem("subcast_monitor_settings") || "{}");
+
+        // 성경 구절 옵션 및 색상 피커 초기화
         const bibleVal = saved.bibleMode || "summary";
         const bibleRadio = document.querySelector(`input[name="ed-monitor-bible"][value="${bibleVal}"]`);
         if (bibleRadio) bibleRadio.checked = true;
 
-        const fontSize = saved.fontSize || "125";
-        const fontSizeRange = document.getElementById("range-monitor-fontsize");
-        const fontSizeVal = document.getElementById("val-monitor-fontsize");
-        if (fontSizeRange) fontSizeRange.value = fontSize;
-        if (fontSizeVal) fontSizeVal.innerText = `${fontSize}%`;
+        const currentBg = saved.currentBox?.bgColor || saved.currentBg || "#1E1E1E";
+        const currentTextColor = saved.currentBox?.textColor || saved.currentTextColor || "#FFFFFF";
+        const nextBg = saved.nextBox?.bgColor || saved.nextBg || "#181818";
+        const nextTextColor = saved.nextBox?.textColor || saved.nextTextColor || "#A0A0A0";
 
-        if (saved.currentBg && document.getElementById("color-monitor-curr-bg")) {
-            document.getElementById("color-monitor-curr-bg").value = saved.currentBg;
-        }
-        if (saved.currentTextColor && document.getElementById("color-monitor-curr-text")) {
-            document.getElementById("color-monitor-curr-text").value = saved.currentTextColor;
-        }
-        if (saved.nextBg && document.getElementById("color-monitor-next-bg")) {
-            document.getElementById("color-monitor-next-bg").value = saved.nextBg;
-        }
-        if (saved.nextTextColor && document.getElementById("color-monitor-next-text")) {
-            document.getElementById("color-monitor-next-text").value = saved.nextTextColor;
-        }
+        if (document.getElementById("color-monitor-curr-bg")) document.getElementById("color-monitor-curr-bg").value = currentBg;
+        if (document.getElementById("color-monitor-curr-text")) document.getElementById("color-monitor-curr-text").value = currentTextColor;
+        if (document.getElementById("color-monitor-next-bg")) document.getElementById("color-monitor-next-bg").value = nextBg;
+        if (document.getElementById("color-monitor-next-text")) document.getElementById("color-monitor-next-text").value = nextTextColor;
+
+        // 좌표 계산 (퍼센트 -> 1920x1080 픽셀)
+        const cLeft = saved.currentBox?.leftPct !== undefined ? (saved.currentBox.leftPct / 100) * 1920 : 96;
+        const cTop = saved.currentBox?.topPct !== undefined ? (saved.currentBox.topPct / 100) * 1080 : 54;
+        const cWidth = saved.currentBox?.widthPct !== undefined ? (saved.currentBox.widthPct / 100) * 1920 : 1728;
+        const cHeight = saved.currentBox?.heightPct !== undefined ? (saved.currentBox.heightPct / 100) * 1080 : 453;
+
+        const nLeft = saved.nextBox?.leftPct !== undefined ? (saved.nextBox.leftPct / 100) * 1920 : 96;
+        const nTop = saved.nextBox?.topPct !== undefined ? (saved.nextBox.topPct / 100) * 1080 : 561;
+        const nWidth = saved.nextBox?.widthPct !== undefined ? (saved.nextBox.widthPct / 100) * 1920 : 1728;
+        const nHeight = saved.nextBox?.heightPct !== undefined ? (saved.nextBox.heightPct / 100) * 1080 : 453;
+
+        // Fabric.js Textbox 생성 (🔴 CURRENT)
+        const currentBoxObj = new fabric.Textbox("🔴 CURRENT (현재 송출 슬라이드)\n여기에 현재 송출 중인 자막 텍스트가 표시됩니다.", {
+            left: cLeft,
+            top: cTop,
+            width: cWidth,
+            height: cHeight,
+            fontSize: 48,
+            fill: currentTextColor,
+            backgroundColor: currentBg,
+            stroke: '#ef4444',
+            strokeWidth: 3,
+            rx: 12,
+            ry: 12,
+            padding: 16,
+            cornerColor: '#ef4444',
+            cornerStyle: 'circle',
+            transparentCorners: false,
+            monitorRole: 'current',
+            id: 'monitor_current_box',
+            splitByGrapheme: true
+        });
+
+        // Fabric.js Textbox 생성 (🔵 NEXT)
+        const nextBoxObj = new fabric.Textbox("🔵 NEXT (다음 슬라이드)\n여기에 다음에 송출될 자막 텍스트가 표시됩니다.", {
+            left: nLeft,
+            top: nTop,
+            width: nWidth,
+            height: nHeight,
+            fontSize: 40,
+            fill: nextTextColor,
+            backgroundColor: nextBg,
+            stroke: '#3b82f6',
+            strokeWidth: 3,
+            rx: 12,
+            ry: 12,
+            padding: 16,
+            cornerColor: '#3b82f6',
+            cornerStyle: 'circle',
+            transparentCorners: false,
+            monitorRole: 'next',
+            id: 'monitor_next_box',
+            splitByGrapheme: true
+        });
+
+        canvas.add(currentBoxObj, nextBoxObj);
+        canvas.setActiveObject(currentBoxObj);
+        canvas.renderAll();
     } catch(e) {
-        console.error("Failed to load monitor settings to editor", e);
+        console.error("Failed to load monitor canvas", e);
     }
 }
 
 function updateMonitorEditorSettings() {
-    const fontSizeRange = document.getElementById("range-monitor-fontsize");
-    const fontSizeVal = document.getElementById("val-monitor-fontsize");
-    if (fontSizeRange && fontSizeVal) {
-        fontSizeVal.innerText = `${fontSizeRange.value}%`;
+    if (!canvas || !isMonitorEditMode) return;
+    const currentBg = document.getElementById("color-monitor-curr-bg")?.value || "#1E1E1E";
+    const currentTextColor = document.getElementById("color-monitor-curr-text")?.value || "#FFFFFF";
+    const nextBg = document.getElementById("color-monitor-next-bg")?.value || "#181818";
+    const nextTextColor = document.getElementById("color-monitor-next-text")?.value || "#A0A0A0";
+
+    const currObj = canvas.getObjects().find(o => o.monitorRole === 'current');
+    const nextObj = canvas.getObjects().find(o => o.monitorRole === 'next');
+
+    if (currObj) {
+        currObj.set({ backgroundColor: currentBg, fill: currentTextColor });
     }
+    if (nextObj) {
+        nextObj.set({ backgroundColor: nextBg, fill: nextTextColor });
+    }
+    canvas.renderAll();
 }
 
 function saveMonitorSettingsFromEditor() {
+    if (!canvas) return;
     try {
-        const layout = document.querySelector('input[name="ed-monitor-layout"]:checked')?.value || "5:5";
+        const currObj = canvas.getObjects().find(o => o.monitorRole === 'current');
+        const nextObj = canvas.getObjects().find(o => o.monitorRole === 'next');
+
         const bibleMode = document.querySelector('input[name="ed-monitor-bible"]:checked')?.value || "summary";
-        const fontSize = document.getElementById("range-monitor-fontsize")?.value || "125";
         const currentBg = document.getElementById("color-monitor-curr-bg")?.value || "#1E1E1E";
         const currentTextColor = document.getElementById("color-monitor-curr-text")?.value || "#FFFFFF";
         const nextBg = document.getElementById("color-monitor-next-bg")?.value || "#181818";
         const nextTextColor = document.getElementById("color-monitor-next-text")?.value || "#A0A0A0";
 
+        const calcMetrics = (obj, defaultLeft, defaultTop, defaultW, defaultH) => {
+            if (!obj) {
+                return {
+                    leftPct: defaultLeft,
+                    topPct: defaultTop,
+                    widthPct: defaultW,
+                    heightPct: defaultH
+                };
+            }
+            const actualW = obj.width * (obj.scaleX || 1);
+            const actualH = obj.height * (obj.scaleY || 1);
+            return {
+                leftPct: Math.max(0, Math.min(100, Math.round(((obj.left) / 1920) * 1000) / 10)),
+                topPct: Math.max(0, Math.min(100, Math.round(((obj.top) / 1080) * 1000) / 10)),
+                widthPct: Math.max(5, Math.min(100, Math.round((actualW / 1920) * 1000) / 10)),
+                heightPct: Math.max(5, Math.min(100, Math.round((actualH / 1080) * 1000) / 10))
+            };
+        };
+
+        const currentMetrics = calcMetrics(currObj, 5, 5, 90, 42);
+        const nextMetrics = calcMetrics(nextObj, 5, 52, 90, 42);
+
         const settings = {
-            layout,
+            layoutMode: "custom_canvas",
             bibleMode,
-            fontSize,
             currentBg,
             currentTextColor,
             nextBg,
-            nextTextColor
+            nextTextColor,
+            currentBox: {
+                ...currentMetrics,
+                bgColor: currentBg,
+                textColor: currentTextColor
+            },
+            nextBox: {
+                ...nextMetrics,
+                bgColor: nextBg,
+                textColor: nextTextColor
+            }
         };
 
         localStorage.setItem("subcast_monitor_settings", JSON.stringify(settings));
         if (typeof showToast === "function") {
-            showToast("🖥️ 모니터링 화면 설정이 저장되었습니다.");
+            showToast("🖥️ 모니터링 자유 레이아웃이 저장되었습니다!");
         } else {
-            alert("🖥️ 모니터링 화면 설정이 저장되었습니다.");
+            alert("🖥️ 모니터링 자유 레이아웃이 저장되었습니다!");
         }
     } catch(e) {
         console.error("Failed to save monitor settings", e);
         if (typeof showToast === "function") {
-            showToast("⚠️ 저장에 실패했습니다.");
+            showToast("⚠️ 저장 중 오류가 발생했습니다.");
         }
     }
 }
+
+function resetMonitorCanvasLayout() {
+    try {
+        localStorage.removeItem("subcast_monitor_settings");
+        loadMonitorCanvasToEditor();
+        if (typeof showToast === "function") {
+            showToast("🔄 모니터링 레이아웃이 기본값(5:5)으로 초기화되었습니다.");
+        }
+    } catch(e) {
+        console.error("Failed to reset monitor canvas layout", e);
+    }
+}
+
+function restoreNormalCanvas() {
+    if (!canvas) return;
+    try {
+        canvas.clear();
+        if (typeof renderCurrentSlide === "function") {
+            renderCurrentSlide();
+        } else if (typeof renderSlideToCanvas === "function" && typeof currentSlideIndex !== "undefined") {
+            renderSlideToCanvas(currentSlideIndex);
+        }
+    } catch(e) {
+        console.error("Failed to restore normal canvas", e);
+    }
+}
+
 
 

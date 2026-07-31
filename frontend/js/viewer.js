@@ -508,6 +508,7 @@
                         padding: 16px;
                         gap: 16px;
                         box-sizing: border-box;
+                        position: relative;
                     }
                     .monitor-section {
                         background: rgba(255, 255, 255, 0.04);
@@ -614,14 +615,39 @@
             // 폰트 크기 및 비율 적용
             updateMonitorFontSize();
 
-            if (layoutRatio === "7:3") {
+            if (settings.currentBox && settings.currentBox.leftPct !== undefined) {
+                currentSec.style.position = "absolute";
+                currentSec.style.left = `${settings.currentBox.leftPct}%`;
+                currentSec.style.top = `${settings.currentBox.topPct}%`;
+                currentSec.style.width = `${settings.currentBox.widthPct}%`;
+                currentSec.style.height = `${settings.currentBox.heightPct}%`;
+                currentSec.style.flex = "none";
+            } else if (layoutRatio === "7:3") {
+                currentSec.style.position = "";
                 currentSec.style.flex = "7";
+            } else if (layoutRatio === "3:7") {
+                currentSec.style.position = "";
+                currentSec.style.flex = "3";
+            } else {
+                currentSec.style.position = "";
+                currentSec.style.flex = "1";
+            }
+
+            if (settings.nextBox && settings.nextBox.leftPct !== undefined) {
+                nextSec.style.position = "absolute";
+                nextSec.style.left = `${settings.nextBox.leftPct}%`;
+                nextSec.style.top = `${settings.nextBox.topPct}%`;
+                nextSec.style.width = `${settings.nextBox.widthPct}%`;
+                nextSec.style.height = `${settings.nextBox.heightPct}%`;
+                nextSec.style.flex = "none";
+            } else if (layoutRatio === "7:3") {
+                nextSec.style.position = "";
                 nextSec.style.flex = "3";
             } else if (layoutRatio === "3:7") {
-                currentSec.style.flex = "3";
+                nextSec.style.position = "";
                 nextSec.style.flex = "7";
             } else {
-                currentSec.style.flex = "1";
+                nextSec.style.position = "";
                 nextSec.style.flex = "1";
             }
 

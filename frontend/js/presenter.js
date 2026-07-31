@@ -505,19 +505,45 @@
                 const nextTextEl = document.getElementById("preview-next-text");
 
                 if (currentSec && nextSec) {
-                    if (layout === "7:3") {
-                        currentSec.style.flex = "7";
-                        nextSec.style.flex = "3";
-                    } else if (layout === "3:7") {
-                        currentSec.style.flex = "3";
-                        nextSec.style.flex = "7";
-                    } else {
-                        currentSec.style.flex = "5";
-                        nextSec.style.flex = "5";
-                    }
-
                     try {
                         const saved = JSON.parse(localStorage.getItem("subcast_monitor_settings") || "{}");
+
+                        if (saved.currentBox && saved.currentBox.leftPct !== undefined) {
+                            currentSec.style.position = "absolute";
+                            currentSec.style.left = `${saved.currentBox.leftPct}%`;
+                            currentSec.style.top = `${saved.currentBox.topPct}%`;
+                            currentSec.style.width = `${saved.currentBox.widthPct}%`;
+                            currentSec.style.height = `${saved.currentBox.heightPct}%`;
+                            currentSec.style.flex = "none";
+                        } else if (layout === "7:3") {
+                            currentSec.style.position = "";
+                            currentSec.style.flex = "7";
+                        } else if (layout === "3:7") {
+                            currentSec.style.position = "";
+                            currentSec.style.flex = "3";
+                        } else {
+                            currentSec.style.position = "";
+                            currentSec.style.flex = "5";
+                        }
+
+                        if (saved.nextBox && saved.nextBox.leftPct !== undefined) {
+                            nextSec.style.position = "absolute";
+                            nextSec.style.left = `${saved.nextBox.leftPct}%`;
+                            nextSec.style.top = `${saved.nextBox.topPct}%`;
+                            nextSec.style.width = `${saved.nextBox.widthPct}%`;
+                            nextSec.style.height = `${saved.nextBox.heightPct}%`;
+                            nextSec.style.flex = "none";
+                        } else if (layout === "7:3") {
+                            nextSec.style.position = "";
+                            nextSec.style.flex = "3";
+                        } else if (layout === "3:7") {
+                            nextSec.style.position = "";
+                            nextSec.style.flex = "7";
+                        } else {
+                            nextSec.style.position = "";
+                            nextSec.style.flex = "5";
+                        }
+
                         if (saved.currentBg) currentSec.style.backgroundColor = saved.currentBg;
                         if (saved.currentTextColor && currentTextEl) currentTextEl.style.color = saved.currentTextColor;
                         if (saved.nextBg) nextSec.style.backgroundColor = saved.nextBg;
