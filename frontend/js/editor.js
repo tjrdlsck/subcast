@@ -6135,7 +6135,7 @@ window.deleteSelectedStageBgFilesWithConfirm = async function(confirmRequired = 
         }
     }
 
-    // Windows 파일 잠금(File Locking) 해제를 위해 삭제 대상 동영상 연결 및 media element 소스 즉시 해제
+    // Windows 파일 잠금(File Locking) 해제를 위해 삭제 대상 동영상 연결 및 media element 소스 즉시 해제 (에디터 & 프레젠터 뷰어 브로드캐스트)
     if (currentStageBg.type === 'video' && deletedNames.some(name => currentStageBg.videoUrl === `/static/backgrounds/${name}`)) {
         selectStageBg({ type: 'ambient' }, false);
     }
@@ -6145,6 +6145,9 @@ window.deleteSelectedStageBgFilesWithConfirm = async function(confirmRequired = 
         pipVideo.removeAttribute('src');
         pipVideo.load();
     }
+
+    // 브라우저 네트워크 커넥션 및 소켓 릴리즈를 위한 미세 지연 (100ms)
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
         const res = await fetch('/api/backgrounds/delete', {

@@ -277,24 +277,36 @@ async def delete_background_files(req: DeleteBackgroundsRequest):
         
         target_path = backgrounds_dir / name
         if target_path.exists() and target_path.is_file():
-            try:
-                target_path.unlink()
-                deleted_count += 1
+            is_deleted = False
+            for attempt in range(3):
+                try:
+                    target_path.unlink()
+                    deleted_count += 1
+                    is_deleted = True
 
-                # 썸네일 파일 삭제
-                thumb_path = backgrounds_dir / f"thumb_{target_path.stem}.jpg"
-                if thumb_path.exists():
-                    try:
-                        thumb_path.unlink()
-                    except Exception as te:
-                        logger.warning(f"Failed to delete thumb file: {te}")
+                    # 썸네일 파일 삭제
+                    thumb_path = backgrounds_dir / f"thumb_{target_path.stem}.jpg"
+                    if thumb_path.exists():
+                        for thumb_attempt in range(3):
+                            try:
+                                thumb_path.unlink()
+                                break
+                            except Exception as te:
+                                if thumb_attempt < 2:
+                                    await asyncio.sleep(0.15)
+                                else:
+                                    logger.warning(f"Failed to delete thumb file: {te}")
 
-                # 메타데이터 삭제
-                if name in meta:
-                    meta.pop(name)
-            except Exception as e:
-                logger.error(f"Failed to delete background file {name}: {e}")
-                failed_files.append(name)
+                    # 메타데이터 삭제
+                    if name in meta:
+                        meta.pop(name)
+                    break
+                except Exception as e:
+                    if attempt < 2:
+                        await asyncio.sleep(0.15)
+                    else:
+                        logger.error(f"Failed to delete background file {name}: {e}")
+                        failed_files.append(name)
 
     save_bg_meta(meta)
 

@@ -352,7 +352,12 @@
                 [videoEl1, videoEl2].forEach(v => {
                     if (v) {
                         v.style.opacity = '0';
-                        setTimeout(() => { v.style.display = 'none'; v.pause(); }, 800);
+                        setTimeout(() => {
+                            v.style.display = 'none';
+                            v.pause();
+                            v.removeAttribute('src');
+                            v.load();
+                        }, 800);
                     }
                 });
                 initStageMotionBg();
