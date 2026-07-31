@@ -457,6 +457,10 @@
         }
 
         function selectSlideForEdit(slideId, force = false) {
+            if (isMonitorEditMode) {
+                isMonitorEditMode = false;
+                restoreNormalCanvas();
+            }
             if (activeSlideId === slideId && !force) {
                 if (!selectedSlideIds || selectedSlideIds.length === 0) {
                     selectedSlideIds = [slideId];
@@ -646,7 +650,7 @@
         }
 
         function performAutoSave() {
-            if (!activeSlideId || !projectData) return;
+            if (!activeSlideId || !projectData || isMonitorEditMode) return;
             const slide = projectData.slides.find(s => s.id === activeSlideId);
             if (!slide) return;
 
@@ -704,7 +708,7 @@
         }
 
         function saveStateToHistory() {
-            if (isUndoingRedoing) return;
+            if (isUndoingRedoing || isMonitorEditMode) return;
             const currentState = canvas.getObjects().map(obj => serializeElement(obj, BASE_WIDTH, BASE_HEIGHT));
             const stateStr = JSON.stringify(currentState);
 
@@ -1255,7 +1259,7 @@
         }
 
         function saveSlideData() {
-            if (!activeSlideId || !projectData) return;
+            if (!activeSlideId || !projectData || isMonitorEditMode) return;
             const slide = projectData.slides.find(s => s.id === activeSlideId);
 
             const activeObj = canvas.getActiveObject();
@@ -1301,7 +1305,7 @@
         }
 
         function saveAsTemplate() {
-            if (!activeSlideId || !canvas) return;
+            if (!activeSlideId || !canvas || isMonitorEditMode) return;
             const tplName = prompt("저장할 템플릿의 이름을 입력하세요:", "새 디자인 템플릿");
             if (!tplName) return;
 
@@ -6996,15 +7000,17 @@ function syncMonitorNumericInputs() {
     if (!canvas || !isMonitorEditMode) return;
     const currObj = canvas.getObjects().find(o => o.monitorRole === 'current');
     const nextObj = canvas.getObjects().find(o => o.monitorRole === 'next');
+    const baseW = (typeof BASE_WIDTH !== 'undefined' && BASE_WIDTH) ? BASE_WIDTH : 768;
+    const baseH = (typeof BASE_HEIGHT !== 'undefined' && BASE_HEIGHT) ? BASE_HEIGHT : 432;
 
     const updateInputs = (obj, role) => {
         if (!obj) return;
         const actualW = obj.width * (obj.scaleX || 1);
         const actualH = obj.height * (obj.scaleY || 1);
-        const leftPct = Math.max(0, Math.min(100, Math.round((obj.left / 1920) * 100)));
-        const topPct = Math.max(0, Math.min(100, Math.round((obj.top / 1080) * 100)));
-        const widthPct = Math.max(5, Math.min(100, Math.round((actualW / 1920) * 100)));
-        const heightPct = Math.max(5, Math.min(100, Math.round((actualH / 1080) * 100)));
+        const leftPct = Math.max(0, Math.min(100, Math.round((obj.left / baseW) * 100)));
+        const topPct = Math.max(0, Math.min(100, Math.round((obj.top / baseH) * 100)));
+        const widthPct = Math.max(5, Math.min(100, Math.round((actualW / baseW) * 100)));
+        const heightPct = Math.max(5, Math.min(100, Math.round((actualH / baseH) * 100)));
 
         const elX = document.getElementById(`num-monitor-${role}-x`);
         const elY = document.getElementById(`num-monitor-${role}-y`);
@@ -7025,6 +7031,8 @@ function bindMonitorCanvasEvents() {
     if (!canvas) return;
     canvas.off('object:moving');
     canvas.off('object:scaling');
+    const baseW = (typeof BASE_WIDTH !== 'undefined' && BASE_WIDTH) ? BASE_WIDTH : 768;
+    const baseH = (typeof BASE_HEIGHT !== 'undefined' && BASE_HEIGHT) ? BASE_HEIGHT : 432;
 
     const constrain = (e) => {
         const obj = e.target;
@@ -7036,8 +7044,8 @@ function bindMonitorCanvasEvents() {
 
         if (obj.left < 0) obj.left = 0;
         if (obj.top < 0) obj.top = 0;
-        if (obj.left + actualW > 1920) obj.left = 1920 - actualW;
-        if (obj.top + actualH > 1080) obj.top = 1080 - actualH;
+        if (obj.left + actualW > baseW) obj.left = baseW - actualW;
+        if (obj.top + actualH > baseH) obj.top = baseH - actualH;
 
         syncMonitorNumericInputs();
     };
@@ -7075,6 +7083,8 @@ function loadMonitorCanvasToEditor() {
     try {
         canvas.clear();
         canvas.backgroundColor = '#0b0f17';
+        const baseW = (typeof BASE_WIDTH !== 'undefined' && BASE_WIDTH) ? BASE_WIDTH : 768;
+        const baseH = (typeof BASE_HEIGHT !== 'undefined' && BASE_HEIGHT) ? BASE_HEIGHT : 432;
 
         const saved = JSON.parse(localStorage.getItem("subcast_monitor_settings") || "{}");
 
@@ -7109,15 +7119,15 @@ function loadMonitorCanvasToEditor() {
         const nWidthPct = sanitizeCoord(saved.nextBox?.widthPct, 90, 95);
         const nHeightPct = Math.min(100 - nTopPct, sanitizeCoord(saved.nextBox?.heightPct, 42, 90));
 
-        const cLeft = (cLeftPct / 100) * 1920;
-        const cTop = (cTopPct / 100) * 1080;
-        const cWidth = (cWidthPct / 100) * 1920;
-        const cHeight = (cHeightPct / 100) * 1080;
+        const cLeft = (cLeftPct / 100) * baseW;
+        const cTop = (cTopPct / 100) * baseH;
+        const cWidth = (cWidthPct / 100) * baseW;
+        const cHeight = (cHeightPct / 100) * baseH;
 
-        const nLeft = (nLeftPct / 100) * 1920;
-        const nTop = (nTopPct / 100) * 1080;
-        const nWidth = (nWidthPct / 100) * 1920;
-        const nHeight = (nHeightPct / 100) * 1080;
+        const nLeft = (nLeftPct / 100) * baseW;
+        const nTop = (nTopPct / 100) * baseH;
+        const nWidth = (nWidthPct / 100) * baseW;
+        const nHeight = (nHeightPct / 100) * baseH;
 
         // 🔴 CURRENT 카드 및 🔵 NEXT 카드 생성 (Fabric.Rect)
         const currentBoxObj = createMonitorRectBox('current', '🔴 CURRENT (현재 송출 슬라이드)', cLeft, cTop, cWidth, cHeight, currentBg, currentTextColor, '#ef4444');
@@ -7156,6 +7166,8 @@ function applyMonitorNumericInputs() {
     if (!canvas || !isMonitorEditMode) return;
     const currObj = canvas.getObjects().find(o => o.monitorRole === 'current');
     const nextObj = canvas.getObjects().find(o => o.monitorRole === 'next');
+    const baseW = (typeof BASE_WIDTH !== 'undefined' && BASE_WIDTH) ? BASE_WIDTH : 768;
+    const baseH = (typeof BASE_HEIGHT !== 'undefined' && BASE_HEIGHT) ? BASE_HEIGHT : 432;
 
     const updateObjFromInputs = (obj, role) => {
         if (!obj) return;
@@ -7165,10 +7177,10 @@ function applyMonitorNumericInputs() {
         const hPct = parseFloat(document.getElementById(`num-monitor-${role}-h`)?.value) || 10;
 
         obj.set({
-            left: (xPct / 100) * 1920,
-            top: (yPct / 100) * 1080,
-            width: (wPct / 100) * 1920,
-            height: (hPct / 100) * 1080,
+            left: (xPct / 100) * baseW,
+            top: (yPct / 100) * baseH,
+            width: (wPct / 100) * baseW,
+            height: (hPct / 100) * baseH,
             scaleX: 1,
             scaleY: 1
         });
@@ -7217,6 +7229,8 @@ function saveMonitorSettingsFromEditor() {
     try {
         const currObj = canvas.getObjects().find(o => o.monitorRole === 'current');
         const nextObj = canvas.getObjects().find(o => o.monitorRole === 'next');
+        const baseW = (typeof BASE_WIDTH !== 'undefined' && BASE_WIDTH) ? BASE_WIDTH : 768;
+        const baseH = (typeof BASE_HEIGHT !== 'undefined' && BASE_HEIGHT) ? BASE_HEIGHT : 432;
 
         const bibleMode = document.querySelector('input[name="ed-monitor-bible"]:checked')?.value || "summary";
         const currentBg = document.getElementById("color-monitor-curr-bg")?.value || "#1E1E1E";
@@ -7236,10 +7250,10 @@ function saveMonitorSettingsFromEditor() {
             const actualW = obj.width * (obj.scaleX || 1);
             const actualH = obj.height * (obj.scaleY || 1);
             return {
-                leftPct: Math.max(0, Math.min(95, Math.round(((obj.left) / 1920) * 1000) / 10)),
-                topPct: Math.max(0, Math.min(95, Math.round(((obj.top) / 1080) * 1000) / 10)),
-                widthPct: Math.max(5, Math.min(100, Math.round((actualW / 1920) * 1000) / 10)),
-                heightPct: Math.max(5, Math.min(100, Math.round((actualH / 1080) * 1000) / 10))
+                leftPct: Math.max(0, Math.min(95, Math.round(((obj.left) / baseW) * 1000) / 10)),
+                topPct: Math.max(0, Math.min(95, Math.round(((obj.top) / baseH) * 1000) / 10)),
+                widthPct: Math.max(5, Math.min(100, Math.round((actualW / baseW) * 1000) / 10)),
+                heightPct: Math.max(5, Math.min(100, Math.round((actualH / baseH) * 1000) / 10))
             };
         };
 
