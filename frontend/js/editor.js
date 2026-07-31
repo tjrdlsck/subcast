@@ -6135,10 +6135,15 @@ window.deleteSelectedStageBgFilesWithConfirm = async function(confirmRequired = 
         }
     }
 
-    // Windows 파일 잠금(File Locking) 해제를 위해 삭제 대상 동영상 연결 및 media element 소스 즉시 해제 (에디터 & 프레젠터 뷰어 브로드캐스트)
-    if (currentStageBg.type === 'video' && deletedNames.some(name => currentStageBg.videoUrl === `/static/backgrounds/${name}`)) {
-        selectStageBg({ type: 'ambient' }, false);
+    // 삭제 전 미리 다음 배경 영상으로 화면 전환 및 미디어 연결 해제 (사용자 제안 사전 전환 패턴)
+    if (nextFileToSelect) {
+        selectedStageBgFiles = [nextFileToSelect];
+        selectStageBg({ type: 'video', videoUrl: nextFileToSelect.url, title: nextFileToSelect.name }, true);
+    } else {
+        selectedStageBgFiles = [];
+        selectStageBg({ type: 'ambient' }, true);
     }
+
     const pipVideo = document.getElementById('pip-bg-video');
     if (pipVideo) {
         pipVideo.pause();
@@ -6146,7 +6151,7 @@ window.deleteSelectedStageBgFilesWithConfirm = async function(confirmRequired = 
         pipVideo.load();
     }
 
-    // 브라우저 네트워크 커넥션 및 소켓 릴리즈를 위한 미세 지연 (100ms)
+    // 미디어 커넥션 릴리즈를 위한 미세 지연 (100ms)
     await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
@@ -6166,16 +6171,13 @@ window.deleteSelectedStageBgFilesWithConfirm = async function(confirmRequired = 
                 alert("삭제 실패: 선택한 파일이 사용 중이거나 존재하지 않습니다.");
             }
 
-            selectedStageBgFiles = [];
             await loadStageBgLibrary();
-
-            // 삭제 후 다음 배경 영상 자동 선택 및 미리보기 재생 (남은 영상이 없으면 ambient)
             if (nextFileToSelect && allStageBgFiles.some(f => f.name === nextFileToSelect.name)) {
                 selectedStageBgFiles = [nextFileToSelect];
-                selectStageBg({ type: 'video', videoUrl: nextFileToSelect.url, title: nextFileToSelect.name }, true);
-            } else if (allStageBgFiles.length === 0 || !nextFileToSelect) {
-                selectStageBg({ type: 'ambient' }, true);
+            } else {
+                selectedStageBgFiles = [];
             }
+            filterAndRenderStageBgLibrary();
         } else {
             const err = await res.json().catch(() => ({}));
             alert("삭제 실패: " + (err.detail || res.statusText));

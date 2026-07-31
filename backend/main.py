@@ -115,7 +115,7 @@ async def list_background_files():
 
     if backgrounds_dir.exists():
         for p in backgrounds_dir.glob("*"):
-            if p.name == "meta.json" or p.name.startswith("thumb_"):
+            if p.name == "meta.json" or p.name.startswith("thumb_") or p.name.startswith(".trash_"):
                 continue
             if p.suffix.lower() in [".mp4", ".webm", ".mov", ".avi", ".jpg", ".png"]:
                 item_meta = meta.get(p.name, {})
@@ -261,6 +261,17 @@ class DeleteBackgroundsRequest(BaseModel):
     names: List[str]
 
 
+def cleanup_trash_backgrounds():
+    """임시 삭제 격리 파일(.trash_*) 청소"""
+    if not backgrounds_dir.exists():
+        return
+    for p in backgrounds_dir.glob(".trash_*"):
+        try:
+            p.unlink()
+        except Exception:
+            pass
+
+
 @app.post("/api/backgrounds/delete")
 async def delete_background_files(req: DeleteBackgroundsRequest):
     if not req.names:
@@ -278,37 +289,48 @@ async def delete_background_files(req: DeleteBackgroundsRequest):
         target_path = backgrounds_dir / name
         if target_path.exists() and target_path.is_file():
             is_deleted = False
-            for attempt in range(3):
+            for attempt in range(2):
                 try:
                     target_path.unlink()
-                    deleted_count += 1
                     is_deleted = True
-
-                    # 썸네일 파일 삭제
-                    thumb_path = backgrounds_dir / f"thumb_{target_path.stem}.jpg"
-                    if thumb_path.exists():
-                        for thumb_attempt in range(3):
-                            try:
-                                thumb_path.unlink()
-                                break
-                            except Exception as te:
-                                if thumb_attempt < 2:
-                                    await asyncio.sleep(0.15)
-                                else:
-                                    logger.warning(f"Failed to delete thumb file: {te}")
-
-                    # 메타데이터 삭제
-                    if name in meta:
-                        meta.pop(name)
                     break
-                except Exception as e:
-                    if attempt < 2:
-                        await asyncio.sleep(0.15)
-                    else:
-                        logger.error(f"Failed to delete background file {name}: {e}")
-                        failed_files.append(name)
+                except Exception:
+                    await asyncio.sleep(0.05)
+
+            if not is_deleted:
+                try:
+                    trash_name = f".trash_{uuid.uuid4().hex}_{name}"
+                    trash_path = backgrounds_dir / trash_name
+                    target_path.rename(trash_path)
+                    is_deleted = True
+                    try:
+                        trash_path.unlink()
+                    except Exception:
+                        pass
+                except Exception as re:
+                    logger.error(f"Failed to delete/rename background file {name}: {re}")
+                    failed_files.append(name)
+                    continue
+
+            if is_deleted:
+                deleted_count += 1
+                thumb_path = backgrounds_dir / f"thumb_{target_path.stem}.jpg"
+                if thumb_path.exists():
+                    try:
+                        thumb_path.unlink()
+                    except Exception:
+                        try:
+                            thumb_trash = backgrounds_dir / f".trash_thumb_{uuid.uuid4().hex}_{thumb_path.name}"
+                            thumb_path.rename(thumb_trash)
+                            thumb_trash.unlink()
+                        except Exception:
+                            pass
+
+                if name in meta:
+                    meta.pop(name)
 
     save_bg_meta(meta)
+    cleanup_trash_backgrounds()
 
     if failed_files and deleted_count == 0:
         raise HTTPException(status_code=409, detail=f"파일이 사용 중이거나 권한이 없어 삭제할 수 없습니다. ({', '.join(failed_files[:3])})")
