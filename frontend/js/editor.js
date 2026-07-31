@@ -7016,11 +7016,13 @@ function syncMonitorNumericInputs() {
         const elY = document.getElementById(`num-monitor-${role}-y`);
         const elW = document.getElementById(`num-monitor-${role}-w`);
         const elH = document.getElementById(`num-monitor-${role}-h`);
+        const elFS = document.getElementById(`num-monitor-${role}-fontsize`);
 
         if (elX) elX.value = leftPct;
         if (elY) elY.value = topPct;
         if (elW) elW.value = widthPct;
         if (elH) elH.value = heightPct;
+        if (elFS && obj.fontSize) elFS.value = Math.round(obj.fontSize * (obj.scaleY || 1));
     };
 
     updateInputs(currObj, 'curr');
@@ -7037,6 +7039,17 @@ function bindMonitorCanvasEvents() {
     const constrain = (e) => {
         const obj = e.target;
         if (!obj || !obj.monitorRole) return;
+
+        if (e.type === 'scaling' || (e.transform && e.transform.action && e.transform.action.includes('scale'))) {
+            const actualW = Math.max(50, obj.width * (obj.scaleX || 1));
+            const actualFS = Math.max(10, Math.round((obj.fontSize || 24) * (obj.scaleY || 1)));
+            obj.set({
+                width: actualW,
+                fontSize: actualFS,
+                scaleX: 1,
+                scaleY: 1
+            });
+        }
 
         obj.setCoords();
         const actualW = obj.width * (obj.scaleX || 1);

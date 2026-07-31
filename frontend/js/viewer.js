@@ -749,9 +749,13 @@
                 }
             }
 
-            // 박스 영역에 맞춰 폰트 크기 동적 자동 조절 (Auto-fit)
-            fitTextToSection(currentSec, currentTextEl);
-            fitTextToSection(nextSec, nextTextEl);
+            // 박스 영역에 맞춰 폰트 크기 동적 자동 조절 (설정된 폰트 크기가 없을 때만 Auto-fit 적용)
+            if (!settings.currentBox?.fontSize) {
+                fitTextToSection(currentSec, currentTextEl);
+            }
+            if (!settings.nextBox?.fontSize) {
+                fitTextToSection(nextSec, nextTextEl);
+            }
         }
 
         function fitTextToSection(secEl, textEl) {
