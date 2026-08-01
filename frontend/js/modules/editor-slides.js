@@ -207,6 +207,48 @@
         }
 
 
+        function notifyMonitorSlideChange(currentIndex) {
+            if (!projectData || !projectData.slides || currentIndex < 0) return;
+
+            const slides = projectData.slides;
+            const curSlide = slides[currentIndex];
+            const nextSlide = (currentIndex + 1 < slides.length) ? slides[currentIndex + 1] : null;
+
+            const extractText = (slide) => {
+                if (!slide || !slide.elements) return "";
+                return slide.elements
+                    .filter(e => e.type === "text" || e.type === "i-text" || e.type === "textbox")
+                    .map(e => e.content || "")
+                    .filter(Boolean)
+                    .join("\n");
+            };
+
+            const curContent = curSlide ? (extractText(curSlide) || slideNameOrFallback(curSlide, currentIndex + 1)) : "";
+            const isLastSlide = (currentIndex + 1 >= slides.length);
+            const nextContent = isLastSlide ? "[마지막 슬라이드입니다]" : (nextSlide ? (extractText(nextSlide) || slideNameOrFallback(nextSlide, currentIndex + 2)) : "");
+
+            if (window.BroadcastChannel) {
+                try {
+                    const bc = new BroadcastChannel("subcast_monitor_channel");
+                    bc.postMessage({
+                        type: "SLIDE_CHANGE",
+                        currentIndex: currentIndex,
+                        nextIndex: currentIndex + 1,
+                        currentContent: curContent,
+                        nextContent: nextContent,
+                        isLastSlide: isLastSlide
+                    });
+                    bc.close();
+                } catch (e) {
+                    console.error("Failed to post SLIDE_CHANGE to BroadcastChannel", e);
+                }
+            }
+        }
+
+        function slideNameOrFallback(slide, num) {
+            return slide.name ? slide.name : `슬라이드 ${num}`;
+        }
+
         function selectSlideForEdit(slideId, force = false) {
             if (activeSlideId === slideId && !force) {
                 if (!selectedSlideIds || selectedSlideIds.length === 0) {
@@ -225,6 +267,13 @@
             loadSlideToCanvas(slideId);
             setControlsState(true);
             renderSlides();
+
+            if (projectData && projectData.slides) {
+                const idx = projectData.slides.findIndex(s => s.id === slideId);
+                if (idx !== -1) {
+                    notifyMonitorSlideChange(idx);
+                }
+            }
         }
 
 

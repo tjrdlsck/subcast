@@ -455,19 +455,147 @@
             animate();
         }
 
+        // === 무대 전용 모니터 뷰어 (Stage Confidence Monitor) 렌더러 모듈 ===
+        let monitorViewerSettings = {
+            currentBox: { leftPct: 5.0, topPct: 5.0, widthPct: 90.0, heightPct: 42.0, fontSize: 28, textColor: "#FFFFFF" },
+            nextBox: { leftPct: 5.0, topPct: 51.0, widthPct: 90.0, heightPct: 42.0, fontSize: 22, textColor: "#A0A0A0" }
+        };
+
+        async function fetchMonitorViewerSettings() {
+            try {
+                const res = await fetch("/api/v1/monitor/settings");
+                if (res.ok) {
+                    const json = await res.json();
+                    if (json.status === "success" && json.data) {
+                        monitorViewerSettings = json.data;
+                        localStorage.setItem("subcast_monitor_settings", JSON.stringify(monitorViewerSettings));
+                    }
+                }
+            } catch (e) {
+                console.warn("Failed to fetch monitor settings from API", e);
+            }
+            const local = localStorage.getItem("subcast_monitor_settings");
+            if (local) {
+                try { monitorViewerSettings = JSON.parse(local); } catch (e) {}
+            }
+        }
+
+        function renderMonitorViewerLayout() {
+            const container = document.getElementById("monitor-viewer-container");
+            if (!container || container.style.display === "none") return;
+
+            const screenW = window.innerWidth;
+            const screenH = window.innerHeight;
+
+            const cur = monitorViewerSettings.currentBox || {};
+            const curCard = document.getElementById("monitor-current-card");
+            const curText = document.getElementById("monitor-current-text");
+            if (curCard && cur) {
+                curCard.style.left = `${(cur.leftPct / 100) * screenW}px`;
+                curCard.style.top = `${(cur.topPct / 100) * screenH}px`;
+                curCard.style.width = `${(cur.widthPct / 100) * screenW}px`;
+                curCard.style.height = `${(cur.heightPct / 100) * screenH}px`;
+                const fontSize = Math.round((cur.fontSize || 28) * (screenW / 1920));
+                if (curText) {
+                    curText.style.fontSize = `${fontSize}px`;
+                    if (cur.textColor) curText.style.color = cur.textColor;
+                }
+            }
+
+            const nxt = monitorViewerSettings.nextBox || {};
+            const nxtCard = document.getElementById("monitor-next-card");
+            const nxtText = document.getElementById("monitor-next-text");
+            if (nxtCard && nxt) {
+                nxtCard.style.left = `${(nxt.leftPct / 100) * screenW}px`;
+                nxtCard.style.top = `${(nxt.topPct / 100) * screenH}px`;
+                nxtCard.style.width = `${(nxt.widthPct / 100) * screenW}px`;
+                nxtCard.style.height = `${(nxt.heightPct / 100) * screenH}px`;
+                const fontSize = Math.round((nxt.fontSize || 22) * (screenW / 1920));
+                if (nxtText) {
+                    nxtText.style.fontSize = `${fontSize}px`;
+                    if (nxt.textColor) nxtText.style.color = nxt.textColor;
+                }
+            }
+        }
+
+        function updateMonitorViewerTexts(currentContent, nextContent, isLastSlide = false) {
+            const curText = document.getElementById("monitor-current-text");
+            const nxtText = document.getElementById("monitor-next-text");
+            const nxtCard = document.getElementById("monitor-next-card");
+
+            if (curText) {
+                curText.textContent = currentContent || "(내용 없음)";
+            }
+            if (nxtText) {
+                if (isLastSlide) {
+                    nxtText.textContent = "[마지막 슬라이드입니다]";
+                    if (nxtCard) nxtCard.style.opacity = "0.4";
+                } else {
+                    nxtText.textContent = nextContent || "(다음 슬라이드 없음)";
+                    if (nxtCard) nxtCard.style.opacity = "1.0";
+                }
+            }
+        }
+
+        async function initMonitorModeViewer() {
+            const monitorContainer = document.getElementById("monitor-viewer-container");
+            const canvasContainer = document.getElementById("canvas-container");
+
+            if (monitorContainer) monitorContainer.style.display = "block";
+            if (canvasContainer) canvasContainer.style.display = "none";
+
+            await fetchMonitorViewerSettings();
+            renderMonitorViewerLayout();
+
+            // BroadcastChannel 리스너 수신
+            if (window.BroadcastChannel) {
+                const bc = new BroadcastChannel("subcast_monitor_channel");
+                bc.onmessage = (e) => {
+                    const data = e.data;
+                    if (!data) return;
+                    if (data.type === "MONITOR_LAYOUT_UPDATE" && data.settings) {
+                        monitorViewerSettings = data.settings;
+                        renderMonitorViewerLayout();
+                    } else if (data.type === "SLIDE_CHANGE") {
+                        updateMonitorViewerTexts(data.currentContent, data.nextContent, data.isLastSlide);
+                    }
+                };
+            }
+
+            // LocalStorage 이벤트 폴백
+            window.addEventListener("storage", (e) => {
+                if (e.key === "subcast_monitor_settings" && e.newValue) {
+                    try {
+                        monitorViewerSettings = JSON.parse(e.newValue);
+                        renderMonitorViewerLayout();
+                    } catch (err) {}
+                }
+            });
+        }
+
         window.onload = () => {
             const urlParams = new URLSearchParams(window.location.search);
             const channel = urlParams.get('channel');
-            const isStageMode = channel === 'stage' || urlParams.get('mode') === 'stage';
+            const mode = urlParams.get('mode');
+            const isMonitorMode = mode === 'monitor' || channel === 'monitor';
+            const isStageMode = channel === 'stage' || mode === 'stage';
 
-            if (isStageMode) {
-                initStageMotionBg();
+            if (isMonitorMode) {
+                initMonitorModeViewer();
+            } else {
+                if (isStageMode) {
+                    initStageMotionBg();
+                }
+                initCanvas();
             }
-
-            initCanvas();
             connectWebSocket();
         };
 
         window.onresize = () => {
-            updateCanvasDimensions();
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('mode') === 'monitor' || urlParams.get('channel') === 'monitor') {
+                requestAnimationFrame(renderMonitorViewerLayout);
+            } else {
+                updateCanvasDimensions();
+            }
         };
