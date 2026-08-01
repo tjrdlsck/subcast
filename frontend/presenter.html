@@ -32,12 +32,10 @@
                 <a href="/static/presenter.html" class="nav-link active">Presenter</a>
                 <a href="/static/viewer.html?channel=obs" target="_blank" class="nav-link" title="OBS 방송용 (투명 자막)">Viewer (OBS)</a>
                 <a href="/static/viewer.html?channel=stage" target="_blank" class="nav-link" title="현장 모니터용 (자막+움직이는 배경)">Viewer (Stage)</a>
-                <a href="/static/viewer.html?mode=monitor" target="_blank" class="nav-link">Monitor</a>
             </nav>
         </div>
 
         <div class="header-right-group">
-            <button class="btn-settings-trigger" id="btn-open-monitoring">모니터링</button>
             <div class="live-status-badge" id="live-status-badge" title="LIVE 송출 상태">
                 <span class="live-icon-dot"></span>
                 <span>LIVE</span>
@@ -122,80 +120,6 @@
                 </div>
 
                 <button class="btn-save-settings" id="btn-apply-res">해상도 및 설정 전송</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 모니터링 설정 모달창 -->
-    <div class="modal-overlay" id="monitoring-modal">
-        <div class="modal-container monitor-modal-container">
-            <div class="modal-header">
-                <h2>🖥️ 발표자 모니터링 뷰어 설정</h2>
-                <button class="modal-close-btn" id="btn-close-monitoring">&times;</button>
-            </div>
-            <div class="monitor-modal-layout">
-                <!-- 좌측 설정 사이드바 -->
-                <div class="monitor-settings-sidebar">
-                    <div class="shortcut-info-box">
-                        • 발표자/설교자 모니터에 <b>현재 & 다음 슬라이드</b>를 상하로 동시에 표출하는 모니터링 뷰어 설정입니다.
-                    </div>
-
-                    <div class="settings-group">
-                        <h3>모니터링 뷰어 실행</h3>
-                        <button class="btn-save-settings" id="btn-open-monitor-window"
-                            style="margin-top:0; background:#10b981;">🖥️ 모니터링 뷰어 새창으로 열기</button>
-                    </div>
-
-                    <div class="settings-group">
-                        <h3>글씨 크기 (Font Size)</h3>
-                        <div class="info-tip-box">
-                            💡 모니터링 창에서 <b>Ctrl + 마우스 휠</b>로 글꼴 크기를 조정할 수 있으며 닫을 때 <b>자동 저장</b>됩니다.
-                        </div>
-                    </div>
-
-                    <div class="settings-group">
-                        <h3>화면 비율 (Current : Next)</h3>
-                        <div class="bg-mode-wrapper">
-                            <label class="bg-mode-option"><input type="radio" name="monitor-layout" value="5:5" checked>
-                                <span>5:5 균등</span></label>
-                            <label class="bg-mode-option"><input type="radio" name="monitor-layout" value="7:3"> <span>7:3
-                                    (현재 강조)</span></label>
-                            <label class="bg-mode-option"><input type="radio" name="monitor-layout" value="3:7"> <span>3:7
-                                    (다음 강조)</span></label>
-                        </div>
-                    </div>
-
-                    <div class="settings-group">
-                        <h3>성경 구절 표출 옵션</h3>
-                        <div class="bg-mode-wrapper" style="flex-direction: column; gap: 8px;">
-                            <label class="bg-mode-option"><input type="radio" name="monitor-bible" value="summary" checked>
-                                <span>장/절 출처 + 첫 2줄 요약 (...) [권장]</span></label>
-                            <label class="bg-mode-option"><input type="radio" name="monitor-bible" value="ref_only">
-                                <span>장/절 출처만 표시</span></label>
-                            <label class="bg-mode-option"><input type="radio" name="monitor-bible" value="full"> <span>본문 전체
-                                    표시</span></label>
-                        </div>
-                    </div>
-
-                    <button class="btn-save-settings" id="btn-save-monitoring" style="margin-top: auto;">설정 저장</button>
-                </div>
-
-                <!-- 우측 대형 미리보기 메인 영역 -->
-                <div class="monitor-preview-container">
-                    <div class="preview-header-bar">
-                        <span>🖥️ 모니터링 화면 실시간 미리보기 (16:9 Monitor View)</span>
-                    </div>
-                    <div class="monitor-preview-box" id="monitor-preview-box">
-                        <div class="monitor-preview-section current" id="preview-current-sec">
-                            <div class="preview-tag current-tag">🔴 CURRENT (현재 송출 슬라이드)</div>
-                            <div class="preview-content" id="preview-current-text">송출 중인 슬라이드가 없습니다.</div>
-                        </div>
-                        <div class="monitor-preview-section next" id="preview-next-sec">
-                            <div class="preview-tag next-tag">🔵 NEXT (다음 슬라이드)</div>
-                            <div class="preview-content" id="preview-next-text">다음 슬라이드가 없습니다.</div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
