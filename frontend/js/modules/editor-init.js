@@ -1,0 +1,978 @@
+// ==========================================================================
+// Subcast Module: editor-init.js
+// ==========================================================================
+
+
+
+
+
+        window.onload = () => {
+            window.addEventListener('offline', handleOffline);
+            window.addEventListener('online', handleOnline);
+            initCanvas();
+            connectWebSocket();
+
+            // 좌측 서브 패널 토글 (화살표 버튼)
+            const toggleSidebarBtn = document.getElementById("btn-toggle-sidebar");
+            if (toggleSidebarBtn) {
+                toggleSidebarBtn.onclick = () => {
+                    const subPanel = document.querySelector(".left-sub-panel");
+                    const arrowIcon = document.getElementById("toggle-arrow-icon");
+                    if (subPanel) {
+                        const isCollapsed = subPanel.classList.toggle("collapsed");
+                        if (arrowIcon) {
+                            arrowIcon.style.transform = isCollapsed ? "rotate(180deg)" : "rotate(0deg)";
+                        }
+                        fitCanvasToScreen(); // 서브 패널 토글에 따른 가용 너비 변경을 반영해 캔버스 줌 맞춤
+                    }
+                };
+            }
+
+            // 최초 로드 시 및 브라우저 창 크기 변경 시 화면 크기 자동 맞춤 연동
+            window.addEventListener('resize', fitCanvasToScreen);
+            setTimeout(fitCanvasToScreen, 100); // 캔버스 영역 렌더링이 완료된 후 최초 맞춤 실행
+
+            // 서브 패널 너비 드래그 조절 (Resizer)
+            const resizer = document.getElementById("left-panel-resizer");
+            const panel = document.querySelector(".left-sub-panel");
+            if (resizer && panel) {
+                resizer.addEventListener("mousedown", (e) => {
+                    e.preventDefault();
+                    resizer.classList.add("resizing");
+                    const startX = e.clientX;
+                    const startWidth = panel.getBoundingClientRect().width;
+
+
+
+                    document.addEventListener("mousemove", onMouseMove);
+                    document.addEventListener("mouseup", onMouseUp);
+                });
+            }
+
+            // 슬라이드 추가 버튼
+            document.getElementById("btn-add-slide").onclick = addSlide;
+
+            // 성경 구절 연동 기능 초기화
+            initBibleFeature();
+
+            // 찬양 가사 연동 기능 초기화
+            initPraiseFeature();
+
+            // 템플릿 제어 버튼
+            document.getElementById("btn-save-template").onclick = saveAsTemplate;
+            document.getElementById("btn-apply-template-bulk").onclick = applyTemplateBulk;
+            document.getElementById("btn-delete-template").onclick = deleteTemplate;
+            document.getElementById("btn-undo-template").onclick = undoBulkAction;
+
+            const btnTemplateExport = document.getElementById("btn-template-export");
+            if (btnTemplateExport) {
+                btnTemplateExport.onclick = () => {
+                    if (selectedTemplateIds && selectedTemplateIds.length > 0) {
+                        window.location.href = `/api/templates/export?ids=${selectedTemplateIds.join(",")}`;
+                    } else {
+                        window.location.href = "/api/templates/export";
+                    }
+                };
+            }
+
+            const btnTemplateImport = document.getElementById("btn-template-import");
+            const fileImportTemplate = document.getElementById("file-import-template");
+            if (btnTemplateImport && fileImportTemplate) {
+                btnTemplateImport.onclick = () => {
+                    fileImportTemplate.value = "";
+                    fileImportTemplate.click();
+                };
+                fileImportTemplate.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    const formData = new FormData();
+                    formData.append("file", file);
+
+                    try {
+                        const res = await fetch("/api/templates/import", {
+                            method: "POST",
+                            body: formData
+                        });
+                        if (!res.ok) {
+                            const errData = await res.json();
+                            throw new Error(errData.detail || "템플릿 가져오기 실패");
+                        }
+                        const data = await res.json();
+                        alert(`성공적으로 ${data.imported_count || 0}개의 템플릿 데이터를 가져왔습니다.`);
+                    } catch (err) {
+                        alert("템플릿 데이터 가져오기 오류: " + err.message);
+                    }
+                };
+            }
+
+            // 템플릿 적용 모달 내 버튼 제어
+            document.getElementById("btn-modal-cancel").onclick = closeApplyModal;
+            document.getElementById("btn-modal-close").onclick = closeApplyModal;
+            document.getElementById("btn-modal-confirm").onclick = confirmApplyTemplate;
+
+            // 줌 컨트롤러 버튼 리스너 연동
+            document.getElementById("btn-zoom-in").onclick = () => {
+                userZoomFactor = Math.min(userZoomFactor + 0.1, 3.0); // 최대 300%
+                fitCanvasToScreen();
+            };
+            document.getElementById("btn-zoom-out").onclick = () => {
+                userZoomFactor = Math.max(userZoomFactor - 0.1, 0.3); // 최소 30%
+                fitCanvasToScreen();
+            };
+            document.getElementById("btn-zoom-reset").onclick = () => {
+                userZoomFactor = 1.0; // 100% 맞춤으로 초기화
+                fitCanvasToScreen();
+            };
+
+            // 공통: 불투명도 조절 슬라이더
+            document.getElementById("element-opacity").oninput = (e) => {
+                if (currentEditingElement) {
+                    const val = parseFloat(e.target.value);
+                    currentEditingElement.set('opacity', val);
+                    document.getElementById("opacity-val").innerText = `${Math.round(val * 100)}%`;
+                    canvas.renderAll();
+                }
+            };
+            document.getElementById("element-opacity").onchange = () => {
+                saveStateToHistory();
+            };
+
+            // 텍스트 서식 리스너들
+            document.getElementById("text-editor").oninput = (e) => {
+                if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
+                    currentEditingElement.set('text', e.target.value);
+                    canvas.renderAll();
+                }
+            };
+            document.getElementById("text-editor").onchange = () => {
+                saveStateToHistory();
+            };
+
+            document.getElementById("fontfamily-editor").onchange = (e) => {
+                if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
+                    currentEditingElement.set('fontFamily', e.target.value);
+                    canvas.renderAll();
+                    saveStateToHistory();
+                }
+            };
+
+            document.getElementById("fontsize-editor").oninput = (e) => {
+                if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
+                    const vw = parseFloat(e.target.value) || 3.0;
+                    const pxSize = (vw / 100) * BASE_WIDTH;
+
+                    currentEditingElement.set('fontSize', pxSize);
+                    currentEditingElement.originalVwSize = `${vw}vw`;
+                    canvas.renderAll();
+                }
+            };
+            document.getElementById("fontsize-editor").onchange = () => {
+                saveStateToHistory();
+            };
+
+
+            const btnAddFont = document.getElementById("btn-add-custom-font");
+            if (btnAddFont) btnAddFont.onclick = addCustomFont;
+            const inputFont = document.getElementById("custom-font-input");
+            if (inputFont) {
+                inputFont.onkeydown = (e) => {
+                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        addCustomFont();
+                    }
+                };
+            }
+
+            // 텍스트 글자색 및 투명도 실시간 조절
+            const updateTextFillColor = () => {
+                if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
+                    const color = document.getElementById("fontcolor-editor").value;
+                    const opacity = document.getElementById("fontcolor-opacity").value;
+                    const rgba = hexAndOpacityToRgba(color, opacity);
+                    currentEditingElement.set('fill', rgba);
+                    canvas.renderAll();
+                }
+            };
+            document.getElementById("fontcolor-editor").oninput = (e) => {
+                const val = e.target.value;
+                document.getElementById("fontcolor-hex").value = val.toUpperCase();
+                updateTextFillColor();
+            };
+            document.getElementById("fontcolor-opacity").oninput = (e) => {
+                document.getElementById("fontcolor-opacity-val").textContent = e.target.value + "%";
+                updateTextFillColor();
+            };
+            document.getElementById("fontcolor-editor").onchange = () => saveStateToHistory();
+            document.getElementById("fontcolor-opacity").onchange = () => saveStateToHistory();
+
+            document.getElementById("fontcolor-hex").oninput = (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) val = '#' + val;
+                const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+                if (hexPattern.test(val)) {
+                    if (val.length === 4) {
+                        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+                    }
+                    document.getElementById("fontcolor-editor").value = val;
+                    updateTextFillColor();
+                }
+            };
+            document.getElementById("fontcolor-hex").onchange = (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) val = '#' + val;
+                const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+                if (hexPattern.test(val)) {
+                    if (val.length === 4) {
+                        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+                    }
+                    e.target.value = val.toUpperCase();
+                    saveStateToHistory();
+                }
+            };
+
+            // 텍스트 테두리 색상 및 투명도 실시간 조절
+            const updateTextStrokeColor = () => {
+                if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
+                    const color = document.getElementById("text-strokecolor").value;
+                    const opacity = document.getElementById("text-strokecolor-opacity").value;
+                    const rgba = hexAndOpacityToRgba(color, opacity);
+                    currentEditingElement.set('stroke', rgba);
+                    canvas.renderAll();
+                }
+            };
+            document.getElementById("text-strokecolor").oninput = (e) => {
+                const val = e.target.value;
+                document.getElementById("text-strokecolor-hex").value = val.toUpperCase();
+                updateTextStrokeColor();
+            };
+            document.getElementById("text-strokecolor-opacity").oninput = (e) => {
+                document.getElementById("text-strokecolor-opacity-val").textContent = e.target.value + "%";
+                updateTextStrokeColor();
+            };
+            document.getElementById("text-strokecolor").onchange = () => saveStateToHistory();
+            document.getElementById("text-strokecolor-opacity").onchange = () => saveStateToHistory();
+
+            document.getElementById("text-strokecolor-hex").oninput = (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) val = '#' + val;
+                const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+                if (hexPattern.test(val)) {
+                    if (val.length === 4) {
+                        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+                    }
+                    document.getElementById("text-strokecolor").value = val;
+                    updateTextStrokeColor();
+                }
+            };
+            document.getElementById("text-strokecolor-hex").onchange = (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) val = '#' + val;
+                const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+                if (hexPattern.test(val)) {
+                    if (val.length === 4) {
+                        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+                    }
+                    e.target.value = val.toUpperCase();
+                    saveStateToHistory();
+                }
+            };
+
+            // 텍스트 그림자 색상 및 투명도 실시간 조절
+            const updateTextShadowColor = () => {
+                if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
+                    if (!currentEditingElement.shadow) {
+                        currentEditingElement.setShadow({
+                            color: 'rgba(0,0,0,1)',
+                            blur: parseInt(document.getElementById("text-shadow-blur").value) || 5,
+                            offsetX: parseInt(document.getElementById("text-shadow-offsetx").value) || 3,
+                            offsetY: parseInt(document.getElementById("text-shadow-offsety").value) || 3
+                        });
+                    }
+                    const color = document.getElementById("text-shadow-color").value;
+                    const opacity = document.getElementById("text-shadow-color-opacity").value;
+                    const rgba = hexAndOpacityToRgba(color, opacity);
+                    currentEditingElement.shadow.color = rgba;
+                    canvas.renderAll();
+                }
+            };
+            document.getElementById("text-shadow-color").oninput = (e) => {
+                const val = e.target.value;
+                document.getElementById("text-shadow-color-hex").value = val.toUpperCase();
+                updateTextShadowColor();
+            };
+            document.getElementById("text-shadow-color-opacity").oninput = (e) => {
+                document.getElementById("text-shadow-color-opacity-val").textContent = e.target.value + "%";
+                updateTextShadowColor();
+            };
+            document.getElementById("text-shadow-color").onchange = () => saveStateToHistory();
+            document.getElementById("text-shadow-color-opacity").onchange = () => saveStateToHistory();
+
+            document.getElementById("text-shadow-color-hex").oninput = (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) val = '#' + val;
+                const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+                if (hexPattern.test(val)) {
+                    if (val.length === 4) {
+                        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+                    }
+                    document.getElementById("text-shadow-color").value = val;
+                    updateTextShadowColor();
+                }
+            };
+            document.getElementById("text-shadow-color-hex").onchange = (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) val = '#' + val;
+                const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+                if (hexPattern.test(val)) {
+                    if (val.length === 4) {
+                        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+                    }
+                    e.target.value = val.toUpperCase();
+                    saveStateToHistory();
+                }
+            };
+
+            document.getElementById("btn-bold").onclick = () => {
+                if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
+                    const isBold = currentEditingElement.fontWeight === 'bold';
+                    currentEditingElement.set('fontWeight', isBold ? 'normal' : 'bold');
+                    document.getElementById("btn-bold").classList.toggle("active", !isBold);
+                    canvas.renderAll();
+                    saveStateToHistory();
+                }
+            };
+
+            document.getElementById("btn-italic").onclick = () => {
+                if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
+                    const isItalic = currentEditingElement.fontStyle === 'italic';
+                    currentEditingElement.set('fontStyle', isItalic ? 'normal' : 'italic');
+                    document.getElementById("btn-italic").classList.toggle("active", !isItalic);
+                    canvas.renderAll();
+                    saveStateToHistory();
+                }
+            };
+
+            const setAlign = (align) => {
+                if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
+                    currentEditingElement.set('textAlign', align);
+                    document.getElementById("btn-align-left").classList.toggle("active", align === 'left');
+                    document.getElementById("btn-align-center").classList.toggle("active", align === 'center');
+                    document.getElementById("btn-align-right").classList.toggle("active", align === 'right');
+                    canvas.renderAll();
+                    saveStateToHistory();
+                }
+            };
+
+            document.getElementById("btn-align-left").onclick = () => setAlign('left');
+            document.getElementById("btn-align-center").onclick = () => setAlign('center');
+            document.getElementById("btn-align-right").onclick = () => setAlign('right');
+
+            // 도형 서식 리스너들
+            // 도형 채우기 색상 및 투명도 실시간 조절
+            const updateShapeFillColor = () => {
+                if (currentEditingElement && currentEditingElement.type !== 'textbox' && currentEditingElement.type !== 'text') {
+                    const color = document.getElementById("shape-fillcolor").value;
+                    const opacity = document.getElementById("shape-fillcolor-opacity").value;
+                    const rgba = hexAndOpacityToRgba(color, opacity);
+                    currentEditingElement.set('fill', rgba);
+                    canvas.renderAll();
+                }
+            };
+            document.getElementById("shape-fillcolor").oninput = (e) => {
+                const val = e.target.value;
+                document.getElementById("shape-fillcolor-hex").value = val.toUpperCase();
+                updateShapeFillColor();
+            };
+            document.getElementById("shape-fillcolor-opacity").oninput = (e) => {
+                document.getElementById("shape-fillcolor-opacity-val").textContent = e.target.value + "%";
+                updateShapeFillColor();
+            };
+            document.getElementById("shape-fillcolor").onchange = () => saveStateToHistory();
+            document.getElementById("shape-fillcolor-opacity").onchange = () => saveStateToHistory();
+
+            document.getElementById("shape-fillcolor-hex").oninput = (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) val = '#' + val;
+                const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+                if (hexPattern.test(val)) {
+                    if (val.length === 4) {
+                        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+                    }
+                    document.getElementById("shape-fillcolor").value = val;
+                    updateShapeFillColor();
+                }
+            };
+            document.getElementById("shape-fillcolor-hex").onchange = (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) val = '#' + val;
+                const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+                if (hexPattern.test(val)) {
+                    if (val.length === 4) {
+                        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+                    }
+                    e.target.value = val.toUpperCase();
+                    saveStateToHistory();
+                }
+            };
+
+            // 도형 테두리 색상 및 투명도 실시간 조절
+            const updateShapeStrokeColor = () => {
+                if (currentEditingElement && currentEditingElement.type !== 'textbox' && currentEditingElement.type !== 'text') {
+                    const color = document.getElementById("shape-strokecolor").value;
+                    const opacity = document.getElementById("shape-strokecolor-opacity").value;
+                    const rgba = hexAndOpacityToRgba(color, opacity);
+                    currentEditingElement.set('stroke', rgba);
+                    canvas.renderAll();
+                }
+            };
+            document.getElementById("shape-strokecolor").oninput = (e) => {
+                const val = e.target.value;
+                document.getElementById("shape-strokecolor-hex").value = val.toUpperCase();
+                updateShapeStrokeColor();
+            };
+            document.getElementById("shape-strokecolor-opacity").oninput = (e) => {
+                document.getElementById("shape-strokecolor-opacity-val").textContent = e.target.value + "%";
+                updateShapeStrokeColor();
+            };
+            document.getElementById("shape-strokecolor").onchange = () => saveStateToHistory();
+            document.getElementById("shape-strokecolor-opacity").onchange = () => saveStateToHistory();
+
+            document.getElementById("shape-strokecolor-hex").oninput = (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) val = '#' + val;
+                const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+                if (hexPattern.test(val)) {
+                    if (val.length === 4) {
+                        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+                    }
+                    document.getElementById("shape-strokecolor").value = val;
+                    updateShapeStrokeColor();
+                }
+            };
+            document.getElementById("shape-strokecolor-hex").onchange = (e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) val = '#' + val;
+                const hexPattern = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+                if (hexPattern.test(val)) {
+                    if (val.length === 4) {
+                        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+                    }
+                    e.target.value = val.toUpperCase();
+                    saveStateToHistory();
+                }
+            };
+
+            document.getElementById("shape-strokewidth").oninput = (e) => {
+                if (currentEditingElement && currentEditingElement.type !== 'textbox' && currentEditingElement.type !== 'text') {
+                    currentEditingElement.set('strokeWidth', parseInt(e.target.value) || 0);
+                    canvas.renderAll();
+                }
+            };
+            document.getElementById("shape-strokewidth").onchange = () => {
+                saveStateToHistory();
+            };
+
+            document.getElementById("shape-corners").oninput = (e) => {
+                if (currentEditingElement && currentEditingElement.type === 'rect') {
+                    const val = parseInt(e.target.value) || 0;
+                    currentEditingElement.set({ rx: val, ry: val });
+                    canvas.renderAll();
+                }
+            };
+            document.getElementById("shape-corners").onchange = () => {
+                saveStateToHistory();
+            };
+
+            // 도형 추가 리스너
+            document.getElementById("btn-add-rect").onclick = addRect;
+            document.getElementById("btn-add-circle").onclick = addCircle;
+            document.getElementById("btn-add-triangle").onclick = addTriangle;
+            document.getElementById("btn-add-line").onclick = addLine;
+
+            // X, Y, 너비, 높이 조절 & 중앙 배치 리스너
+            document.getElementById("element-left").oninput = (e) => {
+                if (currentEditingElement) {
+                    currentEditingElement.set('left', parseFloat(e.target.value) || 0);
+                    currentEditingElement.setCoords();
+                    canvas.renderAll();
+                    updateLayerList();
+                }
+            };
+            document.getElementById("element-left").onchange = () => {
+                saveStateToHistory();
+            };
+
+            document.getElementById("element-top").oninput = (e) => {
+                if (currentEditingElement) {
+                    currentEditingElement.set('top', parseFloat(e.target.value) || 0);
+                    currentEditingElement.setCoords();
+                    canvas.renderAll();
+                    updateLayerList();
+                }
+            };
+            document.getElementById("element-top").onchange = () => {
+                saveStateToHistory();
+            };
+
+            document.getElementById("element-width").oninput = (e) => {
+                if (currentEditingElement) {
+                    const newWidth = parseFloat(e.target.value) || 0;
+                    if (newWidth > 0 && currentEditingElement.width > 0) {
+                        currentEditingElement.set('scaleX', newWidth / currentEditingElement.width);
+                        currentEditingElement.setCoords();
+                        canvas.renderAll();
+                        updateLayerList();
+                    }
+                }
+            };
+            document.getElementById("element-width").onchange = () => {
+                saveStateToHistory();
+            };
+
+            document.getElementById("element-height").oninput = (e) => {
+                if (currentEditingElement) {
+                    const newHeight = parseFloat(e.target.value) || 0;
+                    if (newHeight > 0 && currentEditingElement.height > 0) {
+                        currentEditingElement.set('scaleY', newHeight / currentEditingElement.height);
+                        currentEditingElement.setCoords();
+                        canvas.renderAll();
+                        updateLayerList();
+                    }
+                }
+            };
+            document.getElementById("element-height").onchange = () => {
+                saveStateToHistory();
+            };
+
+            document.getElementById("btn-center-element").onclick = () => {
+                if (currentEditingElement) {
+                    const objWidth = currentEditingElement.getScaledWidth();
+                    const objHeight = currentEditingElement.getScaledHeight();
+
+                    if (currentEditingElement.originX === 'center') {
+                        currentEditingElement.set('left', BASE_WIDTH / 2);
+                    } else {
+                        currentEditingElement.set('left', (BASE_WIDTH - objWidth) / 2);
+                    }
+
+                    if (currentEditingElement.originY === 'center') {
+                        currentEditingElement.set('top', BASE_HEIGHT / 2);
+                    } else {
+                        currentEditingElement.set('top', (BASE_HEIGHT - objHeight) / 2);
+                    }
+
+                    currentEditingElement.setCoords();
+                    canvas.renderAll();
+                    saveStateToHistory();
+                    updateLayerList();
+                    updateInspectorCoords();
+                }
+            };
+
+            // 정렬 도구 바인딩 및 핸들러 추가
+            const alignLeftBtn = document.getElementById("btn-align-left");
+            const alignCenterHBtn = document.getElementById("btn-align-center-h");
+            const alignRightBtn = document.getElementById("btn-align-right");
+            const alignTopBtn = document.getElementById("btn-align-top");
+            const alignCenterVBtn = document.getElementById("btn-align-center-v");
+            const alignBottomBtn = document.getElementById("btn-align-bottom");
+
+            const handleAlign = (type) => {
+                if (!currentEditingElement) return;
+
+                const objWidth = currentEditingElement.getScaledWidth();
+                const objHeight = currentEditingElement.getScaledHeight();
+
+                switch (type) {
+                    case "left":
+                        if (currentEditingElement.originX === 'center') {
+                            currentEditingElement.set('left', objWidth / 2);
+                        } else {
+                            currentEditingElement.set('left', 0);
+                        }
+                        break;
+                    case "center-h":
+                        if (currentEditingElement.originX === 'center') {
+                            currentEditingElement.set('left', BASE_WIDTH / 2);
+                        } else {
+                            currentEditingElement.set('left', (BASE_WIDTH - objWidth) / 2);
+                        }
+                        break;
+                    case "right":
+                        if (currentEditingElement.originX === 'center') {
+                            currentEditingElement.set('left', BASE_WIDTH - objWidth / 2);
+                        } else {
+                            currentEditingElement.set('left', BASE_WIDTH - objWidth);
+                        }
+                        break;
+                    case "top":
+                        if (currentEditingElement.originY === 'center') {
+                            currentEditingElement.set('top', objHeight / 2);
+                        } else {
+                            currentEditingElement.set('top', 0);
+                        }
+                        break;
+                    case "center-v":
+                        if (currentEditingElement.originY === 'center') {
+                            currentEditingElement.set('top', BASE_HEIGHT / 2);
+                        } else {
+                            currentEditingElement.set('top', (BASE_HEIGHT - objHeight) / 2);
+                        }
+                        break;
+                    case "bottom":
+                        if (currentEditingElement.originY === 'center') {
+                            currentEditingElement.set('top', BASE_HEIGHT - objHeight / 2);
+                        } else {
+                            currentEditingElement.set('top', BASE_HEIGHT - objHeight);
+                        }
+                        break;
+                }
+
+                currentEditingElement.setCoords();
+                canvas.renderAll();
+                saveStateToHistory();
+                updateLayerList();
+                updateInspectorCoords();
+            };
+
+            if (alignLeftBtn) alignLeftBtn.onclick = () => handleAlign("left");
+            if (alignCenterHBtn) alignCenterHBtn.onclick = () => handleAlign("center-h");
+            if (alignRightBtn) alignRightBtn.onclick = () => handleAlign("right");
+            if (alignTopBtn) alignTopBtn.onclick = () => handleAlign("top");
+            if (alignCenterVBtn) alignCenterVBtn.onclick = () => handleAlign("center-v");
+            if (alignBottomBtn) alignBottomBtn.onclick = () => handleAlign("bottom");
+
+            // 레이어 리스너
+            document.getElementById("btn-layer-up").onclick = layerUp;
+            document.getElementById("btn-layer-down").onclick = layerDown;
+            document.getElementById("btn-layer-front").onclick = layerFront;
+            document.getElementById("btn-layer-back").onclick = layerBack;
+
+            // 그룹화 / 그룹 해제 리스너
+            document.getElementById("btn-group").onclick = groupObjects;
+            document.getElementById("btn-ungroup").onclick = ungroupObjects;
+
+            // 삭제 리스너
+            document.getElementById("btn-delete").onclick = deleteElement;
+
+            // Delete 키 단축키로 삭제 처리 및 Ctrl+Z/Ctrl+Shift+Z 되돌리기/다시실행
+            window.addEventListener('keydown', (e) => {
+                if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT' || document.activeElement.tagName === 'TEXTAREA') {
+                    return;
+                }
+
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                    const activeObj = canvas.getActiveObject();
+                    if (activeObj) {
+                        e.preventDefault();
+                        const step = e.shiftKey ? 10 : 1;
+                        switch (e.key) {
+                            case 'ArrowUp':
+                                activeObj.set('top', activeObj.top - step);
+                                break;
+                            case 'ArrowDown':
+                                activeObj.set('top', activeObj.top + step);
+                                break;
+                            case 'ArrowLeft':
+                                activeObj.set('left', activeObj.left - step);
+                                break;
+                            case 'ArrowRight':
+                                activeObj.set('left', activeObj.left + step);
+                                break;
+                        }
+                        activeObj.setCoords();
+                        canvas.renderAll();
+                        updateInspectorCoords();
+                        saveStateToHistory();
+                        return;
+                    }
+                }
+
+                if (e.key === 'Delete') {
+                    const activeObj = canvas.getActiveObject();
+                    const isTemplateTabActive = document.getElementById('panel-templates')?.classList.contains('active');
+                    const isPraiseTabActive = document.getElementById('panel-praise')?.classList.contains('active');
+                    const isStageBgTabActive = document.getElementById('panel-stage-bg')?.classList.contains('active');
+                    const isStageBgVisible = document.getElementById('stage-bg-main-viewer-overlay')?.style.display !== 'none';
+                    const isBibleVisible = document.getElementById('bible-main-viewer-overlay')?.style.display !== 'none';
+
+                    if (isStageBgTabActive || isStageBgVisible) {
+                        if (selectedStageBgFiles && selectedStageBgFiles.length > 0) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (typeof deleteSelectedStageBgFilesWithConfirm === 'function') {
+                                deleteSelectedStageBgFilesWithConfirm();
+                            }
+                            return;
+                        }
+                    }
+
+                    if (isBibleVisible) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
+                    }
+
+                    if (isPraiseTabActive || (selectedPraiseSongs && selectedPraiseSongs.length > 0)) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (typeof deleteSelectedPraiseSongsWithConfirm === 'function') {
+                            deleteSelectedPraiseSongsWithConfirm();
+                        }
+                    } else if (activeObj || currentEditingElement) {
+                        deleteElement();
+                    } else if (isTemplateTabActive && selectedTemplateIds.length > 0) {
+                        deleteTemplate();
+                    } else if (selectedSlideIds.length > 0) {
+                        deleteSelectedSlidesWithConfirm();
+                    }
+                } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+                    e.preventDefault();
+                    undo();
+                } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z') {
+                    e.preventDefault();
+                    redo();
+                } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') {
+                    // 잘라내기 (Ctrl+X)
+                    const isPraiseTabActive = document.getElementById('panel-praise')?.classList.contains('active');
+                    if (isPraiseTabActive && selectedPraiseSongs && selectedPraiseSongs.length > 0) {
+                        e.preventDefault();
+                        if (typeof cutSelectedPraiseSongs === 'function') cutSelectedPraiseSongs();
+                        return;
+                    }
+                    const activeObj = canvas.getActiveObject();
+                    if (activeObj) {
+                        if (activeObj.type === 'activeSelection') {
+                            const serializedList = [];
+                            const groupLeft = activeObj.left || 0;
+                            const groupTop = activeObj.top || 0;
+                            const groupWidth = activeObj.width || 0;
+                            const groupHeight = activeObj.height || 0;
+                            activeObj.forEachObject((obj) => {
+                                const absLeft = groupLeft + obj.left + groupWidth / 2;
+                                const absTop = groupTop + obj.top + groupHeight / 2;
+                                const originalLeft = obj.left;
+                                const originalTop = obj.top;
+                                obj.set({ left: absLeft, top: absTop });
+                                serializedList.push(serializeElement(obj, BASE_WIDTH, BASE_HEIGHT));
+                                obj.set({ left: originalLeft, top: originalTop });
+                            });
+                            navigator.clipboard.writeText(JSON.stringify({ subcastType: "multipleElements", data: serializedList }));
+                            activeObj.forEachObject(obj => canvas.remove(obj));
+                            canvas.discardActiveObject();
+                        } else {
+                            const serialized = serializeElement(activeObj, BASE_WIDTH, BASE_HEIGHT);
+                            navigator.clipboard.writeText(JSON.stringify({ subcastType: "element", data: serialized }));
+                            canvas.remove(activeObj);
+                        }
+                        canvas.renderAll();
+                        saveStateToHistory();
+                    } else if (selectedSlideIds.length > 0) {
+                        const isStageBgTabActive = document.getElementById('panel-stage-bg')?.classList.contains('active');
+                        const isStageBgVisible = document.getElementById('stage-bg-main-viewer-overlay')?.style.display !== 'none';
+                        if (!isStageBgTabActive && !isStageBgVisible) {
+                            cutSelectedSlides();
+                        }
+                    }
+                } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+                    // 복사 (Ctrl+C) - 시스템 클립보드 API 활용
+                    const isStageBgTabActive = document.getElementById('panel-stage-bg')?.classList.contains('active');
+                    const isStageBgVisible = document.getElementById('stage-bg-main-viewer-overlay')?.style.display !== 'none';
+                    if ((isStageBgTabActive || isStageBgVisible) && selectedStageBgFiles && selectedStageBgFiles.length > 0) {
+                        e.preventDefault();
+                        if (typeof copySelectedStageBgFiles === 'function') copySelectedStageBgFiles();
+                        return;
+                    }
+
+                    const isPraiseTabActive = document.getElementById('panel-praise')?.classList.contains('active');
+                    if (isPraiseTabActive && selectedPraiseSongs && selectedPraiseSongs.length > 0) {
+                        e.preventDefault();
+                        if (typeof copySelectedPraiseSongs === 'function') copySelectedPraiseSongs();
+                        return;
+                    }
+                    const activeObj = canvas.getActiveObject();
+                    if (activeObj) {
+                        if (activeObj.type === 'activeSelection') {
+                            // 1-A. 다중 개체 복사
+                            const serializedList = [];
+                            const groupLeft = activeObj.left || 0;
+                            const groupTop = activeObj.top || 0;
+                            const groupWidth = activeObj.width || 0;
+                            const groupHeight = activeObj.height || 0;
+
+                            activeObj.forEachObject((obj) => {
+                                const absLeft = groupLeft + obj.left + groupWidth / 2;
+                                const absTop = groupTop + obj.top + groupHeight / 2;
+                                const originalLeft = obj.left;
+                                const originalTop = obj.top;
+
+                                obj.set({ left: absLeft, top: absTop });
+                                const serialized = serializeElement(obj, BASE_WIDTH, BASE_HEIGHT);
+                                serializedList.push(serialized);
+
+                                obj.set({ left: originalLeft, top: originalTop });
+                            });
+
+                            const payload = { subcastType: "multipleElements", data: serializedList };
+                            navigator.clipboard.writeText(JSON.stringify(payload)).catch(err => {
+                                console.error("시스템 클립보드 쓰기 실패:", err);
+                            });
+                        } else {
+                            // 1-B. 단일 개체 복사
+                            const serialized = serializeElement(activeObj, BASE_WIDTH, BASE_HEIGHT);
+                            const payload = { subcastType: "element", data: serialized };
+                            navigator.clipboard.writeText(JSON.stringify(payload)).catch(err => {
+                                console.error("시스템 클립보드 쓰기 실패:", err);
+                            });
+                        }
+                    } else if (selectedSlideIds.length > 0) {
+                        // 2. 슬라이드 복사
+                        if (!isStageBgTabActive && !isStageBgVisible) {
+                            copySelectedSlides();
+                        }
+                    }
+                } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+                    // 붙여넣기 (Ctrl+V)
+                    const isStageBgTabActive = document.getElementById('panel-stage-bg')?.classList.contains('active');
+                    const isStageBgVisible = document.getElementById('stage-bg-main-viewer-overlay')?.style.display !== 'none';
+                    if ((isStageBgTabActive || isStageBgVisible) && stageBgClipboardFiles && stageBgClipboardFiles.length > 0) {
+                        e.preventDefault();
+                        if (typeof pasteStageBgFiles === 'function') pasteStageBgFiles();
+                        return;
+                    }
+
+                    const isPraiseTabActive = document.getElementById('panel-praise')?.classList.contains('active');
+                    if (isPraiseTabActive) {
+                        e.preventDefault();
+                        if (typeof pastePraiseSongs === 'function') pastePraiseSongs();
+                        return;
+                    }
+                }
+            });
+
+            // 저장/취소 리스너
+            document.getElementById("btn-save").onclick = saveSlideData;
+            document.getElementById("btn-cancel").onclick = cancelEditing;
+
+            // 우측 인스펙터 패널 드래그 이동 활성화
+            const inspectorPanel = document.querySelector(".right-inspector-panel");
+            const inspectorHeader = document.querySelector(".right-inspector-panel .panel-header");
+            if (inspectorPanel && inspectorHeader) {
+                makeElementDraggable(inspectorPanel, inspectorHeader);
+            }
+
+            // 클립보드 복사 붙여넣기 (Paste) 통합 처리 리스너 - 시스템 클립보드 연동
+            window.addEventListener('paste', (e) => {
+                if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
+                    return;
+                }
+
+                const items = (e.clipboardData || e.originalEvent.clipboardData)?.items;
+                if (!items) return;
+
+                let hasImageFile = false;
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf("image") !== -1) {
+                        const file = items[i].getAsFile();
+                        if (file) {
+                            e.preventDefault();
+                            hasImageFile = true;
+                            insertImageToCanvas(file);
+                            break;
+                        }
+                    }
+                }
+
+                // 클립보드 파일 이미지가 없을 때, 시스템 클립보드 텍스트 데이터를 분석하여 복제본 붙여넣기 수행
+                if (!hasImageFile) {
+                    const textData = (e.clipboardData || e.originalEvent.clipboardData).getData("text");
+                    if (textData) {
+                        try {
+                            const payload = JSON.parse(textData);
+                            if (payload && payload.subcastType === "element") {
+                                e.preventDefault();
+                                const elem = payload.data;
+                                const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
+                                if (obj) {
+                                    obj.set({
+                                        left: (obj.left || 0) + 20,
+                                        top: (obj.top || 0) + 20,
+                                        originalId: `elem_${Math.random().toString(36).substr(2, 9)}`
+                                    });
+                                    canvas.add(obj);
+                                    canvas.setActiveObject(obj);
+                                    canvas.renderAll();
+                                    saveStateToHistory();
+                                }
+                            } else if (payload && payload.subcastType === "multipleElements") {
+                                e.preventDefault();
+                                const elemList = payload.data;
+                                const newObjects = [];
+
+                                elemList.forEach((elem) => {
+                                    const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
+                                    if (obj) {
+                                        obj.set({
+                                            left: (obj.left || 0) + 20,
+                                            top: (obj.top || 0) + 20,
+                                            originalId: `elem_${Math.random().toString(36).substr(2, 9)}`
+                                        });
+                                        canvas.add(obj);
+                                        newObjects.push(obj);
+                                    }
+                                });
+
+                                if (newObjects.length > 0) {
+                                    // 붙여넣은 다중 객체들을 활성 선택 상태(ActiveSelection)로 설정
+                                    const activeSelection = new fabric.ActiveSelection(newObjects, {
+                                        canvas: canvas
+                                    });
+                                    canvas.setActiveObject(activeSelection);
+                                    canvas.requestRenderAll();
+                                }
+                                saveStateToHistory();
+                            } else if (payload && (payload.subcastType === "slide" || payload.subcastType === "slides")) {
+                                e.preventDefault();
+                                pasteSlidesFromClipboardText(textData);
+                            }
+                        } catch (err) {
+                            // 일반 텍스트 등은 무시
+                        }
+                    }
+                }
+            });
+
+            // 드래그 앤 드롭 파일 업로드 리스너
+            const dropZone = document.querySelector(".canvas-wrapper-outer");
+            if (dropZone) {
+                dropZone.addEventListener("dragover", (e) => {
+                    e.preventDefault();
+                    dropZone.classList.add("dragover");
+                });
+                dropZone.addEventListener("dragleave", (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove("dragover");
+                });
+                dropZone.addEventListener("drop", (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove("dragover");
+
+                    const files = e.dataTransfer.files;
+                    if (files && files.length > 0) {
+                        for (let i = 0; i < files.length; i++) {
+                            if (files[i].type.startsWith("image/")) {
+                                const pointer = canvas.getPointer(e);
+                                insertImageToCanvas(files[i], pointer.x, pointer.y);
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 창 닫을 때 락 자동 반환
+            window.onbeforeunload = () => {
+                releaseActiveLock();
+            };
+        };
+
