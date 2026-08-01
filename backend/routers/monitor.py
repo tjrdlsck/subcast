@@ -13,11 +13,15 @@ class MonitorBoxSchema(BaseModel):
     heightPct: Optional[float] = 42.0
     fontSize: Optional[int] = 28
     textColor: Optional[str] = "#FFFFFF"
+    strokeColor: Optional[str] = "transparent"
+    strokeWidth: Optional[int] = 0
     bgColor: Optional[str] = "transparent"
     isTransparentBg: Optional[bool] = True
     fontWeight: Optional[str] = "bold"
+    fontStyle: Optional[str] = "normal"
     fontFamily: Optional[str] = "Inter"
     textAlign: Optional[str] = "center"
+    opacity: Optional[float] = 1.0
 
 from typing import Dict, Any, Optional, List
 

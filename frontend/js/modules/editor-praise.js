@@ -619,13 +619,21 @@
                 };
             }
 
-            // 곡 분위기에 맞는 고정 현장 배경 1개 매칭 헬퍼 함수
-            function matchStageBgForSong(songMood) {
+            // 곡 분위기에 맞는 고정 현장 배경 1개 매칭 헬퍼 함수 (중복 방지 excludeBgIds 지원)
+            function matchStageBgForSong(songMood, excludeBgIds = []) {
                 const bgList = (projectData && projectData.settings && projectData.settings.stageBgLibrary && projectData.settings.stageBgLibrary.length > 0)
                     ? projectData.settings.stageBgLibrary
                     : (allStageBgFiles || []);
 
                 if (!bgList || bgList.length === 0) return null;
+
+                const excludedSet = new Set(
+                    (Array.isArray(excludeBgIds) ? excludeBgIds : [excludeBgIds])
+                        .filter(Boolean)
+                        .map(id => String(id))
+                );
+
+                const getBgIdentifier = (bg) => String(bg.id || bg.name);
 
                 const normalizeTag = (str) => {
                     if (!str) return "";
@@ -657,25 +665,40 @@
                     });
                 }
 
+                // 제외 대상 필터링 헬퍼
+                const filterNonExcluded = (list) => list.filter(bg => !excludedSet.has(getBgIdentifier(bg)));
+
+                // 1차 필터링: 태그 일치 + 미사용 후보
+                let nonExcludedMatching = filterNonExcluded(matchingCandidates);
+
                 let chosenBg = null;
-                if (matchingCandidates.length > 0) {
-                    chosenBg = matchingCandidates[Math.floor(Math.random() * matchingCandidates.length)];
+                if (nonExcludedMatching.length > 0) {
+                    // Tier 1: 태그 일치 미사용 배경 중 무작위 선택
+                    chosenBg = nonExcludedMatching[Math.floor(Math.random() * nonExcludedMatching.length)];
                 } else {
-                    // 2차: 기본/일반 후보
+                    // Tier 4 (폴백): 미사용 후보가 고갈되었거나 해당 태그 미사용 배경이 없을 경우
+                    // 태그 일치 후보군(없으면 기본/전체 라이브러리) 중 직전에 사용된 배경과 다른 항목 무작위 선택
                     const defaultCandidates = bgList.filter(bg => {
                         if (bg.isDefault || bg.is_default) return true;
                         const bgTags = extractTags([bg.mood, bg.tag, ...(Array.isArray(bg.moods) ? bg.moods : [bg.moods])]);
                         return bgTags.includes("기본/일반");
                     });
-                    if (defaultCandidates.length > 0) {
-                        chosenBg = defaultCandidates[Math.floor(Math.random() * defaultCandidates.length)];
-                    } else {
-                        // 3차: 라이브러리 내 전체 배경 중 하나
-                        chosenBg = bgList[Math.floor(Math.random() * bgList.length)];
+
+                    const lastUsedId = (Array.isArray(excludeBgIds) && excludeBgIds.length > 0) 
+                        ? String(excludeBgIds[excludeBgIds.length - 1]) 
+                        : null;
+                    
+                    let fallbackPool = matchingCandidates.length > 0 ? matchingCandidates : (defaultCandidates.length > 0 ? defaultCandidates : bgList);
+                    if (lastUsedId && fallbackPool.length > 1) {
+                        const nonLastPool = fallbackPool.filter(bg => getBgIdentifier(bg) !== lastUsedId);
+                        if (nonLastPool.length > 0) {
+                            fallbackPool = nonLastPool;
+                        }
                     }
+                    chosenBg = fallbackPool[Math.floor(Math.random() * fallbackPool.length)];
                 }
 
-                return chosenBg ? (chosenBg.id || chosenBg.name) : null;
+                return chosenBg ? getBgIdentifier(chosenBg) : null;
             }
 
             // === 슬라이드 현장 배경 직접 지정 모달 제어 ===
@@ -1056,7 +1079,13 @@
                 tempPraiseSlidesToAdd = [];
 
                 const songMood = activeSelectedPraiseSong.mood || (activeSelectedPraiseSong.moods && activeSelectedPraiseSong.moods[0]) || "경배/찬양";
-                const fixedBgId = matchStageBgForSong(songMood);
+                
+                // 기존 슬라이드 목록에서 사용 중인 overrideBgId 수집하여 중복 방지
+                const existingUsedBgIds = (projectData && projectData.slides)
+                    ? projectData.slides.map(s => s.overrideBgId).filter(Boolean)
+                    : [];
+
+                const fixedBgId = matchStageBgForSong(songMood, existingUsedBgIds);
                 const praiseGroupId = "praise_grp_" + Math.random().toString(36).substr(2, 9);
 
                 if (presetSelect && presetSelect.value === "template") {

@@ -57,3 +57,18 @@
 * `docs/changes/{CHANGE_ID}/design.md`
 * `docs/changes/{CHANGE_ID}/tasks.md`
 * `docs/changes/{CHANGE_ID}/testing.md`
+
+## Automated Codex CLI Debugging Pipeline
+
+사용자가 안 풀리는 문제 분석, 디버깅, 원인 추적 등을 요청하거나 Codex 연동을 요청하는 경우 다음 자동화 프로토콜을 수행한다.
+
+1. **컨텍스트 추출 (Context Extraction)**:
+   - `ripgrep`으로 관련 파일 및 $N \pm 50$줄 소스코드 위치 파악.
+   - 에러 로그 및 Stack Trace 핵심 내용 수집.
+2. **Codex CLI 자동 실행 (Auto-Execution)**:
+   - `run_command`를 사용하여 인라인 프롬프트를 `codex exec`로 전달.
+   - PowerShell 인라인 처리: `@'<Prompt>'@ | codex exec -s read-only`
+3. **2차 교차 검증 및 원인 제공 (Cross-Critique & Solution)**:
+   - `codex exec`의 출력 결과(STDOUT)를 수신하여 사이드 이펙트 및 환각(Hallucination) 여부 2차 검증.
+   - 최종적으로 검증된 원인과 최소 수정안을 사용자에게 보고.
+

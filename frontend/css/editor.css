@@ -1342,32 +1342,35 @@
             top: 20px;
             right: 20px;
             width: 320px;
-            height: 180px;
-            background: #000000;
-            border: 2px solid var(--primary);
-            border-radius: var(--radius-md);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-            z-index: 1000;
+            max-height: 220px;
+            background: rgba(18, 18, 24, 0.92);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            border-radius: var(--radius-md, 8px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            z-index: 90;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
             align-items: flex-start;
-            padding: 12px;
+            padding: 14px;
             box-sizing: border-box;
             pointer-events: none;
-            opacity: 0.95;
+            overflow-y: auto;
+            transition: opacity 0.15s ease-in-out;
         }
         .bible-preview-header {
-            font-size: 0.7rem;
+            font-size: 0.72rem;
             font-weight: 600;
-            color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 6px;
+            color: #10b981;
+            margin-bottom: 8px;
+            letter-spacing: 0.3px;
         }
         .bible-preview-content {
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: #ffffff;
-            line-height: 1.4;
+            font-size: 0.88rem;
+            font-weight: 500;
+            color: #f4f4f5;
+            line-height: 1.5;
             text-align: left;
             word-break: keep-all;
         }

@@ -617,6 +617,7 @@
         }
 
         function showBibleMainViewer(results, titleInfo) {
+            hideBibleLivePreview();
             const overlay = document.getElementById("bible-main-viewer-overlay");
             const tbody = document.getElementById("tbody-bible-main-viewer");
             const titleEl = document.getElementById("bible-viewer-title");
@@ -652,6 +653,7 @@
         }
 
         function hideBibleMainViewer() {
+            hideBibleLivePreview();
             const overlay = document.getElementById("bible-main-viewer-overlay");
             if (overlay) {
                 overlay.style.display = "none";
@@ -827,6 +829,12 @@
         let previewEl = null;
         function showBibleLivePreview(item) {
             if (previewEl) hideBibleLivePreview();
+
+            // 성경 메인 표 뷰어가 활성화(display !== 'none') 상태이면 미니 미리보기 팝업 노출을 억제함
+            const viewerOverlay = document.getElementById("bible-main-viewer-overlay");
+            if (viewerOverlay && window.getComputedStyle(viewerOverlay).display !== "none") {
+                return;
+            }
 
             const workspace = document.querySelector(".workspace");
             if (!workspace) return;

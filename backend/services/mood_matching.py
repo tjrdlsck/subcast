@@ -78,9 +78,9 @@ def select_stage_background(
                 
         return {"type": "video", "videoUrl": chosen.get("url") or chosen.get("file_path"), "id": bg_id, "item": chosen}
 
-    # 1차: 태그 일치 검색 (정규화 비교)
+    # 1차: 태그 일치 검색 (정규화 비교) 및 직전 배경 중복 제외
+    tag_candidates = []
     if target_tags:
-        tag_candidates = []
         for bg in bg_library:
             raw_bg_moods = []
             if bg.get("mood"):
@@ -104,22 +104,18 @@ def select_stage_background(
             if res:
                 return res
             
-    # 2차: Default 배경 (isDefault 또는 mood가 '기본/일반'인 경우)
+    # Default 후보군 (태그 미지정/미일치 시 사용)
     default_candidates = [
         bg for bg in bg_library 
         if bg.get("isDefault") or bg.get("is_default") or normalize_tag(bg.get("mood")) == "기본/일반" or "기본/일반" in extract_normalized_tags(bg.get("moods"))
     ]
-    res = pick_from_candidates(default_candidates)
+    
+    fallback_pool = tag_candidates if tag_candidates else (default_candidates if default_candidates else bg_library)
+    res = pick_from_candidates(fallback_pool)
     if res:
         return res
         
-    # 3차: 전체 라이브러리 배경 중 무작위
-    all_candidates = [bg for bg in bg_library if bg.get("url") or bg.get("file_path")]
-    res = pick_from_candidates(all_candidates)
-    if res:
-        return res
-        
-    # 4차: Ambient Canvas Fallback
+    # Ambient Canvas Fallback
     return {"type": "ambient"}
 
 

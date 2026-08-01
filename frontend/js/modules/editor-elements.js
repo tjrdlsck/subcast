@@ -31,6 +31,7 @@
                 fill: '#ffffff',
                 fontFamily: 'Inter',
                 fontWeight: fontWeight,
+                paintFirst: 'stroke',
                 originalId: `elem_${Math.random().toString(36).substr(2, 9)}`,
                 originalVwSize: `${fontSizeVw}vw`
             });

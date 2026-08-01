@@ -14,11 +14,15 @@ CREATE TABLE IF NOT EXISTS monitor_settings (
     current_height_pct REAL NOT NULL DEFAULT 42.0,
     current_font_size INTEGER NOT NULL DEFAULT 28,
     current_text_color TEXT NOT NULL DEFAULT '#FFFFFF',
+    current_stroke_color TEXT DEFAULT 'transparent',
+    current_stroke_width INTEGER DEFAULT 0,
     current_bg_color TEXT NOT NULL DEFAULT 'transparent',
     current_is_transparent INTEGER NOT NULL DEFAULT 1 CHECK (current_is_transparent IN (0, 1)),
     current_font_weight TEXT DEFAULT 'bold',
+    current_font_style TEXT DEFAULT 'normal',
     current_font_family TEXT DEFAULT 'Inter',
     current_text_align TEXT DEFAULT 'center',
+    current_opacity REAL DEFAULT 1.0,
     
     next_left_pct REAL NOT NULL DEFAULT 5.0,
     next_top_pct REAL NOT NULL DEFAULT 51.0,
@@ -26,11 +30,15 @@ CREATE TABLE IF NOT EXISTS monitor_settings (
     next_height_pct REAL NOT NULL DEFAULT 42.0,
     next_font_size INTEGER NOT NULL DEFAULT 22,
     next_text_color TEXT NOT NULL DEFAULT '#A0A0A0',
+    next_stroke_color TEXT DEFAULT 'transparent',
+    next_stroke_width INTEGER DEFAULT 0,
     next_bg_color TEXT NOT NULL DEFAULT 'transparent',
     next_is_transparent INTEGER NOT NULL DEFAULT 1 CHECK (next_is_transparent IN (0, 1)),
     next_font_weight TEXT DEFAULT '600',
+    next_font_style TEXT DEFAULT 'normal',
     next_font_family TEXT DEFAULT 'Inter',
     next_text_align TEXT DEFAULT 'center',
+    next_opacity REAL DEFAULT 1.0,
     
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -67,11 +75,19 @@ def init_monitor_db(db_path: str = DEFAULT_DB_PATH) -> None:
     existing_cols = [row[1] for row in cursor.fetchall()]
     new_cols = {
         "current_font_weight": "TEXT DEFAULT 'bold'",
+        "current_font_style": "TEXT DEFAULT 'normal'",
         "current_font_family": "TEXT DEFAULT 'Inter'",
         "current_text_align": "TEXT DEFAULT 'center'",
+        "current_stroke_color": "TEXT DEFAULT 'transparent'",
+        "current_stroke_width": "INTEGER DEFAULT 0",
+        "current_opacity": "REAL DEFAULT 1.0",
         "next_font_weight": "TEXT DEFAULT '600'",
+        "next_font_style": "TEXT DEFAULT 'normal'",
         "next_font_family": "TEXT DEFAULT 'Inter'",
         "next_text_align": "TEXT DEFAULT 'center'",
+        "next_stroke_color": "TEXT DEFAULT 'transparent'",
+        "next_stroke_width": "INTEGER DEFAULT 0",
+        "next_opacity": "REAL DEFAULT 1.0",
         "custom_elements": "TEXT DEFAULT '[]'",
     }
     for col_name, col_type in new_cols.items():

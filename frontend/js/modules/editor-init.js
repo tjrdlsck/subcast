@@ -216,6 +216,11 @@
                     const rgba = hexAndOpacityToRgba(color, opacity);
                     currentEditingElement.set('fill', rgba);
                     canvas.renderAll();
+                    if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) {
+                        if (typeof window.subcastMonitorEditor.saveMonitorStateToHistory === 'function') {
+                            window.subcastMonitorEditor.saveMonitorStateToHistory();
+                        }
+                    }
                 }
             };
             document.getElementById("fontcolor-editor").oninput = (e) => {
@@ -261,8 +266,13 @@
                     const color = document.getElementById("text-strokecolor").value;
                     const opacity = document.getElementById("text-strokecolor-opacity").value;
                     const rgba = hexAndOpacityToRgba(color, opacity);
-                    currentEditingElement.set('stroke', rgba);
+                    currentEditingElement.set({ stroke: rgba, paintFirst: 'stroke' });
                     canvas.renderAll();
+                    if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) {
+                        if (typeof window.subcastMonitorEditor.saveMonitorStateToHistory === 'function') {
+                            window.subcastMonitorEditor.saveMonitorStateToHistory();
+                        }
+                    }
                 }
             };
             document.getElementById("text-strokecolor").oninput = (e) => {
@@ -301,6 +311,24 @@
                     saveStateToHistory();
                 }
             };
+
+            // 텍스트 테두리 두께 조절 핸들러
+            const textStrokeWidthInput = document.getElementById("text-strokewidth");
+            if (textStrokeWidthInput) {
+                textStrokeWidthInput.oninput = (e) => {
+                    if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
+                        const widthVal = parseInt(e.target.value) || 0;
+                        currentEditingElement.set({ strokeWidth: widthVal, paintFirst: 'stroke' });
+                        canvas.renderAll();
+                        if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) {
+                            if (typeof window.subcastMonitorEditor.saveMonitorStateToHistory === 'function') {
+                                window.subcastMonitorEditor.saveMonitorStateToHistory();
+                            }
+                        }
+                    }
+                };
+                textStrokeWidthInput.onchange = () => saveStateToHistory();
+            }
 
             // 텍스트 그림자 색상 및 투명도 실시간 조절
             const updateTextShadowColor = () => {

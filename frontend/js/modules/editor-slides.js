@@ -275,13 +275,6 @@
             loadSlideToCanvas(slideId);
             setControlsState(true);
             renderSlides();
-
-            if (projectData && projectData.slides) {
-                const idx = projectData.slides.findIndex(s => s.id === slideId);
-                if (idx !== -1) {
-                    notifyMonitorSlideChange(idx);
-                }
-            }
         }
 
 

@@ -109,7 +109,12 @@
 
         function saveStateToHistory() {
             if (isUndoingRedoing) return;
-            if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) return;
+            if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) {
+                if (typeof window.subcastMonitorEditor.saveMonitorStateToHistory === 'function') {
+                    window.subcastMonitorEditor.saveMonitorStateToHistory();
+                }
+                return;
+            }
             const currentState = canvas.getObjects().map(obj => serializeElement(obj, BASE_WIDTH, BASE_HEIGHT));
             const stateStr = JSON.stringify(currentState);
 
@@ -126,6 +131,13 @@
 
 
         function undo() {
+            if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) {
+                if (typeof window.subcastMonitorEditor.undoMonitor === 'function') {
+                    window.subcastMonitorEditor.undoMonitor();
+                }
+                return;
+            }
+
             if (undoStack.length <= 1) return;
 
             isUndoingRedoing = true;
@@ -139,6 +151,13 @@
 
 
         function redo() {
+            if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) {
+                if (typeof window.subcastMonitorEditor.redoMonitor === 'function') {
+                    window.subcastMonitorEditor.redoMonitor();
+                }
+                return;
+            }
+
             if (redoStack.length === 0) return;
 
             isUndoingRedoing = true;
