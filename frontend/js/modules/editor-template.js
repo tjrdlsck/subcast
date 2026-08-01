@@ -3,7 +3,7 @@
 // ==========================================================================
 
         function saveAsTemplate() {
-            if (!activeSlideId || !canvas || isMonitorEditMode) return;
+            if (!activeSlideId || !canvas) return;
             const tplName = prompt("저장할 템플릿의 이름을 입력하세요:", "새 디자인 템플릿");
             if (!tplName) return;
 

@@ -36,18 +36,6 @@
             } else {
                 hideStageBgMainViewer();
             }
-            // 모니터링 탭 처리
-            if (tabId === 'panel-monitor') {
-                if (!isMonitorEditMode) {
-                    isMonitorEditMode = true;
-                    loadMonitorCanvasToEditor();
-                }
-            } else {
-                if (isMonitorEditMode) {
-                    isMonitorEditMode = false;
-                    restoreNormalCanvas();
-                }
-            }
         }
 
 

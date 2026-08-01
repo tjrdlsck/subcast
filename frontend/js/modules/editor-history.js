@@ -80,7 +80,7 @@
 
 
         function saveStateToHistory() {
-            if (isUndoingRedoing || isMonitorEditMode) return;
+            if (isUndoingRedoing) return;
             const currentState = canvas.getObjects().map(obj => serializeElement(obj, BASE_WIDTH, BASE_HEIGHT));
             const stateStr = JSON.stringify(currentState);
 

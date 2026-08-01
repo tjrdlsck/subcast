@@ -208,10 +208,6 @@
 
 
         function selectSlideForEdit(slideId, force = false) {
-            if (isMonitorEditMode) {
-                isMonitorEditMode = false;
-                restoreNormalCanvas();
-            }
             if (activeSlideId === slideId && !force) {
                 if (!selectedSlideIds || selectedSlideIds.length === 0) {
                     selectedSlideIds = [slideId];
@@ -233,7 +229,7 @@
 
 
         function saveSlideData() {
-            if (!activeSlideId || !projectData || isMonitorEditMode) return;
+            if (!activeSlideId || !projectData) return;
             const slide = projectData.slides.find(s => s.id === activeSlideId);
 
             const activeObj = canvas.getActiveObject();

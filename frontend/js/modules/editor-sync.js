@@ -69,7 +69,7 @@
 
 
         function performAutoSave() {
-            if (!activeSlideId || !projectData || isMonitorEditMode) return;
+            if (!activeSlideId || !projectData) return;
             const slide = projectData.slides.find(s => s.id === activeSlideId);
             if (!slide) return;
 
