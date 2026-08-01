@@ -268,13 +268,14 @@
             }
         };
 
-        // 저장 / 초기화 버튼 이벤트
+        // 저장 / 초기화 / 팝업 / 전체화면 버튼 이벤트
         document.addEventListener("click", (e) => {
-            if (e.target && e.target.id === "btn-save-monitor-layout") {
+            const targetId = e.target ? e.target.id : "";
+            if (targetId === "btn-save-monitor-layout") {
                 saveMonitorSettings();
                 alert("무대 모니터 레이아웃 설정이 성공적으로 저장되었습니다.");
             }
-            if (e.target && e.target.id === "btn-reset-monitor-layout") {
+            if (targetId === "btn-reset-monitor-layout") {
                 if (confirm("무대 모니터 레이아웃을 기본값으로 초기화하시겠습니까?")) {
                     monitorSettings.currentBox = {
                         leftPct: 5.0, topPct: 5.0, widthPct: 90.0, heightPct: 42.0, fontSize: 28, textColor: "#FFFFFF", bgColor: "transparent", isTransparentBg: true
@@ -285,6 +286,19 @@
                     saveMonitorSettings();
                     if (isMonitorMode) {
                         enterMonitorMode();
+                    }
+                }
+            }
+            if (targetId === "btn-open-monitor-window") {
+                window.open("/static/monitor.html", "SubcastStageMonitor", "width=1280,height=720,resizable=yes");
+            }
+            if (targetId === "btn-fullscreen-monitor") {
+                const previewBox = document.getElementById("pip-monitor-preview-box");
+                if (previewBox) {
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                    } else if (previewBox.requestFullscreen) {
+                        previewBox.requestFullscreen();
                     }
                 }
             }

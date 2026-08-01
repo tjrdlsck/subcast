@@ -542,6 +542,19 @@
                                 🔄 초기화
                             </button>
                         </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" id="btn-open-monitor-window" style="flex: 1; padding: 8px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border-radius: 4px; background: #8b5cf6; color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 6px;" title="독립 브라우저 팝업 창으로 무대 모니터 띄우기">
+                                📺 모니터 팝업 띄우기
+                            </button>
+                            <button type="button" id="btn-fullscreen-monitor" style="padding: 8px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border-radius: 4px; background: rgba(255,255,255,0.08); color: #cbd5e1; border: 1px solid var(--panel-border);" title="모니터링 전체화면">
+                                ⛶ 전체화면
+                            </button>
+                        </div>
+                        <div id="pip-monitor-preview-box" style="position: relative; width: 100%; aspect-ratio: 16/9; background: #0f172a; border: 1px solid var(--panel-border); border-radius: var(--radius-sm); overflow: hidden; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 8px; box-sizing: border-box;">
+                            <div style="position: absolute; top: 6px; left: 8px; font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase;">PIP Live Preview</div>
+                            <div id="pip-preview-current-text" style="font-size: 0.75rem; color: #ffffff; text-align: center; margin-top: 12px; max-height: 45%; overflow: hidden; text-overflow: ellipsis;">🔴 CURRENT 슬라이드 예시</div>
+                            <div id="pip-preview-next-text" style="font-size: 0.68rem; color: #a0a0a0; text-align: center; margin-top: 4px; max-height: 35%; overflow: hidden; text-overflow: ellipsis;">🔵 NEXT 슬라이드 예시</div>
+                        </div>
                         <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
                             <div style="font-weight: 600; font-size: 0.8rem; color: var(--text-main);">📐 실시간 정규화 좌표 정보</div>
                             <div id="monitor-layout-info" style="font-family: monospace; font-size: 0.72rem; color: #cbd5e1; line-height: 1.6;">
