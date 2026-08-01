@@ -367,6 +367,8 @@ function showStageBgMainViewer() {
 function hideStageBgMainViewer() {
     const overlay = document.getElementById('stage-bg-main-viewer-overlay');
     if (overlay) overlay.style.display = 'none';
+    const pipContainer = document.getElementById('pip-stage-preview-container');
+    if (pipContainer) pipContainer.style.display = 'none';
 }
 
 // 백엔드 API에서 배경 라이브러리 목록 로드

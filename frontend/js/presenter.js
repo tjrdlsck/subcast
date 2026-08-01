@@ -156,6 +156,14 @@
                     selectable: false,
                     paintFirst: 'stroke'
                 };
+                if (elem.style?.shadow) {
+                    textOptions.shadow = new fabric.Shadow({
+                        color: elem.style.shadow.color || '#000000',
+                        blur: elem.style.shadow.blur || 0,
+                        offsetX: elem.style.shadow.offsetX || 0,
+                        offsetY: elem.style.shadow.offsetY || 0
+                    });
+                }
                 obj = isInsideGroup ?
                     new fabric.Text(elem.content, textOptions) :
                     new fabric.Textbox(elem.content, Object.assign(textOptions, { splitByGrapheme: false }));

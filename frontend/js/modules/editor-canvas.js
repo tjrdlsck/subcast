@@ -307,7 +307,7 @@
                 centerBtn.disabled = false;
 
                 // 정렬 관련 신규 버튼 활성화
-                const alignBtnIds = ["btn-align-left", "btn-align-center-h", "btn-align-right", "btn-align-top", "btn-align-center-v", "btn-align-bottom"];
+                const alignBtnIds = ["btn-align-element-left", "btn-align-center-h", "btn-align-element-right", "btn-align-top", "btn-align-center-v", "btn-align-bottom"];
                 alignBtnIds.forEach(id => {
                     const btn = document.getElementById(id);
                     if (btn) btn.disabled = false;
@@ -496,7 +496,7 @@
                 centerBtn.disabled = true;
 
                 // 정렬 관련 신규 버튼 비활성화
-                const alignBtnIds = ["btn-align-left", "btn-align-center-h", "btn-align-right", "btn-align-top", "btn-align-center-v", "btn-align-bottom"];
+                const alignBtnIds = ["btn-align-element-left", "btn-align-center-h", "btn-align-element-right", "btn-align-top", "btn-align-center-v", "btn-align-bottom"];
                 alignBtnIds.forEach(id => {
                     const btn = document.getElementById(id);
                     if (btn) btn.disabled = true;

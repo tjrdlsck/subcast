@@ -225,10 +225,18 @@
                 });
             };
             reader.readAsDataURL(file);
+        }
+
+        window.addTextTpl = addTextTpl;
         window.addRect = addRect;
         window.addCircle = addCircle;
         window.addTriangle = addTriangle;
         window.addLine = addLine;
         window.insertImageToCanvas = insertImageToCanvas;
+        window.deleteElement = deleteElement;
+        window.groupObjects = groupObjects;
+        window.ungroupObjects = ungroupObjects;
+        window.layerBack = layerBack;
+
 
 

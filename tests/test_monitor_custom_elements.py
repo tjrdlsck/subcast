@@ -65,3 +65,8 @@ def test_monitor_custom_elements_api():
     assert get_again.status_code == 200
     assert len(get_again.json()["data"]["customElements"]) == 1
     assert get_again.json()["data"]["customElements"][0]["id"] == "test_shape"
+
+    # Clean up test pollution
+    payload["customElements"] = []
+    client.put("/api/v1/monitor/settings", json=payload)
+

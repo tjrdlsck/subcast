@@ -357,6 +357,72 @@
                 }
             };
 
+            // 텍스트 그림자 적용 체크박스 및 컨트롤 핸들러
+            const shadowEnabledInput = document.getElementById("text-shadow-enabled");
+            if (shadowEnabledInput) {
+                shadowEnabledInput.onchange = (e) => {
+                    if (!currentEditingElement || (currentEditingElement.type !== 'textbox' && currentEditingElement.type !== 'text')) return;
+                    const isChecked = e.target.checked;
+                    const shadowControls = document.getElementById("text-shadow-controls");
+                    if (isChecked) {
+                        const color = document.getElementById("text-shadow-color").value || "#000000";
+                        const opacity = document.getElementById("text-shadow-color-opacity").value || 100;
+                        const blur = parseInt(document.getElementById("text-shadow-blur").value) || 5;
+                        const offsetX = parseInt(document.getElementById("text-shadow-offsetx").value) || 3;
+                        const offsetY = parseInt(document.getElementById("text-shadow-offsety").value) || 3;
+                        const rgba = hexAndOpacityToRgba(color, opacity);
+
+                        currentEditingElement.set('shadow', new fabric.Shadow({
+                            color: rgba,
+                            blur: blur,
+                            offsetX: offsetX,
+                            offsetY: offsetY
+                        }));
+
+                        if (shadowControls) {
+                            shadowControls.style.opacity = "1";
+                            shadowControls.style.pointerEvents = "auto";
+                        }
+                        ['text-shadow-color', 'text-shadow-color-hex', 'text-shadow-color-opacity', 'text-shadow-blur', 'text-shadow-offsetx', 'text-shadow-offsety'].forEach(id => {
+                            const el = document.getElementById(id);
+                            if (el) el.disabled = false;
+                        });
+                    } else {
+                        currentEditingElement.set('shadow', null);
+                        if (shadowControls) {
+                            shadowControls.style.opacity = "0.5";
+                            shadowControls.style.pointerEvents = "none";
+                        }
+                        ['text-shadow-color', 'text-shadow-color-hex', 'text-shadow-color-opacity', 'text-shadow-blur', 'text-shadow-offsetx', 'text-shadow-offsety'].forEach(id => {
+                            const el = document.getElementById(id);
+                            if (el) el.disabled = true;
+                        });
+                    }
+                    canvas.renderAll();
+                    saveStateToHistory();
+                };
+            }
+
+            const updateTextShadowProps = () => {
+                if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text') && currentEditingElement.shadow) {
+                    const blur = parseInt(document.getElementById("text-shadow-blur").value) || 0;
+                    const offsetX = parseInt(document.getElementById("text-shadow-offsetx").value) || 0;
+                    const offsetY = parseInt(document.getElementById("text-shadow-offsety").value) || 0;
+                    currentEditingElement.shadow.blur = blur;
+                    currentEditingElement.shadow.offsetX = offsetX;
+                    currentEditingElement.shadow.offsetY = offsetY;
+                    canvas.renderAll();
+                }
+            };
+
+            ['text-shadow-blur', 'text-shadow-offsetx', 'text-shadow-offsety'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.oninput = () => updateTextShadowProps();
+                    el.onchange = () => saveStateToHistory();
+                }
+            });
+
             document.getElementById("btn-bold").onclick = () => {
                 if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
                     const isBold = currentEditingElement.fontWeight === 'bold';
@@ -595,9 +661,9 @@
             };
 
             // 정렬 도구 바인딩 및 핸들러 추가
-            const alignLeftBtn = document.getElementById("btn-align-left");
+            const alignLeftBtn = document.getElementById("btn-align-element-left");
             const alignCenterHBtn = document.getElementById("btn-align-center-h");
-            const alignRightBtn = document.getElementById("btn-align-right");
+            const alignRightBtn = document.getElementById("btn-align-element-right");
             const alignTopBtn = document.getElementById("btn-align-top");
             const alignCenterVBtn = document.getElementById("btn-align-center-v");
             const alignBottomBtn = document.getElementById("btn-align-bottom");
@@ -683,8 +749,21 @@
 
             // Delete 키 단축키로 삭제 처리 및 Ctrl+Z/Ctrl+Shift+Z 되돌리기/다시실행
             window.addEventListener('keydown', (e) => {
-                if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT' || document.activeElement.tagName === 'TEXTAREA') {
+                const hasTextSelection = window.getSelection() && window.getSelection().toString().trim().length > 0;
+                const isEditableElement = document.activeElement && (
+                    ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) ||
+                    document.activeElement.isContentEditable
+                );
+
+                if (isEditableElement) {
                     return;
+                }
+
+                // Ctrl+C / Ctrl+X 사용 시 드래그된 화면 텍스트 선택이 존재하는 경우 캔버스/슬라이드 복사를 우회하여 순수 텍스트 복사 허용
+                if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'c' || e.key.toLowerCase() === 'x')) {
+                    if (hasTextSelection) {
+                        return;
+                    }
                 }
 
                 if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
@@ -716,11 +795,20 @@
 
                 if (e.key === 'Delete') {
                     const activeObj = canvas.getActiveObject();
+                    const isMonitorMode = !!(window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode());
+                    const isMonitorTabActive = document.getElementById('panel-monitor')?.classList.contains('active');
                     const isTemplateTabActive = document.getElementById('panel-templates')?.classList.contains('active');
                     const isPraiseTabActive = document.getElementById('panel-praise')?.classList.contains('active');
                     const isStageBgTabActive = document.getElementById('panel-stage-bg')?.classList.contains('active');
                     const isStageBgVisible = document.getElementById('stage-bg-main-viewer-overlay')?.style.display !== 'none';
                     const isBibleVisible = document.getElementById('bible-main-viewer-overlay')?.style.display !== 'none';
+
+                    if (isMonitorMode || isMonitorTabActive) {
+                        if (activeObj || currentEditingElement) {
+                            deleteElement();
+                        }
+                        return;
+                    }
 
                     if (isStageBgTabActive || isStageBgVisible) {
                         if (selectedStageBgFiles && selectedStageBgFiles.length > 0) {

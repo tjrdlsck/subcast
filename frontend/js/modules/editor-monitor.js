@@ -71,6 +71,18 @@
         }
     }
 
+    function broadcastMonitorPreviewSettings() {
+        if (window.BroadcastChannel) {
+            try {
+                const bc = new BroadcastChannel("subcast_monitor_channel");
+                bc.postMessage({ type: "MONITOR_PREVIEW_UPDATE", settings: monitorSettings });
+                bc.close();
+            } catch (e) {
+                console.error("Failed to post preview message to BroadcastChannel", e);
+            }
+        }
+    }
+
     // 2. 모니터 설정 저장 (API + LocalStorage + BroadcastChannel)
     async function saveMonitorSettings() {
         localStorage.setItem("subcast_monitor_settings", JSON.stringify(monitorSettings));
@@ -200,6 +212,7 @@
 
         canvas.renderAll();
         updateInfoUI();
+        broadcastMonitorPreviewSettings();
     }
 
     // 4. 모니터 탭 이탈 시 가이드 해제 및 슬라이드 복원
@@ -295,13 +308,13 @@
         }
     }
 
-    // 5. 캔버스 이벤트 정규화 계산 (실시간 미리보기만 업데이트, 저장 버튼 클릭 전까지 서버 저장 금지)
+    // 5. 캔버스 이벤트 정규화 계산 (실시간 미리보기만 업데이트, 저장 버튼 클릭 전까지 방송 금지)
     function handleGuideModified(e) {
         const target = e.target;
         if (!target) return;
         syncCanvasToMonitorSettings();
-        broadcastMonitorSettings();
         updateInfoUI();
+        broadcastMonitorPreviewSettings();
     }
 
     function handleCustomObjectChanged(e) {
@@ -309,8 +322,8 @@
         const target = e.target;
         if (target && target.isMonitorGuide) return;
         syncCanvasToMonitorSettings();
-        broadcastMonitorSettings();
         updateInfoUI();
+        broadcastMonitorPreviewSettings();
     }
 
     // UI 정보 업데이트

@@ -593,9 +593,19 @@
                     e.stopPropagation();
                     hideCanvasContextMenu();
                     const activeObj = canvas.getActiveObject();
+                    const isMonitorMode = !!(window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode());
+                    const isMonitorTabActive = document.getElementById('panel-monitor')?.classList.contains('active');
                     const isTemplateTabActive = document.getElementById('panel-templates')?.classList.contains('active');
                     const isStageBgTabActive = document.getElementById('panel-stage-bg')?.classList.contains('active');
                     const isStageBgVisible = document.getElementById('stage-bg-main-viewer-overlay')?.style.display !== 'none';
+
+                    if (isMonitorMode || isMonitorTabActive) {
+                        if (activeObj || currentEditingElement) {
+                            deleteElement();
+                        }
+                        return;
+                    }
+
                     if (isStageBgTabActive || isStageBgVisible) {
                         if (selectedStageBgFiles && selectedStageBgFiles.length > 0) {
                             if (typeof deleteSelectedStageBgFilesWithConfirm === 'function') deleteSelectedStageBgFilesWithConfirm();

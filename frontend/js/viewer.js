@@ -122,6 +122,14 @@
                     selectable: false,
                     paintFirst: 'stroke'
                 };
+                if (elem.style?.shadow) {
+                    textOptions.shadow = new fabric.Shadow({
+                        color: elem.style.shadow.color || '#000000',
+                        blur: elem.style.shadow.blur || 0,
+                        offsetX: elem.style.shadow.offsetX || 0,
+                        offsetY: elem.style.shadow.offsetY || 0
+                    });
+                }
                 obj = isInsideGroup ? 
                     new fabric.Text(elem.content, textOptions) : 
                     new fabric.Textbox(elem.content, Object.assign(textOptions, { splitByGrapheme: false }));
@@ -654,7 +662,8 @@
 
         function updateMonitorFromProjectData() {
             const urlParams = new URLSearchParams(window.location.search);
-            const isMonitor = urlParams.get('mode') === 'monitor' || urlParams.get('channel') === 'monitor';
+            const channel = urlParams.get('channel');
+            const isMonitor = urlParams.get('mode') === 'monitor' || channel === 'monitor' || channel === 'preview' || channel === 'monitor_preview';
             if (!isMonitor || !projectData || !projectData.slides) return;
 
             const currentSlideId = projectData.settings?.currentLiveSlideId || (projectData.slides[0] ? projectData.slides[0].id : null);
@@ -688,7 +697,12 @@
                 bc.onmessage = (e) => {
                     const data = e.data;
                     if (!data) return;
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const channel = urlParams.get('channel');
                     if (data.type === "MONITOR_LAYOUT_UPDATE" && data.settings) {
+                        monitorViewerSettings = data.settings;
+                        renderMonitorViewerLayout();
+                    } else if (data.type === "MONITOR_PREVIEW_UPDATE" && data.settings && (channel === 'preview' || channel === 'monitor_preview')) {
                         monitorViewerSettings = data.settings;
                         renderMonitorViewerLayout();
                     } else if (data.type === "SLIDE_CHANGE") {
@@ -712,7 +726,7 @@
             const urlParams = new URLSearchParams(window.location.search);
             const channel = urlParams.get('channel');
             const mode = urlParams.get('mode');
-            const isMonitorMode = mode === 'monitor' || channel === 'monitor';
+            const isMonitorMode = mode === 'monitor' || channel === 'monitor' || channel === 'preview' || channel === 'monitor_preview';
             const isStageMode = channel === 'stage' || mode === 'stage';
 
             if (isMonitorMode) {
@@ -728,7 +742,8 @@
 
         window.onresize = () => {
             const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('mode') === 'monitor' || urlParams.get('channel') === 'monitor') {
+            const channel = urlParams.get('channel');
+            if (urlParams.get('mode') === 'monitor' || channel === 'monitor' || channel === 'preview' || channel === 'monitor_preview') {
                 requestAnimationFrame(renderMonitorViewerLayout);
             } else {
                 updateCanvasDimensions();

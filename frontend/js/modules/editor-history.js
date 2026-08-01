@@ -24,6 +24,14 @@
                     fontSize = match ? (parseFloat(match[1]) / 100) * canvasWidth : parseInt(elem.style.fontSize) || 20;
                 }
                 const textOptions = { left: x, top: y, width: w > 50 ? w : 250, fontSize: fontSize, fill: elem.style?.fontColor || '#ffffff', stroke: elem.style?.strokeColor || 'transparent', strokeWidth: elem.style?.strokeWidth !== undefined ? elem.style.strokeWidth : 0, fontFamily: elem.style?.fontFamily || 'Inter', fontWeight: elem.style?.fontWeight || 'normal', fontStyle: elem.style?.fontStyle || 'normal', textAlign: elem.style?.textAlign || 'left', opacity: opacity, selectable: !isInsideGroup, hasControls: !isInsideGroup, originalId: elem.id, originalVwSize: elem.style?.fontSize || "3vw", paintFirst: 'stroke' };
+                if (elem.style?.shadow) {
+                    textOptions.shadow = new fabric.Shadow({
+                        color: elem.style.shadow.color || '#000000',
+                        blur: elem.style.shadow.blur || 0,
+                        offsetX: elem.style.shadow.offsetX || 0,
+                        offsetY: elem.style.shadow.offsetY || 0
+                    });
+                }
                 obj = isInsideGroup ? new fabric.Text(elem.content, textOptions) : new fabric.Textbox(elem.content, textOptions);
             } else if (elem.type === 'rect') {
                 obj = new fabric.Rect({ left: x, top: y, width: w, height: h, rx: elem.style?.cornerRadius || 0, ry: elem.style?.cornerRadius || 0, fill: elem.style?.fillColor || '#4f46e5', stroke: elem.style?.strokeColor || 'transparent', strokeWidth: elem.style?.strokeWidth !== undefined ? elem.style.strokeWidth : 0, opacity: opacity, selectable: !isInsideGroup, hasControls: !isInsideGroup, originalId: elem.id });
@@ -75,6 +83,14 @@
                 style.textAlign = obj.textAlign || "left";
                 style.strokeColor = obj.stroke || "transparent";
                 style.strokeWidth = Math.round(obj.strokeWidth || 0);
+                if (obj.shadow) {
+                    style.shadow = {
+                        color: obj.shadow.color || "#000000",
+                        blur: obj.shadow.blur || 0,
+                        offsetX: obj.shadow.offsetX || 0,
+                        offsetY: obj.shadow.offsetY || 0
+                    };
+                }
             } else if (['rect', 'circle', 'triangle', 'line'].includes(type)) {
                 style.fillColor = obj.fill || "transparent";
                 style.strokeColor = obj.stroke || "transparent";
