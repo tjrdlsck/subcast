@@ -58,6 +58,8 @@ async def lifespan(app: FastAPI):
     # shutdown
 
 app = FastAPI(title="Subcast API", version="1.4", lifespan=lifespan)
+from backend.routers.monitor import router as monitor_router
+app.include_router(monitor_router)
 
 # 정적 파일 디렉토리 설정 (없으면 임시 생성)
 frontend_dir = Path("frontend")
