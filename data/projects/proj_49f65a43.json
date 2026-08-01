@@ -2,7 +2,7 @@
   "id": "proj_49f65a43",
   "name": "테스트",
   "createdAt": "2026-07-26 10:40:10",
-  "updatedAt": "2026-08-01 20:19:33",
+  "updatedAt": "2026-08-02 08:53:46",
   "settings": {
     "targetWidth": 1920,
     "targetHeight": 1080,
@@ -10,16 +10,9 @@
     "backgroundMode": "transparent",
     "stageBackground": {
       "type": "video",
-      "videoUrl": "/static/backgrounds/ve7RHhA240k.mp4",
-      "id": "ve7RHhA240k.mp4",
-      "item": {
-        "name": "ve7RHhA240k.mp4",
-        "url": "/static/backgrounds/ve7RHhA240k.mp4",
-        "mood": "기본/일반",
-        "moods": [],
-        "isDefault": false,
-        "thumbnailUrl": "https://img.youtube.com/vi/ve7RHhA240k/hqdefault.jpg"
-      }
+      "videoUrl": "/static/backgrounds/lVvNtSeT5pc.mp4",
+      "opacity": 0.8,
+      "blur": 0
     },
     "stageBgLibrary": null
   },

@@ -155,9 +155,13 @@
             width: (cur.widthPct / 100) * BASE_W,
             fontSize: cur.fontSize || 28,
             fill: cur.textColor || '#FFFFFF',
+            stroke: cur.strokeColor || 'transparent',
+            strokeWidth: cur.strokeWidth !== undefined ? cur.strokeWidth : 0,
             fontWeight: cur.fontWeight || 'bold',
+            fontStyle: cur.fontStyle || 'normal',
             fontFamily: cur.fontFamily || 'Inter',
             textAlign: cur.textAlign || 'center',
+            opacity: cur.opacity !== undefined ? cur.opacity : 1.0,
             editable: false,
             splitByGrapheme: true,
             lockRotation: true,
@@ -166,7 +170,8 @@
             cornerColor: '#ef4444',
             cornerSize: 10,
             isMonitorGuide: true,
-            boxType: 'currentBox'
+            boxType: 'currentBox',
+            paintFirst: 'stroke'
         });
 
         // 🔵 NEXT 텍스트박스
@@ -176,9 +181,13 @@
             width: (nxt.widthPct / 100) * BASE_W,
             fontSize: nxt.fontSize || 22,
             fill: nxt.textColor || '#A0A0A0',
+            stroke: nxt.strokeColor || 'transparent',
+            strokeWidth: nxt.strokeWidth !== undefined ? nxt.strokeWidth : 0,
             fontWeight: nxt.fontWeight || '600',
+            fontStyle: nxt.fontStyle || 'normal',
             fontFamily: nxt.fontFamily || 'Inter',
             textAlign: nxt.textAlign || 'center',
+            opacity: nxt.opacity !== undefined ? nxt.opacity : 1.0,
             editable: false,
             splitByGrapheme: true,
             lockRotation: true,
@@ -187,7 +196,8 @@
             cornerColor: '#3b82f6',
             cornerSize: 10,
             isMonitorGuide: true,
-            boxType: 'nextBox'
+            boxType: 'nextBox',
+            paintFirst: 'stroke'
         });
 
         canvas.add(currentGuideBox);
@@ -280,6 +290,10 @@
 
             const fillColor = typeof boxObj.fill === 'string' ? boxObj.fill : '#ffffff';
             const hexColor = colorToHex(fillColor);
+            const strokeColorVal = boxObj.stroke ? colorToHex(typeof boxObj.stroke === 'string' ? boxObj.stroke : 'transparent') : 'transparent';
+            const strokeWidthVal = boxObj.strokeWidth !== undefined ? boxObj.strokeWidth : 0;
+            const fontStyleVal = boxObj.fontStyle || 'normal';
+            const opacityVal = boxObj.opacity !== undefined ? boxObj.opacity : 1.0;
 
             const baseFontSize = boxObj.fontSize || (boxKey === 'currentBox' ? 28 : 22);
             const effectiveFontSize = Math.round(baseFontSize * (boxObj.scaleY || 1));
@@ -292,9 +306,13 @@
                 heightPct: parseFloat(heightPct.toFixed(2)),
                 fontSize: effectiveFontSize,
                 textColor: hexColor,
+                strokeColor: strokeColorVal,
+                strokeWidth: strokeWidthVal,
                 fontWeight: boxObj.fontWeight || (boxKey === 'currentBox' ? "bold" : "600"),
+                fontStyle: fontStyleVal,
                 fontFamily: boxObj.fontFamily || "Inter",
-                textAlign: boxObj.textAlign || "center"
+                textAlign: boxObj.textAlign || "center",
+                opacity: opacityVal
             };
         };
 

@@ -510,9 +510,18 @@
                     curText.style.fontSize = `${fontSize}px`;
                     if (cur.textColor) curText.style.color = cur.textColor;
                     if (cur.fontWeight) curText.style.fontWeight = cur.fontWeight;
+                    if (cur.fontStyle) curText.style.fontStyle = cur.fontStyle;
                     if (cur.fontFamily) curText.style.fontFamily = cur.fontFamily;
                     if (cur.textAlign) curText.style.justifyContent = cur.textAlign === 'left' ? 'flex-start' : (cur.textAlign === 'right' ? 'flex-end' : 'center');
                     if (cur.textAlign) curText.style.textAlign = cur.textAlign;
+                    if (cur.opacity !== undefined) curText.style.opacity = cur.opacity;
+                    if (cur.strokeColor && cur.strokeColor !== 'transparent' && cur.strokeWidth > 0) {
+                        const scaledStroke = cur.strokeWidth * (screenW / 768);
+                        curText.style.webkitTextStroke = `${scaledStroke}px ${cur.strokeColor}`;
+                        curText.style.paintOrder = 'stroke fill';
+                    } else {
+                        curText.style.webkitTextStroke = '0px transparent';
+                    }
                 }
             }
 
@@ -529,9 +538,18 @@
                     nxtText.style.fontSize = `${fontSize}px`;
                     if (nxt.textColor) nxtText.style.color = nxt.textColor;
                     if (nxt.fontWeight) nxtText.style.fontWeight = nxt.fontWeight;
+                    if (nxt.fontStyle) nxtText.style.fontStyle = nxt.fontStyle;
                     if (nxt.fontFamily) nxtText.style.fontFamily = nxt.fontFamily;
                     if (nxt.textAlign) nxtText.style.justifyContent = nxt.textAlign === 'left' ? 'flex-start' : (nxt.textAlign === 'right' ? 'flex-end' : 'center');
                     if (nxt.textAlign) nxtText.style.textAlign = nxt.textAlign;
+                    if (nxt.opacity !== undefined) nxtText.style.opacity = nxt.opacity;
+                    if (nxt.strokeColor && nxt.strokeColor !== 'transparent' && nxt.strokeWidth > 0) {
+                        const scaledStroke = nxt.strokeWidth * (screenW / 768);
+                        nxtText.style.webkitTextStroke = `${scaledStroke}px ${nxt.strokeColor}`;
+                        nxtText.style.paintOrder = 'stroke fill';
+                    } else {
+                        nxtText.style.webkitTextStroke = '0px transparent';
+                    }
                 }
             }
 
