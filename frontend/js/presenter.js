@@ -487,36 +487,6 @@
                 };
             }
 
-                };
-            }
-
-            if (openMonitorWindowBtn) {
-                openMonitorWindowBtn.onclick = () => {
-                    window.open('/static/viewer.html?mode=monitor', '_blank', 'width=1280,height=720');
-                };
-            }
-
-            if (saveMonitorBtn && monitorModal) {
-                saveMonitorBtn.onclick = () => {
-                    const saved = JSON.parse(localStorage.getItem("subcast_monitor_settings") || "{}");
-                    const fontSize = saved.fontSize || "125";
-                    const layout = document.querySelector('input[name="monitor-layout"]:checked')?.value || "5:5";
-                    const bibleMode = document.querySelector('input[name="monitor-bible"]:checked')?.value || "summary";
-
-                    const settings = { ...saved, fontSize, layout, bibleMode };
-                    localStorage.setItem("subcast_monitor_settings", JSON.stringify(settings));
-
-                    try {
-                        const bc = new BroadcastChannel("subcast_monitor_channel");
-                        bc.postMessage({ type: "MONITOR_SETTINGS_UPDATED", settings });
-                        bc.close();
-                    } catch(e) {}
-                    window.dispatchEvent(new CustomEvent("subcast_monitor_updated", { detail: settings }));
-
-                    monitorModal.classList.remove("active");
-                };
-            }
-
             // Ctrl + 마우스 휠로 슬라이드 격자 확대/축소 및 반응형 열 동적 조절
             let cardMinWidth = 220;
             const MIN_CARD_WIDTH = 120;
