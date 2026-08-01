@@ -203,6 +203,7 @@
                         }
                     }
                     updateCanvasDimensions();
+                    updateMonitorFromProjectData();
                 } 
                 else if (message.type === 'SET_BACKGROUND_MODE') {
                     if (projectData && projectData.settings) {
@@ -220,6 +221,7 @@
                     if (projectData) {
                         projectData.settings.currentLiveSlideId = message.slideId;
                         renderCurrentSlide();
+                        updateMonitorFromProjectData();
                     }
                 } 
                 else if (message.type === 'UPDATE_RESOLUTION') {
@@ -545,6 +547,35 @@
             }
         }
 
+        function extractSlideText(slide, fallbackName = "") {
+            if (!slide || !slide.elements) return fallbackName;
+            const texts = slide.elements
+                .filter(e => e.type === "text" || e.type === "i-text" || e.type === "textbox")
+                .map(e => e.content || "")
+                .filter(Boolean)
+                .join("\n");
+            return texts || fallbackName || slide.name || "";
+        }
+
+        function updateMonitorFromProjectData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isMonitor = urlParams.get('mode') === 'monitor' || urlParams.get('channel') === 'monitor';
+            if (!isMonitor || !projectData || !projectData.slides) return;
+
+            const currentSlideId = projectData.settings?.currentLiveSlideId || (projectData.slides[0] ? projectData.slides[0].id : null);
+            let currentIndex = projectData.slides.findIndex(s => s.id === currentSlideId);
+            if (currentIndex === -1) currentIndex = 0;
+
+            const curSlide = projectData.slides[currentIndex];
+            const isLastSlide = (currentIndex + 1 >= projectData.slides.length);
+            const nextSlide = isLastSlide ? null : projectData.slides[currentIndex + 1];
+
+            const curText = curSlide ? extractSlideText(curSlide, curSlide.name || `슬라이드 ${currentIndex + 1}`) : "";
+            const nextText = isLastSlide ? "[마지막 슬라이드입니다]" : (nextSlide ? extractSlideText(nextSlide, nextSlide.name || `슬라이드 ${currentIndex + 2}`) : "");
+
+            updateMonitorViewerTexts(curText, nextText, isLastSlide);
+        }
+
         async function initMonitorModeViewer() {
             const monitorContainer = document.getElementById("monitor-viewer-container");
             const canvasContainer = document.getElementById("canvas-container");
@@ -554,6 +585,7 @@
 
             await fetchMonitorViewerSettings();
             renderMonitorViewerLayout();
+            updateMonitorFromProjectData();
 
             // BroadcastChannel 리스너 수신
             if (window.BroadcastChannel) {
