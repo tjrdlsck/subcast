@@ -60,6 +60,9 @@ class MonitorSettingsRepository:
                 "textColor": row["current_text_color"],
                 "bgColor": row["current_bg_color"],
                 "isTransparentBg": bool(row["current_is_transparent"]),
+                "fontWeight": row["current_font_weight"] if "current_font_weight" in row.keys() and row["current_font_weight"] else "bold",
+                "fontFamily": row["current_font_family"] if "current_font_family" in row.keys() and row["current_font_family"] else "Inter",
+                "textAlign": row["current_text_align"] if "current_text_align" in row.keys() and row["current_text_align"] else "center",
             },
             "nextBox": {
                 "leftPct": row["next_left_pct"],
@@ -70,6 +73,9 @@ class MonitorSettingsRepository:
                 "textColor": row["next_text_color"],
                 "bgColor": row["next_bg_color"],
                 "isTransparentBg": bool(row["next_is_transparent"]),
+                "fontWeight": row["next_font_weight"] if "next_font_weight" in row.keys() and row["next_font_weight"] else "600",
+                "fontFamily": row["next_font_family"] if "next_font_family" in row.keys() and row["next_font_family"] else "Inter",
+                "textAlign": row["next_text_align"] if "next_text_align" in row.keys() and row["next_text_align"] else "center",
             },
             "updatedAt": str(row["updated_at"]) if row["updated_at"] else None
         }
@@ -101,6 +107,9 @@ class MonitorSettingsRepository:
                 current_text_color = ?,
                 current_bg_color = ?,
                 current_is_transparent = ?,
+                current_font_weight = ?,
+                current_font_family = ?,
+                current_text_align = ?,
                 next_left_pct = ?,
                 next_top_pct = ?,
                 next_width_pct = ?,
@@ -109,6 +118,9 @@ class MonitorSettingsRepository:
                 next_text_color = ?,
                 next_bg_color = ?,
                 next_is_transparent = ?,
+                next_font_weight = ?,
+                next_font_family = ?,
+                next_text_align = ?,
                 updated_at = ?
             WHERE setting_id = ?
         """, (
@@ -121,6 +133,9 @@ class MonitorSettingsRepository:
             str(cur_box.get("textColor", existing["currentBox"]["textColor"])),
             str(cur_box.get("bgColor", existing["currentBox"]["bgColor"])),
             1 if cur_box.get("isTransparentBg", existing["currentBox"]["isTransparentBg"]) else 0,
+            str(cur_box.get("fontWeight", existing["currentBox"].get("fontWeight", "bold"))),
+            str(cur_box.get("fontFamily", existing["currentBox"].get("fontFamily", "Inter"))),
+            str(cur_box.get("textAlign", existing["currentBox"].get("textAlign", "center"))),
             float(nxt_box.get("leftPct", existing["nextBox"]["leftPct"])),
             float(nxt_box.get("topPct", existing["nextBox"]["topPct"])),
             float(nxt_box.get("widthPct", existing["nextBox"]["widthPct"])),
@@ -129,6 +144,9 @@ class MonitorSettingsRepository:
             str(nxt_box.get("textColor", existing["nextBox"]["textColor"])),
             str(nxt_box.get("bgColor", existing["nextBox"]["bgColor"])),
             1 if nxt_box.get("isTransparentBg", existing["nextBox"]["isTransparentBg"]) else 0,
+            str(nxt_box.get("fontWeight", existing["nextBox"].get("fontWeight", "600"))),
+            str(nxt_box.get("fontFamily", existing["nextBox"].get("fontFamily", "Inter"))),
+            str(nxt_box.get("textAlign", existing["nextBox"].get("textAlign", "center"))),
             updated_at,
             setting_id
         ))

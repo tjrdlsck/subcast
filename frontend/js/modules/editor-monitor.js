@@ -239,16 +239,36 @@
         saveMonitorSettings();
     }
 
-    // UI 정보 업데이트
+    // UI 정보 및 타이포그래피 입력란 업데이트
     function updateInfoUI() {
         const infoEl = document.getElementById("monitor-layout-info");
-        if (!infoEl) return;
         const cur = monitorSettings.currentBox || {};
         const nxt = monitorSettings.nextBox || {};
-        infoEl.innerHTML = `
-            🔴 <strong>CURRENT:</strong> X: ${cur.leftPct}% Y: ${cur.topPct}% W: ${cur.widthPct}% H: ${cur.heightPct}% Font: ${cur.fontSize}px<br>
-            🔵 <strong>NEXT:</strong> X: ${nxt.leftPct}% Y: ${nxt.topPct}% W: ${nxt.widthPct}% H: ${nxt.heightPct}% Font: ${nxt.fontSize}px
-        `;
+
+        if (infoEl) {
+            infoEl.innerHTML = `
+                🔴 <strong>CURRENT:</strong> X: ${cur.leftPct}% Y: ${cur.topPct}% W: ${cur.widthPct}% H: ${cur.heightPct}% Font: ${cur.fontSize}px (${cur.fontWeight || 'bold'})<br>
+                🔵 <strong>NEXT:</strong> X: ${nxt.leftPct}% Y: ${nxt.topPct}% W: ${nxt.widthPct}% H: ${nxt.heightPct}% Font: ${nxt.fontSize}px (${nxt.fontWeight || '600'})
+            `;
+        }
+
+        const curSize = document.getElementById("monitor-cur-fontsize");
+        const curWeight = document.getElementById("monitor-cur-fontweight");
+        const curColor = document.getElementById("monitor-cur-textcolor");
+        const curAlign = document.getElementById("monitor-cur-align");
+        if (curSize) curSize.value = cur.fontSize || 28;
+        if (curWeight) curWeight.value = cur.fontWeight || "bold";
+        if (curColor) curColor.value = cur.textColor || "#ffffff";
+        if (curAlign) curAlign.value = cur.textAlign || "center";
+
+        const nxtSize = document.getElementById("monitor-nxt-fontsize");
+        const nxtWeight = document.getElementById("monitor-nxt-fontweight");
+        const nxtColor = document.getElementById("monitor-nxt-textcolor");
+        const nxtAlign = document.getElementById("monitor-nxt-align");
+        if (nxtSize) nxtSize.value = nxt.fontSize || 22;
+        if (nxtWeight) nxtWeight.value = nxt.fontWeight || "600";
+        if (nxtColor) nxtColor.value = nxt.textColor || "#a0a0a0";
+        if (nxtAlign) nxtAlign.value = nxt.textAlign || "center";
     }
 
     // 6. 초기화
@@ -301,10 +321,10 @@
             if (targetId === "btn-reset-monitor-layout") {
                 if (confirm("무대 모니터 레이아웃을 기본값으로 초기화하시겠습니까?")) {
                     monitorSettings.currentBox = {
-                        leftPct: 5.0, topPct: 5.0, widthPct: 90.0, heightPct: 42.0, fontSize: 28, textColor: "#FFFFFF", bgColor: "transparent", isTransparentBg: true
+                        leftPct: 5.0, topPct: 5.0, widthPct: 90.0, heightPct: 42.0, fontSize: 28, textColor: "#FFFFFF", bgColor: "transparent", isTransparentBg: true, fontWeight: "bold", fontFamily: "Inter", textAlign: "center"
                     };
                     monitorSettings.nextBox = {
-                        leftPct: 5.0, topPct: 51.0, widthPct: 90.0, heightPct: 42.0, fontSize: 22, textColor: "#A0A0A0", bgColor: "transparent", isTransparentBg: true
+                        leftPct: 5.0, topPct: 51.0, widthPct: 90.0, heightPct: 42.0, fontSize: 22, textColor: "#A0A0A0", bgColor: "transparent", isTransparentBg: true, fontWeight: "600", fontFamily: "Inter", textAlign: "center"
                     };
                     saveMonitorSettings();
                     if (isMonitorMode) {
@@ -326,6 +346,31 @@
                 }
             }
         });
+
+        // 타이포그래피 설정 변경 이벤트 바인딩
+        const bindInput = (id, key, subKey) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const handler = () => {
+                if (!monitorSettings[key]) monitorSettings[key] = {};
+                let val = el.value;
+                if (subKey === 'fontSize') val = parseInt(val, 10) || 28;
+                monitorSettings[key][subKey] = val;
+                saveMonitorSettings();
+            };
+            el.addEventListener("change", handler);
+            el.addEventListener("input", handler);
+        };
+
+        bindInput("monitor-cur-fontsize", "currentBox", "fontSize");
+        bindInput("monitor-cur-fontweight", "currentBox", "fontWeight");
+        bindInput("monitor-cur-textcolor", "currentBox", "textColor");
+        bindInput("monitor-cur-align", "currentBox", "textAlign");
+
+        bindInput("monitor-nxt-fontsize", "nextBox", "fontSize");
+        bindInput("monitor-nxt-fontweight", "nextBox", "fontWeight");
+        bindInput("monitor-nxt-textcolor", "nextBox", "textColor");
+        bindInput("monitor-nxt-align", "nextBox", "textAlign");
     }
 
     if (document.readyState === 'loading') {

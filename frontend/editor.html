@@ -555,6 +555,68 @@
                             <div id="pip-preview-current-text" style="font-size: 0.75rem; color: #ffffff; text-align: center; margin-top: 12px; max-height: 45%; overflow: hidden; text-overflow: ellipsis;">🔴 CURRENT 슬라이드 예시</div>
                             <div id="pip-preview-next-text" style="font-size: 0.68rem; color: #a0a0a0; text-align: center; margin-top: 4px; max-height: 35%; overflow: hidden; text-overflow: ellipsis;">🔵 NEXT 슬라이드 예시</div>
                         </div>
+                        <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+                            <div style="font-weight: 600; font-size: 0.8rem; color: #ef4444;">🔴 CURRENT 텍스트 타이포그래피</div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.75rem;">
+                                <div>
+                                    <label style="color:#a0a0a0; display:block; margin-bottom:2px;">크기 (px)</label>
+                                    <input type="number" id="monitor-cur-fontsize" min="10" max="200" value="28" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--panel-border); color:#fff; padding:4px 6px; border-radius:4px; box-sizing:border-box;">
+                                </div>
+                                <div>
+                                    <label style="color:#a0a0a0; display:block; margin-bottom:2px;">두께 (Weight)</label>
+                                    <select id="monitor-cur-fontweight" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--panel-border); color:#fff; padding:4px 6px; border-radius:4px; box-sizing:border-box;">
+                                        <option value="normal">Normal</option>
+                                        <option value="600">Semi-Bold</option>
+                                        <option value="bold" selected>Bold</option>
+                                        <option value="900">Black</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="color:#a0a0a0; display:block; margin-bottom:2px;">글자 색상</label>
+                                    <input type="color" id="monitor-cur-textcolor" value="#ffffff" style="width:100%; height:28px; background:none; border:1px solid var(--panel-border); border-radius:4px; cursor:pointer; box-sizing:border-box;">
+                                </div>
+                                <div>
+                                    <label style="color:#a0a0a0; display:block; margin-bottom:2px;">정렬</label>
+                                    <select id="monitor-cur-align" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--panel-border); color:#fff; padding:4px 6px; border-radius:4px; box-sizing:border-box;">
+                                        <option value="left">좌측</option>
+                                        <option value="center" selected>중앙</option>
+                                        <option value="right">우측</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+                            <div style="font-weight: 600; font-size: 0.8rem; color: #3b82f6;">🔵 NEXT 텍스트 타이포그래피</div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.75rem;">
+                                <div>
+                                    <label style="color:#a0a0a0; display:block; margin-bottom:2px;">크기 (px)</label>
+                                    <input type="number" id="monitor-nxt-fontsize" min="10" max="200" value="22" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--panel-border); color:#fff; padding:4px 6px; border-radius:4px; box-sizing:border-box;">
+                                </div>
+                                <div>
+                                    <label style="color:#a0a0a0; display:block; margin-bottom:2px;">두께 (Weight)</label>
+                                    <select id="monitor-nxt-fontweight" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--panel-border); color:#fff; padding:4px 6px; border-radius:4px; box-sizing:border-box;">
+                                        <option value="normal">Normal</option>
+                                        <option value="600" selected>Semi-Bold</option>
+                                        <option value="bold">Bold</option>
+                                        <option value="900">Black</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="color:#a0a0a0; display:block; margin-bottom:2px;">글자 색상</label>
+                                    <input type="color" id="monitor-nxt-textcolor" value="#a0a0a0" style="width:100%; height:28px; background:none; border:1px solid var(--panel-border); border-radius:4px; cursor:pointer; box-sizing:border-box;">
+                                </div>
+                                <div>
+                                    <label style="color:#a0a0a0; display:block; margin-bottom:2px;">정렬</label>
+                                    <select id="monitor-nxt-align" style="width:100%; background:rgba(255,255,255,0.05); border:1px solid var(--panel-border); color:#fff; padding:4px 6px; border-radius:4px; box-sizing:border-box;">
+                                        <option value="left">좌측</option>
+                                        <option value="center" selected>중앙</option>
+                                        <option value="right">우측</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
                         <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
                             <div style="font-weight: 600; font-size: 0.8rem; color: var(--text-main);">📐 실시간 정규화 좌표 정보</div>
                             <div id="monitor-layout-info" style="font-family: monospace; font-size: 0.72rem; color: #cbd5e1; line-height: 1.6;">

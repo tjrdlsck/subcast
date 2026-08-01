@@ -68,6 +68,30 @@ def test_update_monitor_settings_api_success():
     assert settings["layoutMode"] == "split_horizontal"
     assert settings["currentBox"]["fontSize"] == 32
 
+def test_update_monitor_settings_api_typography():
+    payload = {
+        "currentBox": {
+            "fontSize": 36,
+            "fontWeight": "900",
+            "textColor": "#FF0000",
+            "textAlign": "left"
+        },
+        "nextBox": {
+            "fontSize": 24,
+            "fontWeight": "normal",
+            "textColor": "#00FF00",
+            "textAlign": "right"
+        }
+    }
+    response = client.put("/api/v1/monitor/settings", json=payload)
+    assert response.status_code == 200
+    get_res = client.get("/api/v1/monitor/settings")
+    settings = get_res.json()["data"]
+    assert settings["currentBox"]["fontWeight"] == "900"
+    assert settings["currentBox"]["textAlign"] == "left"
+    assert settings["nextBox"]["fontWeight"] == "normal"
+    assert settings["nextBox"]["textAlign"] == "right"
+
 def test_update_monitor_settings_api_invalid_bounds():
     payload = {
         "currentBox": {

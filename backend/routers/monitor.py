@@ -15,6 +15,9 @@ class MonitorBoxSchema(BaseModel):
     textColor: Optional[str] = "#FFFFFF"
     bgColor: Optional[str] = "transparent"
     isTransparentBg: Optional[bool] = True
+    fontWeight: Optional[str] = "bold"
+    fontFamily: Optional[str] = "Inter"
+    textAlign: Optional[str] = "center"
 
 class MonitorSettingsPayload(BaseModel):
     layoutMode: Optional[str] = "custom_canvas"
