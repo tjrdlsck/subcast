@@ -302,6 +302,7 @@
         saveMonitorSettings,
         enterMonitorMode,
         exitMonitorMode,
-        getSettings: () => monitorSettings
+        getSettings: () => monitorSettings,
+        isMonitorMode: () => isMonitorMode
     };
 })();

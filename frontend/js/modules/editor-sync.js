@@ -44,6 +44,7 @@
 
 
         function triggerAutoSave() {
+            if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) return;
             if (!activeSlideId || !projectData) return;
 
             if (!navigator.onLine) {
@@ -69,6 +70,7 @@
 
 
         function performAutoSave() {
+            if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) return;
             if (!activeSlideId || !projectData) return;
             const slide = projectData.slides.find(s => s.id === activeSlideId);
             if (!slide) return;

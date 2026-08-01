@@ -250,6 +250,14 @@
         }
 
         function selectSlideForEdit(slideId, force = false) {
+            if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) {
+                if (window.subcastMonitorEditor.exitMonitorMode) {
+                    window.subcastMonitorEditor.exitMonitorMode();
+                }
+                if (typeof window.switchLeftTab === 'function') {
+                    window.switchLeftTab('panel-slides');
+                }
+            }
             if (activeSlideId === slideId && !force) {
                 if (!selectedSlideIds || selectedSlideIds.length === 0) {
                     selectedSlideIds = [slideId];
@@ -278,6 +286,7 @@
 
 
         function saveSlideData() {
+            if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) return;
             if (!activeSlideId || !projectData) return;
             const slide = projectData.slides.find(s => s.id === activeSlideId);
 

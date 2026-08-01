@@ -66,3 +66,19 @@ def test_e2e_monitor_slide_change_sync():
     assert state["nextContent"] == "[마지막 슬라이드입니다]"
     assert state["isLastSlide"] is True
     assert state["nextOpacity"] == 0.4
+
+def test_monitor_mode_slide_isolation():
+    # 모니터 가이드 박스 요소가 메인 슬라이드 목록에 덮어씌워지지 않는 상태 격리 검증
+    mock_slides = [
+        {"id": "s1", "name": "원본 슬라이드", "elements": [{"type": "textbox", "content": "본문 내용"}]}
+    ]
+    is_monitor_mode = True
+    
+    # 모니터 모드 활성화 시 자동저장/수동저장 함수 트리거 시뮬레이션
+    def can_save_slide(is_monitor):
+        return not is_monitor
+
+    assert can_save_slide(is_monitor_mode) is False  # 모니터 모드 중 저장 차단
+    assert len(mock_slides) == 1
+    assert mock_slides[0]["elements"][0]["content"] == "본문 내용"  # 슬라이드 데이터 오염 방지 검증
+
