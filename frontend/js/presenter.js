@@ -328,7 +328,9 @@
                         type: "SELECT_STAGE_BACKGROUND_BY_MOOD",
                         slideMood: targetSlide.mood || (targetSlide.moods && targetSlide.moods[0]) || "기본/일반",
                         slideMoods: targetSlide.moods || (targetSlide.mood ? [targetSlide.mood] : ["기본/일반"]),
-                        overrideBgId: targetSlide.overrideBgId || null
+                        overrideBgId: targetSlide.overrideBgId || null,
+                        praiseGroupId: targetSlide.praiseGroupId || null,
+                        songTitle: targetSlide.songTitle || null
                     }));
                 }
             }

@@ -23,6 +23,7 @@ from backend.schemas import ProjectData, SystemSettings, Slide, ProjectCreateReq
 from backend.services.mood_matching import select_stage_background
 
 stage_bg_history_queue = []
+song_stage_bg_cache = {}
 from backend.storage import (
     load_project_data, save_project_data, list_projects,
     create_project, update_project_name, delete_project, get_active_project_id, set_active_project_id,
@@ -1396,6 +1397,10 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
             elif msg_type == "SELECT_STAGE_BACKGROUND_BY_MOOD":
                 slide_moods = message.get("slideMoods", [])
                 override_bg_id = message.get("overrideBgId")
+                praise_group_id = message.get("praiseGroupId")
+                song_title = message.get("songTitle")
+                song_key = praise_group_id or song_title
+
                 bg_library = getattr(manager.project_data.settings, "stageBgLibrary", []) if manager.project_data and manager.project_data.settings else []
                 if not bg_library:
                     meta = load_bg_meta()
@@ -1410,12 +1415,20 @@ async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., patter
                             "thumbnailUrl": item_meta.get("thumbnailUrl", "")
                         })
                 
+                if not override_bg_id and song_key and song_key in song_stage_bg_cache:
+                    cached_bg_id = song_stage_bg_cache[song_key]
+                    if any((bg.get("id") == cached_bg_id or bg.get("name") == cached_bg_id) for bg in bg_library):
+                        override_bg_id = cached_bg_id
+
                 bg_data = select_stage_background(
                     slide_moods=slide_moods,
                     override_bg_id=override_bg_id,
                     bg_library=bg_library,
                     history_queue=stage_bg_history_queue
                 )
+                
+                if song_key and bg_data.get("id"):
+                    song_stage_bg_cache[song_key] = bg_data.get("id")
                 
                 if manager.project_data and manager.project_data.settings:
                     setattr(manager.project_data.settings, "stageBackground", bg_data)

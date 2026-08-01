@@ -10,8 +10,8 @@
 
 ## Active Change Unit
 
-- Change ID: `CHG-013-fix-text-shadow-and-clipboard-selection-copy`
-- Target Feature: 글자 그림자 효과 체크박스/컨트롤 연동 및 화면 텍스트 선택 복사(Ctrl+C) 정상화
+- Change ID: `CHG-014-fix-stage-bg-tag-matching`
+- Target Feature: 현장 배경 분위기 태그 정규화/매칭 고도화 및 한 곡 전체 슬라이드 동일 배경 유지 보장
 
 ## Change Workflow State
 
@@ -27,11 +27,14 @@
 ## Scope Boundaries
 
 - **Allowed Scope**:
-  - `frontend/js/modules/editor-init.js`
-  - `frontend/js/modules/editor-history.js`
+  - `backend/services/mood_matching.py`
+  - `backend/main.py`
+  - `frontend/js/modules/editor-praise.js`
+  - `frontend/js/modules/editor-stage-bg.js`
   - `frontend/js/presenter.js`
-  - `frontend/js/viewer.js`
-  - `docs/changes/CHG-013-fix-text-shadow-and-clipboard-selection-copy/`
+  - `tests/test_mood_matching.py`
+  - `tests/test_praise_fixed_background.py`
+  - `docs/changes/CHG-014-fix-stage-bg-tag-matching/`
   - `docs/project-state.md`
 - **Protected Scope**:
   - `backend/`
@@ -47,7 +50,7 @@
 
 ## Confirmed Decisions
 
-- CHG-001 ~ CHG-013 완료
+- CHG-001 ~ CHG-014 완료
 
 ## Open Questions
 
@@ -55,5 +58,5 @@
 
 ## Change History
 
-- 2026-08-01: CHG-001 ~ CHG-012 완료
-- 2026-08-01: CHG-013-fix-text-shadow-and-clipboard-selection-copy 완료 (글자 그림자 효과 적용 체크박스/컨트롤 연동 및 화면 드래그 텍스트 선택 복사(Ctrl+C) 정상화)
+- 2026-08-01: CHG-001 ~ CHG-013 완료
+- 2026-08-01: CHG-014-fix-stage-bg-tag-matching 완료 (현장 배경 분위기 태그 정규화/매칭 고도화 및 한 곡 전체 슬라이드 동일 배경 유지 보장)

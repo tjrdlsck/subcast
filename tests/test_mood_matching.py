@@ -94,3 +94,28 @@ def test_slide_schema_defaults():
     assert slide.moods == []
     assert slide.overrideBgId is None
 
+def test_tag_normalization_matching():
+    bg_library = [
+        {"id": "bg_praise", "name": "찬양영상", "url": "/praise.mp4", "moods": ["#경배/찬양 "]}
+    ]
+    res = select_stage_background(
+        slide_moods=["경배/찬양"],
+        override_bg_id=None,
+        bg_library=bg_library
+    )
+    assert res["id"] == "bg_praise"
+
+def test_strict_tag_candidate_no_fallback():
+    bg_library = [
+        {"id": "bg_default", "name": "기본영상", "url": "/default.mp4", "isDefault": True, "mood": "기본/일반"},
+        {"id": "bg_praise", "name": "찬양영상", "url": "/praise.mp4", "mood": "경배/찬양"}
+    ]
+    # 곡 태그가 "경배/찬양"인 경우, 기본 영상이 있더라도 반드시 "bg_praise"만 선택되어야 함
+    for _ in range(5):
+        res = select_stage_background(
+            slide_moods=["경배/찬양"],
+            bg_library=bg_library
+        )
+        assert res["id"] == "bg_praise"
+
+

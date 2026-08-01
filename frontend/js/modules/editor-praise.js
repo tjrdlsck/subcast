@@ -627,23 +627,46 @@
 
                 if (!bgList || bgList.length === 0) return null;
 
-                const targetMood = songMood ? songMood.trim() : "기본/일반";
+                const normalizeTag = (str) => {
+                    if (!str) return "";
+                    let s = String(str).trim();
+                    if (s.startsWith("#")) s = s.slice(1).trim();
+                    return s.toLowerCase();
+                };
+
+                const extractTags = (val) => {
+                    if (!val) return [];
+                    const arr = Array.isArray(val) ? val : [val];
+                    const res = [];
+                    arr.forEach(item => {
+                        const norm = normalizeTag(item);
+                        if (norm && !res.includes(norm)) res.push(norm);
+                    });
+                    return res;
+                };
+
+                const targetTags = extractTags(songMood);
 
                 // 1차: 태그가 일치하는 배경 후보
-                const matchingCandidates = bgList.filter(bg => {
-                    const bgMood = bg.mood || bg.tag;
-                    const bgMoods = bg.moods || (bgMood ? [bgMood] : []);
-                    return bgMood === targetMood || bgMoods.includes(targetMood);
-                });
+                let matchingCandidates = [];
+                if (targetTags.length > 0) {
+                    matchingCandidates = bgList.filter(bg => {
+                        const rawBgMoods = [bg.mood, bg.tag, ...(Array.isArray(bg.moods) ? bg.moods : [bg.moods])];
+                        const bgTags = extractTags(rawBgMoods);
+                        return targetTags.some(t => bgTags.includes(t));
+                    });
+                }
 
                 let chosenBg = null;
                 if (matchingCandidates.length > 0) {
                     chosenBg = matchingCandidates[Math.floor(Math.random() * matchingCandidates.length)];
                 } else {
                     // 2차: 기본/일반 후보
-                    const defaultCandidates = bgList.filter(bg =>
-                        bg.isDefault || bg.is_default || bg.mood === "기본/일반" || (bg.moods && bg.moods.includes("기본/일반"))
-                    );
+                    const defaultCandidates = bgList.filter(bg => {
+                        if (bg.isDefault || bg.is_default) return true;
+                        const bgTags = extractTags([bg.mood, bg.tag, ...(Array.isArray(bg.moods) ? bg.moods : [bg.moods])]);
+                        return bgTags.includes("기본/일반");
+                    });
                     if (defaultCandidates.length > 0) {
                         chosenBg = defaultCandidates[Math.floor(Math.random() * defaultCandidates.length)];
                     } else {
