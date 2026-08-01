@@ -301,7 +301,7 @@
             }
         };
 
-        // 저장 / 초기화 / 팝업 버튼 이벤트
+        // 저장 / 초기화 버튼 이벤트
         document.addEventListener("click", (e) => {
             const targetId = e.target ? e.target.id : "";
             if (targetId === "btn-save-monitor-layout") {
@@ -322,9 +322,6 @@
                         enterMonitorMode();
                     }
                 }
-            }
-            if (targetId === "btn-open-monitor-window") {
-                window.open("/static/monitor.html", "SubcastStageMonitor", "width=1280,height=720,resizable=yes");
             }
         });
     }
