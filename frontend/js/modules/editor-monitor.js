@@ -118,9 +118,12 @@
     }
 
     // 3. 모니터 탭 진입시 텍스트박스 배치 (🔴 CURRENT / 🔵 NEXT)
-    function enterMonitorMode() {
+    async function enterMonitorMode() {
         if (!canvas) return;
         isMonitorMode = true;
+
+        // 저장을 안 누르고 이탈했다가 들어온 경우를 위해 마지막 저장된 설정 재로드
+        await loadMonitorSettings();
 
         clearMonitorGuideBoxes();
         canvas.clear();
@@ -185,8 +188,11 @@
     // 4. 모니터 탭 이탈 시 가이드 해제 및 슬라이드 복원
     function exitMonitorMode() {
         if (!isMonitorMode) return;
-        isMonitorMode = false;
+        
+        // 🔴 중요: clearMonitorGuideBoxes()를 isMonitorMode=true인 상태에서 먼저 실행해야
+        // 캔버스 object:removed 이벤트 발생 시 saveStateToHistory의 모니터 가드에 걸려 슬라이드 오토세이브 덮어쓰기가 방지됨!
         clearMonitorGuideBoxes();
+        isMonitorMode = false;
 
         if (canvas) {
             canvas.off('object:modified', handleGuideModified);
@@ -256,15 +262,15 @@
         updateBox(nextGuideBox, 'nextBox');
     }
 
-    // 5. 캔버스 이벤트 정규화 계산
+    // 5. 캔버스 이벤트 정규화 계산 (실시간 미리보기만 업데이트, 저장 버튼 클릭 전까지 서버 저장 금지)
     function handleGuideModified(e) {
         const target = e.target;
         if (!target || !target.isMonitorGuide || !target.boxType) return;
         syncCanvasToMonitorSettings();
-        saveMonitorSettings();
+        updateInfoUI();
     }
 
-    // UI 정보 및 타이포그래피 입력란 업데이트
+    // UI 정보 업데이트
     function updateInfoUI() {
         const infoEl = document.getElementById("monitor-layout-info");
         const cur = monitorSettings.currentBox || {};
@@ -276,54 +282,11 @@
                 🔵 <strong>NEXT:</strong> X: ${nxt.leftPct}% Y: ${nxt.topPct}% W: ${nxt.widthPct}% H: ${nxt.heightPct}% Font: ${nxt.fontSize}px (${nxt.fontWeight || '600'})
             `;
         }
-
-        // 현재 사용자가 입력 중(포커스)인 input 요소는 값 덮어쓰기 방지
-        const active = document.activeElement;
-
-        const setValIfNotActive = (id, val) => {
-            const el = document.getElementById(id);
-            if (el && el !== active) {
-                el.value = val;
-            }
-        };
-
-        setValIfNotActive("monitor-cur-fontsize", cur.fontSize || 28);
-        setValIfNotActive("monitor-cur-fontweight", cur.fontWeight || "bold");
-        setValIfNotActive("monitor-cur-textcolor", cur.textColor || "#ffffff");
-        setValIfNotActive("monitor-cur-align", cur.textAlign || "center");
-
-        setValIfNotActive("monitor-nxt-fontsize", nxt.fontSize || 22);
-        setValIfNotActive("monitor-nxt-fontweight", nxt.fontWeight || "600");
-        setValIfNotActive("monitor-nxt-textcolor", nxt.textColor || "#a0a0a0");
-        setValIfNotActive("monitor-nxt-align", nxt.textAlign || "center");
     }
 
     // 6. 초기화
     function initEditorMonitor() {
         loadMonitorSettings();
-
-        // PIP 미니 미리보기 뷰포트 실시간 동기화 수신기
-        if (window.BroadcastChannel) {
-            try {
-                const bc = new BroadcastChannel("subcast_monitor_channel");
-                bc.onmessage = (event) => {
-                    const data = event.data;
-                    if (!data) return;
-                    if (data.type === "SLIDE_CHANGE") {
-                        const curEl = document.getElementById("pip-preview-current-text");
-                        const nxtEl = document.getElementById("pip-preview-next-text");
-                        if (curEl && data.currentContent !== undefined) {
-                            curEl.textContent = "🔴 " + (data.currentContent || "(빈 슬라이드)");
-                        }
-                        if (nxtEl && data.nextContent !== undefined) {
-                            nxtEl.textContent = "🔵 " + (data.nextContent || "(마지막 슬라이드)");
-                        }
-                    }
-                };
-            } catch (e) {
-                console.error("Failed to initialize BroadcastChannel listener for PIP preview", e);
-            }
-        }
 
         // 탭 변경 리스너
         const originalSwitchLeftTab = window.switchLeftTab;
@@ -338,7 +301,7 @@
             }
         };
 
-        // 저장 / 초기화 / 팝업 / 전체화면 버튼 이벤트
+        // 저장 / 초기화 / 팝업 버튼 이벤트
         document.addEventListener("click", (e) => {
             const targetId = e.target ? e.target.id : "";
             if (targetId === "btn-save-monitor-layout") {
@@ -362,16 +325,6 @@
             }
             if (targetId === "btn-open-monitor-window") {
                 window.open("/static/monitor.html", "SubcastStageMonitor", "width=1280,height=720,resizable=yes");
-            }
-            if (targetId === "btn-fullscreen-monitor") {
-                const previewBox = document.getElementById("pip-monitor-preview-box");
-                if (previewBox) {
-                    if (document.fullscreenElement) {
-                        document.exitFullscreen();
-                    } else if (previewBox.requestFullscreen) {
-                        previewBox.requestFullscreen();
-                    }
-                }
             }
         });
     }
