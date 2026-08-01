@@ -497,7 +497,7 @@
                 curCard.style.top = `${(cur.topPct / 100) * screenH}px`;
                 curCard.style.width = `${(cur.widthPct / 100) * screenW}px`;
                 curCard.style.height = `${(cur.heightPct / 100) * screenH}px`;
-                const fontSize = Math.round((cur.fontSize || 28) * (screenW / 1920));
+                const fontSize = Math.round((cur.fontSize || 28) * (screenW / 768));
                 if (curText) {
                     curText.style.fontSize = `${fontSize}px`;
                     if (cur.textColor) curText.style.color = cur.textColor;
@@ -516,7 +516,7 @@
                 nxtCard.style.top = `${(nxt.topPct / 100) * screenH}px`;
                 nxtCard.style.width = `${(nxt.widthPct / 100) * screenW}px`;
                 nxtCard.style.height = `${(nxt.heightPct / 100) * screenH}px`;
-                const fontSize = Math.round((nxt.fontSize || 22) * (screenW / 1920));
+                const fontSize = Math.round((nxt.fontSize || 22) * (screenW / 768));
                 if (nxtText) {
                     nxtText.style.fontSize = `${fontSize}px`;
                     if (nxt.textColor) nxtText.style.color = nxt.textColor;

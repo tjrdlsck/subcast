@@ -235,13 +235,16 @@
             const fillColor = typeof boxObj.fill === 'string' ? boxObj.fill : '#ffffff';
             const hexColor = colorToHex(fillColor);
 
+            const baseFontSize = boxObj.fontSize || (boxKey === 'currentBox' ? 28 : 22);
+            const effectiveFontSize = Math.round(baseFontSize * (boxObj.scaleY || 1));
+
             monitorSettings[boxKey] = {
                 ...monitorSettings[boxKey],
                 leftPct: parseFloat(leftPct.toFixed(2)),
                 topPct: parseFloat(topPct.toFixed(2)),
                 widthPct: parseFloat(widthPct.toFixed(2)),
                 heightPct: parseFloat(heightPct.toFixed(2)),
-                fontSize: Math.round(boxObj.fontSize || (boxKey === 'currentBox' ? 28 : 22)),
+                fontSize: effectiveFontSize,
                 textColor: hexColor,
                 fontWeight: boxObj.fontWeight || (boxKey === 'currentBox' ? "bold" : "600"),
                 fontFamily: boxObj.fontFamily || "Inter",
