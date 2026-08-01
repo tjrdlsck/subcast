@@ -255,6 +255,29 @@
     function initEditorMonitor() {
         loadMonitorSettings();
 
+        // PIP 미니 미리보기 뷰포트 실시간 동기화 수신기
+        if (window.BroadcastChannel) {
+            try {
+                const bc = new BroadcastChannel("subcast_monitor_channel");
+                bc.onmessage = (event) => {
+                    const data = event.data;
+                    if (!data) return;
+                    if (data.type === "SLIDE_CHANGE") {
+                        const curEl = document.getElementById("pip-preview-current-text");
+                        const nxtEl = document.getElementById("pip-preview-next-text");
+                        if (curEl && data.currentContent !== undefined) {
+                            curEl.textContent = "🔴 " + (data.currentContent || "(빈 슬라이드)");
+                        }
+                        if (nxtEl && data.nextContent !== undefined) {
+                            nxtEl.textContent = "🔵 " + (data.nextContent || "(마지막 슬라이드)");
+                        }
+                    }
+                };
+            } catch (e) {
+                console.error("Failed to initialize BroadcastChannel listener for PIP preview", e);
+            }
+        }
+
         // 탭 변경 리스너
         const originalSwitchLeftTab = window.switchLeftTab;
         window.switchLeftTab = function (targetPanelId) {
