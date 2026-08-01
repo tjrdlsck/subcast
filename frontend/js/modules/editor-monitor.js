@@ -85,6 +85,38 @@
         updateInfoUI();
     }
 
+    // 슬라이드 데이터에서 첫 슬라이드 또는 현재 선택 슬라이드 텍스트 추출
+    function getInitialSlideTexts() {
+        if (typeof projectData !== 'undefined' && projectData && projectData.slides && projectData.slides.length > 0) {
+            const activeIdx = typeof activeSlideId !== 'undefined' && activeSlideId 
+                ? projectData.slides.findIndex(s => s.id === activeSlideId) 
+                : 0;
+            const curIdx = activeIdx !== -1 ? activeIdx : 0;
+            const curSlide = projectData.slides[curIdx];
+            const nextSlide = (curIdx + 1 < projectData.slides.length) ? projectData.slides[curIdx + 1] : null;
+
+            const extractText = (slide) => {
+                if (!slide || !slide.elements) return "";
+                return slide.elements
+                    .filter(e => e.type === "text" || e.type === "i-text" || e.type === "textbox")
+                    .map(e => e.content || "")
+                    .filter(Boolean)
+                    .join("\n");
+            };
+
+            const curText = curSlide ? (extractText(curSlide) || curSlide.name || `슬라이드 ${curIdx + 1}`) : "";
+            const nextText = (curIdx + 1 >= projectData.slides.length) 
+                ? "[마지막 슬라이드입니다]" 
+                : (nextSlide ? (extractText(nextSlide) || nextSlide.name || `슬라이드 ${curIdx + 2}`) : "");
+
+            return { curText, nextText };
+        }
+        return {
+            curText: "🔴 현재 슬라이드 내용이 여기에 표시됩니다",
+            nextText: "🔵 다음 슬라이드 내용이 여기에 표시됩니다"
+        };
+    }
+
     // 3. 모니터 탭 진입시 텍스트박스 배치 (🔴 CURRENT / 🔵 NEXT)
     function enterMonitorMode() {
         if (!canvas) return;
@@ -96,9 +128,10 @@
 
         const cur = monitorSettings.currentBox || {};
         const nxt = monitorSettings.nextBox || {};
+        const { curText, nextText } = getInitialSlideTexts();
 
-        // 🔴 CURRENT 텍스트박스 (플레이스홀더)
-        currentGuideBox = new fabric.Textbox("🔴 현재 슬라이드 내용이 여기에 표시됩니다", {
+        // 🔴 CURRENT 텍스트박스
+        currentGuideBox = new fabric.Textbox(curText, {
             left: (cur.leftPct / 100) * BASE_W,
             top: (cur.topPct / 100) * BASE_H,
             width: (cur.widthPct / 100) * BASE_W,
@@ -117,8 +150,8 @@
             boxType: 'currentBox'
         });
 
-        // 🔵 NEXT 텍스트박스 (플레이스홀더)
-        nextGuideBox = new fabric.Textbox("🔵 다음 슬라이드 내용이 여기에 표시됩니다", {
+        // 🔵 NEXT 텍스트박스
+        nextGuideBox = new fabric.Textbox(nextText, {
             left: (nxt.leftPct / 100) * BASE_W,
             top: (nxt.topPct / 100) * BASE_H,
             width: (nxt.widthPct / 100) * BASE_W,
@@ -142,6 +175,8 @@
 
         // 이벤트 바인딩
         canvas.on('object:modified', handleGuideModified);
+        canvas.on('object:moving', handleGuideModified);
+        canvas.on('object:scaling', handleGuideModified);
 
         canvas.renderAll();
         updateInfoUI();
@@ -155,6 +190,8 @@
 
         if (canvas) {
             canvas.off('object:modified', handleGuideModified);
+            canvas.off('object:moving', handleGuideModified);
+            canvas.off('object:scaling', handleGuideModified);
         }
 
         if (typeof renderSlide === 'function' && typeof activeSlideId !== 'undefined' && activeSlideId) {
@@ -169,26 +206,37 @@
         guides.forEach(g => canvas.remove(g));
     }
 
+    // 캔버스 객체 좌표를 monitorSettings 객체에 동기화
+    function syncCanvasToMonitorSettings() {
+        if (!isMonitorMode || !canvas) return;
+        const updateBox = (boxObj, boxKey) => {
+            if (!boxObj) return;
+            const actualW = boxObj.width * (boxObj.scaleX || 1);
+            const actualH = boxObj.height * (boxObj.scaleY || 1);
 
-    // 5. 캔버스 이벤트 정규화 계산 (Textbox: width와 위치만 저장)
+            let leftPct = clamp((boxObj.left / BASE_W) * 100, 0, 95);
+            let topPct = clamp((boxObj.top / BASE_H) * 100, 0, 95);
+            let widthPct = clamp((actualW / BASE_W) * 100, 5, 100 - leftPct);
+            let heightPct = clamp((actualH / BASE_H) * 100, 5, 100 - topPct);
+
+            monitorSettings[boxKey] = {
+                ...monitorSettings[boxKey],
+                leftPct: parseFloat(leftPct.toFixed(2)),
+                topPct: parseFloat(topPct.toFixed(2)),
+                widthPct: parseFloat(widthPct.toFixed(2)),
+                heightPct: parseFloat(heightPct.toFixed(2))
+            };
+        };
+
+        updateBox(currentGuideBox, 'currentBox');
+        updateBox(nextGuideBox, 'nextBox');
+    }
+
+    // 5. 캔버스 이벤트 정규화 계산
     function handleGuideModified(e) {
         const target = e.target;
         if (!target || !target.isMonitorGuide || !target.boxType) return;
-
-        const boxKey = target.boxType;
-        const actualW = target.width * (target.scaleX || 1);
-
-        let leftPct = clamp((target.left / BASE_W) * 100, 0, 95);
-        let topPct = clamp((target.top / BASE_H) * 100, 0, 95);
-        let widthPct = clamp((actualW / BASE_W) * 100, 5, 100 - leftPct);
-
-        monitorSettings[boxKey] = {
-            ...monitorSettings[boxKey],
-            leftPct: parseFloat(leftPct.toFixed(2)),
-            topPct: parseFloat(topPct.toFixed(2)),
-            widthPct: parseFloat(widthPct.toFixed(2))
-        };
-
+        syncCanvasToMonitorSettings();
         saveMonitorSettings();
     }
 
@@ -205,23 +253,25 @@
             `;
         }
 
-        const curSize = document.getElementById("monitor-cur-fontsize");
-        const curWeight = document.getElementById("monitor-cur-fontweight");
-        const curColor = document.getElementById("monitor-cur-textcolor");
-        const curAlign = document.getElementById("monitor-cur-align");
-        if (curSize) curSize.value = cur.fontSize || 28;
-        if (curWeight) curWeight.value = cur.fontWeight || "bold";
-        if (curColor) curColor.value = cur.textColor || "#ffffff";
-        if (curAlign) curAlign.value = cur.textAlign || "center";
+        // 현재 사용자가 입력 중(포커스)인 input 요소는 값 덮어쓰기 방지
+        const active = document.activeElement;
 
-        const nxtSize = document.getElementById("monitor-nxt-fontsize");
-        const nxtWeight = document.getElementById("monitor-nxt-fontweight");
-        const nxtColor = document.getElementById("monitor-nxt-textcolor");
-        const nxtAlign = document.getElementById("monitor-nxt-align");
-        if (nxtSize) nxtSize.value = nxt.fontSize || 22;
-        if (nxtWeight) nxtWeight.value = nxt.fontWeight || "600";
-        if (nxtColor) nxtColor.value = nxt.textColor || "#a0a0a0";
-        if (nxtAlign) nxtAlign.value = nxt.textAlign || "center";
+        const setValIfNotActive = (id, val) => {
+            const el = document.getElementById(id);
+            if (el && el !== active) {
+                el.value = val;
+            }
+        };
+
+        setValIfNotActive("monitor-cur-fontsize", cur.fontSize || 28);
+        setValIfNotActive("monitor-cur-fontweight", cur.fontWeight || "bold");
+        setValIfNotActive("monitor-cur-textcolor", cur.textColor || "#ffffff");
+        setValIfNotActive("monitor-cur-align", cur.textAlign || "center");
+
+        setValIfNotActive("monitor-nxt-fontsize", nxt.fontSize || 22);
+        setValIfNotActive("monitor-nxt-fontweight", nxt.fontWeight || "600");
+        setValIfNotActive("monitor-nxt-textcolor", nxt.textColor || "#a0a0a0");
+        setValIfNotActive("monitor-nxt-align", nxt.textAlign || "center");
     }
 
     // 6. 초기화
@@ -268,6 +318,7 @@
         document.addEventListener("click", (e) => {
             const targetId = e.target ? e.target.id : "";
             if (targetId === "btn-save-monitor-layout") {
+                syncCanvasToMonitorSettings();
                 saveMonitorSettings();
                 alert("무대 모니터 레이아웃 설정이 성공적으로 저장되었습니다.");
             }
@@ -304,12 +355,23 @@
         const bindInput = (id, key, subKey) => {
             const el = document.getElementById(id);
             if (!el) return;
-            const handler = () => {
+
+            const updateValue = (isChange = false) => {
                 if (!monitorSettings[key]) monitorSettings[key] = {};
                 let val = el.value;
-                if (subKey === 'fontSize') val = parseInt(val, 10) || 28;
+
+                if (subKey === 'fontSize') {
+                    if (val === "" && !isChange) {
+                        // 사용자가 키보드로 숫자를 다 지우고 입력 중인 순간은 기본값 강제 덮어씌우기 안 함
+                        return;
+                    }
+                    const num = parseInt(val, 10);
+                    val = isNaN(num) ? (key === 'currentBox' ? 28 : 22) : num;
+                }
+
                 monitorSettings[key][subKey] = val;
                 saveMonitorSettings();
+
                 // 모니터 모드 활성 중이면 캔버스 Textbox에 즉시 반영
                 if (isMonitorMode && canvas) {
                     const targetBox = key === 'currentBox' ? currentGuideBox : nextGuideBox;
@@ -320,8 +382,9 @@
                     }
                 }
             };
-            el.addEventListener("change", handler);
-            el.addEventListener("input", handler);
+
+            el.addEventListener("input", () => updateValue(false));
+            el.addEventListener("change", () => updateValue(true));
         };
 
         bindInput("monitor-cur-fontsize", "currentBox", "fontSize");
