@@ -531,9 +531,6 @@
                         <h3>무대 모니터 레이아웃</h3>
                     </div>
                     <div class="panel-body" style="padding: 14px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto;">
-                        <div style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 10px;">
-                            🔴 CURRENT 및 🔵 NEXT 박스를 캔버스에서 직접 이동/리사이즈하여 무대 모니터 화면 배치를 조정하세요.
-                        </div>
                         <div style="display: flex; gap: 8px;">
                             <button type="button" id="btn-save-monitor-layout" style="flex: 1; padding: 8px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border-radius: 4px; background: #3b82f6; color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
                                 💾 설정 저장
@@ -545,21 +542,44 @@
                         <div id="pip-monitor-preview-box" style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000000; border: 1px solid var(--panel-border); border-radius: var(--radius-sm); overflow: hidden;">
                             <iframe id="pip-monitor-iframe" src="/static/monitor.html" style="width: 100%; height: 100%; border: none; pointer-events: none;"></iframe>
                         </div>
-                        <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
-                            <div style="font-weight: 600; font-size: 0.82rem; color: #60a5fa; display: flex; align-items: center; gap: 6px;">
-                                💡 텍스트 스타일 편집 안내
-                            </div>
-                            <div style="font-size: 0.75rem; color: #cbd5e1; line-height: 1.5;">
-                                캔버스의 🔴 <strong>CURRENT</strong> 또는 🔵 <strong>NEXT</strong> 텍스트박스를 클릭하면, <strong>우측 [속성 설정] 패널</strong>에서 글꼴, 크기, 색상, 굵기, 정렬을 직관적으로 변경할 수 있습니다.
-                            </div>
-                        </div>
 
-                        <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--panel-border); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
-                            <div style="font-weight: 600; font-size: 0.8rem; color: var(--text-main);">📐 실시간 정규화 좌표 정보</div>
-                            <div id="monitor-layout-info" style="font-family: monospace; font-size: 0.72rem; color: #cbd5e1; line-height: 1.6;">
-                                🔴 CURRENT: 로딩 중...<br>
-                                🔵 NEXT: 로딩 중...
+                        <!-- 무대 모니터 커스텀 요소 추가 (도형 & 사진) -->
+                        <div class="monitor-tools-section" style="display: flex; flex-direction: column; gap: 12px; margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--panel-border, rgba(255,255,255,0.1));">
+                            <div style="font-size: 0.78rem; font-weight: 600; color: var(--text-heading, #f1f5f9); display: flex; align-items: center; gap: 6px;">
+                                <span>🔷</span> <span>도형 및 사진 요소 추가</span>
                             </div>
+                            
+                            <!-- 도형 버튼 모음 -->
+                            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+                                <button type="button" id="btn-monitor-add-rect" title="직사각형 추가" style="padding: 8px 4px; font-size: 0.72rem; font-weight: 500; border-radius: 6px; background: rgba(255,255,255,0.06); color: #e2e8f0; border: 1px solid var(--panel-border, rgba(255,255,255,0.1)); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all 0.15s ease;">
+                                    <span style="display: inline-block; width: 14px; height: 14px; background: #6366f1; border-radius: 2px;"></span>
+                                    <span>사각형</span>
+                                </button>
+                                <button type="button" id="btn-monitor-add-circle" title="원 추가" style="padding: 8px 4px; font-size: 0.72rem; font-weight: 500; border-radius: 6px; background: rgba(255,255,255,0.06); color: #e2e8f0; border: 1px solid var(--panel-border, rgba(255,255,255,0.1)); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all 0.15s ease;">
+                                    <span style="display: inline-block; width: 14px; height: 14px; background: #06b6d4; border-radius: 50%;"></span>
+                                    <span>원</span>
+                                </button>
+                                <button type="button" id="btn-monitor-add-triangle" title="삼각형 추가" style="padding: 8px 4px; font-size: 0.72rem; font-weight: 500; border-radius: 6px; background: rgba(255,255,255,0.06); color: #e2e8f0; border: 1px solid var(--panel-border, rgba(255,255,255,0.1)); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all 0.15s ease;">
+                                    <span style="width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 14px solid #10b981;"></span>
+                                    <span>삼각형</span>
+                                </button>
+                                <button type="button" id="btn-monitor-add-line" title="선 추가" style="padding: 8px 4px; font-size: 0.72rem; font-weight: 500; border-radius: 6px; background: rgba(255,255,255,0.06); color: #e2e8f0; border: 1px solid var(--panel-border, rgba(255,255,255,0.1)); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all 0.15s ease;">
+                                    <span style="display: inline-block; width: 16px; height: 3px; background: #f59e0b; margin-top: 5px; margin-bottom: 6px;"></span>
+                                    <span>직선</span>
+                                </button>
+                            </div>
+
+                            <!-- 사진 추가 버튼 및 숨겨진 File Input -->
+                            <div style="display: flex; flex-direction: column; gap: 6px;">
+                                <input type="file" id="monitor-image-input" accept="image/*" style="display: none;">
+                                <button type="button" id="btn-monitor-add-image" style="width: 100%; padding: 8px 12px; font-size: 0.76rem; font-weight: 600; cursor: pointer; border-radius: 6px; background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.15s ease;">
+                                    🖼️ 사진/이미지 추가
+                                </button>
+                            </div>
+
+                            <span style="font-size: 0.7rem; color: var(--text-muted, #94a3b8); line-height: 1.35; margin-top: 2px;">
+                                💡 캔버스에서 <kbd style="background: rgba(255,255,255,0.1); padding: 1px 4px; border-radius: 3px;">Ctrl+V</kbd>로 사진 또는 복사한 도형을 자유롭게 붙여넣고 위치시킬 수 있습니다.
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -868,10 +888,18 @@
                 </div>
             </main>
 
+            <!-- 속성 설정 패널 축소 시 나타나는 플로팅 동그라미 아이콘 버튼 -->
+            <button type="button" id="btn-restore-inspector" class="inspector-restore-circle-btn" title="속성 설정 패널 열기" style="display: none;">
+                🎨
+            </button>
+
             <!-- Right Inspector Panel (속성 설정) -->
             <aside class="right-inspector-panel">
                 <div class="panel-header">
                     <h3>속성 설정</h3>
+                    <button type="button" id="btn-minimize-inspector" class="panel-icon-btn" title="속성 설정 패널 접기">
+                        ✕
+                    </button>
                 </div>
                 <div class="inspector-content">
                     <!-- 선택된 개체가 없을 때 -->
@@ -900,9 +928,9 @@
                                 </select>
                             </div>
                             <div class="property-col" style="max-width: 100px;">
-                                <label for="fontsize-editor">크기 (vw)</label>
-                                <input type="number" id="fontsize-editor" class="fontSize-input" value="3" min="0.5"
-                                    max="20" step="0.1" disabled>
+                                <label for="fontsize-editor">크기 (px)</label>
+                                <input type="number" id="fontsize-editor" class="fontSize-input" value="24" min="8"
+                                    max="300" step="1" disabled>
                             </div>
                         </div>
                         <div class="property-row" style="margin-top: -4px;">
@@ -945,18 +973,18 @@
                                 <button class="btn-toggle" id="btn-align-right" title="오른쪽 정렬" disabled>R</button>
                             </div>
                         </div>
-                        <div class="property-row inline"
-                            style="border-top: 1px solid var(--panel-border); padding-top: 12px; margin-top: 12px;">
-                            <div class="property-col">
+                        <div class="property-row"
+                            style="border-top: 1px solid var(--panel-border); padding-top: 12px; margin-top: 12px; display: flex; flex-direction: column; gap: 10px;">
+                            <div class="property-row" style="margin-bottom: 0;">
                                 <label>글자 테두리 색상</label>
-                                <div class="color-picker-wrapper">
+                                <div class="color-picker-wrapper" style="width: 100%;">
                                     <input type="color" id="text-strokecolor" class="fontColor-input" value="#000000"
                                         disabled>
                                     <input type="text" class="color-hex-val" id="text-strokecolor-hex"
                                         value="TRANSPARENT" maxlength="7"
-                                        style="width: 70px; background: transparent; border: 1px solid var(--panel-border); border-radius: 4px; color: #fff; text-align: center; font-size: 0.72rem; height: 20px; outline: none;"
+                                        style="width: 65px; background: transparent; border: 1px solid var(--panel-border); border-radius: 4px; color: #fff; text-align: center; font-size: 0.72rem; height: 20px; outline: none;"
                                         disabled>
-                                    <div style="display: flex; align-items: center; gap: 2px; margin-left: 6px;"
+                                    <div style="display: flex; align-items: center; gap: 3px; margin-left: auto;"
                                         title="투명도(Alpha)">
                                         <input type="range" id="text-strokecolor-opacity" min="0" max="100" value="100"
                                             style="width: 45px; height: 3px; cursor: pointer;" disabled>
@@ -965,10 +993,10 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="property-col" style="max-width: 100px;">
-                                <label for="text-strokewidth">테두리 두께</label>
+                            <div class="property-row" style="margin-bottom: 0;">
+                                <label for="text-strokewidth">테두리 두께 (px)</label>
                                 <input type="number" id="text-strokewidth" class="fontSize-input" value="0" min="0"
-                                    max="10" step="0.5" disabled>
+                                    max="20" step="0.5" disabled>
                             </div>
                         </div>
                         <div class="property-row"
@@ -980,34 +1008,32 @@
                                     그림자 효과 적용</label>
                             </div>
                             <div id="text-shadow-controls"
-                                style="display: flex; flex-direction: column; gap: 8px; opacity: 0.5; pointer-events: none; transition: opacity 0.2s;">
-                                <div class="property-row inline" style="margin-top: 0;">
-                                    <div class="property-col">
-                                        <label>그림자 색상</label>
-                                        <div class="color-picker-wrapper">
-                                            <input type="color" id="text-shadow-color" class="fontColor-input"
-                                                value="#000000" disabled>
-                                            <input type="text" class="color-hex-val" id="text-shadow-color-hex"
-                                                value="#000000" maxlength="7"
-                                                style="width: 70px; background: transparent; border: 1px solid var(--panel-border); border-radius: 4px; color: #fff; text-align: center; font-size: 0.72rem; height: 20px; outline: none;"
+                                style="display: flex; flex-direction: column; gap: 10px; opacity: 0.5; pointer-events: none; transition: opacity 0.2s;">
+                                <div class="property-row" style="margin-bottom: 0;">
+                                    <label>그림자 색상</label>
+                                    <div class="color-picker-wrapper" style="width: 100%;">
+                                        <input type="color" id="text-shadow-color" class="fontColor-input"
+                                            value="#000000" disabled>
+                                        <input type="text" class="color-hex-val" id="text-shadow-color-hex"
+                                            value="#000000" maxlength="7"
+                                            style="width: 65px; background: transparent; border: 1px solid var(--panel-border); border-radius: 4px; color: #fff; text-align: center; font-size: 0.72rem; height: 20px; outline: none;"
+                                            disabled>
+                                        <div style="display: flex; align-items: center; gap: 3px; margin-left: auto;"
+                                            title="투명도(Alpha)">
+                                            <input type="range" id="text-shadow-color-opacity" min="0" max="100"
+                                                value="100" style="width: 45px; height: 3px; cursor: pointer;"
                                                 disabled>
-                                            <div style="display: flex; align-items: center; gap: 2px; margin-left: 6px;"
-                                                title="투명도(Alpha)">
-                                                <input type="range" id="text-shadow-color-opacity" min="0" max="100"
-                                                    value="100" style="width: 45px; height: 3px; cursor: pointer;"
-                                                    disabled>
-                                                <span id="text-shadow-color-opacity-val"
-                                                    style="font-size: 0.6rem; color: var(--text-muted); min-width: 22px;">100%</span>
-                                            </div>
+                                            <span id="text-shadow-color-opacity-val"
+                                                style="font-size: 0.6rem; color: var(--text-muted); min-width: 22px;">100%</span>
                                         </div>
                                     </div>
-                                    <div class="property-col" style="max-width: 100px;">
+                                </div>
+                                <div class="property-row inline" style="margin-bottom: 0;">
+                                    <div class="property-col">
                                         <label for="text-shadow-blur">블러 (px)</label>
                                         <input type="number" id="text-shadow-blur" class="fontSize-input" value="5"
                                             min="0" max="30" step="1" disabled>
                                     </div>
-                                </div>
-                                <div class="property-row inline" style="margin-top: 0;">
                                     <div class="property-col">
                                         <label for="text-shadow-offsetx">이동 X (px)</label>
                                         <input type="number" id="text-shadow-offsetx" class="fontSize-input" value="3"
@@ -1153,9 +1179,6 @@
                         <div class="property-row inline">
                             <button class="btn-group-action" id="btn-group" disabled>그룹화</button>
                             <button class="btn-group-action" id="btn-ungroup" disabled>그룹해제</button>
-                        </div>
-                        <div class="property-row" style="margin-top: 16px;">
-                            <button class="btn-delete-element" id="btn-delete" disabled>개체 삭제</button>
                         </div>
                     </div>
                 </div>

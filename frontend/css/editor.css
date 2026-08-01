@@ -865,14 +865,61 @@
             height: auto;
             max-height: 80%;
         }
+        .right-inspector-panel.collapsed {
+            display: none !important;
+        }
         .right-inspector-panel .panel-header {
             border-bottom: 1px solid var(--panel-border);
-            padding: 16px 20px;
+            padding: 14px 18px;
             cursor: grab;
             user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
         .right-inspector-panel .panel-header:active {
             cursor: grabbing;
+        }
+        .panel-icon-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.85rem;
+            padding: 4px 6px;
+            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .panel-icon-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+        .inspector-restore-circle-btn {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: var(--primary, #3b82f6);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            cursor: pointer;
+            z-index: 1001;
+            transition: all 0.2s ease;
+        }
+        .inspector-restore-circle-btn:hover {
+            background: #2563eb;
+            transform: scale(1.08);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
         }
         .inspector-content {
             flex: 1;

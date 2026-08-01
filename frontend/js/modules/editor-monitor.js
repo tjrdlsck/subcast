@@ -59,6 +59,18 @@
         }
     }
 
+    function broadcastMonitorSettings() {
+        if (window.BroadcastChannel) {
+            try {
+                const bc = new BroadcastChannel("subcast_monitor_channel");
+                bc.postMessage({ type: "MONITOR_LAYOUT_UPDATE", settings: monitorSettings });
+                bc.close();
+            } catch (e) {
+                console.error("Failed to post message to BroadcastChannel", e);
+            }
+        }
+    }
+
     // 2. 모니터 설정 저장 (API + LocalStorage + BroadcastChannel)
     async function saveMonitorSettings() {
         localStorage.setItem("subcast_monitor_settings", JSON.stringify(monitorSettings));
@@ -72,16 +84,7 @@
             console.error("Failed to save monitor settings to API", e);
         }
 
-        // BroadcastChannel 통지
-        if (window.BroadcastChannel) {
-            try {
-                const bc = new BroadcastChannel("subcast_monitor_channel");
-                bc.postMessage({ type: "MONITOR_LAYOUT_UPDATE", settings: monitorSettings });
-                bc.close();
-            } catch (e) {
-                console.error("Failed to post message to BroadcastChannel", e);
-            }
-        }
+        broadcastMonitorSettings();
         updateInfoUI();
     }
 
@@ -144,6 +147,7 @@
             fontFamily: cur.fontFamily || 'Inter',
             textAlign: cur.textAlign || 'center',
             editable: false,
+            splitByGrapheme: true,
             lockRotation: true,
             hasRotatingPoint: false,
             transparentCorners: false,
@@ -164,6 +168,7 @@
             fontFamily: nxt.fontFamily || 'Inter',
             textAlign: nxt.textAlign || 'center',
             editable: false,
+            splitByGrapheme: true,
             lockRotation: true,
             hasRotatingPoint: false,
             transparentCorners: false,
@@ -176,7 +181,19 @@
         canvas.add(currentGuideBox);
         canvas.add(nextGuideBox);
 
+        // 🔴/🔵 외 추가된 커스텀 도형 및 사진 요소 복원
+        if (Array.isArray(monitorSettings.customElements) && typeof deserializeElement === 'function') {
+            monitorSettings.customElements.forEach(elem => {
+                const obj = deserializeElement(elem, BASE_W, BASE_H);
+                if (obj) {
+                    canvas.add(obj);
+                }
+            });
+        }
+
         // 이벤트 바인딩
+        canvas.on('object:added', handleCustomObjectChanged);
+        canvas.on('object:removed', handleCustomObjectChanged);
         canvas.on('object:modified', handleGuideModified);
         canvas.on('object:moving', handleGuideModified);
         canvas.on('object:scaling', handleGuideModified);
@@ -195,6 +212,8 @@
         isMonitorMode = false;
 
         if (canvas) {
+            canvas.off('object:added', handleCustomObjectChanged);
+            canvas.off('object:removed', handleCustomObjectChanged);
             canvas.off('object:modified', handleGuideModified);
             canvas.off('object:moving', handleGuideModified);
             canvas.off('object:scaling', handleGuideModified);
@@ -238,6 +257,14 @@
             let widthPct = clamp((actualW / BASE_W) * 100, 5, 100 - leftPct);
             let heightPct = clamp((actualH / BASE_H) * 100, 5, 100 - topPct);
 
+            // 스케일 정규화 (scaleX, scaleY를 1로 맞추고 width 계산 대입)
+            const targetPixelWidth = (widthPct / 100) * BASE_W;
+            boxObj.set({
+                width: targetPixelWidth,
+                scaleX: 1,
+                scaleY: 1
+            });
+
             const fillColor = typeof boxObj.fill === 'string' ? boxObj.fill : '#ffffff';
             const hexColor = colorToHex(fillColor);
 
@@ -260,13 +287,29 @@
 
         updateBox(currentGuideBox, 'currentBox');
         updateBox(nextGuideBox, 'nextBox');
+
+        // 커스텀 요소들(도형 및 이미지) 직렬화 저장
+        if (typeof serializeElement === 'function') {
+            const customObjs = canvas.getObjects().filter(o => !o.isMonitorGuide);
+            monitorSettings.customElements = customObjs.map(o => serializeElement(o, BASE_W, BASE_H));
+        }
     }
 
     // 5. 캔버스 이벤트 정규화 계산 (실시간 미리보기만 업데이트, 저장 버튼 클릭 전까지 서버 저장 금지)
     function handleGuideModified(e) {
         const target = e.target;
-        if (!target || !target.isMonitorGuide || !target.boxType) return;
+        if (!target) return;
         syncCanvasToMonitorSettings();
+        broadcastMonitorSettings();
+        updateInfoUI();
+    }
+
+    function handleCustomObjectChanged(e) {
+        if (!isMonitorMode) return;
+        const target = e.target;
+        if (target && target.isMonitorGuide) return;
+        syncCanvasToMonitorSettings();
+        broadcastMonitorSettings();
         updateInfoUI();
     }
 
@@ -301,27 +344,67 @@
             }
         };
 
-        // 저장 / 초기화 버튼 이벤트
-        document.addEventListener("click", (e) => {
-            const targetId = e.target ? e.target.id : "";
-            if (targetId === "btn-save-monitor-layout") {
-                syncCanvasToMonitorSettings();
-                saveMonitorSettings();
-                alert("무대 모니터 레이아웃 설정이 성공적으로 저장되었습니다.");
-            }
-            if (targetId === "btn-reset-monitor-layout") {
-                if (confirm("무대 모니터 레이아웃을 기본값으로 초기화하시겠습니까?")) {
-                    monitorSettings.currentBox = {
-                        leftPct: 5.0, topPct: 5.0, widthPct: 90.0, heightPct: 42.0, fontSize: 28, textColor: "#FFFFFF", bgColor: "transparent", isTransparentBg: true, fontWeight: "bold", fontFamily: "Inter", textAlign: "center"
-                    };
-                    monitorSettings.nextBox = {
-                        leftPct: 5.0, topPct: 51.0, widthPct: 90.0, heightPct: 42.0, fontSize: 22, textColor: "#A0A0A0", bgColor: "transparent", isTransparentBg: true, fontWeight: "600", fontFamily: "Inter", textAlign: "center"
-                    };
-                    saveMonitorSettings();
-                    if (isMonitorMode) {
-                        enterMonitorMode();
-                    }
+        // 이미지 파일 input 변경 리스너
+        const monitorImgInput = document.getElementById("monitor-image-input");
+        if (monitorImgInput) {
+            monitorImgInput.onchange = (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (file && typeof window.insertImageToCanvas === 'function') {
+                    window.insertImageToCanvas(file);
+                    monitorImgInput.value = "";
                 }
+            };
+        }
+
+        // 저장 / 초기화 및 도형/사진 추가 버튼 이벤트
+        document.addEventListener("click", (e) => {
+            let btn = e.target;
+            while (btn && btn !== document) {
+                const targetId = btn.id || "";
+                if (targetId === "btn-save-monitor-layout") {
+                    syncCanvasToMonitorSettings();
+                    saveMonitorSettings();
+                    alert("무대 모니터 레이아웃 설정이 성공적으로 저장되었습니다.");
+                    break;
+                }
+                if (targetId === "btn-reset-monitor-layout") {
+                    if (confirm("무대 모니터 레이아웃을 기본값으로 초기화하시겠습니까?")) {
+                        monitorSettings.currentBox = {
+                            leftPct: 5.0, topPct: 5.0, widthPct: 90.0, heightPct: 42.0, fontSize: 28, textColor: "#FFFFFF", bgColor: "transparent", isTransparentBg: true, fontWeight: "bold", fontFamily: "Inter", textAlign: "center"
+                        };
+                        monitorSettings.nextBox = {
+                            leftPct: 5.0, topPct: 51.0, widthPct: 90.0, heightPct: 42.0, fontSize: 22, textColor: "#A0A0A0", bgColor: "transparent", isTransparentBg: true, fontWeight: "600", fontFamily: "Inter", textAlign: "center"
+                        };
+                        monitorSettings.customElements = [];
+                        saveMonitorSettings();
+                        if (isMonitorMode) {
+                            enterMonitorMode();
+                        }
+                    }
+                    break;
+                }
+                if (targetId === "btn-monitor-add-rect") {
+                    if (typeof window.addRect === 'function') window.addRect();
+                    break;
+                }
+                if (targetId === "btn-monitor-add-circle") {
+                    if (typeof window.addCircle === 'function') window.addCircle();
+                    break;
+                }
+                if (targetId === "btn-monitor-add-triangle") {
+                    if (typeof window.addTriangle === 'function') window.addTriangle();
+                    break;
+                }
+                if (targetId === "btn-monitor-add-line") {
+                    if (typeof window.addLine === 'function') window.addLine();
+                    break;
+                }
+                if (targetId === "btn-monitor-add-image") {
+                    const input = document.getElementById("monitor-image-input");
+                    if (input) input.click();
+                    break;
+                }
+                btn = btn.parentElement;
             }
         });
     }
@@ -337,6 +420,8 @@
         saveMonitorSettings,
         enterMonitorMode,
         exitMonitorMode,
+        syncCanvasToMonitorSettings,
+        broadcastMonitorSettings,
         getSettings: () => monitorSettings,
         isMonitorMode: () => isMonitorMode
     };

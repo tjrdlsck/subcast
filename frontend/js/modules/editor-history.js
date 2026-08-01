@@ -33,6 +33,16 @@
                 obj = new fabric.Triangle({ left: x, top: y, width: w, height: h, fill: elem.style?.fillColor || '#10b981', stroke: elem.style?.strokeColor || 'transparent', strokeWidth: elem.style?.strokeWidth !== undefined ? elem.style.strokeWidth : 0, opacity: opacity, selectable: !isInsideGroup, hasControls: !isInsideGroup, originalId: elem.id });
             } else if (elem.type === 'line') {
                 obj = new fabric.Line([x, y, x + w, y], { stroke: elem.style?.fillColor || elem.style?.strokeColor || '#f59e0b', strokeWidth: elem.style?.strokeWidth !== undefined && elem.style?.strokeWidth > 0 ? elem.style.strokeWidth : 4, opacity: opacity, selectable: !isInsideGroup, hasControls: !isInsideGroup, originalId: elem.id });
+            } else if (elem.type === 'image' || (elem.style && elem.style.src)) {
+                const imgSrc = elem.style?.src || elem.src;
+                obj = new fabric.Image(document.createElement('img'), { left: x, top: y, scaleX: w / 100, scaleY: h / 100, opacity: opacity, selectable: !isInsideGroup, hasControls: !isInsideGroup, originalId: elem.id });
+                if (imgSrc) {
+                    obj.setSrc(imgSrc, function() {
+                        if (w > 0 && obj.width > 0) obj.scaleToWidth(w);
+                        if (h > 0 && obj.height > 0 && !w) obj.scaleToHeight(h);
+                        if (typeof canvas !== 'undefined' && canvas) canvas.renderAll();
+                    });
+                }
             } else if (elem.type === 'group' && elem.children) {
                 const members = elem.children.map(child => deserializeElement(child, canvasWidth, canvasHeight, true, w, h));
                 obj = new fabric.Group(members, { left: x, top: y, opacity: opacity, selectable: !isInsideGroup, hasControls: !isInsideGroup, originalId: elem.id });
@@ -70,6 +80,8 @@
                 style.strokeColor = obj.stroke || "transparent";
                 style.strokeWidth = Math.round(obj.strokeWidth || 0);
                 if (type === 'rect') style.cornerRadius = obj.rx || 0;
+            } else if (type === 'image') {
+                style.src = obj._element ? obj._element.src : (obj.getSrc ? obj.getSrc() : (obj.src || ''));
             }
             const elementData = { id: obj.originalId || `elem_${Math.random().toString(36).substr(2, 9)}`, type: type, content: type === 'text' ? (obj.text || "") : "", x: parseFloat(xPct.toFixed(2)), y: parseFloat(yPct.toFixed(2)), width: parseFloat(wPct.toFixed(2)), height: parseFloat(hPct.toFixed(2)), style: style };
             if (type === 'group') {

@@ -526,6 +526,101 @@
                     if (nxt.textAlign) nxtText.style.textAlign = nxt.textAlign;
                 }
             }
+
+            renderMonitorCustomElements(container, monitorViewerSettings.customElements, screenW, screenH);
+        }
+
+        function renderMonitorCustomElements(container, customElements, screenW, screenH) {
+            let customLayer = document.getElementById("monitor-custom-elements-layer");
+            if (!customLayer) {
+                customLayer = document.createElement("div");
+                customLayer.id = "monitor-custom-elements-layer";
+                customLayer.style.position = "absolute";
+                customLayer.style.top = "0";
+                customLayer.style.left = "0";
+                customLayer.style.width = "100%";
+                customLayer.style.height = "100%";
+                customLayer.style.pointerEvents = "none";
+                customLayer.style.zIndex = "5";
+                container.appendChild(customLayer);
+            }
+            customLayer.innerHTML = "";
+
+            if (!Array.isArray(customElements) || customElements.length === 0) return;
+
+            customElements.forEach(elem => {
+                const leftPx = (elem.x / 100) * screenW;
+                const topPx = (elem.y / 100) * screenH;
+                const widthPx = (elem.width / 100) * screenW;
+                const heightPx = (elem.height / 100) * screenH;
+
+                const el = document.createElement("div");
+                el.style.position = "absolute";
+                el.style.left = `${leftPx}px`;
+                el.style.top = `${topPx}px`;
+                el.style.width = `${widthPx}px`;
+                el.style.height = `${heightPx}px`;
+                el.style.opacity = elem.style?.opacity !== undefined ? elem.style.opacity : 1.0;
+                el.style.boxSizing = "border-box";
+
+                const fillColor = elem.style?.fillColor || "transparent";
+                const strokeColor = elem.style?.strokeColor || "transparent";
+                const strokeWidth = elem.style?.strokeWidth ? (elem.style.strokeWidth * (screenW / 768)) : 0;
+
+                if (elem.type === 'rect') {
+                    el.style.backgroundColor = fillColor;
+                    if (strokeWidth > 0 && strokeColor !== 'transparent') {
+                        el.style.border = `${strokeWidth}px solid ${strokeColor}`;
+                    }
+                    if (elem.style?.cornerRadius) {
+                        el.style.borderRadius = `${elem.style.cornerRadius * (screenW / 768)}px`;
+                    }
+                } else if (elem.type === 'circle') {
+                    el.style.backgroundColor = fillColor;
+                    el.style.borderRadius = "50%";
+                    if (strokeWidth > 0 && strokeColor !== 'transparent') {
+                        el.style.border = `${strokeWidth}px solid ${strokeColor}`;
+                    }
+                } else if (elem.type === 'triangle') {
+                    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                    svg.setAttribute("width", "100%");
+                    svg.setAttribute("height", "100%");
+                    svg.setAttribute("viewBox", "0 0 100 100");
+                    svg.setAttribute("preserveAspectRatio", "none");
+
+                    const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+                    polygon.setAttribute("points", "50,0 100,100 0,100");
+                    polygon.setAttribute("fill", fillColor);
+                    if (strokeWidth > 0 && strokeColor !== 'transparent') {
+                        polygon.setAttribute("stroke", strokeColor);
+                        polygon.setAttribute("stroke-width", strokeWidth);
+                    }
+                    svg.appendChild(polygon);
+                    el.appendChild(svg);
+                } else if (elem.type === 'line') {
+                    el.style.backgroundColor = fillColor !== 'transparent' ? fillColor : strokeColor;
+                    el.style.height = `${Math.max(2, strokeWidth || 4)}px`;
+                } else if (elem.type === 'image' || (elem.style && elem.style.src)) {
+                    const imgSrc = elem.style?.src || elem.src;
+                    if (imgSrc) {
+                        const img = document.createElement("img");
+                        img.src = imgSrc;
+                        img.style.width = "100%";
+                        img.style.height = "100%";
+                        img.style.objectFit = "contain";
+                        el.appendChild(img);
+                    }
+                } else if (elem.type === 'text') {
+                    el.style.color = elem.style?.fontColor || "#ffffff";
+                    el.style.fontSize = `${Math.round((parseInt(elem.style?.fontSize) || 20) * (screenW / 768))}px`;
+                    el.style.fontFamily = elem.style?.fontFamily || "Inter";
+                    el.style.fontWeight = elem.style?.fontWeight || "normal";
+                    el.style.textAlign = elem.style?.textAlign || "left";
+                    el.innerText = elem.content || "";
+                }
+
+                customLayer.appendChild(el);
+            });
         }
 
         function updateMonitorViewerTexts(currentContent, nextContent, isLastSlide = false) {

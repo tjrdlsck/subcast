@@ -1,4 +1,5 @@
 import sqlite3
+import json
 from typing import Dict, Any, Optional
 from datetime import datetime
 from backend.database import get_db_connection, init_monitor_db, DEFAULT_DB_PATH
@@ -48,6 +49,13 @@ class MonitorSettingsRepository:
         if not row:
             return None
 
+        custom_elements = []
+        if "custom_elements" in row.keys() and row["custom_elements"]:
+            try:
+                custom_elements = json.loads(row["custom_elements"])
+            except Exception:
+                custom_elements = []
+
         return {
             "settingId": row["setting_id"],
             "layoutMode": row["layout_mode"],
@@ -77,6 +85,7 @@ class MonitorSettingsRepository:
                 "fontFamily": row["next_font_family"] if "next_font_family" in row.keys() and row["next_font_family"] else "Inter",
                 "textAlign": row["next_text_align"] if "next_text_align" in row.keys() and row["next_text_align"] else "center",
             },
+            "customElements": custom_elements,
             "updatedAt": str(row["updated_at"]) if row["updated_at"] else None
         }
 
@@ -91,6 +100,8 @@ class MonitorSettingsRepository:
         layout_mode = settings.get("layoutMode", existing["layoutMode"])
         cur_box = settings.get("currentBox", existing["currentBox"])
         nxt_box = settings.get("nextBox", existing["nextBox"])
+        raw_custom = settings.get("customElements", existing.get("customElements", []))
+        custom_elements_str = json.dumps(raw_custom)
 
         updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -121,6 +132,7 @@ class MonitorSettingsRepository:
                 next_font_weight = ?,
                 next_font_family = ?,
                 next_text_align = ?,
+                custom_elements = ?,
                 updated_at = ?
             WHERE setting_id = ?
         """, (
@@ -147,11 +159,14 @@ class MonitorSettingsRepository:
             str(nxt_box.get("fontWeight", existing["nextBox"].get("fontWeight", "600"))),
             str(nxt_box.get("fontFamily", existing["nextBox"].get("fontFamily", "Inter"))),
             str(nxt_box.get("textAlign", existing["nextBox"].get("textAlign", "center"))),
+            custom_elements_str,
             updated_at,
             setting_id
         ))
         conn.commit()
         conn.close()
+
+        return self.get_settings(setting_id)
 
         return self.get_settings(setting_id)
 

@@ -40,32 +40,40 @@
         }
 
 
+        function isMonitorModeActive() {
+            return !!(window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode());
+        }
+
         function addRect() {
-            if (!activeSlideId) return;
+            if (!activeSlideId && !isMonitorModeActive()) return;
             const obj = new fabric.Rect({ left: 150, top: 150, width: 150, height: 100, fill: '#6366f1', originalId: `elem_${Math.random().toString(36).substr(2, 9)}` });
             canvas.add(obj); canvas.setActiveObject(obj); canvas.renderAll();
+            if (!isMonitorModeActive()) saveStateToHistory();
         }
 
 
         // 원형 도형 기본 Fill 색상을 인디고 테마에 어울리는 청록색(Cyan)으로 지정
         function addCircle() {
-            if (!activeSlideId) return;
+            if (!activeSlideId && !isMonitorModeActive()) return;
             const obj = new fabric.Circle({ left: 150, top: 150, radius: 60, fill: '#06b6d4', originalId: `elem_${Math.random().toString(36).substr(2, 9)}` });
             canvas.add(obj); canvas.setActiveObject(obj); canvas.renderAll();
+            if (!isMonitorModeActive()) saveStateToHistory();
         }
 
 
         function addTriangle() {
-            if (!activeSlideId) return;
+            if (!activeSlideId && !isMonitorModeActive()) return;
             const obj = new fabric.Triangle({ left: 150, top: 150, width: 120, height: 100, fill: '#10b981', originalId: `elem_${Math.random().toString(36).substr(2, 9)}` });
             canvas.add(obj); canvas.setActiveObject(obj); canvas.renderAll();
+            if (!isMonitorModeActive()) saveStateToHistory();
         }
 
 
         function addLine() {
-            if (!activeSlideId) return;
+            if (!activeSlideId && !isMonitorModeActive()) return;
             const obj = new fabric.Line([50, 50, 200, 50], { left: 150, top: 150, stroke: '#f59e0b', strokeWidth: 4, originalId: `elem_${Math.random().toString(36).substr(2, 9)}` });
             canvas.add(obj); canvas.setActiveObject(obj); canvas.renderAll();
+            if (!isMonitorModeActive()) saveStateToHistory();
         }
 
 
@@ -100,9 +108,12 @@
             const activeObj = canvas.getActiveObject();
             if (!activeObj) return;
 
+            // 모니터 가이드 텍스트박스 보호
+            if (activeObj.isMonitorGuide) return;
+
             isUndoingRedoing = true;
             if (activeObj.type === 'activeSelection') {
-                const objectsToDelete = activeObj.getObjects().concat();
+                const objectsToDelete = activeObj.getObjects().filter(obj => !obj.isMonitorGuide);
                 objectsToDelete.forEach(obj => {
                     canvas.remove(obj);
                 });
@@ -189,7 +200,7 @@
 
 
         function insertImageToCanvas(file, x = null, y = null) {
-            if (!activeSlideId) return;
+            if (!activeSlideId && !isMonitorModeActive()) return;
             const reader = new FileReader();
             reader.onload = function (event) {
                 fabric.Image.fromURL(event.target.result, function (img) {
@@ -210,10 +221,14 @@
                     canvas.add(img);
                     canvas.setActiveObject(img);
                     canvas.renderAll();
-                    saveStateToHistory();
+                    if (!isMonitorModeActive()) saveStateToHistory();
                 });
             };
             reader.readAsDataURL(file);
-        }
+        window.addRect = addRect;
+        window.addCircle = addCircle;
+        window.addTriangle = addTriangle;
+        window.addLine = addLine;
+        window.insertImageToCanvas = insertImageToCanvas;
 
 

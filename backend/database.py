@@ -72,6 +72,7 @@ def init_monitor_db(db_path: str = DEFAULT_DB_PATH) -> None:
         "next_font_weight": "TEXT DEFAULT '600'",
         "next_font_family": "TEXT DEFAULT 'Inter'",
         "next_text_align": "TEXT DEFAULT 'center'",
+        "custom_elements": "TEXT DEFAULT '[]'",
     }
     for col_name, col_type in new_cols.items():
         if col_name not in existing_cols:

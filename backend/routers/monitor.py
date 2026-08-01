@@ -19,10 +19,13 @@ class MonitorBoxSchema(BaseModel):
     fontFamily: Optional[str] = "Inter"
     textAlign: Optional[str] = "center"
 
+from typing import Dict, Any, Optional, List
+
 class MonitorSettingsPayload(BaseModel):
     layoutMode: Optional[str] = "custom_canvas"
     currentBox: Optional[MonitorBoxSchema] = Field(default_factory=MonitorBoxSchema)
     nextBox: Optional[MonitorBoxSchema] = Field(default_factory=MonitorBoxSchema)
+    customElements: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
 
 @router.get("/settings")
 async def get_settings():

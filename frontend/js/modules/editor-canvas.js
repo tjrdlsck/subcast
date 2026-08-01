@@ -281,7 +281,10 @@
             currentEditingElement = activeObj;
 
             // Z-Index 배치, 삭제 버튼 활성화
-            ['btn-layer-up', 'btn-layer-down', 'btn-layer-front', 'btn-layer-back', 'btn-delete'].forEach(id => document.getElementById(id).disabled = false);
+            ['btn-layer-up', 'btn-layer-down', 'btn-layer-front', 'btn-layer-back', 'btn-delete'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.disabled = false;
+            });
 
             // 공통 속성 활성화
             const opacitySlider = document.getElementById("element-opacity");
@@ -338,7 +341,7 @@
                     if (el) el.disabled = false;
                 });
                 document.getElementById("text-editor").value = activeObj.text || "";
-                document.getElementById("fontsize-editor").value = parseFloat(activeObj.originalVwSize) || 3.0;
+                document.getElementById("fontsize-editor").value = Math.round(activeObj.fontSize || 24);
 
                 // Fabric fill을 input[type=color] 포맷에 맞춰 안전하게 대입 및 투명도 복원
                 const fontColor = colorToHex(activeObj.fill);
@@ -520,7 +523,8 @@
                         scaleY: 1
                     });
                 }
-                activeObj.originalVwSize = `${((activeObj.fontSize / BASE_WIDTH) * 100).toFixed(2)}vw`;
+                const fontSizeEl = document.getElementById("fontsize-editor");
+                if (fontSizeEl) fontSizeEl.value = Math.round(activeObj.fontSize || 24);
             }
         }
 

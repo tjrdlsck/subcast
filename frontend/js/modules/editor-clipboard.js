@@ -463,6 +463,9 @@
                     hideCanvasContextMenu();
                     const activeObj = canvas.getActiveObject();
                     if (activeObj) {
+                        if (activeObj.isMonitorGuide || (activeObj.type === 'activeSelection' && activeObj.getObjects().some(o => o.isMonitorGuide))) {
+                            return;
+                        }
                         if (activeObj.type === 'activeSelection') {
                             const serializedList = [];
                             const groupLeft = activeObj.left || 0;
@@ -495,6 +498,9 @@
                     hideCanvasContextMenu();
                     const activeObj = canvas.getActiveObject();
                     if (activeObj) {
+                        if (activeObj.isMonitorGuide || (activeObj.type === 'activeSelection' && activeObj.getObjects().some(o => o.isMonitorGuide))) {
+                            return;
+                        }
                         if (activeObj.type === 'activeSelection') {
                             const serializedList = [];
                             const groupLeft = activeObj.left || 0;

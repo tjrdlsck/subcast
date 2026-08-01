@@ -159,17 +159,41 @@
 
             document.getElementById("fontsize-editor").oninput = (e) => {
                 if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
-                    const vw = parseFloat(e.target.value) || 3.0;
-                    const pxSize = (vw / 100) * BASE_WIDTH;
+                    const pxSize = Math.max(1, parseInt(e.target.value, 10) || 24);
+                    let curWidth = Math.min(BASE_WIDTH * 0.95, currentEditingElement.width * (currentEditingElement.scaleX || 1));
+                    if (curWidth <= 10) curWidth = BASE_WIDTH * 0.9;
 
-                    currentEditingElement.set('fontSize', pxSize);
-                    currentEditingElement.originalVwSize = `${vw}vw`;
+                    currentEditingElement.set({
+                        fontSize: pxSize,
+                        scaleX: 1,
+                        scaleY: 1,
+                        width: curWidth,
+                        splitByGrapheme: true
+                    });
                     canvas.renderAll();
                 }
             };
             document.getElementById("fontsize-editor").onchange = () => {
                 saveStateToHistory();
             };
+
+            // 속성 패널 접기 / 동그라미 아이콘 복원 토글
+            const btnMinimizeInspector = document.getElementById("btn-minimize-inspector");
+            const btnRestoreInspector = document.getElementById("btn-restore-inspector");
+            const rightInspectorPanel = document.querySelector(".right-inspector-panel");
+
+            if (btnMinimizeInspector && rightInspectorPanel && btnRestoreInspector) {
+                btnMinimizeInspector.onclick = (e) => {
+                    if (e) e.stopPropagation();
+                    rightInspectorPanel.classList.add("collapsed");
+                    btnRestoreInspector.style.display = "flex";
+                };
+                btnRestoreInspector.onclick = (e) => {
+                    if (e) e.stopPropagation();
+                    rightInspectorPanel.classList.remove("collapsed");
+                    btnRestoreInspector.style.display = "none";
+                };
+            }
 
 
             const btnAddFont = document.getElementById("btn-add-custom-font");
@@ -654,7 +678,8 @@
             document.getElementById("btn-ungroup").onclick = ungroupObjects;
 
             // 삭제 리스너
-            document.getElementById("btn-delete").onclick = deleteElement;
+            const btnDeleteEl = document.getElementById("btn-delete");
+            if (btnDeleteEl) btnDeleteEl.onclick = deleteElement;
 
             // Delete 키 단축키로 삭제 처리 및 Ctrl+Z/Ctrl+Shift+Z 되돌리기/다시실행
             window.addEventListener('keydown', (e) => {
