@@ -1,13 +1,4 @@
 ﻿.git/
 node_modules/
-venv/
-.venv/
-__pycache__/
 dist/
 build/
-.idea/
-.vscode/
-*.log
-*.lock
-coverage/
-*.db
