@@ -147,15 +147,47 @@
 
 
         function makeElementDraggable(elmnt, header) {
+            if (!elmnt) return;
             let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-            if (header) {
-                header.onmousedown = dragMouseDown;
-            } else {
-                elmnt.onmousedown = dragMouseDown;
+            const dragHandle = header || elmnt;
+            dragHandle.style.cursor = "move";
+            dragHandle.onmousedown = dragMouseDown;
+
+            function dragMouseDown(e) {
+                e = e || window.event;
+                const tag = e.target ? e.target.tagName : '';
+                if (tag === 'INPUT' || tag === 'BUTTON' || tag === 'SELECT' || tag === 'TEXTAREA') {
+                    return;
+                }
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
             }
 
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
 
+                let newTop = elmnt.offsetTop - pos2;
+                let newLeft = elmnt.offsetLeft - pos1;
 
+                elmnt.style.position = "absolute";
+                elmnt.style.top = newTop + "px";
+                elmnt.style.left = newLeft + "px";
+                elmnt.style.right = "auto";
+                elmnt.style.bottom = "auto";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
         }
 
 

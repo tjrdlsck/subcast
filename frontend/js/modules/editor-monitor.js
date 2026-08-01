@@ -206,7 +206,20 @@
         guides.forEach(g => canvas.remove(g));
     }
 
-    // 캔버스 객체 좌표를 monitorSettings 객체에 동기화
+    function colorToHex(color) {
+        if (!color || color === 'transparent') return "#ffffff";
+        if (typeof color !== 'string') return "#ffffff";
+        if (color.startsWith("#")) return color;
+        if (color.startsWith("rgb")) {
+            const rgb = color.match(/\d+/g);
+            if (rgb && rgb.length >= 3) {
+                return "#" + ((1 << 24) + (parseInt(rgb[0]) << 16) + (parseInt(rgb[1]) << 8) + parseInt(rgb[2])).toString(16).slice(1);
+            }
+        }
+        return color;
+    }
+
+    // 캔버스 객체 좌표 및 속성을 monitorSettings 객체에 동기화
     function syncCanvasToMonitorSettings() {
         if (!isMonitorMode || !canvas) return;
         const updateBox = (boxObj, boxKey) => {
@@ -219,12 +232,20 @@
             let widthPct = clamp((actualW / BASE_W) * 100, 5, 100 - leftPct);
             let heightPct = clamp((actualH / BASE_H) * 100, 5, 100 - topPct);
 
+            const fillColor = typeof boxObj.fill === 'string' ? boxObj.fill : '#ffffff';
+            const hexColor = colorToHex(fillColor);
+
             monitorSettings[boxKey] = {
                 ...monitorSettings[boxKey],
                 leftPct: parseFloat(leftPct.toFixed(2)),
                 topPct: parseFloat(topPct.toFixed(2)),
                 widthPct: parseFloat(widthPct.toFixed(2)),
-                heightPct: parseFloat(heightPct.toFixed(2))
+                heightPct: parseFloat(heightPct.toFixed(2)),
+                fontSize: Math.round(boxObj.fontSize || (boxKey === 'currentBox' ? 28 : 22)),
+                textColor: hexColor,
+                fontWeight: boxObj.fontWeight || (boxKey === 'currentBox' ? "bold" : "600"),
+                fontFamily: boxObj.fontFamily || "Inter",
+                textAlign: boxObj.textAlign || "center"
             };
         };
 
@@ -350,53 +371,6 @@
                 }
             }
         });
-
-        // 타이포그래피 설정 변경 이벤트 바인딩
-        const bindInput = (id, key, subKey) => {
-            const el = document.getElementById(id);
-            if (!el) return;
-
-            const updateValue = (isChange = false) => {
-                if (!monitorSettings[key]) monitorSettings[key] = {};
-                let val = el.value;
-
-                if (subKey === 'fontSize') {
-                    if (val === "" && !isChange) {
-                        // 사용자가 키보드로 숫자를 다 지우고 입력 중인 순간은 기본값 강제 덮어씌우기 안 함
-                        return;
-                    }
-                    const num = parseInt(val, 10);
-                    val = isNaN(num) ? (key === 'currentBox' ? 28 : 22) : num;
-                }
-
-                monitorSettings[key][subKey] = val;
-                saveMonitorSettings();
-
-                // 모니터 모드 활성 중이면 캔버스 Textbox에 즉시 반영
-                if (isMonitorMode && canvas) {
-                    const targetBox = key === 'currentBox' ? currentGuideBox : nextGuideBox;
-                    if (targetBox) {
-                        const fabricKey = subKey === 'textColor' ? 'fill' : subKey;
-                        targetBox.set(fabricKey, val);
-                        canvas.renderAll();
-                    }
-                }
-            };
-
-            el.addEventListener("input", () => updateValue(false));
-            el.addEventListener("change", () => updateValue(true));
-        };
-
-        bindInput("monitor-cur-fontsize", "currentBox", "fontSize");
-        bindInput("monitor-cur-fontweight", "currentBox", "fontWeight");
-        bindInput("monitor-cur-textcolor", "currentBox", "textColor");
-        bindInput("monitor-cur-align", "currentBox", "textAlign");
-
-        bindInput("monitor-nxt-fontsize", "nextBox", "fontSize");
-        bindInput("monitor-nxt-fontweight", "nextBox", "fontWeight");
-        bindInput("monitor-nxt-textcolor", "nextBox", "textColor");
-        bindInput("monitor-nxt-align", "nextBox", "textAlign");
-
     }
 
     if (document.readyState === 'loading') {
