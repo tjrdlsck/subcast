@@ -28,8 +28,8 @@
     let isMonitorMode = false;
     let currentGuideBox = null;
     let nextGuideBox = null;
-    const BASE_W = 1920;
-    const BASE_H = 1080;
+    const BASE_W = (typeof BASE_WIDTH !== 'undefined' && BASE_WIDTH) ? BASE_WIDTH : 768;
+    const BASE_H = (typeof BASE_HEIGHT !== 'undefined' && BASE_HEIGHT) ? BASE_HEIGHT : 432;
 
     const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
 
@@ -144,7 +144,7 @@
         const curLabel = new fabric.Text("🔴 CURRENT (현재 슬라이드)", {
             left: currentGuideBox.left + 15,
             top: currentGuideBox.top + 15,
-            fontSize: 24,
+            fontSize: 16,
             fill: '#ef4444',
             fontWeight: 'bold',
             isMonitorGuide: true,
@@ -154,7 +154,7 @@
         const nxtLabel = new fabric.Text("🔵 NEXT (다음 슬라이드)", {
             left: nextGuideBox.left + 15,
             top: nextGuideBox.top + 15,
-            fontSize: 20,
+            fontSize: 14,
             fill: '#3b82f6',
             fontWeight: 'bold',
             isMonitorGuide: true,

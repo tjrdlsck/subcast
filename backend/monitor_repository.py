@@ -137,10 +137,14 @@ class MonitorSettingsRepository:
 
         return self.get_settings(setting_id)
 
-def get_monitor_settings(db_path: str = DEFAULT_DB_PATH, setting_id: str = "default_profile") -> Optional[Dict[str, Any]]:
+def get_monitor_settings(db_path: Optional[str] = None, setting_id: str = "default_profile") -> Optional[Dict[str, Any]]:
+    if db_path is None:
+        db_path = DEFAULT_DB_PATH
     repo = MonitorSettingsRepository(db_path)
     return repo.get_settings(setting_id)
 
-def update_monitor_settings(settings: Dict[str, Any], db_path: str = DEFAULT_DB_PATH, setting_id: str = "default_profile") -> Dict[str, Any]:
+def update_monitor_settings(settings: Dict[str, Any], db_path: Optional[str] = None, setting_id: str = "default_profile") -> Dict[str, Any]:
+    if db_path is None:
+        db_path = DEFAULT_DB_PATH
     repo = MonitorSettingsRepository(db_path)
     return repo.update_settings(settings, setting_id)

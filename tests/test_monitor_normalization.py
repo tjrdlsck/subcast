@@ -47,3 +47,12 @@ def test_denormalize_rendering_scaling():
     assert denorm["top"] == 1080.0
     assert denorm["width"] == 3456.0
     assert denorm["height"] == 864.0
+
+def test_normalization_editor_canvas_768x432():
+    # 768 x 432 에디터 캔버스 좌표 정규화 검증
+    norm = normalize_coordinates(38.4, 21.6, 691.2, 181.44, 768, 432)
+    assert norm["leftPct"] == 5.0
+    assert norm["topPct"] == 5.0
+    assert norm["widthPct"] == 90.0
+    assert norm["heightPct"] == 42.0
+
