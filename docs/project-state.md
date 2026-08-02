@@ -22,7 +22,7 @@
 | Change Design | APPROVED | 2026-08-02 |
 | Tasks Breakdown | APPROVED | 2026-08-02 |
 | Testing Strategy | APPROVED | 2026-08-02 |
-| Implementation | IN PROGRESS | 2026-08-02 |
+| Implementation | COMPLETED | 2026-08-02 |
 
 ## Scope Boundaries
 
@@ -58,6 +58,7 @@
 
 - CHG-001 ~ CHG-034 완료된 변경 기록으로 취급
 - CHG-035는 작업 기준 문서 정리 변경으로 완료
+- CHG-036은 고정 문서·아카이브·에이전트 workflow 정리로 완료
 
 ## Open Questions
 
@@ -70,3 +71,4 @@
 - 2026-08-02: CHG-020 ~ CHG-025 완료 (텍스트 Stroke paintFirst 적용, 모니터 속성 동기화/렌더링, 백엔드 영속화, 실시간 미리보기 브로드캐스트, 성경 호버 미리보기 버그 수정, 찬양 배경 중복방지 알고리즘)
 - 2026-08-02: CHG-026 ~ CHG-034 완료된 변경 기록으로 확인
 - 2026-08-02: CHG-035 작업 기준 문서와 변경 기록 정리 완료 (코드 변경 없음, 기준선 97 passed / 26 failed)
+- 2026-08-02: CHG-036 고정 작업 문서·아카이브·커밋/푸쉬 규칙 정리 완료
