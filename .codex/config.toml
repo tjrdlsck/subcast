@@ -1,0 +1,7 @@
+# Project-scoped Codex defaults for the Subcast repository.
+# Antigravity settings remain independent under .antigravity/ and .agent/.
+model = "gpt-5.6"
+model_reasoning_effort = "medium"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+project_doc_max_bytes = 65536
