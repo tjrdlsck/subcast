@@ -73,23 +73,23 @@ docs/project-state.md가 없다면 생성할 것을 제안한다.
 
 ## Product → Requirements
 
-docs/product.md에 대해 사용자가 명시적으로 승인했을 때만 전환한다.
+ `docs/changes/current/request.md`에 대해 사용자가 명시적으로 승인했을 때만 전환한다.
 
 ## Requirements → Design
 
-docs/requirements.md에 대해 사용자가 명시적으로 승인했을 때만 전환한다.
+ `docs/changes/current/impact-analysis.md`에 대해 사용자가 명시적으로 승인했을 때만 전환한다.
 
 ## Design → Tasks
 
-docs/design.md에 대해 사용자가 명시적으로 승인했을 때만 전환한다.
+ `docs/changes/current/design.md`에 대해 사용자가 명시적으로 승인했을 때만 전환한다.
 
 ## Tasks → Testing
 
-docs/tasks.md에 대해 사용자가 명시적으로 승인했을 때만 전환한다.
+ `docs/changes/current/tasks.md`에 대해 사용자가 명시적으로 승인했을 때만 전환한다.
 
 ## Testing → Implementation Ready
 
-docs/testing.md에 대해 사용자가 명시적으로 승인했을 때만 전환한다.
+ `docs/changes/current/testing.md`에 대해 사용자가 명시적으로 승인했을 때만 전환한다.
 
 # 승인으로 인정할 표현
 
@@ -185,11 +185,11 @@ docs/testing.md에 대해 사용자가 명시적으로 승인했을 때만 전�
 
 정보가 충분하지 않으면 최대 3개의 핵심 질문을 한다.
 
-충분하면 docs/product.md 초안을 작성한다.
+충분하면 `docs/changes/current/request.md` 초안을 작성한다.
 
 # Product 문서
 
-docs/product.md에는 다음 내용을 포함한다.
+`docs/changes/current/request.md`에는 다음 내용을 포함한다.
 
 * 제품 요약
 * 해결하려는 문제
@@ -213,7 +213,7 @@ docs/product.md에는 다음 내용을 포함한다.
 
 # Requirements 문서
 
-docs/requirements.md에는 다음 내용을 포함한다.
+`docs/changes/current/impact-analysis.md`에는 다음 내용을 포함한다.
 
 * 기능 요구사항
 * 사용자 스토리
@@ -246,7 +246,7 @@ docs/requirements.md에는 다음 내용을 포함한다.
 
 # Design 문서
 
-docs/design.md에는 다음 내용을 포함한다.
+`docs/changes/current/design.md`에는 다음 내용을 포함한다.
 
 * 현재 코드베이스 분석
 * 제안 아키텍처
@@ -276,7 +276,7 @@ docs/design.md에는 다음 내용을 포함한다.
 
 # Tasks 문서
 
-docs/tasks.md에는 구현을 작고 검증 가능한 단위로 나눈다.
+`docs/changes/current/tasks.md`에는 구현을 작고 검증 가능한 단위로 나눈다.
 
 각 태스크는 다음 형식을 사용한다.
 
@@ -308,7 +308,7 @@ docs/tasks.md에는 구현을 작고 검증 가능한 단위로 나눈다.
 
 # Testing 문서
 
-docs/testing.md에는 다음 내용을 포함한다.
+`docs/changes/current/testing.md`에는 다음 내용을 포함한다.
 
 * 테스트 전략
 * 요구사항과 테스트의 연결
@@ -383,11 +383,11 @@ docs/testing.md에는 다음 내용을 포함한다.
 
 다음 문서가 모두 APPROVED여야 한다.
 
-* docs/product.md
-* docs/requirements.md
-* docs/design.md
-* docs/tasks.md
-* docs/testing.md
+* `docs/changes/current/request.md`
+* `docs/changes/current/impact-analysis.md`
+* `docs/changes/current/design.md`
+* `docs/changes/current/tasks.md`
+* `docs/changes/current/testing.md`
 
 하나라도 승인되지 않았다면 구현 요청을 받아도 다음을 보고한다.
 
@@ -420,3 +420,26 @@ IMPLEMENTATION_READY
 - 관련 없는 소스 디렉터리를 탐색하지 않는다.
 - 현재 단계에 필요한 문서만 읽는다.
 - 하위 agent 결과는 원문 전체가 아니라 결정, 위험, 근거만 취합한다.
+
+## 완료 후 Git 절차
+
+Implementation의 모든 태스크와 검증이 끝나면 다음 순서로 처리한다.
+
+1. `docs/changes/current/`의 다섯 문서와 `docs/project-state.md` 상태를 갱신한다.
+2. 현재 브랜치, detached HEAD 여부, upstream, 변경 파일, 테스트 결과를 확인한다.
+3. 기존 기준선 실패와 새 회귀를 구분하고 새 실패가 없을 때만 커밋 후보로 판정한다.
+4. 간결한 목적 요약을 커밋 제목으로 사용한다. 코드나 문서 전문은 제목에 넣지 않는다.
+5. `main`·`master`가 아닌 현재 작업 브랜치에 커밋하고 푸쉬한다.
+
+다음 조건에서는 커밋·푸쉬를 중단하고 사유를 보고한다.
+
+- 승인된 범위를 벗어난 변경이 있음
+- 새 테스트 실패 또는 검증 실패가 있음
+- detached HEAD, `main`·`master`, upstream 미연결 상태임
+- 기존 사용자 미커밋 변경을 안전하게 분리할 수 없음
+- 강제 푸쉬가 필요함
+
+## Archive 탐색 규칙
+
+- 일반 작업에서는 `archive/`를 탐색하지 않는다.
+- 사용자가 특정 아카이브 파일의 복원 또는 검토를 요청한 경우에만 해당 파일을 읽는다.
