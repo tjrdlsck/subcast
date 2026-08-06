@@ -1338,14 +1338,7 @@ async def import_project_endpoint(file: UploadFile = File(...)):
 
 @app.get("/")
 async def get_index():
-    # frontend/index.html이 있으면 응답하고 없으면 Redirect 또는 HTML 텍스트 응답
-    index_file = frontend_dir / "index.html"
-    if index_file.exists():
-        return FileResponse(index_file)
-    return {
-        "message": "Subcast Server is running. Access endpoints via /static/index.html",
-        "roles": ["/static/presenter.html", "/static/editor.html", "/static/viewer.html"]
-    }
+    return RedirectResponse(url="/static/index.html")
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, role: str = Query(..., pattern="^(presenter|editor|viewer)$")):

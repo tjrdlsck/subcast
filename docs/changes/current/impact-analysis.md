@@ -1,14 +1,14 @@
-# Impact Analysis: CHG-040-fix-permission-error-appdata-path
+# Impact Analysis: CHG-041-fix-root-url-redirect-to-static-index
 
 ## 1. 영향 범위 분석 (Impact Analysis)
-- **수정 대상 파일**: `backend/main.py`
-- **영향 범위**: 배경 디렉터리(`backgrounds_dir`) 및 배경 메타데이터 파일(`meta.json`)의 저장 위치가 상대 경로 `data/backgrounds`에서 `%APPDATA%\Subcast\data\backgrounds`로 변경됩니다.
-- **안전성**: `run.py`에서 이미 `SUBCAST_DATA_DIR`를 `%APPDATA%\Subcast`로 주입하고 있으므로, `backend/storage.py` 등 다른 모듈과 경로 일관성이 달성됩니다.
+- **수정 대상 파일**: `backend/main.py`, `run.py`
+- **영향도**: 루트 엔드포인트 `/` 요청에 대한 응답이 `RedirectResponse`로 변경되며, 프론트엔드 라우팅에 문제없이 자동 진입하게 됩니다.
 
 ## 2. Scope Boundaries
 
 ### Allowed Scope
 - `backend/main.py`
+- `run.py`
 - `docs/project-state.md`
 - `docs/changes/current/*`
 

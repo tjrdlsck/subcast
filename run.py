@@ -130,7 +130,7 @@ def start_server(icon=None, item=None):
         server_thread.start()
         
         # 브라우저 자동 오픈
-        Timer(1.5, lambda: webbrowser.open(f"http://127.0.0.1:{config['port']}")).start()
+        Timer(1.5, lambda: webbrowser.open(f"http://127.0.0.1:{config['port']}/static/index.html")).start()
 
 def stop_server(icon=None, item=None):
     global server_thread
@@ -270,7 +270,7 @@ if __name__ == "__main__":
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Start Server", start_server, visible=is_stopped),
         pystray.MenuItem("Stop Server", stop_server, visible=is_running),
-        pystray.MenuItem("Open Browser", lambda: webbrowser.open(f"http://127.0.0.1:{config['port']}"), visible=is_running),
+        pystray.MenuItem("Open Browser", lambda: webbrowser.open(f"http://127.0.0.1:{config['port']}/static/index.html"), visible=is_running),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Change Port...", change_port),
         pystray.MenuItem("Auto Start Server", toggle_auto_start, checked=lambda item: config.get("auto_start_server", True)),

@@ -1,18 +1,18 @@
-# Technical Design: CHG-040-fix-permission-error-appdata-path
+# Technical Design: CHG-041-fix-root-url-redirect-to-static-index
 
-## 1. 코드 수정 설계
+## 1. 세부 코드 설계
 
 ### `backend/main.py`
 ```python
-# 기존 (상대 경로 하드코딩 - Program Files 실행 시 PermissionError 유발)
-backgrounds_dir = Path("data/backgrounds")
+from fastapi.responses import FileResponse, RedirectResponse
 
-# 변경 (SUBCAST_DATA_DIR 환경변수 참조)
-app_data_dir = Path(os.environ.get("SUBCAST_DATA_DIR", "."))
-backgrounds_dir = app_data_dir / "data" / "backgrounds"
+@app.get("/")
+async def get_index():
+    return RedirectResponse(url="/static/index.html")
 ```
 
-## 2. 재빌드 및 Release Clobber 플로우
-1. `backend/main.py` 경로 수정
-2. `python build_all.py` 패키징 파이프라인 수행
-3. `rtk gh release upload v1.3.13 dist/Subcast_Setup_v1.3.13.exe dist/subcast-v1.3.13-windows.zip --clobber`로 릴리즈 자산 교체
+### `run.py`
+```python
+# 브라우저 오픈 URL을 static/index.html 포함 경로로 수정
+webbrowser.open(f"http://127.0.0.1:{config['port']}/static/index.html")
+```
