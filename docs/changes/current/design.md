@@ -1,29 +1,18 @@
-# Technical Design: CHG-039-enterprise-installer-and-release-packaging
+# Technical Design: CHG-040-fix-permission-error-appdata-path
 
-## 1. 개요 및 설계 목표
-본 변경안은 기업형 단일 EXE 인스톨러 배포, 별도의 EXE 재설치 없이도 백엔드를 통한 무설치 인앱 자동 업데이트(Auto-Update) 지원, 사용자 데이터 마이그레이션 안전성 확보, 개발 데이터 제외, 그리고 GitHub CLI (`gh release`)를 통한 자동 업로드를 구현합니다.
+## 1. 코드 수정 설계
 
-## 2. 세부 설계 (Architecture & Build Flow)
+### `backend/main.py`
+```python
+# 기존 (상대 경로 하드코딩 - Program Files 실행 시 PermissionError 유발)
+backgrounds_dir = Path("data/backgrounds")
 
-```mermaid
-flowchart TD
-    A[version.txt v1.3.13] --> B[build_all.py Pipeline]
-    B --> C[PyInstaller: subcast.spec]
-    C --> D[dist/subcast Bundle]
-    D --> E[Inno Setup Compiler: ISCC setup.iss]
-    D --> F[Zip Archiver: subcast-v1.3.13-windows.zip]
-    E --> G[dist/Subcast_Setup_v1.3.13.exe]
-    G --> H[GitHub Release v1.3.13 Upload via gh CLI]
-    F --> H
+# 변경 (SUBCAST_DATA_DIR 환경변수 참조)
+app_data_dir = Path(os.environ.get("SUBCAST_DATA_DIR", "."))
+backgrounds_dir = app_data_dir / "data" / "backgrounds"
 ```
 
-### 2.1 데이터 격리 & 마이그레이션 방안
-1. **PyInstaller Spec (`subcast.spec`)**:
-   - 포함 리소스: `frontend/`, `GAE_Bible.db`, `version.txt`
-   - 제외 리소스: 개발자의 개인 프로젝트(`data/projects/*`), 개인 설정, 테스트 로그
-2. **Inno Setup Script (`setup.iss`)**:
-   - `GAE_Bible.db`: `onlyifdoesntexist` 처리 (기존 사용자 DB 유지)
-   - 프로그램 삭제/재설치 시에도 사용자 데이터 안전 보장
-
-### 2.2 GitHub Release 업로드 명령어 설계
-- `gh release create v1.3.13 dist/Subcast_Setup_v1.3.13.exe dist/subcast-v1.3.13-windows.zip --title "Subcast v1.3.13" --notes "Enterprise Installer & Auto-Update Release"`
+## 2. 재빌드 및 Release Clobber 플로우
+1. `backend/main.py` 경로 수정
+2. `python build_all.py` 패키징 파이프라인 수행
+3. `rtk gh release upload v1.3.13 dist/Subcast_Setup_v1.3.13.exe dist/subcast-v1.3.13-windows.zip --clobber`로 릴리즈 자산 교체

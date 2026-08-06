@@ -10,8 +10,8 @@
 
 ## Active Change Unit
 
-- Change ID: `CHG-039-enterprise-installer-and-release-packaging`
-- Target Feature: 기업형 단일 EXE 인스톨러 배포, 인앱 자동 업데이트 패키지 동시 생성 및 GitHub Release v1.3.13 업로드
+- Change ID: `CHG-040-fix-permission-error-appdata-path`
+- Target Feature: backend/main.py 상대 경로 backgrounds_dir을 SUBCAST_DATA_DIR APPDATA 경로로 수정하여 PermissionError [WinError 5] 패치 및 GitHub Release v1.3.13 자산 교체
 
 ## Change Workflow State
 
@@ -40,8 +40,10 @@
   - `setup.iss`
   - `subcast.spec`
   - `build_all.py`
+  - `backend/main.py`
 - **Protected Scope**:
-  - `backend/`
+  - `backend/database.py`
+  - `backend/schemas.py`
   - `frontend/`
   - `tests/`
   - `run.py`
@@ -78,3 +80,4 @@
 - 2026-08-06: CHG-037 무대 모니터 가이드 박스 고정 더미 텍스트화 및 PiP 실시간 연동 UX 개선 완료
 - 2026-08-06: CHG-038 찬양 슬라이드 2분할 레이아웃 적용 및 성경/일반 슬라이드 1분할 단일 레이아웃 자동 분기 완료
 - 2026-08-06: CHG-039 기업형 단일 EXE 인스톨러 배포, 인앱 자동 업데이트 패키지 동시 생성 및 GitHub Release v1.3.13 업로드 완료
+- 2026-08-06: CHG-040 backend/main.py 상대 경로 backgrounds_dir을 SUBCAST_DATA_DIR APPDATA 경로로 수정하여 PermissionError [WinError 5] 패치 및 GitHub Release v1.3.13 자산 교체 완료

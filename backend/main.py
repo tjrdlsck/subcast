@@ -66,7 +66,8 @@ app.include_router(monitor_router)
 frontend_dir = Path("frontend")
 frontend_dir.mkdir(exist_ok=True)
 
-backgrounds_dir = Path("data/backgrounds")
+app_data_dir = Path(os.environ.get("SUBCAST_DATA_DIR", "."))
+backgrounds_dir = app_data_dir / "data" / "backgrounds"
 backgrounds_dir.mkdir(parents=True, exist_ok=True)
 pending_delete_bg_files = set()
 app.mount("/static/backgrounds", StaticFiles(directory=backgrounds_dir), name="backgrounds")
