@@ -30,13 +30,21 @@
             if (canvas) {
                 canvas.dispose();
             }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const channel = urlParams.get('channel');
+            const isMonitor = urlParams.get('mode') === 'monitor' || channel === 'monitor' || channel === 'preview' || channel === 'monitor_preview';
             
             // 뷰어는 상호작용이 없는 StaticCanvas를 사용
             canvas = new fabric.StaticCanvas('viewer-canvas', {
                 width: window.innerWidth,
                 height: window.innerHeight,
-                backgroundColor: 'transparent'
+                backgroundColor: isMonitor ? '#000000' : 'transparent'
             });
+
+            if (isMonitor) {
+                document.body.style.backgroundColor = '#000000';
+            }
             
             updateCanvasDimensions();
         }
@@ -152,7 +160,18 @@
         function renderCurrentSlide() {
             if (!canvas || !projectData) return;
 
+            const urlParams = new URLSearchParams(window.location.search);
+            const channel = urlParams.get('channel');
+            const isMonitor = urlParams.get('mode') === 'monitor' || channel === 'monitor' || channel === 'preview' || channel === 'monitor_preview';
+
             canvas.clear();
+
+            if (isMonitor) {
+                canvas.backgroundColor = '#000000';
+                document.body.style.backgroundColor = '#000000';
+            } else {
+                canvas.backgroundColor = 'transparent';
+            }
 
             const currentSlideId = projectData.settings?.currentLiveSlideId;
             if (!currentSlideId) return;

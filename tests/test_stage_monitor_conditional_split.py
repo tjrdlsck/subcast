@@ -32,5 +32,12 @@ class TestStageMonitorConditionalSplit(unittest.TestCase):
             content = f.read()
         self.assertIn("isPraise: isPraise", content, "editor-slides.js의 SLIDE_CHANGE 메시지에 isPraise 필드가 포함되어야 합니다.")
 
+    def test_viewer_js_monitor_black_background(self):
+        """viewer.js에서 무대 모니터 모드일 때 빈 슬라이드/투명 배경 시 검정색(#000000) 배경 보장 검증"""
+        self.assertTrue(os.path.exists(self.viewer_js_path))
+        with open(self.viewer_js_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        self.assertIn("canvas.backgroundColor = '#000000'", content, "모니터 모드 렌더링 시 검정색 캔버스 배경이 유지되어야 합니다.")
+
 if __name__ == "__main__":
     unittest.main()
