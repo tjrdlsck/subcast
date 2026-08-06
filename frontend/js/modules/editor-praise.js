@@ -1372,6 +1372,8 @@
             return {
                 id: slideId,
                 name: `찬양: ${header}`,
+                slideType: 'praise',
+                isPraise: true,
                 elements: elements
             };
         }
@@ -1394,6 +1396,8 @@
             return {
                 id: slideId,
                 name: `자막(템): ${header}`,
+                slideType: 'praise',
+                isPraise: true,
                 elements: clonedElements
             };
         }

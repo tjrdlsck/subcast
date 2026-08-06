@@ -227,6 +227,8 @@
             const isLastSlide = (currentIndex + 1 >= slides.length);
             const nextContent = isLastSlide ? "[마지막 슬라이드입니다]" : (nextSlide ? (extractText(nextSlide) || slideNameOrFallback(nextSlide, currentIndex + 2)) : "");
 
+            const isPraise = !!(curSlide && (curSlide.slideType === 'praise' || curSlide.isPraise || (curSlide.id && typeof curSlide.id === 'string' && curSlide.id.startsWith('slide_praise_')) || (curSlide.name && typeof curSlide.name === 'string' && (curSlide.name.startsWith('찬양:') || curSlide.name.startsWith('자막(템):')))));
+
             if (window.BroadcastChannel) {
                 try {
                     const bc = new BroadcastChannel("subcast_monitor_channel");
@@ -236,7 +238,8 @@
                         nextIndex: currentIndex + 1,
                         currentContent: curContent,
                         nextContent: nextContent,
-                        isLastSlide: isLastSlide
+                        isLastSlide: isLastSlide,
+                        isPraise: isPraise
                     });
                     bc.close();
                 } catch (e) {

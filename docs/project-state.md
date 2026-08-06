@@ -10,8 +10,8 @@
 
 ## Active Change Unit
 
-- Change ID: `CHG-037-stage-monitor-guide-box-layout`
-- Target Feature: 무대 모니터 가이드 박스 고정 더미 텍스트화 및 PiP 실시간 연동 UX 개선
+- Change ID: `CHG-038-stage-monitor-praise-split-conditional-layout`
+- Target Feature: 찬양 슬라이드 2분할 레이아웃 적용 및 성경/일반 슬라이드 1분할 단일 레이아웃 자동 분기
 
 ## Change Workflow State
 
@@ -73,3 +73,4 @@
 - 2026-08-02: CHG-035 작업 기준 문서와 변경 기록 정리 완료 (코드 변경 없음, 기준선 97 passed / 26 failed)
 - 2026-08-02: CHG-036 고정 작업 문서·아카이브·커밋/푸쉬 규칙 정리 완료
 - 2026-08-06: CHG-037 무대 모니터 가이드 박스 고정 더미 텍스트화 및 PiP 실시간 연동 UX 개선 완료
+- 2026-08-06: CHG-038 찬양 슬라이드 2분할 레이아웃 적용 및 성경/일반 슬라이드 1분할 단일 레이아웃 자동 분기 완료

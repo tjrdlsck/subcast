@@ -649,7 +649,15 @@
             });
         }
 
-        function updateMonitorViewerTexts(currentContent, nextContent, isLastSlide = false) {
+        function isPraiseSlide(slide) {
+            if (!slide) return false;
+            if (slide.slideType === 'praise' || slide.isPraise === true) return true;
+            if (slide.id && typeof slide.id === 'string' && slide.id.startsWith('slide_praise_')) return true;
+            if (slide.name && typeof slide.name === 'string' && (slide.name.startsWith('찬양:') || slide.name.startsWith('자막(템):'))) return true;
+            return false;
+        }
+
+        function updateMonitorViewerTexts(currentContent, nextContent, isLastSlide = false, isPraise = true) {
             const curText = document.getElementById("monitor-current-text");
             const nxtText = document.getElementById("monitor-next-text");
             const nxtCard = document.getElementById("monitor-next-card");
@@ -657,13 +665,19 @@
             if (curText) {
                 curText.textContent = currentContent || "(내용 없음)";
             }
-            if (nxtText) {
-                if (isLastSlide) {
-                    nxtText.textContent = "[마지막 슬라이드입니다]";
-                    if (nxtCard) nxtCard.style.opacity = "0.4";
+            if (nxtText && nxtCard) {
+                if (!isPraise) {
+                    // 찬양이 아닌 성경/일반 슬라이드는 2분할(하단 NEXT) 감추고 1분할로 표시
+                    nxtCard.style.display = "none";
                 } else {
-                    nxtText.textContent = nextContent || "(다음 슬라이드 없음)";
-                    if (nxtCard) nxtCard.style.opacity = "1.0";
+                    nxtCard.style.display = "flex";
+                    if (isLastSlide) {
+                        nxtText.textContent = "[마지막 슬라이드입니다]";
+                        nxtCard.style.opacity = "0.4";
+                    } else {
+                        nxtText.textContent = nextContent || "(다음 슬라이드 없음)";
+                        nxtCard.style.opacity = "1.0";
+                    }
                 }
             }
         }
@@ -695,7 +709,8 @@
             const curText = curSlide ? extractSlideText(curSlide, curSlide.name || `슬라이드 ${currentIndex + 1}`) : "";
             const nextText = isLastSlide ? "[마지막 슬라이드입니다]" : (nextSlide ? extractSlideText(nextSlide, nextSlide.name || `슬라이드 ${currentIndex + 2}`) : "");
 
-            updateMonitorViewerTexts(curText, nextText, isLastSlide);
+            const isPraise = isPraiseSlide(curSlide);
+            updateMonitorViewerTexts(curText, nextText, isLastSlide, isPraise);
         }
 
         async function initMonitorModeViewer() {
@@ -724,7 +739,7 @@
                         monitorViewerSettings = data.settings;
                         renderMonitorViewerLayout();
                     } else if (data.type === "SLIDE_CHANGE") {
-                        updateMonitorViewerTexts(data.currentContent, data.nextContent, data.isLastSlide);
+                        updateMonitorViewerTexts(data.currentContent, data.nextContent, data.isLastSlide, data.isPraise !== undefined ? data.isPraise : true);
                     }
                 };
             }

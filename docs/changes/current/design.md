@@ -1,36 +1,23 @@
-# Design Document: CHG-037 무대 모니터 가이드 박스 고정 더미 텍스트화 및 PiP 실시간 연동 UX 개선
+# Design Document: CHG-038 찬양 슬라이드 2분할 레이아웃 적용 및 성경/일반 슬라이드 1분할 단일 레이아웃 자동 분기
 
-## 1. 시스템 구조 및 디자인 흐름
+## 1. 찬양 슬라이드 감지 헬퍼 함수 (`isPraiseSlide`)
 
-```
-[ 메인 에디터 캔버스 (editor-monitor.js) ]
-  ├── 1. enterMonitorMode()
-  │     ├── currentGuideBox: 표준 가이드 더미 텍스트 (DUMMY_CUR_TEXT)
-  │     └── nextGuideBox: 표준 가이드 더미 텍스트 (DUMMY_NXT_TEXT)
-  │
-  ├── 2. handleGuideModified() / syncCanvasToMonitorSettings()
-  │     └── 바운딩 박스 위치/크기/폰트 속성 업데이트
-  │
-  └── 3. broadcastMonitorPreviewSettings()
-        └── BroadcastChannel('subcast_monitor_channel')을 통해
-            위치, 크기, 폰트 레이아웃 스타일 설정 전달
-
-[ 측면 PiP 미니 박스 (pip-monitor-iframe -> monitor.html?channel=preview) ]
-  └── 수신된 레이아웃 설정(위치/크기/폰트) + 실제 선택된 슬라이드 텍스트 렌더링
+```javascript
+function isPraiseSlide(slide) {
+    if (!slide) return false;
+    if (slide.slideType === 'praise' || slide.isPraise === true) return true;
+    if (slide.id && typeof slide.id === 'string' && slide.id.startsWith('slide_praise_')) return true;
+    if (slide.name && typeof slide.name === 'string' && (slide.name.startsWith('찬양:') || slide.name.startsWith('자막(템):'))) return true;
+    return false;
+}
 ```
 
-## 2. 상세 세부 변경사항
+## 2. 모니터 렌더링 분기 로직 (`viewer.js` / `monitor.html`)
 
-### A. 더미 텍스트 및 가이드 박스 초기화 (`frontend/js/modules/editor-monitor.js`)
-- `getInitialSlideTexts()`를 개선하거나 대체하여 무대 모니터 가이드 박스용 표준 문구 반환:
-  - `curText`: `🔴 [현재 자막 영역]\n슬라이드 자막 텍스트 위치 및 영역 범위 가이드\n(드래그하여 크기를 조절하세요)`
-  - `nextText`: `🔵 [다음 자막 영역]\n다음 슬라이드 자막 텍스트 위치 가이드`
-- `currentGuideBox` 및 `nextGuideBox` 생성 시:
-  - `minWidth: 150`, `minHeight: 50` 설정으로 핸들 조작 최저 보장.
-  - 가이드 박스의 `isMonitorGuide: true` 유지.
+- `isPraiseSlide(curSlide)` 가 `true` 인 경우:
+  - 기존 2분할 모드 활성화 (`currentBox` 영역에 현재 자막, `nextBox` 영역에 다음 자막 표시).
+- `isPraiseSlide(curSlide)` 가 `false` 인 경우 (성경/일반):
+  - 1분할 모드 활성화: `nextBox` 영역은 감추고(`display: none` 또는 hidden), `currentBox` 영역에 현재 슬라이드 내용을 단일 렌더링.
 
-### B. 레이아웃 속성만 브로드캐스트 동기화
-- `syncCanvasToMonitorSettings()` 실행 시 텍스트 내용(`content`)을 동기화하는 것이 아니라 `leftPct`, `topPct`, `widthPct`, `heightPct`, `fontSize`, `textColor`, `textAlign` 등 **레이아웃 스타일 속성**만을 저장 및 전송.
-
-### C. 실시간 PiP 연동 확인
-- 캔버스 조작 시 `broadcastMonitorPreviewSettings()`가 `pip-monitor-iframe`로 전달되어 슬라이드의 실제 글자가 배치되어 보이는지 검증.
+## 3. 찬양 슬라이드 생성 시 속성 명시 (`editor-praise.js`)
+- 찬양 탭에서 슬라이드를 새로 생성할 때 객체에 `slideType: 'praise'`, `isPraise: true` 속성을 내장하여 탐색 신뢰도 100% 확보.
