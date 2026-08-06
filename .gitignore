@@ -10,7 +10,4 @@ coverage/
 build/
 dist/
 data/backgrounds/
-GAE_Bible.db
-data/projects/
-.omo/
 

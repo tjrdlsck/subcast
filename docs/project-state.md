@@ -10,19 +10,19 @@
 
 ## Active Change Unit
 
-- Change ID: `CHG-037-fix-monitor-textbox-height-resizing`
-- Target Feature: 모니터 에디터 텍스트 박스 높이 자동 수축 방지 및 세로 리사이즈 고정 수치 반영 개선
+- Change ID: `CHG-036-push-and-reusable-change-docs`
+- Target Feature: 고정 작업 문서 재사용과 검증 후 브랜치 커밋·푸쉬 절차
 
 ## Change Workflow State
 
 | Phase | Status | Approved At |
 |---|---|---|
-| Change Request | APPROVED | 2026-08-06 |
-| Impact Analysis | APPROVED | 2026-08-06 |
-| Change Design | APPROVED | 2026-08-06 |
-| Tasks Breakdown | APPROVED | 2026-08-06 |
-| Testing Strategy | APPROVED | 2026-08-06 |
-| Implementation | COMPLETED | 2026-08-06 |
+| Change Request | APPROVED | 2026-08-02 |
+| Impact Analysis | APPROVED | 2026-08-02 |
+| Change Design | APPROVED | 2026-08-02 |
+| Tasks Breakdown | APPROVED | 2026-08-02 |
+| Testing Strategy | APPROVED | 2026-08-02 |
+| Implementation | COMPLETED | 2026-08-02 |
 
 ## Scope Boundaries
 
