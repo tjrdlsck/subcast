@@ -1,7 +1,8 @@
-# Tasks Breakdown: CHG-043-fix-editor-stage-bg-update-yt-status-error
+# Tasks Breakdown: CHG-044-version-bump-build-and-release
 
 ## Task List
 
-- [x] Task 1: `editor-stage-bg.js` 내 `updateYtStatus` 함수 정의 및 상태 갱신 로직 추가
-- [x] Task 2: 문법 및 기능 검증 (`editor-stage-bg.js` 구문 오류 node -c 검사 통과 및 기존 회귀 없음 확인)
-- [x] Task 3: 문서 및 project-state 완료 갱신
+- [x] Task 1: `version.txt` 1.3.14로 상향 조종
+- [x] Task 2: `build_all.py` 파이프라인 실행 (PyInstaller + ZIP + Inno Setup EXE 컴파일)
+- [x] Task 3: `gh release create` 명령어로 GitHub Release v1.3.14 게시 및 패키지 아티팩트 업로드
+- [x] Task 4: 문서 및 project-state 완료 갱신

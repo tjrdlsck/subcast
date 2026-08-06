@@ -1,9 +1,9 @@
-# Testing Strategy: CHG-043-fix-editor-stage-bg-update-yt-status-error
+# Testing Strategy: CHG-044-version-bump-build-and-release
 
-## 1. Unit & Static Code Analysis
-- `editor-stage-bg.js` 구문 검사(Syntax check / linting or python -m py_compile / node -c if applicable)
-- `updateYtStatus` 선언 및 호출 관계 확인
+## 1. Build Verification
+- `dist/Subcast_Setup_v1.3.14.exe` 파일 생성 및 용량 정상 확인
+- `dist/subcast-v1.3.14-windows.zip` 파일 생성 및 압축 구조 확인
 
-## 2. Integration & Manual Verification Plan
-- 현장 배경 연출 탭에서 비디오 업로드 버튼 실행 시 `ReferenceError` 발생 여부 확인
-- 콘솔 로그 및 업로드 상태 메시지 정상 출력 여부 확인
+## 2. Release & Artifact Verification
+- `gh release view v1.3.14` 실행 결과 확인
+- Release 자산 목록에 EXE 인스톨러 및 ZIP 패키지 존재 확인

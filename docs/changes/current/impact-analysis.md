@@ -1,26 +1,31 @@
-# Impact Analysis: CHG-043-fix-editor-stage-bg-update-yt-status-error
+# Impact Analysis: CHG-044-version-bump-build-and-release
 
 ## 1. Overview
-- **Change ID**: `CHG-043-fix-editor-stage-bg-update-yt-status-error`
-- **Target Component**: `frontend/js/modules/editor-stage-bg.js`
+- **Change ID**: `CHG-044-version-bump-build-and-release`
+- **Target Component**: `version.txt`, `dist/`, GitHub Release Asset
 
 ## 2. Impact Assessment
 - **Affected Files**:
-  - `frontend/js/modules/editor-stage-bg.js`
+  - `version.txt`
+  - `dist/Subcast_Setup_v1.3.14.exe`
+  - `dist/subcast-v1.3.14-windows.zip`
 - **Non-Affected Areas**:
-  - Backend API (`/api/backgrounds/upload`)
-  - DB Schema 및 Python Backend 서버
-  - 기타 프론트엔드 모듈 (`editor-stage.js`, `editor-song.js` 등)
+  - 소스코드 로직 (`backend/`, `frontend/`)
+  - DB Schema
 
 ## 3. Allowed vs Protected Scope
 - **Allowed Scope**:
   - `docs/project-state.md`
   - `docs/changes/current/*`
-  - `frontend/js/modules/editor-stage-bg.js`
+  - `version.txt`
+  - `setup.iss`
+  - `build_all.py`
+  - `dist/`
 - **Protected Scope**:
   - `backend/`
-  - `frontend/editor.html`
+  - `frontend/`
   - `tests/`
 
 ## 4. Risk Mitigation Plan
-- 최소한의 함수 정의(Small Diff)만을 추가하여 기존 배경 선택(`selectStageBg`), 블로거/선택 효과 등의 기존 기능에 부작용(Side Effect)이 발생하지 않도록 함.
+- 빌드 전 최신 소스 문법 및 릴리즈 태그 존재 여부 사전 확인.
+- Inno Setup 및 PyInstaller 정합성 검증.

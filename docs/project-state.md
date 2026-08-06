@@ -10,8 +10,8 @@
 
 ## Active Change Unit
 
-- Change ID: `CHG-043-fix-editor-stage-bg-update-yt-status-error`
-- Target Feature: editor-stage-bg.js 내 미정의 함수 updateYtStatus 참조 오류(ReferenceError) 수정 및 비디오 파일 업로드 상태 표시 로직 정상화
+- Change ID: `CHG-044-version-bump-build-and-release`
+- Target Feature: version.txt 1.3.14 버전 업, 기업형 단일 EXE 인스톨러 및 자동 업데이트 ZIP 빌드, GitHub Release v1.3.14 생성 및 자산 업로드
 
 ## Change Workflow State
 
@@ -29,7 +29,10 @@
 - **Allowed Scope**:
   - `docs/project-state.md`
   - `docs/changes/current/`
-  - `frontend/js/modules/editor-stage-bg.js`
+  - `version.txt`
+  - `setup.iss`
+  - `build_all.py`
+  - `dist/`
 - **Protected Scope**:
   - `backend/database.py`
   - `backend/schemas.py`
@@ -72,3 +75,4 @@
 - 2026-08-06: CHG-041 backend/main.py 루트 URL / 접속 시 /static/index.html로 자동 리다이렉트 처리 및 Release v1.3.13 자산 교체 완료
 - 2026-08-06: CHG-042 run.py 백엔드 서버 호스트 0.0.0.0 지정으로 LAN 외부 접속 지원, 단일 EXE 인스톨러 및 인앱 자동 업데이트 패키지 빌드 후 Release v1.3.13 배포 완료
 - 2026-08-06: CHG-043 editor-stage-bg.js 내 updateYtStatus 미정의 함수 참조 오류(ReferenceError) 수정 및 비디오 파일 업로드 상태 표시 로직 정상화 완료
+- 2026-08-06: CHG-044 version.txt 1.3.14 상향, 기업형 단일 EXE 인스톨러 및 인앱 자동 업데이트 패키지 빌드 완료, GitHub Release v1.3.14 업로드 및 배포 완료

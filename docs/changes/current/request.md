@@ -1,26 +1,33 @@
-# Change Request: CHG-043-fix-editor-stage-bg-update-yt-status-error
+# Change Request: CHG-044-version-bump-build-and-release
 
 ## 1. Request Details
-- **Change ID**: `CHG-043-fix-editor-stage-bg-update-yt-status-error`
+- **Change ID**: `CHG-044-version-bump-build-and-release`
 - **Request Date**: 2026-08-06
 - **Requester**: User
 - **Status**: IN_PROGRESS
 
 ## 2. Problem Statement
-에디터 페이지의 찬양 배경(현장 모니터 배경 연출) 탭에서 로컬 동영상 파일 업로드 시 `Uncaught (in promise) ReferenceError: updateYtStatus is not defined at handleLocalFileUpload (editor-stage-bg.js:870:9)` 오류가 발생함.
-이로 인해 비디오 파일 업로드가 정상적으로 완료되지 않거나 상태 업데이트 도중 실행이 중단됨.
+최근 찬양 배경 동영상 업로드 버그 수정(`CHG-043`) 등 최신 소스 변경 사항이 배포용 바이너리에 반영되지 않음.
+기업 환경에서 단일 EXE 파일로 설치할 수 있어야 하며, 기존 사용자는 별도 EXE 설치 없이 인앱 자동 업데이트(ZIP 기반)가 지원되어야 함.
 
 ## 3. Objective & Scope
-- **목표**: `editor-stage-bg.js` 내 `updateYtStatus` 함수 정의를 구현하여 `ReferenceError`를 해소하고, 파일 업로드 진행률 및 상태 메시지 출력이 정상 작동하도록 함.
+- **목표**: 
+  1. `version.txt`를 `1.3.14`로 업데이트.
+  2. `build_all.py` 파이프라인을 실행하여 단일 EXE 인스톨러(`Subcast_Setup_v1.3.14.exe`) 및 인앱 자동 업데이트 패키지(`subcast-v1.3.14-windows.zip`) 패키징.
+  3. GitHub CLI(`gh`)를 활용하여 GitHub Release `v1.3.14` 태그/릴리즈 생성 및 아티팩트 업로드.
 - **Allowed Scope**:
   - `docs/project-state.md`
   - `docs/changes/current/*`
-  - `frontend/js/modules/editor-stage-bg.js`
+  - `version.txt`
+  - `setup.iss`
+  - `build_all.py`
+  - `dist/`
 - **Protected Scope**:
   - `backend/`
-  - `frontend/editor.html`
+  - `frontend/`
   - `tests/`
 
 ## 4. Proposed Solution Overview
-- `updateYtStatus(message, color)` 헬퍼 함수를 `editor-stage-bg.js` 내부 스코프에 추가 작성함.
-- 콘솔 출력과 함께 필요 시 업로드 버튼 주변 및 상태 엘리먼트가 존재할 때 텍스트를 업데이트하도록 안전하게 로직 구현.
+- `version.txt` 버전을 `1.3.14`로 수정.
+- `venv\Scripts\python.exe build_all.py`를 실행하여 PyInstaller 바이너리 빌드, 자동 업데이트용 ZIP 생성, Inno Setup 단일 인스톨러 EXE 컴파일 수행.
+- `gh release create v1.3.14 dist/Subcast_Setup_v1.3.14.exe dist/subcast-v1.3.14-windows.zip` 명령으로 릴리즈 및 업로드 수행.
