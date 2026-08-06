@@ -19,6 +19,7 @@ class TestStageMonitorGuideBox(unittest.TestCase):
         self.assertIn("🔴 [현재 자막 영역]", content, "현재 자막 더미 가이드 텍스트가 정의되어야 합니다.")
         self.assertIn("🔵 [다음 자막 영역]", content, "다음 자막 더미 가이드 텍스트가 정의되어야 합니다.")
         self.assertIn("여기에 현재 슬라이드 자막이 표시됩니다.", content, "가이드 상세 안내 문구가 정의되어야 합니다.")
+        self.assertIn("여기에 다음 슬라이드 자막이 표시됩니다.", content, "다음 슬라이드 자막 가이드 문구가 정의되어야 합니다.")
 
         # 2. Fabric Textbox 최소 크기(minWidth, minHeight) 보장 검증
         self.assertIn("minWidth: 150", content, "가이드 텍스트박스에 minWidth 설정이 포함되어야 합니다.")
