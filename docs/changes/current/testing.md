@@ -1,10 +1,14 @@
-# Testing Strategy: CHG-038 찬양 슬라이드 2분할 레이아웃 적용 및 성경/일반 슬라이드 1분할 단일 레이아웃 자동 분기
+# Testing & Verification Strategy: CHG-039-enterprise-installer-and-release-packaging
 
-## 1. 테스트 목표
-- 찬양 탭 슬라이드 송출 시에만 무대 모니터에 2분할(현재/다음 자막) 레이아웃이 적용되고, 성경 및 일반 슬라이드에는 1분할(현재 자막 단일 대형) 레이아웃이 정확히 분기되는지 검증.
+## 1. 검증 시나리오 및 절차
 
-## 2. 검증 절차
-1. **단위 테스트 (Unit Test)**:
-   - `pytest tests/test_stage_monitor_conditional_split.py` 실행하여 `isPraiseSlide()` 식별 분기 및 렌더링 스위칭 로직 통과 확인.
-2. **기존 테스트 검증**:
-   - `pytest tests/test_stage_monitor_guide_box.py` 실행하여 이전 변경 사항 통과 유지 확인.
+### 1.1 빌드 산출물 생성 검증
+- `dist/Subcast_Setup_v1.3.13.exe` 존재 및 10MB 이상의 정상 바이너리 크기 확인
+- `dist/subcast-v1.3.13-windows.zip` 존재 및 압축 해제 시 무설치 파이프라인 구조 확인
+
+### 1.2 사용자 데이터 보존 및 마이그레이션 안전성 검증
+- `setup.iss` 파일 내 `GAE_Bible.db`가 `onlyifdoesntexist` 플래그로 설정되어 있는지 수동/자동 검증
+- 빌드 ZIP 아티팩트 내에 `data/projects/` 등 개발 데이터가 누락(격리)되어 깔끔하게 패키징 되었는지 확인
+
+### 1.3 Release 등재 검증
+- `rtk gh release view v1.3.13` 명령어를 실행하여 GitHub Release 태그 생성 및 파일 2종 업로드 완료 여부 확인

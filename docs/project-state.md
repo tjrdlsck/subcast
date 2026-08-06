@@ -10,8 +10,8 @@
 
 ## Active Change Unit
 
-- Change ID: `CHG-038-stage-monitor-praise-split-conditional-layout`
-- Target Feature: 찬양 슬라이드 2분할 레이아웃 적용 및 성경/일반 슬라이드 1분할 단일 레이아웃 자동 분기
+- Change ID: `CHG-039-enterprise-installer-and-release-packaging`
+- Target Feature: 기업형 단일 EXE 인스톨러 배포, 인앱 자동 업데이트 패키지 동시 생성 및 GitHub Release v1.3.13 업로드
 
 ## Change Workflow State
 
@@ -36,13 +36,16 @@
   - `.antigravity/rules.md`
   - `.agent/agents/product-orchestrator/agent.md`
   - `.codex/config.toml`
+  - `version.txt`
+  - `setup.iss`
+  - `subcast.spec`
+  - `build_all.py`
 - **Protected Scope**:
   - `backend/`
   - `frontend/`
   - `tests/`
   - `run.py`
   - `requirements.txt`
-  - `build_all.py`
   - `.antigravity/rules.md`
   - `.agent/agents/product-orchestrator/agent.md`
   - 기존 변경 단위 문서
@@ -74,3 +77,4 @@
 - 2026-08-02: CHG-036 고정 작업 문서·아카이브·커밋/푸쉬 규칙 정리 완료
 - 2026-08-06: CHG-037 무대 모니터 가이드 박스 고정 더미 텍스트화 및 PiP 실시간 연동 UX 개선 완료
 - 2026-08-06: CHG-038 찬양 슬라이드 2분할 레이아웃 적용 및 성경/일반 슬라이드 1분할 단일 레이아웃 자동 분기 완료
+- 2026-08-06: CHG-039 기업형 단일 EXE 인스톨러 배포, 인앱 자동 업데이트 패키지 동시 생성 및 GitHub Release v1.3.13 업로드 완료

@@ -1,23 +1,29 @@
-# Design Document: CHG-038 찬양 슬라이드 2분할 레이아웃 적용 및 성경/일반 슬라이드 1분할 단일 레이아웃 자동 분기
+# Technical Design: CHG-039-enterprise-installer-and-release-packaging
 
-## 1. 찬양 슬라이드 감지 헬퍼 함수 (`isPraiseSlide`)
+## 1. 개요 및 설계 목표
+본 변경안은 기업형 단일 EXE 인스톨러 배포, 별도의 EXE 재설치 없이도 백엔드를 통한 무설치 인앱 자동 업데이트(Auto-Update) 지원, 사용자 데이터 마이그레이션 안전성 확보, 개발 데이터 제외, 그리고 GitHub CLI (`gh release`)를 통한 자동 업로드를 구현합니다.
 
-```javascript
-function isPraiseSlide(slide) {
-    if (!slide) return false;
-    if (slide.slideType === 'praise' || slide.isPraise === true) return true;
-    if (slide.id && typeof slide.id === 'string' && slide.id.startsWith('slide_praise_')) return true;
-    if (slide.name && typeof slide.name === 'string' && (slide.name.startsWith('찬양:') || slide.name.startsWith('자막(템):'))) return true;
-    return false;
-}
+## 2. 세부 설계 (Architecture & Build Flow)
+
+```mermaid
+flowchart TD
+    A[version.txt v1.3.13] --> B[build_all.py Pipeline]
+    B --> C[PyInstaller: subcast.spec]
+    C --> D[dist/subcast Bundle]
+    D --> E[Inno Setup Compiler: ISCC setup.iss]
+    D --> F[Zip Archiver: subcast-v1.3.13-windows.zip]
+    E --> G[dist/Subcast_Setup_v1.3.13.exe]
+    G --> H[GitHub Release v1.3.13 Upload via gh CLI]
+    F --> H
 ```
 
-## 2. 모니터 렌더링 분기 로직 (`viewer.js` / `monitor.html`)
+### 2.1 데이터 격리 & 마이그레이션 방안
+1. **PyInstaller Spec (`subcast.spec`)**:
+   - 포함 리소스: `frontend/`, `GAE_Bible.db`, `version.txt`
+   - 제외 리소스: 개발자의 개인 프로젝트(`data/projects/*`), 개인 설정, 테스트 로그
+2. **Inno Setup Script (`setup.iss`)**:
+   - `GAE_Bible.db`: `onlyifdoesntexist` 처리 (기존 사용자 DB 유지)
+   - 프로그램 삭제/재설치 시에도 사용자 데이터 안전 보장
 
-- `isPraiseSlide(curSlide)` 가 `true` 인 경우:
-  - 기존 2분할 모드 활성화 (`currentBox` 영역에 현재 자막, `nextBox` 영역에 다음 자막 표시).
-- `isPraiseSlide(curSlide)` 가 `false` 인 경우 (성경/일반):
-  - 1분할 모드 활성화: `nextBox` 영역은 감추고(`display: none` 또는 hidden), `currentBox` 영역에 현재 슬라이드 내용을 단일 렌더링.
-
-## 3. 찬양 슬라이드 생성 시 속성 명시 (`editor-praise.js`)
-- 찬양 탭에서 슬라이드를 새로 생성할 때 객체에 `slideType: 'praise'`, `isPraise: true` 속성을 내장하여 탐색 신뢰도 100% 확보.
+### 2.2 GitHub Release 업로드 명령어 설계
+- `gh release create v1.3.13 dist/Subcast_Setup_v1.3.13.exe dist/subcast-v1.3.13-windows.zip --title "Subcast v1.3.13" --notes "Enterprise Installer & Auto-Update Release"`
