@@ -658,18 +658,26 @@
         }
 
         function updateMonitorViewerTexts(currentContent, nextContent, isLastSlide = false, isPraise = true) {
+            const monitorContainer = document.getElementById("monitor-viewer-container");
+            const canvasContainer = document.getElementById("canvas-container");
             const curText = document.getElementById("monitor-current-text");
             const nxtText = document.getElementById("monitor-next-text");
             const nxtCard = document.getElementById("monitor-next-card");
 
-            if (curText) {
-                curText.textContent = currentContent || "(내용 없음)";
-            }
-            if (nxtText && nxtCard) {
-                if (!isPraise) {
-                    // 찬양이 아닌 성경/일반 슬라이드는 2분할(하단 NEXT) 감추고 1분할로 표시
-                    nxtCard.style.display = "none";
-                } else {
+            if (!isPraise) {
+                // 찬양이 아닌 성경/일반 슬라이드: 모니터 2분할 텍스트 뷰어 숨기고, 원본 슬라이드 디자인 캔버스 출력
+                if (monitorContainer) monitorContainer.style.display = "none";
+                if (canvasContainer) canvasContainer.style.display = "block";
+                renderCurrentSlide();
+            } else {
+                // 찬양 슬라이드: 모니터 2분할(CURRENT + NEXT) 텍스트 뷰어 출력
+                if (monitorContainer) monitorContainer.style.display = "block";
+                if (canvasContainer) canvasContainer.style.display = "none";
+
+                if (curText) {
+                    curText.textContent = currentContent || "(내용 없음)";
+                }
+                if (nxtText && nxtCard) {
                     nxtCard.style.display = "flex";
                     if (isLastSlide) {
                         nxtText.textContent = "[마지막 슬라이드입니다]";
@@ -714,11 +722,11 @@
         }
 
         async function initMonitorModeViewer() {
+            if (!canvas && typeof initCanvas === 'function') {
+                initCanvas();
+            }
             const monitorContainer = document.getElementById("monitor-viewer-container");
             const canvasContainer = document.getElementById("canvas-container");
-
-            if (monitorContainer) monitorContainer.style.display = "block";
-            if (canvasContainer) canvasContainer.style.display = "none";
 
             await fetchMonitorViewerSettings();
             renderMonitorViewerLayout();
