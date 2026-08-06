@@ -1,11 +1,26 @@
-# Change Request: CHG-041-fix-root-url-redirect-to-static-index
+# Change Request: CHG-043-fix-editor-stage-bg-update-yt-status-error
 
-## 1. 변경 요청 배경 및 목적
-- **루트 URL 접속 시 프론트엔드 미출력 해결**: 사용자가 `http://127.0.0.1:8000/` 접속 시 단순 JSON 텍스트 대신 메인 웹 애플리케이션 화면인 `http://127.0.0.1:8000/static/index.html`로 자동 이동(Redirect)되도록 수정합니다.
-- **오픈 브라우저 UX 개선**: 프로그램 시작 및 트레이 아이콘 메뉴에서 브라우저 열기 실행 시 사용자에게 바로 Subcast 메인 화면이 표시되도록 보장합니다.
+## 1. Request Details
+- **Change ID**: `CHG-043-fix-editor-stage-bg-update-yt-status-error`
+- **Request Date**: 2026-08-06
+- **Requester**: User
+- **Status**: IN_PROGRESS
 
-## 2. 주요 변경 요청 사항
-1. `backend/main.py`의 `@app.get("/")` 핸들러에서 `RedirectResponse(url="/static/index.html")` 반환하도록 변경
-2. `run.py`의 브라우저 오픈 URL을 `http://127.0.0.1:8000/static/index.html`로 직접 보장
-3. `python build_all.py` 파이프라인을 실행하여 단일 EXE 인스톨러 및 무설치 ZIP 패키지 재빌드
-4. `rtk gh release upload v1.3.13` 실행하여 릴리즈 자산 갱신
+## 2. Problem Statement
+에디터 페이지의 찬양 배경(현장 모니터 배경 연출) 탭에서 로컬 동영상 파일 업로드 시 `Uncaught (in promise) ReferenceError: updateYtStatus is not defined at handleLocalFileUpload (editor-stage-bg.js:870:9)` 오류가 발생함.
+이로 인해 비디오 파일 업로드가 정상적으로 완료되지 않거나 상태 업데이트 도중 실행이 중단됨.
+
+## 3. Objective & Scope
+- **목표**: `editor-stage-bg.js` 내 `updateYtStatus` 함수 정의를 구현하여 `ReferenceError`를 해소하고, 파일 업로드 진행률 및 상태 메시지 출력이 정상 작동하도록 함.
+- **Allowed Scope**:
+  - `docs/project-state.md`
+  - `docs/changes/current/*`
+  - `frontend/js/modules/editor-stage-bg.js`
+- **Protected Scope**:
+  - `backend/`
+  - `frontend/editor.html`
+  - `tests/`
+
+## 4. Proposed Solution Overview
+- `updateYtStatus(message, color)` 헬퍼 함수를 `editor-stage-bg.js` 내부 스코프에 추가 작성함.
+- 콘솔 출력과 함께 필요 시 업로드 버튼 주변 및 상태 엘리먼트가 존재할 때 텍스트를 업데이트하도록 안전하게 로직 구현.

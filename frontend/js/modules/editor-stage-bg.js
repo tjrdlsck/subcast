@@ -861,6 +861,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnUploadFile = document.getElementById('btn-upload-bg-file');
     const inputUploadFile = document.getElementById('file-upload-bg-input');
 
+    function updateYtStatus(msg, color) {
+        console.log(`[Stage BG Upload Status] ${msg}`);
+        const statusEl = document.getElementById('stage-bg-upload-status');
+        if (statusEl) {
+            statusEl.textContent = msg;
+            if (color) statusEl.style.color = color;
+        }
+    }
+
     async function handleLocalFileUpload(fileInput) {
         if (!fileInput || !fileInput.files || !fileInput.files[0]) return;
         const file = fileInput.files[0];

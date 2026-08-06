@@ -1,13 +1,7 @@
-# Tasks Breakdown: CHG-041-fix-root-url-redirect-to-static-index
+# Tasks Breakdown: CHG-043-fix-editor-stage-bg-update-yt-status-error
 
-## 1. 구현 태스크 목록
+## Task List
 
-- [x] **Task 1: backend/main.py 및 run.py 리다이렉트 경로 수정**
-  - `backend/main.py` 내 `@app.get("/")`에서 `RedirectResponse(url="/static/index.html")` 리턴
-  - `run.py` 내 `webbrowser.open` URL을 `/static/index.html`로 업데이트
-
-- [x] **Task 2: 패키징 파이프라인 재실행**
-  - `python build_all.py` 실행
-
-- [x] **Task 3: GitHub Release v1.3.13 자산 교체 업로드**
-  - `rtk gh release upload v1.3.13` 실행 (`--clobber`)
+- [x] Task 1: `editor-stage-bg.js` 내 `updateYtStatus` 함수 정의 및 상태 갱신 로직 추가
+- [x] Task 2: 문법 및 기능 검증 (`editor-stage-bg.js` 구문 오류 node -c 검사 통과 및 기존 회귀 없음 확인)
+- [x] Task 3: 문서 및 project-state 완료 갱신

@@ -1,10 +1,9 @@
-# Testing & Verification Strategy: CHG-041-fix-root-url-redirect-to-static-index
+# Testing Strategy: CHG-043-fix-editor-stage-bg-update-yt-status-error
 
-## 1. 검증 시나리오 및 절차
+## 1. Unit & Static Code Analysis
+- `editor-stage-bg.js` 구문 검사(Syntax check / linting or python -m py_compile / node -c if applicable)
+- `updateYtStatus` 선언 및 호출 관계 확인
 
-### 1.1 엔드포인트 리다이렉션 코드 검증
-- `@app.get("/")` 핸들러가 `RedirectResponse(url="/static/index.html")`를 반환하는지 수동/자동 검증
-
-### 1.2 재빌드 및 Release 업로드 검증
-- `dist/Subcast_Setup_v1.3.13.exe` 및 `dist/subcast-v1.3.13-windows.zip` 재생성 확인
-- `rtk gh release view v1.3.13` 명령으로 갱신된 자산 등재 여부 확인
+## 2. Integration & Manual Verification Plan
+- 현장 배경 연출 탭에서 비디오 업로드 버튼 실행 시 `ReferenceError` 발생 여부 확인
+- 콘솔 로그 및 업로드 상태 메시지 정상 출력 여부 확인

@@ -10,8 +10,8 @@
 
 ## Active Change Unit
 
-- Change ID: `CHG-041-fix-root-url-redirect-to-static-index`
-- Target Feature: backend/main.py 루트 URL / 접속 시 /static/index.html로 자동 리다이렉트 처리 및 오픈 브라우저 URL 보장 후 Release v1.3.13 자산 교체
+- Change ID: `CHG-043-fix-editor-stage-bg-update-yt-status-error`
+- Target Feature: editor-stage-bg.js 내 미정의 함수 updateYtStatus 참조 오류(ReferenceError) 수정 및 비디오 파일 업로드 상태 표시 로직 정상화
 
 ## Change Workflow State
 
@@ -29,19 +29,7 @@
 - **Allowed Scope**:
   - `docs/project-state.md`
   - `docs/changes/current/`
-  - `docs/current/system-overview.md`
-  - `docs/current/module-map.md`
-  - `docs/current/test-baseline.md`
-  - `AGENTS.md`
-  - `.antigravity/rules.md`
-  - `.agent/agents/product-orchestrator/agent.md`
-  - `.codex/config.toml`
-  - `version.txt`
-  - `setup.iss`
-  - `subcast.spec`
-  - `build_all.py`
-  - `backend/main.py`
-  - `run.py`
+  - `frontend/js/modules/editor-stage-bg.js`
 - **Protected Scope**:
   - `backend/database.py`
   - `backend/schemas.py`
@@ -72,13 +60,15 @@
 ## Change History
 
 - 2026-08-01: CHG-001 ~ CHG-013 완료
-- 2026-08-01: CHG-014-fix-stage-bg-tag-matching 완료 (현장 배경 분위기 태그 정규화/매칭 고도화 및 한 곡 전체 슬라이드 동일 배경 유지 보장)
-- 2026-08-02: CHG-020 ~ CHG-025 완료 (텍스트 Stroke paintFirst 적용, 모니터 속성 동기화/렌더링, 백엔드 영속화, 실시간 미리보기 브로드캐스트, 성경 호버 미리보기 버그 수정, 찬양 배경 중복방지 알고리즘)
+- 2026-08-01: CHG-014-fix-stage-bg-tag-matching 완료
+- 2026-08-02: CHG-020 ~ CHG-025 완료
 - 2026-08-02: CHG-026 ~ CHG-034 완료된 변경 기록으로 확인
-- 2026-08-02: CHG-035 작업 기준 문서와 변경 기록 정리 완료 (코드 변경 없음, 기준선 97 passed / 26 failed)
+- 2026-08-02: CHG-035 작업 기준 문서와 변경 기록 정리 완료
 - 2026-08-02: CHG-036 고정 작업 문서·아카이브·커밋/푸쉬 규칙 정리 완료
 - 2026-08-06: CHG-037 무대 모니터 가이드 박스 고정 더미 텍스트화 및 PiP 실시간 연동 UX 개선 완료
-- 2026-08-06: CHG-038 찬양 슬라이드 2분할 레이아웃 적용 및 성경/일반 슬라이드 1분할 단일 레이아웃 자동 분기 완료
+- 2026-08-06: CHG-038 찬양 슬라이드 2분할 레이아웃 적용 완료
 - 2026-08-06: CHG-039 기업형 단일 EXE 인스톨러 배포, 인앱 자동 업데이트 패키지 동시 생성 및 GitHub Release v1.3.13 업로드 완료
-- 2026-08-06: CHG-040 backend/main.py 상대 경로 backgrounds_dir을 SUBCAST_DATA_DIR APPDATA 경로로 수정하여 PermissionError [WinError 5] 패치 및 GitHub Release v1.3.13 자산 교체 완료
-- 2026-08-06: CHG-041 backend/main.py 루트 URL / 접속 시 /static/index.html로 자동 리다이렉트 처리 및 run.py 오픈 브라우저 URL 보장 후 Release v1.3.13 자산 교체 완료
+- 2026-08-06: CHG-040 backend/main.py 상대 경로 backgrounds_dir을 SUBCAST_DATA_DIR APPDATA 경로로 수정
+- 2026-08-06: CHG-041 backend/main.py 루트 URL / 접속 시 /static/index.html로 자동 리다이렉트 처리 및 Release v1.3.13 자산 교체 완료
+- 2026-08-06: CHG-042 run.py 백엔드 서버 호스트 0.0.0.0 지정으로 LAN 외부 접속 지원, 단일 EXE 인스톨러 및 인앱 자동 업데이트 패키지 빌드 후 Release v1.3.13 배포 완료
+- 2026-08-06: CHG-043 editor-stage-bg.js 내 updateYtStatus 미정의 함수 참조 오류(ReferenceError) 수정 및 비디오 파일 업로드 상태 표시 로직 정상화 완료
