@@ -100,35 +100,11 @@
         updateInfoUI();
     }
 
-    // 슬라이드 데이터에서 첫 슬라이드 또는 현재 선택 슬라이드 텍스트 추출
+    // 무대 모니터 에디터 캔버스 가이드용 표준 더미 텍스트 반환 (슬라이드 가변 텍스트 종속 방지)
     function getInitialSlideTexts() {
-        if (typeof projectData !== 'undefined' && projectData && projectData.slides && projectData.slides.length > 0) {
-            const activeIdx = typeof activeSlideId !== 'undefined' && activeSlideId 
-                ? projectData.slides.findIndex(s => s.id === activeSlideId) 
-                : 0;
-            const curIdx = activeIdx !== -1 ? activeIdx : 0;
-            const curSlide = projectData.slides[curIdx];
-            const nextSlide = (curIdx + 1 < projectData.slides.length) ? projectData.slides[curIdx + 1] : null;
-
-            const extractText = (slide) => {
-                if (!slide || !slide.elements) return "";
-                return slide.elements
-                    .filter(e => e.type === "text" || e.type === "i-text" || e.type === "textbox")
-                    .map(e => e.content || "")
-                    .filter(Boolean)
-                    .join("\n");
-            };
-
-            const curText = curSlide ? (extractText(curSlide) || curSlide.name || `슬라이드 ${curIdx + 1}`) : "";
-            const nextText = (curIdx + 1 >= projectData.slides.length) 
-                ? "[마지막 슬라이드입니다]" 
-                : (nextSlide ? (extractText(nextSlide) || nextSlide.name || `슬라이드 ${curIdx + 2}`) : "");
-
-            return { curText, nextText };
-        }
         return {
-            curText: "🔴 현재 슬라이드 내용이 여기에 표시됩니다",
-            nextText: "🔵 다음 슬라이드 내용이 여기에 표시됩니다"
+            curText: "🔴 [현재 자막 영역]\n여기에 현재 슬라이드 자막이 표시됩니다.\n(드래그하여 표시 영역 크기와 위치를 조절하세요)",
+            nextText: "🔵 [다음 자막 영역]\n여기에 다음 슬라이드 자막이 표시됩니다.\n(예시 텍스트 2번째 줄)"
         };
     }
 
@@ -153,6 +129,8 @@
             left: (cur.leftPct / 100) * BASE_W,
             top: (cur.topPct / 100) * BASE_H,
             width: (cur.widthPct / 100) * BASE_W,
+            minWidth: 150,
+            minHeight: 50,
             fontSize: cur.fontSize || 28,
             fill: cur.textColor || '#FFFFFF',
             stroke: cur.strokeColor || 'transparent',
@@ -179,6 +157,8 @@
             left: (nxt.leftPct / 100) * BASE_W,
             top: (nxt.topPct / 100) * BASE_H,
             width: (nxt.widthPct / 100) * BASE_W,
+            minWidth: 150,
+            minHeight: 50,
             fontSize: nxt.fontSize || 22,
             fill: nxt.textColor || '#A0A0A0',
             stroke: nxt.strokeColor || 'transparent',

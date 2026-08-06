@@ -10,19 +10,19 @@
 
 ## Active Change Unit
 
-- Change ID: `CHG-036-push-and-reusable-change-docs`
-- Target Feature: 고정 작업 문서 재사용과 검증 후 브랜치 커밋·푸쉬 절차
+- Change ID: `CHG-037-stage-monitor-guide-box-layout`
+- Target Feature: 무대 모니터 가이드 박스 고정 더미 텍스트화 및 PiP 실시간 연동 UX 개선
 
 ## Change Workflow State
 
 | Phase | Status | Approved At |
 |---|---|---|
-| Change Request | APPROVED | 2026-08-02 |
-| Impact Analysis | APPROVED | 2026-08-02 |
-| Change Design | APPROVED | 2026-08-02 |
-| Tasks Breakdown | APPROVED | 2026-08-02 |
-| Testing Strategy | APPROVED | 2026-08-02 |
-| Implementation | COMPLETED | 2026-08-02 |
+| Change Request | APPROVED | 2026-08-06 |
+| Impact Analysis | APPROVED | 2026-08-06 |
+| Change Design | APPROVED | 2026-08-06 |
+| Tasks Breakdown | APPROVED | 2026-08-06 |
+| Testing Strategy | APPROVED | 2026-08-06 |
+| Implementation | APPROVED | 2026-08-06 |
 
 ## Scope Boundaries
 
@@ -72,3 +72,4 @@
 - 2026-08-02: CHG-026 ~ CHG-034 완료된 변경 기록으로 확인
 - 2026-08-02: CHG-035 작업 기준 문서와 변경 기록 정리 완료 (코드 변경 없음, 기준선 97 passed / 26 failed)
 - 2026-08-02: CHG-036 고정 작업 문서·아카이브·커밋/푸쉬 규칙 정리 완료
+- 2026-08-06: CHG-037 무대 모니터 가이드 박스 고정 더미 텍스트화 및 PiP 실시간 연동 UX 개선 완료

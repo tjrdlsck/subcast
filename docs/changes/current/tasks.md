@@ -1,45 +1,16 @@
-# Tasks: CHG-036-push-and-reusable-change-docs
+# Tasks Breakdown: CHG-037 무대 모니터 가이드 박스 고정 더미 텍스트화 및 PiP 실시간 연동 UX 개선
 
-## Task 1: 현재 문서 이관
+## Task 1: 메인 캔버스 가이드 박스 더미 텍스트화 및 최소 규격 설정
+- **목표**: `editor-monitor.js`의 `getInitialSlideTexts()` 및 `enterMonitorMode()`에서 실제 슬라이드 가변 텍스트 대신 표준 가이드 더미 텍스트를 할당하고 최소 박스 규격(`minWidth`, `minHeight`) 부여.
+- **대상 파일**: `frontend/js/modules/editor-monitor.js`
+- **검증**: 무대 모니터 탭 진입 시 고정 가이드 텍스트가 표시되고 박스 조작이 용이한지 확인.
 
-- CHG-036의 승인 내용을 `docs/changes/current/` 다섯 파일에 반영한다.
-- 검증: 파일 수가 정확히 5개인지 확인한다.
+## Task 2: 레이아웃 정보만 동기화 보장 및 브로드캐스트 검증
+- **목표**: `syncCanvasToMonitorSettings()`에서 더미 텍스트 내용이 실제 슬라이드 데이터를 덮어쓰지 않고 위치/크기/스타일 속성만 전송함을 보장.
+- **대상 파일**: `frontend/js/modules/editor-monitor.js`
+- **검증**: `broadcastMonitorPreviewSettings()` 전송 페이로드 확인.
 
-## Task 2: 경로 규칙 정렬
-
-- Codex, Antigravity, 오케스트레이터 규칙을 `docs/changes/current/` 기준으로 수정한다.
-- 검증: 활성 문서를 `docs/changes/current/`에서 찾도록 요구하는지 확인한다.
-
-## Task 3: 이력 인덱스 정렬
-
-- 완료 변경은 Git 커밋 이력으로 보존한다는 정책을 `archive-index.md`에 기록한다.
-- 검증: 현재 작업 문서와 과거 이력의 역할이 구분되는지 확인한다.
-
-## Task 4: 기존 폴더 삭제
-
-- `docs/changes/CHG-*` 폴더만 삭제한다.
-- 검증: `current/`, `archive-index.md`, 보호 범위는 남아 있는지 확인한다.
-
-## Task 5: 최종 검증
-
-- 문서 링크·경로·Git 상태를 확인한다.
-- 코드, DB, 테스트, 캐시 외 설정 파일은 삭제하지 않았는지 확인한다.
-
-## 태스크 작성 양식
-
-태스크는 의존성 순서에 따라 작고 검증 가능한 단위로 나눈다.
-
-### 마일스톤
-
-- Phase 1: 기반 및 데이터 구조
-- Phase 2: 백엔드/API
-- Phase 3: 프론트엔드/UI 및 통합
-
-### 태스크 형식
-
-#### Task N: [작업명]
-
-- 상세 내용:
-- 변경 파일:
-- 의존 태스크:
-- 검증 방법:
+## Task 3: 단위 및 통합 테스트 작성 및 실행
+- **목표**: 가이드 박스 생성, 속성 동기화, 더미 텍스트 적용 방식을 검증하는 파이썬/JS 단위 테스트 작성.
+- **대상 파일**: `tests/test_stage_monitor_guide_box.py`
+- **검증**: `pytest tests/test_stage_monitor_guide_box.py` 통과 확인.

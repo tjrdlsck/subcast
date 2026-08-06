@@ -1,61 +1,36 @@
-# Design: CHG-036-push-and-reusable-change-docs
+# Design Document: CHG-037 무대 모니터 가이드 박스 고정 더미 텍스트화 및 PiP 실시간 연동 UX 개선
 
-## 문서 구조
+## 1. 시스템 구조 및 디자인 흐름
 
-활성 변경 문서는 항상 다음 다섯 파일만 사용한다.
+```
+[ 메인 에디터 캔버스 (editor-monitor.js) ]
+  ├── 1. enterMonitorMode()
+  │     ├── currentGuideBox: 표준 가이드 더미 텍스트 (DUMMY_CUR_TEXT)
+  │     └── nextGuideBox: 표준 가이드 더미 텍스트 (DUMMY_NXT_TEXT)
+  │
+  ├── 2. handleGuideModified() / syncCanvasToMonitorSettings()
+  │     └── 바운딩 박스 위치/크기/폰트 속성 업데이트
+  │
+  └── 3. broadcastMonitorPreviewSettings()
+        └── BroadcastChannel('subcast_monitor_channel')을 통해
+            위치, 크기, 폰트 레이아웃 스타일 설정 전달
 
-```text
-docs/changes/current/
-  request.md
-  impact-analysis.md
-  design.md
-  tasks.md
-  testing.md
+[ 측면 PiP 미니 박스 (pip-monitor-iframe -> monitor.html?channel=preview) ]
+  └── 수신된 레이아웃 설정(위치/크기/폰트) + 실제 선택된 슬라이드 텍스트 렌더링
 ```
 
-새 변경을 시작할 때 현재 다섯 파일을 덮어쓴다. 이전 내용은 완료 커밋의 Git tree에서 복원한다.
+## 2. 상세 세부 변경사항
 
-## 상태 관리
+### A. 더미 텍스트 및 가이드 박스 초기화 (`frontend/js/modules/editor-monitor.js`)
+- `getInitialSlideTexts()`를 개선하거나 대체하여 무대 모니터 가이드 박스용 표준 문구 반환:
+  - `curText`: `🔴 [현재 자막 영역]\n슬라이드 자막 텍스트 위치 및 영역 범위 가이드\n(드래그하여 크기를 조절하세요)`
+  - `nextText`: `🔵 [다음 자막 영역]\n다음 슬라이드 자막 텍스트 위치 가이드`
+- `currentGuideBox` 및 `nextGuideBox` 생성 시:
+  - `minWidth: 150`, `minHeight: 50` 설정으로 핸들 조작 최저 보장.
+  - 가이드 박스의 `isMonitorGuide: true` 유지.
 
-- 현재 변경 ID는 `docs/project-state.md`에 기록한다.
-- 문서 제목에도 변경 ID를 기록한다.
-- `docs/changes/archive-index.md`에는 완료 변경의 요약 목록만 유지한다.
-- 기존 `CHG-*` 폴더는 이관 완료 후 작업 트리에서 제거한다.
+### B. 레이아웃 속성만 브로드캐스트 동기화
+- `syncCanvasToMonitorSettings()` 실행 시 텍스트 내용(`content`)을 동기화하는 것이 아니라 `leftPct`, `topPct`, `widthPct`, `heightPct`, `fontSize`, `textColor`, `textAlign` 등 **레이아웃 스타일 속성**만을 저장 및 전송.
 
-## 커밋·푸쉬
-
-- 커밋 제목은 변경 목적을 간결하게 요약한다.
-- 실제 코드와 문서는 커밋의 변경 내용으로 포함하며 제목에 전문을 넣지 않는다.
-- 검증 성공, 허용 범위 일치, 비보호 브랜치, upstream 연결을 모두 확인한 뒤 현재 브랜치에 푸쉬한다.
-- 강제 푸쉬와 원격 브랜치 삭제는 사용하지 않는다.
-
-## 기술 설계 양식
-
-### 시스템 구조와 데이터 흐름
-
-- 변경되는 모듈:
-- 입력과 출력:
-- 의존 방향:
-
-### 데이터 모델과 스키마
-
-- 변경 테이블 또는 데이터 구조:
-- 필드, 타입, 제약조건:
-- 마이그레이션 필요 여부:
-
-### API 및 인터페이스 계약
-
-- Endpoint 또는 함수:
-- 입력:
-- 정상 응답:
-- 오류 응답:
-
-### 예외 및 경계 조건
-
-1. 
-
-### 보안·성능·호환성
-
-- 보안 고려사항:
-- 성능 고려사항:
-- 기존 기능 호환성:
+### C. 실시간 PiP 연동 확인
+- 캔버스 조작 시 `broadcastMonitorPreviewSettings()`가 `pip-monitor-iframe`로 전달되어 슬라이드의 실제 글자가 배치되어 보이는지 검증.
