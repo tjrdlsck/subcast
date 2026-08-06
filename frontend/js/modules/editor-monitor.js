@@ -272,18 +272,32 @@
         if (!isMonitorMode || !canvas) return;
         const updateBox = (boxObj, boxKey) => {
             if (!boxObj) return;
+            const currentConfig = monitorSettings[boxKey] || {};
             const actualW = boxObj.width * (boxObj.scaleX || 1);
-            const actualH = boxObj.height * (boxObj.scaleY || 1);
+            const scaleYVal = boxObj.scaleY || 1;
 
             let leftPct = clamp((boxObj.left / BASE_W) * 100, 0, 95);
             let topPct = clamp((boxObj.top / BASE_H) * 100, 0, 95);
             let widthPct = clamp((actualW / BASE_W) * 100, 5, 100 - leftPct);
-            let heightPct = clamp((actualH / BASE_H) * 100, 5, 100 - topPct);
+
+            // 수직 스케일링(scaleY != 1)이 발생한 조작일 때만 actualH 기반으로 heightPct 업데이트
+            // scaleY == 1 이면 (슬라이드 교체, 단순 이동 등) 1줄/빈 슬라이드 텍스트 렌더링에 의한 height 축소 영향 없이 기존 heightPct 유지
+            let heightPct = currentConfig.heightPct !== undefined ? currentConfig.heightPct : 42.0;
+            if (Math.abs(scaleYVal - 1.0) > 0.001) {
+                const actualH = boxObj.height * scaleYVal;
+                heightPct = clamp((actualH / BASE_H) * 100, 5, 100 - topPct);
+            } else {
+                heightPct = clamp(heightPct, 5, 100 - topPct);
+            }
+
+            const baseFontSize = boxObj.fontSize || (boxKey === 'currentBox' ? 28 : 22);
+            const effectiveFontSize = Math.round(baseFontSize * scaleYVal);
 
             // 스케일 정규화 (scaleX, scaleY를 1로 맞추고 width 계산 대입)
             const targetPixelWidth = (widthPct / 100) * BASE_W;
             boxObj.set({
                 width: targetPixelWidth,
+                fontSize: effectiveFontSize,
                 scaleX: 1,
                 scaleY: 1
             });
@@ -295,11 +309,8 @@
             const fontStyleVal = boxObj.fontStyle || 'normal';
             const opacityVal = boxObj.opacity !== undefined ? boxObj.opacity : 1.0;
 
-            const baseFontSize = boxObj.fontSize || (boxKey === 'currentBox' ? 28 : 22);
-            const effectiveFontSize = Math.round(baseFontSize * (boxObj.scaleY || 1));
-
             monitorSettings[boxKey] = {
-                ...monitorSettings[boxKey],
+                ...currentConfig,
                 leftPct: parseFloat(leftPct.toFixed(2)),
                 topPct: parseFloat(topPct.toFixed(2)),
                 widthPct: parseFloat(widthPct.toFixed(2)),

@@ -1,45 +1,23 @@
-# Tasks: CHG-036-push-and-reusable-change-docs
+# Tasks Breakdown: CHG-037-fix-monitor-textbox-height-resizing
 
-## Task 1: 현재 문서 이관
+## 태스크 목록
 
-- CHG-036의 승인 내용을 `docs/changes/current/` 다섯 파일에 반영한다.
-- 검증: 파일 수가 정확히 5개인지 확인한다.
+### Task 1: 가이드 박스 수직 리사이즈 및 `heightPct` 계산 로직 교정
+- **목적**: 캔버스 상에서 세로 핸들 조작 시 `actualH` 및 `heightPct`가 정확히 증가/감소하고 `scaleY: 1` 초기화 시에도 수축되지 않도록 수정.
+- **대상 파일**: `frontend/js/modules/editor-monitor.js`
+- **세부 작업**:
+  - `syncCanvasToMonitorSettings` 내 `updateBox` 함수 수정:
+    - `scaleY` 조작 비율을 감지하여 `actualH = boxObj.height * scaleY` 기반으로 `heightPct`를 올바르게 계산.
+    - `boxObj.set({ scaleX: 1, scaleY: 1 })` 시 `heightPct`가 텍스트 높이로 원상복구되는 방지 조치 적용.
 
-## Task 2: 경로 규칙 정렬
+### Task 2: 1줄 및 빈 슬라이드 텍스트 자동 수축 방지
+- **목적**: 슬라이드 텍스트 렌더링 시 내용 길이에 맞춰 `heightPct`가 자동으로 쪼그라들지 않도록 독립적 고정 영역 보장.
+- **대상 파일**: `frontend/js/modules/editor-monitor.js`
+- **세부 작업**:
+  - `enterMonitorMode`에서 기존 저장된 `currentBox.heightPct` 및 `nextBox.heightPct`를 가이드 박스 영역 높이로 확실하게 적용.
 
-- Codex, Antigravity, 오케스트레이터 규칙을 `docs/changes/current/` 기준으로 수정한다.
-- 검증: 활성 문서를 `docs/changes/current/`에서 찾도록 요구하는지 확인한다.
-
-## Task 3: 이력 인덱스 정렬
-
-- 완료 변경은 Git 커밋 이력으로 보존한다는 정책을 `archive-index.md`에 기록한다.
-- 검증: 현재 작업 문서와 과거 이력의 역할이 구분되는지 확인한다.
-
-## Task 4: 기존 폴더 삭제
-
-- `docs/changes/CHG-*` 폴더만 삭제한다.
-- 검증: `current/`, `archive-index.md`, 보호 범위는 남아 있는지 확인한다.
-
-## Task 5: 최종 검증
-
-- 문서 링크·경로·Git 상태를 확인한다.
-- 코드, DB, 테스트, 캐시 외 설정 파일은 삭제하지 않았는지 확인한다.
-
-## 태스크 작성 양식
-
-태스크는 의존성 순서에 따라 작고 검증 가능한 단위로 나눈다.
-
-### 마일스톤
-
-- Phase 1: 기반 및 데이터 구조
-- Phase 2: 백엔드/API
-- Phase 3: 프론트엔드/UI 및 통합
-
-### 태스크 형식
-
-#### Task N: [작업명]
-
-- 상세 내용:
-- 변경 파일:
-- 의존 태스크:
-- 검증 방법:
+### Task 3: 자동/수동 회귀 검증
+- **목적**: 변경 사항이 모니터 에디터 및 방송 뷰어에 올바르게 적용되고 기존 테스트를 통과하는지 검증.
+- **대상 파일**: `tests/test_monitor_responsive_text_overflow.py`, `tests/test_monitor_api.py` 등
+- **세부 작업**:
+  - pytest를 통한 모니터 백엔드/프론트엔드 관련 테스트 실행 및 0 failure 통과 확인.
