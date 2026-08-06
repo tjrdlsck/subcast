@@ -306,13 +306,16 @@
         }
     }
 
-    // 5. 캔버스 이벤트 정규화 계산 (실시간 미리보기만 업데이트, 저장 버튼 클릭 전까지 방송 금지)
-    function handleGuideModified(e) {
-        const target = e.target;
-        if (!target) return;
+    function notifyMonitorChanged() {
+        if (!isMonitorMode || !canvas) return;
         syncCanvasToMonitorSettings();
         updateInfoUI();
         broadcastMonitorPreviewSettings();
+    }
+
+    // 5. 캔버스 이벤트 정규화 계산 (실시간 미리보기만 업데이트, 저장 버튼 클릭 전까지 방송 금지)
+    function handleGuideModified(e) {
+        notifyMonitorChanged();
     }
 
     function handleCustomObjectChanged(e) {
@@ -433,6 +436,8 @@
         exitMonitorMode,
         syncCanvasToMonitorSettings,
         broadcastMonitorSettings,
+        notifyMonitorChanged,
+        handleGuideModified,
         getSettings: () => monitorSettings,
         isMonitorMode: () => isMonitorMode
     };

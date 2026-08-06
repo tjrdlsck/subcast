@@ -154,6 +154,11 @@
                     currentEditingElement.set('fontFamily', e.target.value);
                     canvas.renderAll();
                     saveStateToHistory();
+                    if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) {
+                        if (typeof window.subcastMonitorEditor.notifyMonitorChanged === 'function') {
+                            window.subcastMonitorEditor.notifyMonitorChanged();
+                        }
+                    }
                 }
             };
 
@@ -171,6 +176,11 @@
                         splitByGrapheme: true
                     });
                     canvas.renderAll();
+                    if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) {
+                        if (typeof window.subcastMonitorEditor.notifyMonitorChanged === 'function') {
+                            window.subcastMonitorEditor.notifyMonitorChanged();
+                        }
+                    }
                 }
             };
             document.getElementById("fontsize-editor").onchange = () => {
@@ -817,6 +827,11 @@
                         canvas.renderAll();
                         updateInspectorCoords();
                         saveStateToHistory();
+                        if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) {
+                            if (typeof window.subcastMonitorEditor.notifyMonitorChanged === 'function') {
+                                window.subcastMonitorEditor.notifyMonitorChanged();
+                            }
+                        }
                         return;
                     }
                 }
