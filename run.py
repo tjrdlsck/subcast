@@ -89,10 +89,13 @@ def load_config():
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+                cfg = json.load(f)
+                if "host" not in cfg:
+                    cfg["host"] = "0.0.0.0"
+                return cfg
         except:
             pass
-    return {"port": DEFAULT_PORT, "auto_start_server": True}
+    return {"port": DEFAULT_PORT, "host": "0.0.0.0", "auto_start_server": True}
 
 def save_config(config):
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -126,7 +129,8 @@ def is_stopped(item=None):
 def start_server(icon=None, item=None):
     global server_thread
     if not is_running():
-        server_thread = ServerThread("127.0.0.1", config["port"])
+        host = config.get("host", "0.0.0.0")
+        server_thread = ServerThread(host, config["port"])
         server_thread.start()
         
         # 브라우저 자동 오픈

@@ -28,6 +28,11 @@ def validate_box_settings(box_name: str, box_data: Dict[str, Any]) -> None:
     if not (10 <= font_size <= 200):
         raise ValueError(f"{box_name}.fontSize must be between 10 and 200")
 
+    if "lineHeight" in box_data and box_data["lineHeight"] is not None:
+        line_height = float(box_data["lineHeight"])
+        if not (0.8 <= line_height <= 4.0):
+            raise ValueError(f"{box_name}.lineHeight must be between 0.8 and 4.0")
+
 def validate_monitor_settings(settings: Dict[str, Any]) -> None:
     if "currentBox" in settings:
         validate_box_settings("currentBox", settings["currentBox"])
@@ -75,6 +80,7 @@ class MonitorSettingsRepository:
                 "fontFamily": row["current_font_family"] if "current_font_family" in row.keys() and row["current_font_family"] else "Inter",
                 "textAlign": row["current_text_align"] if "current_text_align" in row.keys() and row["current_text_align"] else "center",
                 "opacity": row["current_opacity"] if "current_opacity" in row.keys() and row["current_opacity"] is not None else 1.0,
+                "lineHeight": row["current_line_height"] if "current_line_height" in row.keys() and row["current_line_height"] is not None else 1.35,
             },
             "nextBox": {
                 "leftPct": row["next_left_pct"],
@@ -92,6 +98,7 @@ class MonitorSettingsRepository:
                 "fontFamily": row["next_font_family"] if "next_font_family" in row.keys() and row["next_font_family"] else "Inter",
                 "textAlign": row["next_text_align"] if "next_text_align" in row.keys() and row["next_text_align"] else "center",
                 "opacity": row["next_opacity"] if "next_opacity" in row.keys() and row["next_opacity"] is not None else 1.0,
+                "lineHeight": row["next_line_height"] if "next_line_height" in row.keys() and row["next_line_height"] is not None else 1.35,
             },
             "customElements": custom_elements,
             "updatedAt": str(row["updated_at"]) if row["updated_at"] else None
@@ -133,6 +140,7 @@ class MonitorSettingsRepository:
                 current_font_family = ?,
                 current_text_align = ?,
                 current_opacity = ?,
+                current_line_height = ?,
                 next_left_pct = ?,
                 next_top_pct = ?,
                 next_width_pct = ?,
@@ -148,6 +156,7 @@ class MonitorSettingsRepository:
                 next_font_family = ?,
                 next_text_align = ?,
                 next_opacity = ?,
+                next_line_height = ?,
                 custom_elements = ?,
                 updated_at = ?
             WHERE setting_id = ?
@@ -168,6 +177,7 @@ class MonitorSettingsRepository:
             str(cur_box.get("fontFamily", existing["currentBox"].get("fontFamily", "Inter"))),
             str(cur_box.get("textAlign", existing["currentBox"].get("textAlign", "center"))),
             float(cur_box.get("opacity", existing["currentBox"].get("opacity", 1.0))),
+            float(cur_box.get("lineHeight", existing["currentBox"].get("lineHeight", 1.35))),
             float(nxt_box.get("leftPct", existing["nextBox"]["leftPct"])),
             float(nxt_box.get("topPct", existing["nextBox"]["topPct"])),
             float(nxt_box.get("widthPct", existing["nextBox"]["widthPct"])),
@@ -183,6 +193,7 @@ class MonitorSettingsRepository:
             str(nxt_box.get("fontFamily", existing["nextBox"].get("fontFamily", "Inter"))),
             str(nxt_box.get("textAlign", existing["nextBox"].get("textAlign", "center"))),
             float(nxt_box.get("opacity", existing["nextBox"].get("opacity", 1.0))),
+            float(nxt_box.get("lineHeight", existing["nextBox"].get("lineHeight", 1.35))),
             custom_elements_str,
             updated_at,
             setting_id

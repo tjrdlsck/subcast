@@ -22,6 +22,7 @@ class MonitorBoxSchema(BaseModel):
     fontFamily: Optional[str] = "Inter"
     textAlign: Optional[str] = "center"
     opacity: Optional[float] = 1.0
+    lineHeight: Optional[float] = 1.35
 
 from typing import Dict, Any, Optional, List
 

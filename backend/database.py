@@ -81,6 +81,7 @@ def init_monitor_db(db_path: str = DEFAULT_DB_PATH) -> None:
         "current_stroke_color": "TEXT DEFAULT 'transparent'",
         "current_stroke_width": "INTEGER DEFAULT 0",
         "current_opacity": "REAL DEFAULT 1.0",
+        "current_line_height": "REAL DEFAULT 1.35",
         "next_font_weight": "TEXT DEFAULT '600'",
         "next_font_style": "TEXT DEFAULT 'normal'",
         "next_font_family": "TEXT DEFAULT 'Inter'",
@@ -88,6 +89,7 @@ def init_monitor_db(db_path: str = DEFAULT_DB_PATH) -> None:
         "next_stroke_color": "TEXT DEFAULT 'transparent'",
         "next_stroke_width": "INTEGER DEFAULT 0",
         "next_opacity": "REAL DEFAULT 1.0",
+        "next_line_height": "REAL DEFAULT 1.35",
         "custom_elements": "TEXT DEFAULT '[]'",
     }
     for col_name, col_type in new_cols.items():

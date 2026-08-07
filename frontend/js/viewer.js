@@ -534,6 +534,8 @@
                     if (cur.textAlign) curText.style.justifyContent = cur.textAlign === 'left' ? 'flex-start' : (cur.textAlign === 'right' ? 'flex-end' : 'center');
                     if (cur.textAlign) curText.style.textAlign = cur.textAlign;
                     if (cur.opacity !== undefined) curText.style.opacity = cur.opacity;
+                    const curLh = cur.lineHeight !== undefined ? cur.lineHeight : 1.35;
+                    curText.style.lineHeight = `${curLh}`;
                     if (cur.strokeColor && cur.strokeColor !== 'transparent' && cur.strokeWidth > 0) {
                         const scaledStroke = cur.strokeWidth * (screenW / 768);
                         curText.style.webkitTextStroke = `${scaledStroke}px ${cur.strokeColor}`;
@@ -562,6 +564,8 @@
                     if (nxt.textAlign) nxtText.style.justifyContent = nxt.textAlign === 'left' ? 'flex-start' : (nxt.textAlign === 'right' ? 'flex-end' : 'center');
                     if (nxt.textAlign) nxtText.style.textAlign = nxt.textAlign;
                     if (nxt.opacity !== undefined) nxtText.style.opacity = nxt.opacity;
+                    const nxtLh = nxt.lineHeight !== undefined ? nxt.lineHeight : 1.35;
+                    nxtText.style.lineHeight = `${nxtLh}`;
                     if (nxt.strokeColor && nxt.strokeColor !== 'transparent' && nxt.strokeWidth > 0) {
                         const scaledStroke = nxt.strokeWidth * (screenW / 768);
                         nxtText.style.webkitTextStroke = `${scaledStroke}px ${nxt.strokeColor}`;

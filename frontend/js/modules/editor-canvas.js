@@ -336,12 +336,14 @@
                 textSection.style.display = "block";
                 shapeSection.style.display = "none";
 
-                ['text-editor', 'fontfamily-editor', 'fontsize-editor', 'fontcolor-editor', 'fontcolor-opacity', 'btn-bold', 'btn-italic', 'btn-align-left', 'btn-align-center', 'btn-align-right', 'custom-font-input', 'btn-add-custom-font', 'fontcolor-hex', 'text-strokecolor', 'text-strokecolor-opacity', 'text-strokecolor-hex', 'text-strokewidth', 'text-shadow-enabled'].forEach(id => {
+                ['text-editor', 'fontfamily-editor', 'fontsize-editor', 'text-lineheight', 'fontcolor-editor', 'fontcolor-opacity', 'btn-bold', 'btn-italic', 'btn-align-left', 'btn-align-center', 'btn-align-right', 'custom-font-input', 'btn-add-custom-font', 'fontcolor-hex', 'text-strokecolor', 'text-strokecolor-opacity', 'text-strokecolor-hex', 'text-strokewidth', 'text-shadow-enabled'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.disabled = false;
                 });
                 document.getElementById("text-editor").value = activeObj.text || "";
                 document.getElementById("fontsize-editor").value = Math.round(activeObj.fontSize || 24);
+                const textLhEl = document.getElementById("text-lineheight");
+                if (textLhEl) textLhEl.value = (activeObj.lineHeight !== undefined ? activeObj.lineHeight : 1.35).toFixed(2);
 
                 // Fabric fill을 input[type=color] 포맷에 맞춰 안전하게 대입 및 투명도 복원
                 const fontColor = colorToHex(activeObj.fill);

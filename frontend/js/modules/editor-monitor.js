@@ -10,6 +10,7 @@
             heightPct: 42.0,
             fontSize: 28,
             textColor: "#FFFFFF",
+            lineHeight: 1.35,
             bgColor: "transparent",
             isTransparentBg: true
         },
@@ -20,6 +21,7 @@
             heightPct: 42.0,
             fontSize: 22,
             textColor: "#A0A0A0",
+            lineHeight: 1.35,
             bgColor: "transparent",
             isTransparentBg: true
         }
@@ -140,6 +142,7 @@
             fontFamily: cur.fontFamily || 'Inter',
             textAlign: cur.textAlign || 'center',
             opacity: cur.opacity !== undefined ? cur.opacity : 1.0,
+            lineHeight: cur.lineHeight !== undefined ? cur.lineHeight : 1.35,
             editable: false,
             splitByGrapheme: true,
             lockRotation: true,
@@ -168,6 +171,7 @@
             fontFamily: nxt.fontFamily || 'Inter',
             textAlign: nxt.textAlign || 'center',
             opacity: nxt.opacity !== undefined ? nxt.opacity : 1.0,
+            lineHeight: nxt.lineHeight !== undefined ? nxt.lineHeight : 1.35,
             editable: false,
             splitByGrapheme: true,
             lockRotation: true,
@@ -292,7 +296,8 @@
                 fontStyle: fontStyleVal,
                 fontFamily: boxObj.fontFamily || "Inter",
                 textAlign: boxObj.textAlign || "center",
-                opacity: opacityVal
+                opacity: opacityVal,
+                lineHeight: boxObj.lineHeight !== undefined ? parseFloat(boxObj.lineHeight) : 1.35
             };
         };
 
@@ -327,7 +332,7 @@
         broadcastMonitorPreviewSettings();
     }
 
-    // UI 정보 업데이트
+    // UI 정보 및 줄간격 슬라이더 업데이트
     function updateInfoUI() {
         const infoEl = document.getElementById("monitor-layout-info");
         const cur = monitorSettings.currentBox || {};
@@ -338,6 +343,22 @@
                 🔴 <strong>CURRENT:</strong> X: ${cur.leftPct}% Y: ${cur.topPct}% W: ${cur.widthPct}% H: ${cur.heightPct}% Font: ${cur.fontSize}px (${cur.fontWeight || 'bold'})<br>
                 🔵 <strong>NEXT:</strong> X: ${nxt.leftPct}% Y: ${nxt.topPct}% W: ${nxt.widthPct}% H: ${nxt.heightPct}% Font: ${nxt.fontSize}px (${nxt.fontWeight || '600'})
             `;
+        }
+
+        const curSlider = document.getElementById("range-monitor-cur-lineheight");
+        const curValSpan = document.getElementById("val-monitor-cur-lineheight");
+        if (curSlider && curValSpan) {
+            const curlh = cur.lineHeight !== undefined ? cur.lineHeight : 1.35;
+            curSlider.value = curlh;
+            curValSpan.textContent = `${parseFloat(curlh).toFixed(2)}x`;
+        }
+
+        const nxtSlider = document.getElementById("range-monitor-nxt-lineheight");
+        const nxtValSpan = document.getElementById("val-monitor-nxt-lineheight");
+        if (nxtSlider && nxtValSpan) {
+            const nxtlh = nxt.lineHeight !== undefined ? nxt.lineHeight : 1.35;
+            nxtSlider.value = nxtlh;
+            nxtValSpan.textContent = `${parseFloat(nxtlh).toFixed(2)}x`;
         }
     }
 
@@ -357,6 +378,35 @@
                 exitMonitorMode();
             }
         };
+
+        // 줄간격 슬라이더 이벤트 바인딩
+        const curSlider = document.getElementById("range-monitor-cur-lineheight");
+        if (curSlider) {
+            curSlider.oninput = (e) => {
+                const lh = parseFloat(e.target.value);
+                const curValSpan = document.getElementById("val-monitor-cur-lineheight");
+                if (curValSpan) curValSpan.textContent = `${lh.toFixed(2)}x`;
+                if (currentGuideBox) {
+                    currentGuideBox.set({ lineHeight: lh });
+                    canvas && canvas.renderAll();
+                }
+                notifyMonitorChanged();
+            };
+        }
+
+        const nxtSlider = document.getElementById("range-monitor-nxt-lineheight");
+        if (nxtSlider) {
+            nxtSlider.oninput = (e) => {
+                const lh = parseFloat(e.target.value);
+                const nxtValSpan = document.getElementById("val-monitor-nxt-lineheight");
+                if (nxtValSpan) nxtValSpan.textContent = `${lh.toFixed(2)}x`;
+                if (nextGuideBox) {
+                    nextGuideBox.set({ lineHeight: lh });
+                    canvas && canvas.renderAll();
+                }
+                notifyMonitorChanged();
+            };
+        }
 
         // 이미지 파일 input 변경 리스너
         const monitorImgInput = document.getElementById("monitor-image-input");

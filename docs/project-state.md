@@ -10,38 +10,37 @@
 
 ## Active Change Unit
 
-- Change ID: `CHG-044-version-bump-build-and-release`
-- Target Feature: version.txt 1.3.14 버전 업, 기업형 단일 EXE 인스톨러 및 자동 업데이트 ZIP 빌드, GitHub Release v1.3.14 생성 및 자산 업로드
+- Change ID: `CHG-045-stage-monitor-line-height`
+- Target Feature: 에디터 무대 모니터 탭 및 무대 프롬프터 뷰어의 자막 영역 줄간격(Line Height) 설정 기능 추가
 
 ## Change Workflow State
 
 | Phase | Status | Approved At |
 |---|---|---|
-| Change Request | APPROVED | 2026-08-06 |
-| Impact Analysis | APPROVED | 2026-08-06 |
-| Change Design | APPROVED | 2026-08-06 |
-| Tasks Breakdown | APPROVED | 2026-08-06 |
-| Testing Strategy | APPROVED | 2026-08-06 |
-| Implementation | APPROVED | 2026-08-06 |
+| Change Request | APPROVED | 2026-08-07 |
+| Impact Analysis | APPROVED | 2026-08-07 |
+| Change Design | APPROVED | 2026-08-07 |
+| Tasks Breakdown | APPROVED | 2026-08-07 |
+| Testing Strategy | APPROVED | 2026-08-07 |
+| Implementation | APPROVED | 2026-08-07 |
 
 ## Scope Boundaries
 
 - **Allowed Scope**:
   - `docs/project-state.md`
   - `docs/changes/current/`
-  - `version.txt`
-  - `setup.iss`
-  - `build_all.py`
-  - `dist/`
+  - `frontend/editor.html`
+  - `frontend/js/modules/editor-monitor.js`
+  - `frontend/js/modules/editor-ui.js`
+  - `frontend/js/viewer.js`
+  - `backend/routers/monitor.py`
+  - `backend/monitor_repository.py`
 - **Protected Scope**:
   - `backend/database.py`
   - `backend/schemas.py`
-  - `frontend/`
   - `tests/`
-  - `requirements.txt`
   - `.antigravity/rules.md`
   - `.agent/agents/product-orchestrator/agent.md`
-  - 기존 변경 단위 문서
   - 기타 지정되지 않은 파일
 
 ## Existing Baseline Failures
@@ -76,3 +75,4 @@
 - 2026-08-06: CHG-042 run.py 백엔드 서버 호스트 0.0.0.0 지정으로 LAN 외부 접속 지원, 단일 EXE 인스톨러 및 인앱 자동 업데이트 패키지 빌드 후 Release v1.3.13 배포 완료
 - 2026-08-06: CHG-043 editor-stage-bg.js 내 updateYtStatus 미정의 함수 참조 오류(ReferenceError) 수정 및 비디오 파일 업로드 상태 표시 로직 정상화 완료
 - 2026-08-06: CHG-044 version.txt 1.3.14 상향, 기업형 단일 EXE 인스톨러 및 인앱 자동 업데이트 패키지 빌드 완료, GitHub Release v1.3.14 업로드 및 배포 완료
+- 2026-08-07: CHG-045 캔버스 텍스트 선택 시 우측 속성 설정 패널(#inspector-text-section) 내 줄간격(Line Height) 조절 필드 배치 개편, 캔버스/무대 모니터/프롬프터 뷰어 및 백엔드 API/DB 연동 완료

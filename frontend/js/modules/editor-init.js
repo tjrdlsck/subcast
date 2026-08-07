@@ -187,6 +187,25 @@
                 saveStateToHistory();
             };
 
+            const textLhInput = document.getElementById("text-lineheight");
+            if (textLhInput) {
+                textLhInput.oninput = (e) => {
+                    if (currentEditingElement && (currentEditingElement.type === 'textbox' || currentEditingElement.type === 'text')) {
+                        const lh = Math.max(0.8, Math.min(3.0, parseFloat(e.target.value) || 1.35));
+                        currentEditingElement.set({ lineHeight: lh });
+                        canvas.renderAll();
+                        if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) {
+                            if (typeof window.subcastMonitorEditor.notifyMonitorChanged === 'function') {
+                                window.subcastMonitorEditor.notifyMonitorChanged();
+                            }
+                        }
+                    }
+                };
+                textLhInput.onchange = () => {
+                    saveStateToHistory();
+                };
+            }
+
             // 속성 패널 접기 / 동그라미 아이콘 복원 토글
             const btnMinimizeInspector = document.getElementById("btn-minimize-inspector");
             const btnRestoreInspector = document.getElementById("btn-restore-inspector");
