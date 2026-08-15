@@ -61,16 +61,10 @@ for old_dir in [os.path.join(install_dir, "data"), os.path.join(install_dir, "_i
         except Exception as e:
             print(f"Failed to migrate data dir from {old_dir}: {e}")
 
-new_db_path = os.path.join(subcast_appdata, "GAE_Bible.db")
-for old_db in [os.path.join(install_dir, "GAE_Bible.db"), os.path.join(install_dir, "_internal", "GAE_Bible.db")]:
-    if os.path.exists(old_db) and not os.path.exists(new_db_path):
-        try:
-            shutil.copy2(old_db, new_db_path)
-            break
-        except Exception as e:
-            print(f"Failed to migrate db from {old_db}: {e}")
-
 os.environ["SUBCAST_DATA_DIR"] = subcast_appdata
+
+from backend.services.migration_service import migrate_legacy_db_if_needed
+migrate_legacy_db_if_needed(subcast_appdata, install_dir)
 
 # 워킹 디렉토리 세팅 후 app을 임포트합니다.
 from backend.main import app

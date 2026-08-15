@@ -12,4 +12,9 @@ dist/
 data/
 frontend/fonts/
 .omo/
-
+subcast_user.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.legacy_backup
+GAE_Bible.db

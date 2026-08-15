@@ -2,7 +2,10 @@ import sqlite3
 import os
 from pathlib import Path
 
-DEFAULT_DB_PATH = os.environ.get("SUBCAST_DB_PATH", "GAE_Bible.db")
+APP_DATA_DIR = os.environ.get("SUBCAST_DATA_DIR", ".")
+DEFAULT_USER_DB_PATH = os.environ.get("SUBCAST_USER_DB_PATH", os.environ.get("SUBCAST_DB_PATH", os.path.join(APP_DATA_DIR, "subcast_user.db")))
+DEFAULT_BIBLE_DB_PATH = os.environ.get("SUBCAST_BIBLE_DB_PATH", "bible.db")
+DEFAULT_DB_PATH = DEFAULT_USER_DB_PATH
 
 CREATE_MONITOR_SETTINGS_TABLE = """
 CREATE TABLE IF NOT EXISTS monitor_settings (

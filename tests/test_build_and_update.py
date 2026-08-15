@@ -30,8 +30,7 @@ def test_setup_iss_db_preservation():
     setup_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "setup.iss"))
     with open(setup_path, "r", encoding="utf-8") as f:
         content = f.read()
-    assert 'Excludes: "GAE_Bible.db"' in content
-    assert 'onlyifdoesntexist' in content
+    assert 'Source: "dist\\subcast\\*"' in content
     assert '#ifndef MyAppVersion' in content
 
 def test_find_iscc():

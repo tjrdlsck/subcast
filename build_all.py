@@ -47,8 +47,8 @@ def main():
     
     # dist/subcast 에 추가 자원 누락 확인 및 복사
     dist_app = os.path.join("dist", "subcast")
-    if not os.path.exists(os.path.join(dist_app, "GAE_Bible.db")):
-        shutil.copy("GAE_Bible.db", dist_app)
+    if not os.path.exists(os.path.join(dist_app, "bible.db")):
+        shutil.copy("bible.db", dist_app)
     if not os.path.exists(os.path.join(dist_app, "version.txt")):
         shutil.copy("version.txt", dist_app)
     

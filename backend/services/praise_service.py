@@ -3,12 +3,13 @@ import sqlite3
 from typing import List, Dict, Any, Optional
 
 APP_DATA_DIR = os.environ.get("SUBCAST_DATA_DIR", ".")
+DEFAULT_USER_DB_PATH = os.environ.get("SUBCAST_USER_DB_PATH", os.environ.get("SUBCAST_DB_PATH", os.path.join(APP_DATA_DIR, "subcast_user.db")))
 
 
 class PraiseDatabaseHelper:
     def __init__(self, db_path=None):
         if db_path is None:
-            db_path = os.path.join(APP_DATA_DIR, "GAE_Bible.db")
+            db_path = DEFAULT_USER_DB_PATH
         self.db_path = db_path
         self.init_table()
 
@@ -170,5 +171,4 @@ class PraiseDatabaseHelper:
         finally:
             conn.close()
 
-
-praise_db = PraiseDatabaseHelper(os.path.join(APP_DATA_DIR, "GAE_Bible.db"))
+praise_db = PraiseDatabaseHelper()

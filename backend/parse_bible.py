@@ -3,7 +3,7 @@ import os
 import re
 import sqlite3
 
-def parse_and_import_krv(js_path="GAE_Bible.js", db_path="GAE_Bible.db"):
+def parse_and_import_krv(js_path="GAE_Bible.js", db_path="bible.db"):
     """
     GAE_Bible.js 파일에서 개역개정(KRV) 성경 데이터를 파싱하여
     sqlite3 GAE_Bible.db의 bible 테이블에 대량 삽입합니다.
@@ -77,7 +77,7 @@ def parse_and_import_krv(js_path="GAE_Bible.js", db_path="GAE_Bible.db"):
     conn.close()
     return cnt
 
-def parse_and_import_easy(html_path="viewer_easy.html", db_path="GAE_Bible.db"):
+def parse_and_import_easy(html_path="viewer_easy.html", db_path="bible.db"):
     """
     viewer_easy.html 파일에서 쉬운성경(EASY) 데이터를 파싱하여
     sqlite3 GAE_Bible.db의 bible 테이블에 추가/업데이트합니다.
@@ -139,7 +139,7 @@ def parse_and_import_easy(html_path="viewer_easy.html", db_path="GAE_Bible.db"):
     conn.close()
     return cnt
 
-def parse_and_import_niv(html_path="viewer_niv.html", db_path="GAE_Bible.db"):
+def parse_and_import_niv(html_path="viewer_niv.html", db_path="bible.db"):
     """
     viewer_niv.html 파일에서 NIV 영어성경 데이터를 파싱하여
     sqlite3 GAE_Bible.db의 bible 테이블에 추가/업데이트합니다.
@@ -201,7 +201,7 @@ def parse_and_import_niv(html_path="viewer_niv.html", db_path="GAE_Bible.db"):
     conn.close()
     return cnt
 
-def parse_all(db_path="GAE_Bible.db"):
+def parse_all(db_path="bible.db"):
     parse_and_import_krv(db_path=db_path)
     parse_and_import_easy(db_path=db_path)
     parse_and_import_niv(db_path=db_path)

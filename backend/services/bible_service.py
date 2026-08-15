@@ -1,14 +1,45 @@
 import os
+import sys
 import sqlite3
 from typing import List, Dict, Any
 
 APP_DATA_DIR = os.environ.get("SUBCAST_DATA_DIR", ".")
 
 
+def resolve_bible_db_path() -> str:
+    """정적 성경 DB(bible.db) 경로를 탐색하며, 없을 경우 구버전 GAE_Bible.db를 Fallback으로 조회합니다."""
+    custom_path = os.environ.get("SUBCAST_BIBLE_DB_PATH")
+    if custom_path and os.path.exists(custom_path):
+        return custom_path
+
+    candidates = [
+        "bible.db",
+        os.path.join(APP_DATA_DIR, "bible.db"),
+    ]
+
+    # PyInstaller 번들 경로 탐색
+    if getattr(sys, 'frozen', False):
+        base_dir = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+        candidates.insert(0, os.path.join(base_dir, "bible.db"))
+        candidates.append(os.path.join(base_dir, "GAE_Bible.db"))
+
+    # 레거시 DB Fallback 탐색
+    candidates.extend([
+        "GAE_Bible.db",
+        os.path.join(APP_DATA_DIR, "GAE_Bible.db"),
+    ])
+
+    for p in candidates:
+        if os.path.exists(p) and os.path.getsize(p) > 0:
+            return p
+
+    return "bible.db"
+
+
 class BibleDatabaseHelper:
     def __init__(self, db_path=None):
         if db_path is None:
-            db_path = os.path.join(APP_DATA_DIR, "GAE_Bible.db")
+            db_path = resolve_bible_db_path()
         self.db_path = db_path
         self.init_table()
 
@@ -112,5 +143,4 @@ class BibleDatabaseHelper:
         finally:
             conn.close()
 
-
-db_helper = BibleDatabaseHelper(os.path.join(APP_DATA_DIR, "GAE_Bible.db"))
+db_helper = BibleDatabaseHelper()
