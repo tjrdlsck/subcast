@@ -3,9 +3,9 @@
  * Subcast 멀티 모니터 자동 분할 송출 (Multi-Screen Window Placement) 전담 모듈
  * 
  * - 최신 Window Management API를 활용하여 연결된 물리적 디스플레이 자동 감지
+ * - 단일 모니터에서도 바로 테스트할 수 있도록 기본값 자동 스마트 선택
+ * - 팝업 차단 발생 시 친절한 안내 제공
  * - Subcast 표준 디자인 시스템(Design Tokens)과 100% 일치된 UI 룩앤필 적용
- * - 단일 모니터/권한 대기 시에도 즉시 반응하는 무중단 Fallback 렌더링
- * - Home, Editor, Presenter 등 모든 페이지에서 공통 동작
  */
 
 (function () {
@@ -86,7 +86,7 @@
                     </div>
 
                     <div style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08)); border-radius: var(--radius-sm, 6px); padding: 8px 12px; font-size: 0.75rem; color: var(--text-muted, #9ca3af); line-height: 1.4;">
-                        💡 여러 모니터에 동일한 화면(예: 현장 뷰어)을 중복 지정할 수 있습니다. 1번 주 화면은 <code>[미사용]</code>으로 유지하는 것을 권장합니다.
+                        💡 여러 모니터에 동일한 화면(예: 현장 뷰어)을 중복 지정할 수 있습니다. 단일 모니터 테스트 시에는 1번 화면을 <code>[현장 뷰어]</code>로 선택하시면 됩니다.
                     </div>
                 </div>
                 <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; border-top: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08)); padding-top: 12px;">
@@ -119,6 +119,7 @@
 
     // 모달 열기 (0초 즉시 반응)
     window.openDisplayModal = function () {
+        console.log('[DisplayManager] openDisplayModal 호출됨');
         const modal = ensureModalExists();
         modal.style.setProperty('display', 'flex', 'important');
 
@@ -166,7 +167,7 @@
         }
     }
 
-    // 카드 목록 렌더링 (Subcast 표준 컴포넌트 룩앤필)
+    // 카드 목록 렌더링
     function renderScreenCards(screens) {
         const listContainer = document.getElementById('display-cards-list');
         const statusNotice = document.getElementById('display-status-notice');
@@ -188,10 +189,15 @@
 
             let currentView = mappings[idx]?.assignedView;
             if (currentView === undefined) {
-                if (isPrimary) currentView = 'none';
-                else if (idx === 1) currentView = 'stage_viewer';
-                else if (idx === 2) currentView = 'stage_monitor';
-                else currentView = 'none';
+                if (screens.length === 1) {
+                    // 단일 모니터 환경에서는 바로 테스트할 수 있도록 현장 뷰어를 기본값으로 제공
+                    currentView = 'stage_viewer';
+                } else {
+                    if (isPrimary) currentView = 'none';
+                    else if (idx === 1) currentView = 'stage_viewer';
+                    else if (idx === 2) currentView = 'stage_monitor';
+                    else currentView = 'none';
+                }
             }
 
             const card = document.createElement('div');
@@ -262,9 +268,10 @@
 
         closeAllCastWindows();
         let launchedCount = 0;
+        let blockedByPopup = false;
 
         screens.forEach((screen, idx) => {
-            const viewType = mappings[idx]?.assignedView || 'none';
+            const viewType = mappings[idx]?.assignedView || (screens.length === 1 ? 'stage_viewer' : 'none');
             const def = VIEW_DEFINITIONS[viewType];
 
             if (def && def.url) {
@@ -282,6 +289,8 @@
                     if (win) {
                         activeChildWindows.push(win);
                         launchedCount++;
+                    } else {
+                        blockedByPopup = true;
                     }
                 } catch (err) {
                     console.error(`[DisplayManager] 모니터 ${idx} 창 열기 실패:`, err);
@@ -291,11 +300,16 @@
 
         updateCastStatusUI();
 
+        if (blockedByPopup) {
+            alert('⚠️ 브라우저 팝업이 차단되었습니다!\n주소창 우측 상단의 팝업 차단 아이콘을 클릭하여 [항상 허용]을 선택한 후 다시 시도해 주세요.');
+            return;
+        }
+
         if (launchedCount > 0) {
             closeDisplayModal();
             console.log(`[DisplayManager] ${launchedCount}개 화면 송출 시작`);
         } else {
-            alert('송출하도록 설정된 모니터가 없습니다. 드롭다운에서 송출할 화면을 선택해 주세요.');
+            alert('송출할 화면이 [미사용]으로 선택되어 있습니다.\n드롭다운에서 [현장 뷰어] 또는 [무대 모니터]를 선택하신 후 [일괄 송출 시작]을 눌러주세요.');
         }
     };
 
