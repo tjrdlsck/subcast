@@ -3,6 +3,7 @@
  * Subcast 멀티 모니터 자동 분할 송출 (Multi-Screen Window Placement) 전담 모듈
  * 
  * - 최신 Window Management API를 활용하여 연결된 물리적 디스플레이 자동 감지
+ * - Subcast 표준 디자인 시스템(Design Tokens)과 100% 일치된 UI 룩앤필 적용
  * - 단일 모니터/권한 대기 시에도 즉시 반응하는 무중단 Fallback 렌더링
  * - Home, Editor, Presenter 등 모든 페이지에서 공통 동작
  */
@@ -56,7 +57,7 @@
         }];
     }
 
-    // 모달 DOM 동적 생성 (어느 페이지에서나 모달이 없으면 자동 주입)
+    // Subcast 표준 디자인 시스템과 100% 일치하는 모달 생성
     function ensureModalExists() {
         let modal = document.getElementById('modal-display-manager');
         if (modal) return modal;
@@ -64,34 +65,35 @@
         modal = document.createElement('div');
         modal.id = 'modal-display-manager';
         modal.className = 'modal-overlay';
-        modal.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 99999; align-items: center; justify-content: center;';
+        modal.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); z-index: 99999; align-items: center; justify-content: center;';
         
         modal.innerHTML = `
-            <div class="modal-content" style="width: 580px; max-width: 92vw; background: #111827; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.6); color: #fff; font-family: 'Inter', sans-serif;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px;">
-                    <h3 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: #f3f4f6; letter-spacing: -0.3px;">
+            <div class="modal-content" style="width: 540px; max-width: 90vw; background: #111827; border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08)); border-radius: var(--radius-lg, 14px); padding: 22px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); font-family: 'Outfit', 'Pretendard', 'Inter', sans-serif;">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h3 style="margin: 0; color: var(--text-main, #f9fafb); font-size: 1.05rem; font-weight: 600;">
                         멀티 디스플레이 송출 설정
                     </h3>
-                    <span id="btn-display-modal-close" style="cursor: pointer; font-size: 1.4rem; color: #9ca3af; line-height: 1; padding: 4px 8px;">&times;</span>
+                    <span id="btn-display-modal-close" style="cursor: pointer; font-size: 1.5rem; color: var(--text-muted, #9ca3af); line-height: 1;">&times;</span>
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 14px;">
-                    <div style="font-size: 0.8rem; color: #9ca3af; display: flex; justify-content: space-between; align-items: center;">
-                        <span>각 모니터에 송출할 화면을 선택해 주세요.</span>
-                        <span id="display-status-notice" style="color: #60a5fa; font-weight: 600;"></span>
+                <div class="modal-body" style="padding-top: 0; display: flex; flex-direction: column; gap: 12px;">
+                    <div style="font-size: 0.78rem; color: var(--text-muted, #9ca3af); display: flex; justify-content: space-between; align-items: center;">
+                        <span>각 모니터에 송출할 화면을 지정해 주세요.</span>
+                        <span id="display-status-notice" style="color: var(--primary, #6366f1); font-weight: 600;"></span>
                     </div>
 
-                    <div id="display-cards-list" style="max-height: 320px; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 10px;">
+                    <div id="display-cards-list" class="custom-scrollbar" style="max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 2px;">
                         <!-- 동적 카드 목록 -->
                     </div>
 
-                    <div style="background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15); border-radius: 6px; padding: 10px 14px; font-size: 0.76rem; color: #9ca3af; line-height: 1.45;">
-                        <strong>안내:</strong> 여러 모니터에 동일한 화면(예: 현장 뷰어)을 중복 지정할 수 있습니다. 1번 주 화면은 <code>[미사용] 띄우지 않음</code>으로 두는 것을 권장합니다.
+                    <div style="background: rgba(0, 0, 0, 0.2); border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08)); border-radius: var(--radius-sm, 6px); padding: 8px 12px; font-size: 0.75rem; color: var(--text-muted, #9ca3af); line-height: 1.4;">
+                        💡 여러 모니터에 동일한 화면(예: 현장 뷰어)을 중복 지정할 수 있습니다. 1번 주 화면은 <code>[미사용]</code>으로 유지하는 것을 권장합니다.
                     </div>
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 18px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
-                    <button type="button" id="btn-display-stop-cast" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; padding: 8px 16px; font-size: 0.82rem; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s;">모든 송출 창 닫기</button>
+                <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; border-top: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08)); padding-top: 12px;">
+                    <button type="button" class="btn-modal" id="btn-display-stop-cast" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; padding: 7px 14px; font-size: 0.8rem; border-radius: var(--radius-sm, 6px); font-weight: 600; cursor: pointer; transition: all 0.2s;">모든 송출 창 닫기</button>
                     <div style="display: flex; gap: 8px;">
-                        <button type="button" id="btn-display-start-cast" style="background: #2563eb; color: white; padding: 8px 20px; font-size: 0.82rem; border-radius: 6px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s;">일괄 송출 시작</button>
+                        <button type="button" class="btn-modal btn-cancel" id="btn-display-modal-cancel" style="padding: 7px 14px; font-size: 0.8rem; border-radius: var(--radius-sm, 6px); cursor: pointer;">취소</button>
+                        <button type="button" class="btn-modal btn-confirm" id="btn-display-start-cast" style="background: var(--primary, #6366f1); color: white; padding: 7px 18px; font-size: 0.8rem; border-radius: var(--radius-sm, 6px); font-weight: 600; cursor: pointer; border: none;">일괄 송출 시작</button>
                     </div>
                 </div>
             </div>
@@ -99,15 +101,15 @@
 
         document.body.appendChild(modal);
 
-        // 내부 닫기 및 액션 버튼 이벤트 바인딩
+        // 이벤트 바인딩
         modal.querySelector('#btn-display-modal-close').onclick = closeDisplayModal;
+        modal.querySelector('#btn-display-modal-cancel').onclick = closeDisplayModal;
         modal.querySelector('#btn-display-start-cast').onclick = startMultiScreenCast;
         modal.querySelector('#btn-display-stop-cast').onclick = () => {
             closeAllCastWindows();
             closeDisplayModal();
         };
 
-        // 바깥 배경 클릭 시 닫기
         modal.onclick = (e) => {
             if (e.target === modal) closeDisplayModal();
         };
@@ -117,7 +119,6 @@
 
     // 모달 열기 (0초 즉시 반응)
     window.openDisplayModal = function () {
-        console.log('[DisplayManager] openDisplayModal 호출됨');
         const modal = ensureModalExists();
         modal.style.setProperty('display', 'flex', 'important');
 
@@ -130,7 +131,6 @@
             console.error('[DisplayManager] renderScreenCards 에러:', e);
         }
 
-        // 백그라운드 멀티 모니터 탐색
         queryLiveScreens().catch(e => console.warn('[DisplayManager] queryLiveScreens 경고:', e));
     };
 
@@ -161,12 +161,12 @@
                     renderScreenCards(cachedScreens);
                 }
             } catch (err) {
-                console.warn('[DisplayManager] getScreenDetails 예외 (Fallback 유지):', err);
+                console.warn('[DisplayManager] getScreenDetails 예외:', err);
             }
         }
     }
 
-    // 카드 목록 렌더링
+    // 카드 목록 렌더링 (Subcast 표준 컴포넌트 룩앤필)
     function renderScreenCards(screens) {
         const listContainer = document.getElementById('display-cards-list');
         const statusNotice = document.getElementById('display-status-notice');
@@ -176,7 +176,7 @@
         const mappings = savedConfig.mappings || [];
 
         if (statusNotice) {
-            statusNotice.innerText = `총 ${screens.length}개 디스플레이 감지됨`;
+            statusNotice.innerText = `감지된 디스플레이: ${screens.length}대`;
         }
 
         listContainer.innerHTML = '';
@@ -195,39 +195,30 @@
             }
 
             const card = document.createElement('div');
-            card.className = 'display-slot-card';
-            card.style.cssText = `
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                background: rgba(255, 255, 255, 0.04);
-                border: 1px solid ${isPrimary ? '#3b82f6' : 'rgba(255,255,255,0.1)'};
-                border-radius: 8px;
-                padding: 12px 16px;
-                gap: 14px;
-            `;
+            card.className = `display-slot-card ${isPrimary ? 'is-primary' : ''}`;
 
             card.innerHTML = `
-                <div style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
-                    <div style="font-weight: 600; font-size: 0.9rem; color: #f3f4f6; display: flex; align-items: center; gap: 8px;">
+                <div style="display: flex; flex-direction: column; gap: 3px; flex: 1;">
+                    <div style="font-weight: 600; font-size: 0.88rem; color: var(--text-main, #f9fafb); display: flex; align-items: center; gap: 6px;">
                         <span>${labelText}</span>
-                        ${isPrimary ? '<span style="font-size: 0.7rem; background: #2563eb; color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: 500;">주 화면</span>' : ''}
+                        ${isPrimary ? '<span style="font-size: 0.68rem; background: var(--primary, #6366f1); color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: 600;">주 화면</span>' : ''}
                     </div>
-                    <div style="font-size: 0.76rem; color: #9ca3af;">
+                    <div style="font-size: 0.74rem; color: var(--text-muted, #9ca3af);">
                         해상도: ${resText} | 좌표: (${screen.availLeft || 0}, ${screen.availTop || 0})
                     </div>
                 </div>
-                <div style="min-width: 210px;">
+                <div style="min-width: 200px;">
                     <select class="display-select-view" data-screen-index="${idx}" style="
                         width: 100%;
                         padding: 7px 10px;
-                        background: #1f2937;
-                        border: 1px solid rgba(255,255,255,0.15);
-                        border-radius: 6px;
-                        color: #f3f4f6;
-                        font-size: 0.82rem;
+                        background: rgba(0, 0, 0, 0.4);
+                        border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.1));
+                        border-radius: var(--radius-sm, 6px);
+                        color: var(--text-main, #f9fafb);
+                        font-size: 0.8rem;
                         cursor: pointer;
                         outline: none;
+                        font-family: inherit;
                     ">
                         ${Object.entries(VIEW_DEFINITIONS).map(([key, def]) => `
                             <option value="${key}" ${currentView === key ? 'selected' : ''}>${def.label}</option>
@@ -239,7 +230,7 @@
             listContainer.appendChild(card);
         });
 
-        // 드롭다운 변경 시 즉시 설정 저장
+        // 설정 변경 즉시 저장
         listContainer.querySelectorAll('.display-select-view').forEach(select => {
             select.addEventListener('change', () => {
                 saveCurrentModalSettings();
@@ -329,7 +320,7 @@
         btns.forEach(btn => {
             if (activeCount > 0) {
                 btn.classList.add('active-casting');
-                btn.innerHTML = `<span style="background:#22c55e; width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:6px; box-shadow:0 0 6px #22c55e;"></span>송출 중 (${activeCount})`;
+                btn.innerHTML = `<span style="background: var(--green-online, #10b981); width:6px; height:6px; border-radius:50%; display:inline-block; margin-right:4px; box-shadow:0 0 6px var(--green-online, #10b981);"></span>송출 중 (${activeCount})`;
             } else {
                 btn.classList.remove('active-casting');
                 btn.innerHTML = `멀티 송출`;

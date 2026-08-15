@@ -75,3 +75,54 @@
     box-shadow: 0 0 16px var(--primary-glow);
     transform: translateY(-1px);
 }
+
+/* 멀티 송출 네비게이션 바 버튼 통일 스타일 */
+.btn-multi-cast {
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.btn-multi-cast:hover {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.btn-multi-cast.active-casting {
+    color: #6ee7b7;
+    background: rgba(16, 185, 129, 0.12);
+    font-weight: 600;
+}
+
+/* 멀티 디스플레이 설정 슬롯 카드 */
+.display-slot-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    gap: 14px;
+    transition: all 0.15s ease;
+}
+
+.display-slot-card:hover {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.display-slot-card.is-primary {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.06);
+}
