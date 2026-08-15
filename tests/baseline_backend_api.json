@@ -1,0 +1,411 @@
+{
+  "total_routes_count": 36,
+  "routes": [
+    {
+      "path": "/",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_index",
+      "endpoint_name": "get_index",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/backgrounds/delete",
+      "methods": [
+        "POST"
+      ],
+      "name": "delete_background_files",
+      "endpoint_name": "delete_background_files",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/backgrounds/duplicate",
+      "methods": [
+        "POST"
+      ],
+      "name": "duplicate_background_files",
+      "endpoint_name": "duplicate_background_files",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/backgrounds/list",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_background_files",
+      "endpoint_name": "list_background_files",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/backgrounds/rename",
+      "methods": [
+        "POST"
+      ],
+      "name": "rename_background_file",
+      "endpoint_name": "rename_background_file",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/backgrounds/upload",
+      "methods": [
+        "POST"
+      ],
+      "name": "upload_background_file",
+      "endpoint_name": "upload_background_file",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/bible/books",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_bible_books",
+      "endpoint_name": "get_bible_books",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/bible/read",
+      "methods": [
+        "GET"
+      ],
+      "name": "read_bible",
+      "endpoint_name": "read_bible",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/bible/search",
+      "methods": [
+        "GET"
+      ],
+      "name": "search_bible",
+      "endpoint_name": "search_bible",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/praise/delete",
+      "methods": [
+        "POST"
+      ],
+      "name": "delete_praise_songs",
+      "endpoint_name": "delete_praise_songs",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/praise/export",
+      "methods": [
+        "GET"
+      ],
+      "name": "export_praise_songs",
+      "endpoint_name": "export_praise_songs",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/praise/import",
+      "methods": [
+        "POST"
+      ],
+      "name": "import_praise_songs",
+      "endpoint_name": "import_praise_songs",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/praise/save",
+      "methods": [
+        "POST"
+      ],
+      "name": "save_praise_song",
+      "endpoint_name": "save_praise_song",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/praise/search",
+      "methods": [
+        "GET"
+      ],
+      "name": "search_praise_songs",
+      "endpoint_name": "search_praise_songs",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/projects",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_projects",
+      "endpoint_name": "get_projects",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/projects",
+      "methods": [
+        "POST"
+      ],
+      "name": "create_new_project",
+      "endpoint_name": "create_new_project",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/projects/delete-bulk",
+      "methods": [
+        "POST"
+      ],
+      "name": "delete_projects_batch",
+      "endpoint_name": "delete_projects_batch",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/projects/duplicate-bulk",
+      "methods": [
+        "POST"
+      ],
+      "name": "duplicate_projects_batch",
+      "endpoint_name": "duplicate_projects_batch",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/projects/export-bulk",
+      "methods": [
+        "POST"
+      ],
+      "name": "export_projects_batch",
+      "endpoint_name": "export_projects_batch",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/projects/import",
+      "methods": [
+        "POST"
+      ],
+      "name": "import_project_endpoint",
+      "endpoint_name": "import_project_endpoint",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/projects/{project_id}",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "remove_project",
+      "endpoint_name": "remove_project",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/projects/{project_id}",
+      "methods": [
+        "PATCH"
+      ],
+      "name": "rename_project",
+      "endpoint_name": "rename_project",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/projects/{project_id}",
+      "methods": [
+        "PUT"
+      ],
+      "name": "rename_project",
+      "endpoint_name": "rename_project",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/projects/{project_id}/export",
+      "methods": [
+        "GET"
+      ],
+      "name": "export_project",
+      "endpoint_name": "export_project",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/projects/{project_id}/select",
+      "methods": [
+        "POST"
+      ],
+      "name": "select_project",
+      "endpoint_name": "select_project",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/system/auto-update",
+      "methods": [
+        "POST"
+      ],
+      "name": "perform_auto_update",
+      "endpoint_name": "perform_auto_update",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/system/check-update",
+      "methods": [
+        "GET"
+      ],
+      "name": "check_update",
+      "endpoint_name": "check_update",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/system/version",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_system_version",
+      "endpoint_name": "get_system_version",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/templates/export",
+      "methods": [
+        "GET"
+      ],
+      "name": "export_templates",
+      "endpoint_name": "export_templates",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/templates/import",
+      "methods": [
+        "POST"
+      ],
+      "name": "import_templates",
+      "endpoint_name": "import_templates",
+      "endpoint_module": "backend.main"
+    },
+    {
+      "path": "/api/v1/monitor/settings",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_settings",
+      "endpoint_name": "get_settings",
+      "endpoint_module": "backend.routers.monitor"
+    },
+    {
+      "path": "/api/v1/monitor/settings",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_settings",
+      "endpoint_name": "update_settings",
+      "endpoint_module": "backend.routers.monitor"
+    },
+    {
+      "path": "/docs",
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "name": "swagger_ui_html",
+      "endpoint_name": "swagger_ui_html",
+      "endpoint_module": "fastapi.applications"
+    },
+    {
+      "path": "/docs/oauth2-redirect",
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "name": "swagger_ui_redirect",
+      "endpoint_name": "swagger_ui_redirect",
+      "endpoint_module": "fastapi.applications"
+    },
+    {
+      "path": "/openapi.json",
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "name": "openapi",
+      "endpoint_name": "openapi",
+      "endpoint_module": "fastapi.applications"
+    },
+    {
+      "path": "/redoc",
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "name": "redoc_html",
+      "endpoint_name": "redoc_html",
+      "endpoint_module": "fastapi.applications"
+    }
+  ],
+  "main_symbols": {
+    "classes": {
+      "RenameBackgroundRequest": [],
+      "DeleteBackgroundsRequest": [],
+      "DuplicateBackgroundsRequest": [],
+      "ConnectionManager": [
+        "__init__",
+        "broadcast",
+        "connect",
+        "disconnect",
+        "initialize",
+        "push_history"
+      ],
+      "BibleDatabaseHelper": [
+        "__init__",
+        "get_books",
+        "get_chapter",
+        "get_connection",
+        "init_table",
+        "search_keyword"
+      ],
+      "PraiseDatabaseHelper": [
+        "__init__",
+        "delete_songs",
+        "get_all_songs",
+        "get_connection",
+        "get_songs_by_ids",
+        "import_songs",
+        "init_table",
+        "save_song",
+        "search_songs"
+      ],
+      "PraiseSongSaveRequest": [],
+      "PraiseSongDeleteRequest": []
+    },
+    "functions": [
+      "_async_delete_background_worker",
+      "_broadcast_update_and_exit",
+      "_delayed_exit",
+      "_parse_ver",
+      "_read_version",
+      "check_update",
+      "cleanup_trash_backgrounds",
+      "create_new_project",
+      "delete_background_files",
+      "delete_praise_songs",
+      "delete_projects_batch",
+      "duplicate_background_files",
+      "duplicate_projects_batch",
+      "export_praise_songs",
+      "export_project",
+      "export_projects_batch",
+      "export_templates",
+      "generate_thumbnail_ffmpeg",
+      "get_bible_books",
+      "get_index",
+      "get_projects",
+      "get_system_version",
+      "import_praise_songs",
+      "import_project_endpoint",
+      "import_templates",
+      "lifespan",
+      "list_background_files",
+      "load_bg_meta",
+      "perform_auto_update",
+      "read_bible",
+      "remove_project",
+      "rename_background_file",
+      "rename_project",
+      "save_bg_meta",
+      "save_praise_song",
+      "search_bible",
+      "search_praise_songs",
+      "select_project",
+      "upload_background_file",
+      "websocket_endpoint"
+    ]
+  }
+}
