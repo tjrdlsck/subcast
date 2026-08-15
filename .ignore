@@ -1,4 +1,4 @@
-.git/
+﻿.git/
 node_modules/
 venv/
 .venv/
@@ -10,8 +10,3 @@ build/
 *.log
 *.lock
 coverage/
-archive/
-.omo/
-.pytest_cache/
-.codegraph/
-*.db
