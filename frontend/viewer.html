@@ -34,5 +34,49 @@
     </div>
 
     <script src="js/viewer.js"></script>
+    <script>
+        // 자동 전체화면 (Auto Fullscreen) & 1클릭 승격 로직
+        const urlParams = new URLSearchParams(window.location.search);
+        const shouldAutoFullscreen = urlParams.get('autofullscreen') === 'true';
+
+        function tryEnterFullscreen() {
+            if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().then(() => {
+                    console.log('[Viewer] 전체화면 진입 성공');
+                    const hint = document.getElementById('fullscreen-prompt-hint');
+                    if (hint) hint.remove();
+                }).catch(err => {
+                    console.log('[Viewer] 브라우저 보안으로 인한 자동 전체화면 대기 (클릭 필요):', err);
+                });
+            }
+        }
+
+        if (shouldAutoFullscreen) {
+            // 로드 시 1차 시도
+            window.addEventListener('load', () => {
+                setTimeout(tryEnterFullscreen, 50);
+            });
+
+            // 화면 클릭/터치/키보드 발생 시 즉각 F11 풀스크린 진입 (Capture 모드로 모든 요소 관통)
+            const handleInteract = (e) => {
+                tryEnterFullscreen();
+            };
+
+            window.addEventListener('pointerdown', handleInteract, { capture: true });
+            window.addEventListener('click', handleInteract, { capture: true });
+            window.addEventListener('keydown', handleInteract, { capture: true });
+        }
+
+        // F키 입력 시 전체화면 토글
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'f' || e.key === 'F') {
+                if (!document.fullscreenElement) {
+                    tryEnterFullscreen();
+                } else {
+                    document.exitFullscreen().catch(() => {});
+                }
+            }
+        });
+    </script>
 </body>
 </html>
