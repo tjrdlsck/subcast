@@ -8,5 +8,3 @@ pystray
 pillow
 yt-dlp
 imageio-ffmpeg
-
-
