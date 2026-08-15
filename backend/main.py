@@ -22,11 +22,18 @@ from backend.routers.system import router as system_router
 from backend.routers.projects import router as projects_router
 from backend.routers.monitor import router as monitor_router
 
+from backend.services.migration_service import migrate_legacy_db_if_needed
+from backend.database import APP_DATA_DIR
+
 logger = logging.getLogger("subcast")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    try:
+        migrate_legacy_db_if_needed(APP_DATA_DIR)
+    except Exception as e:
+        logger.warning(f"마이그레이션 실행 중 경고: {e}")
     await manager.initialize()
     yield
 

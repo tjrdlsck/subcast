@@ -1,4 +1,4 @@
-﻿import os
+import os
 import sqlite3
 import shutil
 import logging
@@ -11,19 +11,23 @@ logger = logging.getLogger("subcast.migration")
 def migrate_legacy_db_if_needed(appdata_dir: str, install_dir: Optional[str] = None) -> bool:
     """
     구버전 GAE_Bible.db에 저장된 사용자 데이터(praise_songs, monitor_settings)를
-    신규 subcast_user.db로 무손실 이관(Zero-Loss Migration)합니다.
+    신규 subcast_user.db로 무손실 이관 및 병합(Zero-Loss Migration & Merge)합니다.
     """
     user_db_path = os.path.join(appdata_dir, "subcast_user.db")
-    
-    # 이미 subcast_user.db가 존재하고 내용이 있다면 마이그레이션 불필요
-    if os.path.exists(user_db_path) and os.path.getsize(user_db_path) > 0:
-        return False
-
     os.makedirs(appdata_dir, exist_ok=True)
 
-    # 레거시 DB 후보 경로 탐색 (AppData 우선, 설치 디렉터리 차순위)
+    # 신규 사용자 DB 생성 및 테이블 초기화
+    from backend.database import init_monitor_db
+    from backend.services.praise_service import PraiseDatabaseHelper
+
+    init_monitor_db(user_db_path)
+    praise_helper = PraiseDatabaseHelper(user_db_path)
+    praise_helper.init_table()
+
+    # 레거시 DB 후보 경로 탐색 (AppData, 설치 디렉터리 우선 탐색)
     legacy_candidates = [
         os.path.join(appdata_dir, "GAE_Bible.db"),
+        os.path.join(appdata_dir, "GAE_Bible.db.legacy_backup"),
     ]
     if install_dir:
         legacy_candidates.extend([
@@ -31,88 +35,101 @@ def migrate_legacy_db_if_needed(appdata_dir: str, install_dir: Optional[str] = N
             os.path.join(install_dir, "_internal", "GAE_Bible.db")
         ])
 
-    legacy_db_path = None
+    legacy_db_paths = []
     for cand in legacy_candidates:
-        if os.path.exists(cand) and os.path.getsize(cand) > 0:
-            legacy_db_path = cand
-            break
+        if os.path.exists(cand) and os.path.getsize(cand) > 0 and cand != user_db_path:
+            legacy_db_paths.append(cand)
 
-    # 신규 사용자 DB 생성 및 테이블 초기화
-    from backend.database import init_monitor_db
-    from backend.services.praise_service import PraiseDatabaseHelper
+    # 상위 경로에서 찾지 못한 경우 현재 작업 디렉터리 검사
+    if not legacy_db_paths:
+        cwd_legacy = os.path.join(os.getcwd(), "GAE_Bible.db")
+        if os.path.exists(cwd_legacy) and os.path.getsize(cwd_legacy) > 0 and cwd_legacy != user_db_path:
+            legacy_db_paths.append(cwd_legacy)
 
-    # 기본 테이블 스키마 생성
-    init_monitor_db(user_db_path)
-    praise_helper = PraiseDatabaseHelper(user_db_path)
-    praise_helper.init_table()
-
-    if not legacy_db_path:
-        logger.info("새로운 환경입니다. 기본 subcast_user.db를 생성했습니다.")
+    if not legacy_db_paths:
+        logger.info("레거시 DB가 발견되지 않았습니다. 기본 subcast_user.db를 유지합니다.")
         return True
 
-    logger.info(f"레거시 DB 감지됨: {legacy_db_path}. subcast_user.db로 마이그레이션을 시작합니다.")
-
     try:
-        legacy_conn = sqlite3.connect(legacy_db_path)
-        legacy_conn.row_factory = sqlite3.Row
         user_conn = sqlite3.connect(user_db_path)
+        user_conn.row_factory = sqlite3.Row
 
-        # 1. praise_songs 테이블 이관
-        tables = [r[0] for r in legacy_conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
-        
-        if "praise_songs" in tables:
-            # 컬럼 목록 확인
-            praise_cols = [c[1] for c in legacy_conn.execute("PRAGMA table_info(praise_songs)").fetchall()]
-            has_mood = "mood" in praise_cols
-            has_updated_at = "updated_at" in praise_cols
+        for legacy_db_path in legacy_db_paths:
+            logger.info(f"레거시 DB 병합 시도: {legacy_db_path}")
+            legacy_conn = sqlite3.connect(legacy_db_path)
+            legacy_conn.row_factory = sqlite3.Row
 
-            select_cols = ["id", "title", "lyrics"]
-            if has_mood:
-                select_cols.append("mood")
-            if has_updated_at:
-                select_cols.append("updated_at")
+            try:
+                tables = [r[0] for r in legacy_conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+                
+                # 1. praise_songs 테이블 이관 및 병합
+                if "praise_songs" in tables:
+                    praise_cols = [c[1] for c in legacy_conn.execute("PRAGMA table_info(praise_songs)").fetchall()]
+                    has_mood = "mood" in praise_cols
+                    has_updated_at = "updated_at" in praise_cols
 
-            query = f"SELECT {', '.join(select_cols)} FROM praise_songs"
-            rows = legacy_conn.execute(query).fetchall()
+                    select_cols = ["title", "lyrics"]
+                    if has_mood:
+                        select_cols.append("mood")
+                    if has_updated_at:
+                        select_cols.append("updated_at")
 
-            for r in rows:
-                title = r["title"]
-                lyrics = r["lyrics"]
-                mood = r["mood"] if has_mood else "기본/일반"
-                updated_at = r["updated_at"] if has_updated_at else None
+                    query = f"SELECT {', '.join(select_cols)} FROM praise_songs"
+                    rows = legacy_conn.execute(query).fetchall()
 
-                if updated_at:
-                    user_conn.execute(
-                        "INSERT OR IGNORE INTO praise_songs (id, title, lyrics, mood, updated_at) VALUES (?, ?, ?, ?, ?)",
-                        (r["id"], title, lyrics, mood, updated_at)
-                    )
-                else:
-                    user_conn.execute(
-                        "INSERT OR IGNORE INTO praise_songs (id, title, lyrics, mood) VALUES (?, ?, ?, ?)",
-                        (r["id"], title, lyrics, mood)
-                    )
-            logger.info(f"찬양곡 {len(rows)}건 이관 완료")
+                    # 기존 user_conn에 등록된 (title, lyrics) 집합 조회
+                    existing_songs = {
+                        (r["title"].strip(), r["lyrics"].strip())
+                        for r in user_conn.execute("SELECT title, lyrics FROM praise_songs").fetchall()
+                    }
 
-        # 2. monitor_settings 테이블 이관
-        if "monitor_settings" in tables:
-            monitor_cols = [c[1] for c in legacy_conn.execute("PRAGMA table_info(monitor_settings)").fetchall()]
-            query = "SELECT * FROM monitor_settings"
-            rows = legacy_conn.execute(query).fetchall()
+                    migrated_count = 0
+                    for r in rows:
+                        title = r["title"]
+                        lyrics = r["lyrics"]
+                        if (title.strip(), lyrics.strip()) in existing_songs:
+                            continue
 
-            for r in rows:
-                col_names = [k for k in r.keys()]
-                placeholders = ", ".join(["?"] * len(col_names))
-                cols_str = ", ".join(col_names)
-                values = [r[k] for k in col_names]
-                user_conn.execute(
-                    f"INSERT OR REPLACE INTO monitor_settings ({cols_str}) VALUES ({placeholders})",
-                    values
-                )
-            logger.info(f"모니터 설정 {len(rows)}건 이관 완료")
+                        mood = r["mood"] if has_mood else "기본/일반"
+                        updated_at = r["updated_at"] if has_updated_at else None
 
-        user_conn.commit()
+                        if updated_at:
+                            user_conn.execute(
+                                "INSERT INTO praise_songs (title, lyrics, mood, updated_at) VALUES (?, ?, ?, ?)",
+                                (title, lyrics, mood, updated_at)
+                            )
+                        else:
+                            user_conn.execute(
+                                "INSERT INTO praise_songs (title, lyrics, mood) VALUES (?, ?, ?)",
+                                (title, lyrics, mood)
+                            )
+                        existing_songs.add((title.strip(), lyrics.strip()))
+                        migrated_count += 1
+
+                    if migrated_count > 0:
+                        logger.info(f"{legacy_db_path}에서 찬양곡 {migrated_count}건 병합 완료")
+
+                # 2. monitor_settings 테이블 이관
+                if "monitor_settings" in tables:
+                    query = "SELECT * FROM monitor_settings"
+                    rows = legacy_conn.execute(query).fetchall()
+
+                    for r in rows:
+                        col_names = [k for k in r.keys()]
+                        placeholders = ", ".join(["?"] * len(col_names))
+                        cols_str = ", ".join(col_names)
+                        values = [r[k] for k in col_names]
+                        user_conn.execute(
+                            f"INSERT OR REPLACE INTO monitor_settings ({cols_str}) VALUES ({placeholders})",
+                            values
+                        )
+                    logger.info(f"{legacy_db_path}에서 모니터 설정 이관/확인 완료")
+
+                user_conn.commit()
+            finally:
+                legacy_conn.close()
+
         user_conn.close()
-        legacy_conn.close()
 
         # 레거시 DB 안전 백업 (AppData 내에 존재할 경우)
         appdata_legacy = os.path.join(appdata_dir, "GAE_Bible.db")
@@ -122,7 +139,7 @@ def migrate_legacy_db_if_needed(appdata_dir: str, install_dir: Optional[str] = N
                 shutil.copy2(appdata_legacy, backup_path)
                 logger.info(f"레거시 DB 백업 완료: {backup_path}")
 
-        logger.info("데이터 마이그레이션이 성공적으로 완료되었습니다.")
+        logger.info("데이터 마이그레이션 및 동기화가 성공적으로 완료되었습니다.")
         return True
 
     except Exception as e:
