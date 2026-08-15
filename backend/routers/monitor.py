@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union, List
 from pydantic import BaseModel, Field
 from backend.monitor_repository import get_monitor_settings, update_monitor_settings
 
@@ -11,7 +11,7 @@ class MonitorBoxSchema(BaseModel):
     topPct: Optional[float] = 5.0
     widthPct: Optional[float] = 90.0
     heightPct: Optional[float] = 42.0
-    fontSize: Optional[int] = 28
+    fontSize: Optional[Union[str, int, float]] = "6.5vw"
     textColor: Optional[str] = "#FFFFFF"
     strokeColor: Optional[str] = "transparent"
     strokeWidth: Optional[int] = 0
@@ -22,7 +22,7 @@ class MonitorBoxSchema(BaseModel):
     fontFamily: Optional[str] = "Inter"
     textAlign: Optional[str] = "center"
     opacity: Optional[float] = 1.0
-    lineHeight: Optional[float] = 1.35
+    lineHeight: Optional[float] = 1.2
 
 from typing import Dict, Any, Optional, List
 

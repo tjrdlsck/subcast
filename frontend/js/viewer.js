@@ -628,9 +628,12 @@
                 curCard.style.top = `${(cur.topPct / 100) * screenH}px`;
                 curCard.style.width = `${(cur.widthPct / 100) * screenW}px`;
                 curCard.style.height = `${(cur.heightPct / 100) * screenH}px`;
-                const fontSize = Math.round((cur.fontSize || 28) * (screenW / 768));
+                let curFontSize = "3.8vw";
+                if (cur.fontSize) {
+                    curFontSize = (typeof cur.fontSize === 'string' && cur.fontSize.includes('vw')) ? cur.fontSize : `${cur.fontSize}px`;
+                }
                 if (curText) {
-                    curText.style.fontSize = `${fontSize}px`;
+                    curText.style.fontSize = curFontSize;
                     if (cur.textColor) curText.style.color = cur.textColor;
                     if (cur.fontWeight) curText.style.fontWeight = cur.fontWeight;
                     if (cur.fontStyle) curText.style.fontStyle = cur.fontStyle;
@@ -638,11 +641,10 @@
                     if (cur.textAlign) curText.style.justifyContent = cur.textAlign === 'left' ? 'flex-start' : (cur.textAlign === 'right' ? 'flex-end' : 'center');
                     if (cur.textAlign) curText.style.textAlign = cur.textAlign;
                     if (cur.opacity !== undefined) curText.style.opacity = cur.opacity;
-                    const curLh = cur.lineHeight !== undefined ? cur.lineHeight : 1.35;
+                    const curLh = cur.lineHeight !== undefined ? cur.lineHeight : 1.2;
                     curText.style.lineHeight = `${curLh}`;
                     if (cur.strokeColor && cur.strokeColor !== 'transparent' && cur.strokeWidth > 0) {
-                        const scaledStroke = cur.strokeWidth * (screenW / 768);
-                        curText.style.webkitTextStroke = `${scaledStroke}px ${cur.strokeColor}`;
+                        curText.style.webkitTextStroke = `${cur.strokeWidth}px ${cur.strokeColor}`;
                         curText.style.paintOrder = 'stroke fill';
                     } else {
                         curText.style.webkitTextStroke = '0px transparent';
@@ -658,9 +660,12 @@
                 nxtCard.style.top = `${(nxt.topPct / 100) * screenH}px`;
                 nxtCard.style.width = `${(nxt.widthPct / 100) * screenW}px`;
                 nxtCard.style.height = `${(nxt.heightPct / 100) * screenH}px`;
-                const fontSize = Math.round((nxt.fontSize || 22) * (screenW / 768));
+                let nxtFontSize = "6.5vw";
+                if (nxt.fontSize) {
+                    nxtFontSize = (typeof nxt.fontSize === 'string' && nxt.fontSize.includes('vw')) ? nxt.fontSize : `${nxt.fontSize}px`;
+                }
                 if (nxtText) {
-                    nxtText.style.fontSize = `${fontSize}px`;
+                    nxtText.style.fontSize = nxtFontSize;
                     if (nxt.textColor) nxtText.style.color = nxt.textColor;
                     if (nxt.fontWeight) nxtText.style.fontWeight = nxt.fontWeight;
                     if (nxt.fontStyle) nxtText.style.fontStyle = nxt.fontStyle;
@@ -668,11 +673,10 @@
                     if (nxt.textAlign) nxtText.style.justifyContent = nxt.textAlign === 'left' ? 'flex-start' : (nxt.textAlign === 'right' ? 'flex-end' : 'center');
                     if (nxt.textAlign) nxtText.style.textAlign = nxt.textAlign;
                     if (nxt.opacity !== undefined) nxtText.style.opacity = nxt.opacity;
-                    const nxtLh = nxt.lineHeight !== undefined ? nxt.lineHeight : 1.35;
+                    const nxtLh = nxt.lineHeight !== undefined ? nxt.lineHeight : 1.2;
                     nxtText.style.lineHeight = `${nxtLh}`;
                     if (nxt.strokeColor && nxt.strokeColor !== 'transparent' && nxt.strokeWidth > 0) {
-                        const scaledStroke = nxt.strokeWidth * (screenW / 768);
-                        nxtText.style.webkitTextStroke = `${scaledStroke}px ${nxt.strokeColor}`;
+                        nxtText.style.webkitTextStroke = `${nxt.strokeWidth}px ${nxt.strokeColor}`;
                         nxtText.style.paintOrder = 'stroke fill';
                     } else {
                         nxtText.style.webkitTextStroke = '0px transparent';

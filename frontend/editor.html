@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Subcast - 실시간 편집기 (Editor)</title>
+    <link rel="icon" href="data:,">
     <!-- Google Fonts: Inter & Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -542,54 +543,79 @@
                     </div>
                     <div class="panel-body" style="padding: 14px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto;">
                         <div style="display: flex; gap: 8px;">
-                            <button type="button" id="btn-save-monitor-layout" style="flex: 1; padding: 8px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border-radius: 4px; background: #3b82f6; color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                                💾 설정 저장
+                            <button type="button" id="btn-save-monitor-layout" style="flex: 1; padding: 8px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border-radius: 4px; background: #2563eb; color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                                💾 레이아웃 저장
                             </button>
                             <button type="button" id="btn-reset-monitor-layout" style="padding: 8px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border-radius: 4px; background: rgba(255,255,255,0.05); color: #cbd5e1; border: 1px solid var(--panel-border);">
                                 🔄 초기화
                             </button>
                         </div>
-                        <div id="pip-monitor-preview-box" style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000000; border: 1px solid var(--panel-border); border-radius: var(--radius-sm); overflow: hidden;">
-                            <iframe id="pip-monitor-iframe" src="/static/monitor.html?channel=preview" style="width: 100%; height: 100%; border: none; pointer-events: none;"></iframe>
+
+                        <div style="background: rgba(37, 99, 235, 0.1); border: 1px solid rgba(37, 99, 235, 0.3); border-radius: 6px; padding: 10px; font-size: 0.72rem; color: #bfdbfe; line-height: 1.45;">
+                            📌 <strong>무대 전용 모니터(Confidence Monitor)</strong><br>
+                            오른쪽 캔버스에서 🔴 <strong>현재 슬라이드</strong>와 🔵 <strong>다음 슬라이드</strong> 자막 상자를 마우스로 드래그/리사이즈하고 아래에서 스타일을 설정하세요.
                         </div>
 
-                        <!-- 무대 모니터 커스텀 요소 추가 (도형 & 사진) -->
-                        <div class="monitor-tools-section" style="display: flex; flex-direction: column; gap: 12px; margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--panel-border, rgba(255,255,255,0.1));">
-                            <div style="font-size: 0.78rem; font-weight: 600; color: var(--text-heading, #f1f5f9); display: flex; align-items: center; gap: 6px;">
-                                <span>🔷</span> <span>도형 및 사진 요소 추가</span>
+                        <!-- 1. 🔴 현재 슬라이드(CURRENT) 스타일 상세 속성 -->
+                        <div style="display: flex; flex-direction: column; gap: 10px; padding: 12px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: var(--radius-sm);">
+                            <div style="font-size: 0.78rem; font-weight: 700; color: #f87171; display: flex; align-items: center; gap: 6px;">
+                                <span>🔴</span> <span>현재 슬라이드 (CURRENT)</span>
                             </div>
-                            
-                            <!-- 도형 버튼 모음 -->
-                            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
-                                <button type="button" id="btn-monitor-add-rect" title="직사각형 추가" style="padding: 8px 4px; font-size: 0.72rem; font-weight: 500; border-radius: 6px; background: rgba(255,255,255,0.06); color: #e2e8f0; border: 1px solid var(--panel-border, rgba(255,255,255,0.1)); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all 0.15s ease;">
-                                    <span style="display: inline-block; width: 14px; height: 14px; background: #6366f1; border-radius: 2px;"></span>
-                                    <span>사각형</span>
-                                </button>
-                                <button type="button" id="btn-monitor-add-circle" title="원 추가" style="padding: 8px 4px; font-size: 0.72rem; font-weight: 500; border-radius: 6px; background: rgba(255,255,255,0.06); color: #e2e8f0; border: 1px solid var(--panel-border, rgba(255,255,255,0.1)); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all 0.15s ease;">
-                                    <span style="display: inline-block; width: 14px; height: 14px; background: #06b6d4; border-radius: 50%;"></span>
-                                    <span>원</span>
-                                </button>
-                                <button type="button" id="btn-monitor-add-triangle" title="삼각형 추가" style="padding: 8px 4px; font-size: 0.72rem; font-weight: 500; border-radius: 6px; background: rgba(255,255,255,0.06); color: #e2e8f0; border: 1px solid var(--panel-border, rgba(255,255,255,0.1)); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all 0.15s ease;">
-                                    <span style="width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 14px solid #10b981;"></span>
-                                    <span>삼각형</span>
-                                </button>
-                                <button type="button" id="btn-monitor-add-line" title="선 추가" style="padding: 8px 4px; font-size: 0.72rem; font-weight: 500; border-radius: 6px; background: rgba(255,255,255,0.06); color: #e2e8f0; border: 1px solid var(--panel-border, rgba(255,255,255,0.1)); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all 0.15s ease;">
-                                    <span style="display: inline-block; width: 16px; height: 3px; background: #f59e0b; margin-top: 5px; margin-bottom: 6px;"></span>
-                                    <span>직선</span>
-                                </button>
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                <span style="font-size: 0.72rem; color: var(--text-muted);">글자 크기 (<span id="lbl-monitor-cur-font-size-val">6.5</span>vw)</span>
+                                <input type="range" id="input-monitor-cur-font-size" min="1.0" max="10.0" step="0.1" value="6.5" style="flex: 1; height: 4px; cursor: pointer;">
                             </div>
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <span style="font-size: 0.72rem; color: var(--text-muted);">글자 정렬</span>
+                                <select id="select-monitor-cur-text-align" style="padding: 4px 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-xs); font-size: 0.72rem;">
+                                    <option value="left">왼쪽 정렬</option>
+                                    <option value="center" selected>가운데 정렬</option>
+                                    <option value="right">오른쪽 정렬</option>
+                                </select>
+                            </div>
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <span style="font-size: 0.72rem; color: var(--text-muted);">글자 색상</span>
+                                <input type="color" id="input-monitor-cur-text-color" value="#ffffff" style="width: 32px; height: 24px; padding: 0; border: none; background: transparent; cursor: pointer;">
+                            </div>
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                <span style="font-size: 0.72rem; color: var(--text-muted);">외곽선 두께 (<span id="lbl-monitor-cur-stroke-val">2</span>px)</span>
+                                <input type="range" id="input-monitor-cur-stroke-width" min="0" max="8" step="1" value="2" style="flex: 1; height: 4px; cursor: pointer;">
+                            </div>
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                <span style="font-size: 0.72rem; color: var(--text-muted);">줄간격 (<span id="val-monitor-cur-lineheight">1.20x</span>)</span>
+                                <input type="range" id="range-monitor-cur-lineheight" min="1.0" max="2.0" step="0.05" value="1.2" style="flex: 1; height: 4px; cursor: pointer;">
+                            </div>
+                        </div>
 
-                            <!-- 사진 추가 버튼 및 숨겨진 File Input -->
-                            <div style="display: flex; flex-direction: column; gap: 6px;">
-                                <input type="file" id="monitor-image-input" accept="image/*" style="display: none;">
-                                <button type="button" id="btn-monitor-add-image" style="width: 100%; padding: 8px 12px; font-size: 0.76rem; font-weight: 600; cursor: pointer; border-radius: 6px; background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.15s ease;">
-                                    🖼️ 사진/이미지 추가
-                                </button>
+                        <!-- 2. 🔵 다음 슬라이드(NEXT) 스타일 상세 속성 -->
+                        <div style="display: flex; flex-direction: column; gap: 10px; padding: 12px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: var(--radius-sm);">
+                            <div style="font-size: 0.78rem; font-weight: 700; color: #60a5fa; display: flex; align-items: center; gap: 6px;">
+                                <span>🔵</span> <span>다음 슬라이드 (NEXT)</span>
                             </div>
-
-                            <span style="font-size: 0.7rem; color: var(--text-muted, #94a3b8); line-height: 1.35; margin-top: 2px;">
-                                💡 캔버스에서 <kbd style="background: rgba(255,255,255,0.1); padding: 1px 4px; border-radius: 3px;">Ctrl+V</kbd>로 사진 또는 복사한 도형을 자유롭게 붙여넣고 위치시킬 수 있습니다.
-                            </span>
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                <span style="font-size: 0.72rem; color: var(--text-muted);">글자 크기 (<span id="lbl-monitor-nxt-font-size-val">6.5</span>vw)</span>
+                                <input type="range" id="input-monitor-nxt-font-size" min="1.0" max="10.0" step="0.1" value="6.5" style="flex: 1; height: 4px; cursor: pointer;">
+                            </div>
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <span style="font-size: 0.72rem; color: var(--text-muted);">글자 정렬</span>
+                                <select id="select-monitor-nxt-text-align" style="padding: 4px 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-xs); font-size: 0.72rem;">
+                                    <option value="left">왼쪽 정렬</option>
+                                    <option value="center" selected>가운데 정렬</option>
+                                    <option value="right">오른쪽 정렬</option>
+                                </select>
+                            </div>
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <span style="font-size: 0.72rem; color: var(--text-muted);">글자 색상</span>
+                                <input type="color" id="input-monitor-nxt-text-color" value="#94a3b8" style="width: 32px; height: 24px; padding: 0; border: none; background: transparent; cursor: pointer;">
+                            </div>
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                <span style="font-size: 0.72rem; color: var(--text-muted);">외곽선 두께 (<span id="lbl-monitor-nxt-stroke-val">1</span>px)</span>
+                                <input type="range" id="input-monitor-nxt-stroke-width" min="0" max="8" step="1" value="1" style="flex: 1; height: 4px; cursor: pointer;">
+                            </div>
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                <span style="font-size: 0.72rem; color: var(--text-muted);">줄간격 (<span id="val-monitor-nxt-lineheight">1.20x</span>)</span>
+                                <input type="range" id="range-monitor-nxt-lineheight" min="1.0" max="2.0" step="0.05" value="1.2" style="flex: 1; height: 4px; cursor: pointer;">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -680,6 +706,31 @@
                         <div style="flex: 1; position: relative; display: flex; align-items: center; justify-content: center; padding: 20px; overflow: hidden;">
                             <div id="broadcast-canvas-container" style="position: relative; box-shadow: 0 0 30px rgba(0,0,0,0.8); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 4px; overflow: hidden; background: #0f172a;">
                                 <canvas id="broadcast-editor-canvas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 무대 모니터 메인 뷰어 오버레이 -->
+                    <div id="monitor-main-viewer-overlay"
+                        style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #090d16; z-index: 95; flex-direction: column; box-shadow: inset 0 0 12px rgba(0,0,0,0.6);">
+                        
+                        <!-- 1. 상단 안내 바 -->
+                        <div style="padding: 12px 20px; background: rgba(0, 0, 0, 0.5); border-bottom: 1px solid var(--panel-border, #3f3f46); flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 1.05rem; font-weight: 700; color: #60a5fa;">🖥️ 무대 모니터 레이아웃 편집기</span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted); background: rgba(255,255,255,0.06); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.08);">
+                                    🔴 현재 슬라이드와 🔵 다음 슬라이드 상자를 드래그하여 무대 송출 위치를 자유롭게 조정하세요
+                                </span>
+                            </div>
+                            <button type="button" id="btn-monitor-apply-quick" style="padding: 6px 14px; background: #2563eb; border: none; border-radius: 6px; color: #fff; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+                                💾 설정 저장
+                            </button>
+                        </div>
+
+                        <!-- 2. 모니터 편집 캔버스 워크스페이스 -->
+                        <div style="flex: 1; position: relative; display: flex; align-items: center; justify-content: center; padding: 20px; overflow: hidden;">
+                            <div id="monitor-canvas-container" style="position: relative; box-shadow: 0 0 30px rgba(0,0,0,0.8); border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 4px; overflow: hidden; background: #0f172a;">
+                                <canvas id="monitor-editor-canvas"></canvas>
                             </div>
                         </div>
                     </div>

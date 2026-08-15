@@ -253,14 +253,6 @@
         }
 
         function selectSlideForEdit(slideId, force = false) {
-            if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) {
-                if (window.subcastMonitorEditor.exitMonitorMode) {
-                    window.subcastMonitorEditor.exitMonitorMode();
-                }
-                if (typeof window.switchLeftTab === 'function') {
-                    window.switchLeftTab('panel-slides');
-                }
-            }
             if (activeSlideId === slideId && !force) {
                 if (!selectedSlideIds || selectedSlideIds.length === 0) {
                     selectedSlideIds = [slideId];
@@ -278,6 +270,9 @@
             loadSlideToCanvas(slideId);
             setControlsState(true);
             renderSlides();
+            if (typeof updateMonitorSlideTexts === 'function') {
+                updateMonitorSlideTexts();
+            }
         }
 
 

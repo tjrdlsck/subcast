@@ -9,7 +9,7 @@ def validate_box_settings(box_name: str, box_data: Dict[str, Any]) -> None:
     top_pct = float(box_data.get("topPct", 0.0))
     width_pct = float(box_data.get("widthPct", 0.0))
     height_pct = float(box_data.get("heightPct", 0.0))
-    font_size = int(box_data.get("fontSize", 28))
+    raw_font_size = box_data.get("fontSize", "3.8vw")
 
     if not (0.0 <= left_pct <= 100.0):
         raise ValueError(f"{box_name}.leftPct must be between 0 and 100")
@@ -25,8 +25,24 @@ def validate_box_settings(box_name: str, box_data: Dict[str, Any]) -> None:
     if top_pct + height_pct > 100.0:
         raise ValueError(f"topPct + heightPct must not exceed 100%")
 
-    if not (10 <= font_size <= 200):
-        raise ValueError(f"{box_name}.fontSize must be between 10 and 200")
+    if isinstance(raw_font_size, str):
+        if raw_font_size.endswith("vw"):
+            try:
+                vw_val = float(raw_font_size[:-2].strip())
+                if not (0.1 <= vw_val <= 30.0):
+                    raise ValueError(f"{box_name}.fontSize ({raw_font_size}) must be between 0.1vw and 30.0vw")
+            except ValueError as e:
+                raise ValueError(f"{box_name}.fontSize is invalid: {str(e)}")
+        else:
+            try:
+                num_val = float(raw_font_size)
+                if not (0.5 <= num_val <= 200.0):
+                    raise ValueError(f"{box_name}.fontSize must be between 0.5 and 200")
+            except ValueError:
+                raise ValueError(f"{box_name}.fontSize is invalid: {raw_font_size}")
+    elif isinstance(raw_font_size, (int, float)):
+        if not (0.5 <= float(raw_font_size) <= 200.0):
+            raise ValueError(f"{box_name}.fontSize must be between 0.5 and 200")
 
     if "lineHeight" in box_data and box_data["lineHeight"] is not None:
         line_height = float(box_data["lineHeight"])
@@ -166,7 +182,7 @@ class MonitorSettingsRepository:
             float(cur_box.get("topPct", existing["currentBox"]["topPct"])),
             float(cur_box.get("widthPct", existing["currentBox"]["widthPct"])),
             float(cur_box.get("heightPct", existing["currentBox"]["heightPct"])),
-            int(cur_box.get("fontSize", existing["currentBox"]["fontSize"])),
+            str(cur_box.get("fontSize", existing["currentBox"]["fontSize"])),
             str(cur_box.get("textColor", existing["currentBox"]["textColor"])),
             str(cur_box.get("strokeColor", existing["currentBox"].get("strokeColor", "transparent"))),
             int(cur_box.get("strokeWidth", existing["currentBox"].get("strokeWidth", 0))),
@@ -182,7 +198,7 @@ class MonitorSettingsRepository:
             float(nxt_box.get("topPct", existing["nextBox"]["topPct"])),
             float(nxt_box.get("widthPct", existing["nextBox"]["widthPct"])),
             float(nxt_box.get("heightPct", existing["nextBox"]["heightPct"])),
-            int(nxt_box.get("fontSize", existing["nextBox"]["fontSize"])),
+            str(nxt_box.get("fontSize", existing["nextBox"]["fontSize"])),
             str(nxt_box.get("textColor", existing["nextBox"]["textColor"])),
             str(nxt_box.get("strokeColor", existing["nextBox"].get("strokeColor", "transparent"))),
             int(nxt_box.get("strokeWidth", existing["nextBox"].get("strokeWidth", 0))),

@@ -1,494 +1,761 @@
-// === 무대 모니터링 레이아웃 에디터 캔버스 연동 모듈 ===
+// ==========================================================================
+// Subcast Module: editor-monitor.js (무대 모니터링 레이아웃 전용 편집기)
+// ==========================================================================
 
-(function () {
-    let monitorSettings = {
-        layoutMode: "custom_canvas",
-        currentBox: {
-            leftPct: 5.0,
-            topPct: 5.0,
-            widthPct: 90.0,
-            heightPct: 42.0,
-            fontSize: 28,
-            textColor: "#FFFFFF",
-            lineHeight: 1.35,
-            bgColor: "transparent",
-            isTransparentBg: true
-        },
-        nextBox: {
-            leftPct: 5.0,
-            topPct: 51.0,
-            widthPct: 90.0,
-            heightPct: 42.0,
-            fontSize: 22,
-            textColor: "#A0A0A0",
-            lineHeight: 1.35,
-            bgColor: "transparent",
-            isTransparentBg: true
+let monitorCanvas = null;
+let currentGuideBox = null;
+let nextGuideBox = null;
+let isMonitorOverlayActive = false;
+
+const DEFAULT_MONITOR_SETTINGS = {
+    layoutMode: "custom_canvas",
+    currentBox: {
+        leftPct: 5.0,
+        topPct: 5.0,
+        widthPct: 90.0,
+        heightPct: 42.0,
+        fontSize: "6.5vw",
+        textColor: "#FFFFFF",
+        strokeColor: "#000000",
+        strokeWidth: 2,
+        fontWeight: "bold",
+        fontStyle: "normal",
+        fontFamily: "Inter",
+        textAlign: "center",
+        lineHeight: 1.2,
+        opacity: 1.0
+    },
+    nextBox: {
+        leftPct: 5.0,
+        topPct: 51.0,
+        widthPct: 90.0,
+        heightPct: 42.0,
+        fontSize: "6.5vw",
+        textColor: "#94a3b8",
+        strokeColor: "#000000",
+        strokeWidth: 1,
+        fontWeight: "600",
+        fontStyle: "normal",
+        fontFamily: "Inter",
+        textAlign: "center",
+        lineHeight: 1.2,
+        opacity: 1.0
+    }
+};
+
+let monitorSettings = JSON.parse(JSON.stringify(DEFAULT_MONITOR_SETTINGS));
+
+const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
+
+function getNormalizedVwNumber(fontSizeVal, fallbackVw = 6.5) {
+    if (typeof fontSizeVal === 'string') {
+        const match = fontSizeVal.match(/^(\d+(?:\.\d+)?)\s*vw$/);
+        if (match) {
+            const num = parseFloat(match[1]);
+            return clamp(num, 1.0, 10.0);
         }
-    };
+        const parsed = parseFloat(fontSizeVal);
+        if (!isNaN(parsed)) {
+            if (parsed > 10.0) {
+                return fallbackVw;
+            }
+            return clamp(parsed, 1.0, 10.0);
+        }
+    } else if (typeof fontSizeVal === 'number') {
+        if (fontSizeVal > 10.0) {
+            return fallbackVw;
+        }
+        return clamp(fontSizeVal, 1.0, 10.0);
+    }
+    return fallbackVw;
+}
 
-    let isMonitorMode = false;
-    let currentGuideBox = null;
-    let nextGuideBox = null;
-    const BASE_W = (typeof BASE_WIDTH !== 'undefined' && BASE_WIDTH) ? BASE_WIDTH : 768;
-    const BASE_H = (typeof BASE_HEIGHT !== 'undefined' && BASE_HEIGHT) ? BASE_HEIGHT : 432;
+function parseFontSizeVw(fontSizeVal, defaultVw, canvasW) {
+    const vwNum = getNormalizedVwNumber(fontSizeVal, defaultVw);
+    return (vwNum / 100) * canvasW;
+}
 
-    const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
+// 1. 모니터 설정 로드 (API -> LocalStorage 폴백)
+async function loadMonitorSettings() {
+    try {
+        const res = await fetch("/api/v1/monitor/settings");
+        if (res.ok) {
+            const json = await res.json();
+            if (json.status === "success" && json.data) {
+                monitorSettings = { ...DEFAULT_MONITOR_SETTINGS, ...json.data };
+                localStorage.setItem("subcast_monitor_settings", JSON.stringify(monitorSettings));
+                syncMonitorUIControls(monitorSettings);
+                return;
+            }
+        }
+    } catch (e) {
+        console.warn("Failed to fetch monitor settings from API, using LocalStorage fallback", e);
+    }
 
-    // 1. 모니터 설정 로드 (API -> LocalStorage 폴백)
-    async function loadMonitorSettings() {
+    const local = localStorage.getItem("subcast_monitor_settings");
+    if (local) {
         try {
-            const res = await fetch("/api/v1/monitor/settings");
-            if (res.ok) {
-                const json = await res.json();
-                if (json.status === "success" && json.data) {
-                    monitorSettings = json.data;
-                    localStorage.setItem("subcast_monitor_settings", JSON.stringify(monitorSettings));
-                    return;
-                }
-            }
+            monitorSettings = { ...DEFAULT_MONITOR_SETTINGS, ...JSON.parse(local) };
         } catch (e) {
-            console.warn("Failed to fetch monitor settings from API, using LocalStorage fallback", e);
-        }
-
-        const local = localStorage.getItem("subcast_monitor_settings");
-        if (local) {
-            try {
-                monitorSettings = JSON.parse(local);
-            } catch (e) {
-                console.error("Failed to parse local monitor settings", e);
-            }
+            console.error("Failed to parse local monitor settings", e);
+            monitorSettings = JSON.parse(JSON.stringify(DEFAULT_MONITOR_SETTINGS));
         }
     }
+    syncMonitorUIControls(monitorSettings);
+}
 
-    function broadcastMonitorSettings() {
-        if (window.BroadcastChannel) {
-            try {
-                const bc = new BroadcastChannel("subcast_monitor_channel");
-                bc.postMessage({ type: "MONITOR_LAYOUT_UPDATE", settings: monitorSettings });
-                bc.close();
-            } catch (e) {
-                console.error("Failed to post message to BroadcastChannel", e);
-            }
-        }
-    }
-
-    function broadcastMonitorPreviewSettings() {
-        if (window.BroadcastChannel) {
-            try {
-                const bc = new BroadcastChannel("subcast_monitor_channel");
-                bc.postMessage({ type: "MONITOR_PREVIEW_UPDATE", settings: monitorSettings });
-                bc.close();
-            } catch (e) {
-                console.error("Failed to post preview message to BroadcastChannel", e);
-            }
-        }
-    }
-
-    // 2. 모니터 설정 저장 (API + LocalStorage + BroadcastChannel)
-    async function saveMonitorSettings() {
-        localStorage.setItem("subcast_monitor_settings", JSON.stringify(monitorSettings));
-        try {
-            await fetch("/api/v1/monitor/settings", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(monitorSettings)
-            });
-        } catch (e) {
-            console.error("Failed to save monitor settings to API", e);
-        }
-
-        broadcastMonitorSettings();
-        updateInfoUI();
-    }
-
-    // 무대 모니터 에디터 캔버스 가이드용 표준 더미 텍스트 반환 (슬라이드 가변 텍스트 종속 방지)
-    function getInitialSlideTexts() {
-        return {
-            curText: "[현재 자막 영역]\n현재 슬라이드 자막",
-            nextText: "[다음 자막 영역]\n다음 슬라이드 자막"
-        };
-    }
-
-    // 3. 모니터 탭 진입시 텍스트박스 배치 (🔴 CURRENT / 🔵 NEXT)
-    async function enterMonitorMode() {
-        if (!canvas) return;
-        isMonitorMode = true;
-
-        // 저장을 안 누르고 이탈했다가 들어온 경우를 위해 마지막 저장된 설정 재로드
-        await loadMonitorSettings();
-
-        clearMonitorGuideBoxes();
-        canvas.clear();
-        canvas.backgroundColor = "#0f172a";
-
-        const cur = monitorSettings.currentBox || {};
-        const nxt = monitorSettings.nextBox || {};
-        const { curText, nextText } = getInitialSlideTexts();
-
-        // 🔴 CURRENT 텍스트박스
-        currentGuideBox = new fabric.Textbox(curText, {
-            left: (cur.leftPct / 100) * BASE_W,
-            top: (cur.topPct / 100) * BASE_H,
-            width: (cur.widthPct / 100) * BASE_W,
-            minWidth: 150,
-            minHeight: 50,
-            fontSize: cur.fontSize || 28,
-            fill: cur.textColor || '#FFFFFF',
-            stroke: cur.strokeColor || 'transparent',
-            strokeWidth: cur.strokeWidth !== undefined ? cur.strokeWidth : 0,
-            fontWeight: cur.fontWeight || 'bold',
-            fontStyle: cur.fontStyle || 'normal',
-            fontFamily: cur.fontFamily || 'Inter',
-            textAlign: cur.textAlign || 'center',
-            opacity: cur.opacity !== undefined ? cur.opacity : 1.0,
-            lineHeight: cur.lineHeight !== undefined ? cur.lineHeight : 1.35,
-            editable: false,
-            splitByGrapheme: true,
-            lockRotation: true,
-            hasRotatingPoint: false,
-            transparentCorners: false,
-            cornerColor: '#ef4444',
-            cornerSize: 10,
-            isMonitorGuide: true,
-            boxType: 'currentBox',
-            paintFirst: 'stroke'
-        });
-
-        // 🔵 NEXT 텍스트박스
-        nextGuideBox = new fabric.Textbox(nextText, {
-            left: (nxt.leftPct / 100) * BASE_W,
-            top: (nxt.topPct / 100) * BASE_H,
-            width: (nxt.widthPct / 100) * BASE_W,
-            minWidth: 150,
-            minHeight: 50,
-            fontSize: nxt.fontSize || 22,
-            fill: nxt.textColor || '#A0A0A0',
-            stroke: nxt.strokeColor || 'transparent',
-            strokeWidth: nxt.strokeWidth !== undefined ? nxt.strokeWidth : 0,
-            fontWeight: nxt.fontWeight || '600',
-            fontStyle: nxt.fontStyle || 'normal',
-            fontFamily: nxt.fontFamily || 'Inter',
-            textAlign: nxt.textAlign || 'center',
-            opacity: nxt.opacity !== undefined ? nxt.opacity : 1.0,
-            lineHeight: nxt.lineHeight !== undefined ? nxt.lineHeight : 1.35,
-            editable: false,
-            splitByGrapheme: true,
-            lockRotation: true,
-            hasRotatingPoint: false,
-            transparentCorners: false,
-            cornerColor: '#3b82f6',
-            cornerSize: 10,
-            isMonitorGuide: true,
-            boxType: 'nextBox',
-            paintFirst: 'stroke'
-        });
-
-        canvas.add(currentGuideBox);
-        canvas.add(nextGuideBox);
-
-        // 🔴/🔵 외 추가된 커스텀 도형 및 사진 요소 복원
-        if (Array.isArray(monitorSettings.customElements) && typeof deserializeElement === 'function') {
-            monitorSettings.customElements.forEach(elem => {
-                const obj = deserializeElement(elem, BASE_W, BASE_H);
-                if (obj) {
-                    canvas.add(obj);
-                }
-            });
-        }
-
-        // 이벤트 바인딩
-        canvas.on('object:added', handleCustomObjectChanged);
-        canvas.on('object:removed', handleCustomObjectChanged);
-        canvas.on('object:modified', handleGuideModified);
-        canvas.on('object:moving', handleGuideModified);
-        canvas.on('object:scaling', handleGuideModified);
-
-        canvas.renderAll();
-        updateInfoUI();
-        broadcastMonitorPreviewSettings();
-    }
-
-    // 4. 모니터 탭 이탈 시 가이드 해제 및 슬라이드 복원
-    function exitMonitorMode() {
-        if (!isMonitorMode) return;
-        
-        // 🔴 중요: clearMonitorGuideBoxes()를 isMonitorMode=true인 상태에서 먼저 실행해야
-        // 캔버스 object:removed 이벤트 발생 시 saveStateToHistory의 모니터 가드에 걸려 슬라이드 오토세이브 덮어쓰기가 방지됨!
-        clearMonitorGuideBoxes();
-        isMonitorMode = false;
-
-        if (canvas) {
-            canvas.off('object:added', handleCustomObjectChanged);
-            canvas.off('object:removed', handleCustomObjectChanged);
-            canvas.off('object:modified', handleGuideModified);
-            canvas.off('object:moving', handleGuideModified);
-            canvas.off('object:scaling', handleGuideModified);
-        }
-
-        if (typeof renderSlide === 'function' && typeof activeSlideId !== 'undefined' && activeSlideId) {
-            renderSlide(activeSlideId);
-        }
-    }
-
-    function clearMonitorGuideBoxes() {
-        if (!canvas) return;
-        const objects = canvas.getObjects();
-        const guides = objects.filter(o => o.isMonitorGuide);
-        guides.forEach(g => canvas.remove(g));
-    }
-
-    function colorToHex(color) {
-        if (!color || color === 'transparent') return "#ffffff";
-        if (typeof color !== 'string') return "#ffffff";
-        if (color.startsWith("#")) return color;
-        if (color.startsWith("rgb")) {
-            const rgb = color.match(/\d+/g);
-            if (rgb && rgb.length >= 3) {
-                return "#" + ((1 << 24) + (parseInt(rgb[0]) << 16) + (parseInt(rgb[1]) << 8) + parseInt(rgb[2])).toString(16).slice(1);
-            }
-        }
-        return color;
-    }
-
-    // 캔버스 객체 좌표 및 속성을 monitorSettings 객체에 동기화
-    function syncCanvasToMonitorSettings() {
-        if (!isMonitorMode || !canvas) return;
-        const updateBox = (boxObj, boxKey) => {
-            if (!boxObj) return;
-            const actualW = boxObj.width * (boxObj.scaleX || 1);
-            const actualH = boxObj.height * (boxObj.scaleY || 1);
-
-            let leftPct = clamp((boxObj.left / BASE_W) * 100, 0, 95);
-            let topPct = clamp((boxObj.top / BASE_H) * 100, 0, 95);
-            let widthPct = clamp((actualW / BASE_W) * 100, 5, 100 - leftPct);
-            let heightPct = clamp((actualH / BASE_H) * 100, 5, 100 - topPct);
-
-            // 스케일 정규화 (scaleX, scaleY를 1로 맞추고 width 계산 대입)
-            const targetPixelWidth = (widthPct / 100) * BASE_W;
-            boxObj.set({
-                width: targetPixelWidth,
-                scaleX: 1,
-                scaleY: 1
-            });
-
-            const fillColor = typeof boxObj.fill === 'string' ? boxObj.fill : '#ffffff';
-            const hexColor = colorToHex(fillColor);
-            const strokeColorVal = boxObj.stroke ? colorToHex(typeof boxObj.stroke === 'string' ? boxObj.stroke : 'transparent') : 'transparent';
-            const strokeWidthVal = boxObj.strokeWidth !== undefined ? boxObj.strokeWidth : 0;
-            const fontStyleVal = boxObj.fontStyle || 'normal';
-            const opacityVal = boxObj.opacity !== undefined ? boxObj.opacity : 1.0;
-
-            const baseFontSize = boxObj.fontSize || (boxKey === 'currentBox' ? 28 : 22);
-            const effectiveFontSize = Math.round(baseFontSize * (boxObj.scaleY || 1));
-
-            monitorSettings[boxKey] = {
-                ...monitorSettings[boxKey],
-                leftPct: parseFloat(leftPct.toFixed(2)),
-                topPct: parseFloat(topPct.toFixed(2)),
-                widthPct: parseFloat(widthPct.toFixed(2)),
-                heightPct: parseFloat(heightPct.toFixed(2)),
-                fontSize: effectiveFontSize,
-                textColor: hexColor,
-                strokeColor: strokeColorVal,
-                strokeWidth: strokeWidthVal,
-                fontWeight: boxObj.fontWeight || (boxKey === 'currentBox' ? "bold" : "600"),
-                fontStyle: fontStyleVal,
-                fontFamily: boxObj.fontFamily || "Inter",
-                textAlign: boxObj.textAlign || "center",
-                opacity: opacityVal,
-                lineHeight: boxObj.lineHeight !== undefined ? parseFloat(boxObj.lineHeight) : 1.35
-            };
-        };
-
-        updateBox(currentGuideBox, 'currentBox');
-        updateBox(nextGuideBox, 'nextBox');
-
-        // 커스텀 요소들(도형 및 이미지) 직렬화 저장
-        if (typeof serializeElement === 'function') {
-            const customObjs = canvas.getObjects().filter(o => !o.isMonitorGuide);
-            monitorSettings.customElements = customObjs.map(o => serializeElement(o, BASE_W, BASE_H));
-        }
-    }
-
-    function notifyMonitorChanged() {
-        if (!isMonitorMode || !canvas) return;
+// 2. 모니터 설정 저장 및 브로드캐스트 (저장 버튼 클릭 시에만 실행)
+async function saveMonitorSettings(syncCanvasFirst = true) {
+    if (syncCanvasFirst) {
         syncCanvasToMonitorSettings();
-        updateInfoUI();
-        broadcastMonitorPreviewSettings();
     }
-
-    // 5. 캔버스 이벤트 정규화 계산 (실시간 미리보기만 업데이트, 저장 버튼 클릭 전까지 방송 금지)
-    function handleGuideModified(e) {
-        notifyMonitorChanged();
-    }
-
-    function handleCustomObjectChanged(e) {
-        if (!isMonitorMode) return;
-        const target = e.target;
-        if (target && target.isMonitorGuide) return;
-        syncCanvasToMonitorSettings();
-        updateInfoUI();
-        broadcastMonitorPreviewSettings();
-    }
-
-    // UI 정보 및 줄간격 슬라이더 업데이트
-    function updateInfoUI() {
-        const infoEl = document.getElementById("monitor-layout-info");
-        const cur = monitorSettings.currentBox || {};
-        const nxt = monitorSettings.nextBox || {};
-
-        if (infoEl) {
-            infoEl.innerHTML = `
-                🔴 <strong>CURRENT:</strong> X: ${cur.leftPct}% Y: ${cur.topPct}% W: ${cur.widthPct}% H: ${cur.heightPct}% Font: ${cur.fontSize}px (${cur.fontWeight || 'bold'})<br>
-                🔵 <strong>NEXT:</strong> X: ${nxt.leftPct}% Y: ${nxt.topPct}% W: ${nxt.widthPct}% H: ${nxt.heightPct}% Font: ${nxt.fontSize}px (${nxt.fontWeight || '600'})
-            `;
-        }
-
-        const curSlider = document.getElementById("range-monitor-cur-lineheight");
-        const curValSpan = document.getElementById("val-monitor-cur-lineheight");
-        if (curSlider && curValSpan) {
-            const curlh = cur.lineHeight !== undefined ? cur.lineHeight : 1.35;
-            curSlider.value = curlh;
-            curValSpan.textContent = `${parseFloat(curlh).toFixed(2)}x`;
-        }
-
-        const nxtSlider = document.getElementById("range-monitor-nxt-lineheight");
-        const nxtValSpan = document.getElementById("val-monitor-nxt-lineheight");
-        if (nxtSlider && nxtValSpan) {
-            const nxtlh = nxt.lineHeight !== undefined ? nxt.lineHeight : 1.35;
-            nxtSlider.value = nxtlh;
-            nxtValSpan.textContent = `${parseFloat(nxtlh).toFixed(2)}x`;
-        }
-    }
-
-    // 6. 초기화
-    function initEditorMonitor() {
-        loadMonitorSettings();
-
-        // 탭 변경 리스너
-        const originalSwitchLeftTab = window.switchLeftTab;
-        window.switchLeftTab = function (targetPanelId) {
-            if (typeof originalSwitchLeftTab === 'function') {
-                originalSwitchLeftTab(targetPanelId);
-            }
-            if (targetPanelId === 'panel-monitor') {
-                enterMonitorMode();
-            } else {
-                exitMonitorMode();
-            }
-        };
-
-        // 줄간격 슬라이더 이벤트 바인딩
-        const curSlider = document.getElementById("range-monitor-cur-lineheight");
-        if (curSlider) {
-            curSlider.oninput = (e) => {
-                const lh = parseFloat(e.target.value);
-                const curValSpan = document.getElementById("val-monitor-cur-lineheight");
-                if (curValSpan) curValSpan.textContent = `${lh.toFixed(2)}x`;
-                if (currentGuideBox) {
-                    currentGuideBox.set({ lineHeight: lh });
-                    canvas && canvas.renderAll();
-                }
-                notifyMonitorChanged();
-            };
-        }
-
-        const nxtSlider = document.getElementById("range-monitor-nxt-lineheight");
-        if (nxtSlider) {
-            nxtSlider.oninput = (e) => {
-                const lh = parseFloat(e.target.value);
-                const nxtValSpan = document.getElementById("val-monitor-nxt-lineheight");
-                if (nxtValSpan) nxtValSpan.textContent = `${lh.toFixed(2)}x`;
-                if (nextGuideBox) {
-                    nextGuideBox.set({ lineHeight: lh });
-                    canvas && canvas.renderAll();
-                }
-                notifyMonitorChanged();
-            };
-        }
-
-        // 이미지 파일 input 변경 리스너
-        const monitorImgInput = document.getElementById("monitor-image-input");
-        if (monitorImgInput) {
-            monitorImgInput.onchange = (e) => {
-                const file = e.target.files && e.target.files[0];
-                if (file && typeof window.insertImageToCanvas === 'function') {
-                    window.insertImageToCanvas(file);
-                    monitorImgInput.value = "";
-                }
-            };
-        }
-
-        // 저장 / 초기화 및 도형/사진 추가 버튼 이벤트
-        document.addEventListener("click", (e) => {
-            let btn = e.target;
-            while (btn && btn !== document) {
-                const targetId = btn.id || "";
-                if (targetId === "btn-save-monitor-layout") {
-                    syncCanvasToMonitorSettings();
-                    saveMonitorSettings();
-                    alert("무대 모니터 레이아웃 설정이 성공적으로 저장되었습니다.");
-                    break;
-                }
-                if (targetId === "btn-reset-monitor-layout") {
-                    if (confirm("무대 모니터 레이아웃을 기본값으로 초기화하시겠습니까?")) {
-                        monitorSettings.currentBox = {
-                            leftPct: 5.0, topPct: 5.0, widthPct: 90.0, heightPct: 42.0, fontSize: 28, textColor: "#FFFFFF", bgColor: "transparent", isTransparentBg: true, fontWeight: "bold", fontFamily: "Inter", textAlign: "center"
-                        };
-                        monitorSettings.nextBox = {
-                            leftPct: 5.0, topPct: 51.0, widthPct: 90.0, heightPct: 42.0, fontSize: 22, textColor: "#A0A0A0", bgColor: "transparent", isTransparentBg: true, fontWeight: "600", fontFamily: "Inter", textAlign: "center"
-                        };
-                        monitorSettings.customElements = [];
-                        saveMonitorSettings();
-                        if (isMonitorMode) {
-                            enterMonitorMode();
-                        }
-                    }
-                    break;
-                }
-                if (targetId === "btn-monitor-add-rect") {
-                    if (typeof window.addRect === 'function') window.addRect();
-                    break;
-                }
-                if (targetId === "btn-monitor-add-circle") {
-                    if (typeof window.addCircle === 'function') window.addCircle();
-                    break;
-                }
-                if (targetId === "btn-monitor-add-triangle") {
-                    if (typeof window.addTriangle === 'function') window.addTriangle();
-                    break;
-                }
-                if (targetId === "btn-monitor-add-line") {
-                    if (typeof window.addLine === 'function') window.addLine();
-                    break;
-                }
-                if (targetId === "btn-monitor-add-image") {
-                    const input = document.getElementById("monitor-image-input");
-                    if (input) input.click();
-                    break;
-                }
-                btn = btn.parentElement;
-            }
+    localStorage.setItem("subcast_monitor_settings", JSON.stringify(monitorSettings));
+    try {
+        await fetch("/api/v1/monitor/settings", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(monitorSettings)
         });
+    } catch (e) {
+        console.error("Failed to save monitor settings to API", e);
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initEditorMonitor);
+    broadcastMonitorSettings();
+    if (typeof showToast === 'function') {
+        showToast("무대 모니터 레이아웃이 저장 및 적용되었습니다.");
     } else {
-        initEditorMonitor();
+        alert("무대 모니터 레이아웃이 저장 및 적용되었습니다.");
+    }
+}
+
+function broadcastMonitorSettings() {
+    if (window.BroadcastChannel) {
+        try {
+            const bc = new BroadcastChannel("subcast_monitor_channel");
+            bc.postMessage({ type: "MONITOR_LAYOUT_UPDATE", settings: monitorSettings });
+            bc.close();
+        } catch (e) {
+            console.error("Failed to post message to BroadcastChannel", e);
+        }
+    }
+}
+
+function broadcastMonitorPreviewSettings() {
+    if (window.BroadcastChannel) {
+        try {
+            const bc = new BroadcastChannel("subcast_monitor_channel");
+            bc.postMessage({ type: "MONITOR_PREVIEW_UPDATE", settings: monitorSettings });
+            bc.close();
+        } catch (e) {
+            console.error("Failed to post preview message to BroadcastChannel", e);
+        }
+    }
+}
+
+// 3. 슬라이드 텍스트 추출 함수
+function extractSlidePlainText(slide, fallbackName = "") {
+    if (!slide || !slide.elements) return fallbackName;
+    const texts = slide.elements
+        .filter(e => e.type === "text" || e.type === "i-text" || e.type === "textbox")
+        .map(e => e.content || "")
+        .filter(Boolean)
+        .join("\n");
+    return texts || fallbackName || slide.name || "";
+}
+
+function getCurrentAndNextSlideTexts() {
+    const slides = (window.projectData && window.projectData.slides) || [];
+    if (!slides.length) {
+        return {
+            curText: "[현재 슬라이드 내용이 없습니다]",
+            nextText: "[다음 슬라이드가 없습니다]"
+        };
     }
 
-    window.subcastMonitorEditor = {
-        loadMonitorSettings,
-        saveMonitorSettings,
-        enterMonitorMode,
-        exitMonitorMode,
-        syncCanvasToMonitorSettings,
-        broadcastMonitorSettings,
-        notifyMonitorChanged,
-        handleGuideModified,
-        getSettings: () => monitorSettings,
-        isMonitorMode: () => isMonitorMode
+    let currentIndex = slides.findIndex(s => s.id === window.activeSlideId);
+    if (currentIndex === -1) currentIndex = 0;
+
+    const curSlide = slides[currentIndex];
+    const isLastSlide = (currentIndex + 1 >= slides.length);
+    const nextSlide = isLastSlide ? null : slides[currentIndex + 1];
+
+    const curText = curSlide ? extractSlidePlainText(curSlide, `슬라이드 ${currentIndex + 1}`) : "[현재 슬라이드 내용]";
+    const nextText = isLastSlide ? "[마지막 슬라이드입니다]" : (nextSlide ? extractSlidePlainText(nextSlide, `슬라이드 ${currentIndex + 2}`) : "[다음 슬라이드 내용]");
+
+    return { curText, nextText };
+}
+
+// 4. 무대 모니터 메인 뷰어 오버레이 표시/숨김
+function showMonitorMainViewer() {
+    const overlay = document.getElementById("monitor-main-viewer-overlay");
+    if (overlay) {
+        overlay.style.display = "flex";
+        isMonitorOverlayActive = true;
+        setTimeout(() => {
+            initMonitorLayoutCanvas();
+        }, 50);
+    }
+}
+
+function hideMonitorMainViewer() {
+    const overlay = document.getElementById("monitor-main-viewer-overlay");
+    if (overlay) {
+        overlay.style.display = "none";
+    }
+    isMonitorOverlayActive = false;
+    if (monitorCanvas) {
+        monitorCanvas.dispose();
+        monitorCanvas = null;
+    }
+}
+
+// 5. 전용 Fabric 캔버스 초기화
+function initMonitorLayoutCanvas() {
+    const canvasContainer = document.getElementById("monitor-canvas-container");
+    if (!canvasContainer) return;
+
+    loadMonitorSettings();
+
+    // 부모 컨테이너 크기에 맞춰 16:9 비율 설정
+    const rect = canvasContainer.parentElement.getBoundingClientRect();
+    const maxW = Math.max(320, rect.width - 40);
+    const maxH = Math.max(180, rect.height - 40);
+
+    let renderW = maxW;
+    let renderH = (maxW * 9) / 16;
+    if (renderH > maxH) {
+        renderH = maxH;
+        renderW = (maxH * 16) / 9;
+    }
+
+    canvasContainer.style.width = `${renderW}px`;
+    canvasContainer.style.height = `${renderH}px`;
+
+    // 이전 Fabric 캔버스 및 중복 래퍼 DOM 찌꺼기 완전 소멸
+    if (monitorCanvas) {
+        monitorCanvas.dispose();
+        monitorCanvas = null;
+    }
+    canvasContainer.innerHTML = '<canvas id="monitor-editor-canvas"></canvas>';
+
+    monitorCanvas = new fabric.Canvas("monitor-editor-canvas", {
+        width: renderW,
+        height: renderH,
+        backgroundColor: "#090d16",
+        selection: true,
+        renderOnAddRemove: true
+    });
+
+    renderMonitorCanvasObjects(renderW, renderH);
+    syncMonitorUIControls(monitorSettings);
+}
+
+// 6. 8방향 자유 조절 카드 컨테이너(Group) 생성 함수
+function createMonitorCardGroup(boxType, text, boxConfig, canvasW, canvasH) {
+    const isCurrent = (boxType === 'currentBox');
+    const color = isCurrent ? '#ef4444' : '#3b82f6';
+
+    const w = (boxConfig.widthPct / 100) * canvasW;
+    const h = (boxConfig.heightPct / 100) * canvasH;
+    const left = (boxConfig.leftPct / 100) * canvasW;
+    const top = (boxConfig.topPct / 100) * canvasH;
+    const scale = canvasW / 1920;
+    const fontSize = parseFontSizeVw(boxConfig.fontSize, 6.5, canvasW);
+
+    // 1. 카드 배경 박스 (가이드 테두리)
+    const cardBg = new fabric.Rect({
+        left: 0,
+        top: 0,
+        originX: 'center',
+        originY: 'center',
+        width: w,
+        height: h,
+        fill: isCurrent ? 'rgba(239, 68, 68, 0.08)' : 'rgba(59, 130, 246, 0.08)',
+        stroke: color,
+        strokeWidth: 1.5,
+        strokeDashArray: [5, 4],
+        rx: 6,
+        ry: 6,
+        selectable: false,
+        evented: false,
+        objectCaching: false
+    });
+
+    // 2. 내부 텍스트 박스 (자동 줄바꿈 & 수직/수평 중앙 정렬)
+    const textbox = new fabric.Textbox(text, {
+        left: 0,
+        top: 0,
+        originX: 'center',
+        originY: 'center',
+        width: Math.max(50, w - 24),
+        fontSize: fontSize,
+        fill: boxConfig.textColor || (isCurrent ? '#ffffff' : '#94a3b8'),
+        stroke: boxConfig.strokeColor || '#000000',
+        strokeWidth: boxConfig.strokeWidth !== undefined ? boxConfig.strokeWidth * scale : 1,
+        fontWeight: boxConfig.fontWeight || 'bold',
+        fontStyle: boxConfig.fontStyle || 'normal',
+        fontFamily: boxConfig.fontFamily || 'Inter',
+        textAlign: boxConfig.textAlign || 'center',
+        opacity: boxConfig.opacity !== undefined ? boxConfig.opacity : 1.0,
+        lineHeight: boxConfig.lineHeight !== undefined ? boxConfig.lineHeight : 1.2,
+        splitByGrapheme: false,
+        editable: false,
+        selectable: false,
+        evented: false,
+        paintFirst: 'stroke',
+        objectCaching: false
+    });
+
+    // 3. 통합 그룹 생성 (캐싱 비활성화로 잔상 완벽 제거)
+    const group = new fabric.Group([cardBg, textbox], {
+        left: left,
+        top: top,
+        originX: 'left',
+        originY: 'top',
+        width: w,
+        height: h,
+        lockRotation: true,
+        hasRotatingPoint: false,
+        transparentCorners: false,
+        borderColor: color,
+        cornerColor: color,
+        cornerSize: 10,
+        cornerStyle: 'rect',
+        isMonitorGuide: true,
+        boxType: boxType,
+        objectCaching: false
+    });
+
+    // 상/하/좌/우/대각선 8개 핸들 모두 활성화
+    group.setControlsVisibility({
+        tl: true, tr: true, bl: true, br: true,
+        ml: true, mr: true, mt: true, mb: true,
+        mtr: false
+    });
+
+    return group;
+}
+
+// 7. 캔버스 객체 렌더링
+function renderMonitorCanvasObjects(canvasW, canvasH) {
+    if (!monitorCanvas) return;
+    monitorCanvas.clear();
+
+    const cur = monitorSettings.currentBox || DEFAULT_MONITOR_SETTINGS.currentBox;
+    const nxt = monitorSettings.nextBox || DEFAULT_MONITOR_SETTINGS.nextBox;
+    const { curText, nextText } = getCurrentAndNextSlideTexts();
+
+    currentGuideBox = createMonitorCardGroup('currentBox', curText, cur, canvasW, canvasH);
+    nextGuideBox = createMonitorCardGroup('nextBox', nextText, nxt, canvasW, canvasH);
+
+    monitorCanvas.add(currentGuideBox);
+    monitorCanvas.add(nextGuideBox);
+
+    // 변경 이벤트 바인딩 (8방향 리사이즈 및 위치 이동 처리)
+    monitorCanvas.on('object:modified', handleCardModified);
+    monitorCanvas.on('object:scaling', handleCardScaling);
+    monitorCanvas.on('object:moving', () => {
+        syncCanvasToMonitorSettings();
+        broadcastMonitorPreviewSettings();
+    });
+
+    monitorCanvas.renderAll();
+}
+
+function handleCardScaling(e) {
+    const group = e.target;
+    if (!group || !group.isMonitorGuide) return;
+    updateGroupInternalLayout(group);
+}
+
+function handleCardModified(e) {
+    const group = e.target;
+    if (!group || !group.isMonitorGuide) return;
+    updateGroupInternalLayout(group);
+    syncCanvasToMonitorSettings();
+    syncMonitorUIControls(monitorSettings);
+    broadcastMonitorPreviewSettings();
+}
+
+function updateGroupInternalLayout(group) {
+    if (!group) return;
+    const actualW = Math.max(60, group.width * (group.scaleX || 1));
+    const actualH = Math.max(40, group.height * (group.scaleY || 1));
+
+    group.set({
+        width: actualW,
+        height: actualH,
+        scaleX: 1,
+        scaleY: 1
+    });
+
+    const objects = group.getObjects();
+    if (objects && objects.length >= 2) {
+        const [cardBg, textbox] = objects;
+        cardBg.set({ width: actualW, height: actualH });
+        textbox.set({ width: Math.max(40, actualW - 24) });
+    }
+}
+
+// 8. 슬라이드 변경 시 텍스트 실시간 갱신
+function updateMonitorSlideTexts() {
+    if (!isMonitorOverlayActive || !monitorCanvas) return;
+
+    const { curText, nextText } = getCurrentAndNextSlideTexts();
+    if (currentGuideBox) {
+        const objs = currentGuideBox.getObjects();
+        const textbox = objs && (objs[1] || objs[0]);
+        if (textbox) {
+            textbox.set({ text: curText });
+        }
+    }
+    if (nextGuideBox) {
+        const objs = nextGuideBox.getObjects();
+        const textbox = objs && (objs[1] || objs[0]);
+        if (textbox) {
+            textbox.set({ text: nextText });
+        }
+    }
+    monitorCanvas.renderAll();
+}
+
+// 9. 캔버스 상태 -> 설정 객체 동기화
+function syncCanvasToMonitorSettings() {
+    if (!monitorCanvas) return;
+    const canvasW = monitorCanvas.getWidth();
+    const canvasH = monitorCanvas.getHeight();
+
+    const updateBox = (groupObj, boxKey) => {
+        if (!groupObj) return;
+        const actualW = groupObj.width * (groupObj.scaleX || 1);
+        const actualH = groupObj.height * (groupObj.scaleY || 1);
+
+        let leftPct = clamp((groupObj.left / canvasW) * 100, 0, 95);
+        let topPct = clamp((groupObj.top / canvasH) * 100, 0, 95);
+        let widthPct = clamp((actualW / canvasW) * 100, 5, 100 - leftPct);
+        let heightPct = clamp((actualH / canvasH) * 100, 5, 100 - topPct);
+
+        monitorSettings[boxKey] = {
+            ...monitorSettings[boxKey],
+            leftPct: parseFloat(leftPct.toFixed(2)),
+            topPct: parseFloat(topPct.toFixed(2)),
+            widthPct: parseFloat(widthPct.toFixed(2)),
+            heightPct: parseFloat(heightPct.toFixed(2))
+        };
     };
-})();
+
+    updateBox(currentGuideBox, 'currentBox');
+    updateBox(nextGuideBox, 'nextBox');
+}
+
+// 10. 사이드바 UI 컨트롤 값 동기화
+function syncMonitorUIControls(settings) {
+    const cur = settings.currentBox || DEFAULT_MONITOR_SETTINGS.currentBox;
+    const nxt = settings.nextBox || DEFAULT_MONITOR_SETTINGS.nextBox;
+
+    // 🔴 CURRENT
+    const curFs = document.getElementById("input-monitor-cur-font-size");
+    const curFsVal = document.getElementById("lbl-monitor-cur-font-size-val");
+    if (curFs) {
+        const val = getNormalizedVwNumber(cur.fontSize, 6.5);
+        curFs.value = val;
+        if (curFsVal) curFsVal.textContent = val.toFixed(1);
+        monitorSettings.currentBox.fontSize = `${val.toFixed(1)}vw`;
+    }
+
+    const curAlign = document.getElementById("select-monitor-cur-text-align");
+    if (curAlign && cur.textAlign) curAlign.value = cur.textAlign;
+
+    const curColor = document.getElementById("input-monitor-cur-text-color");
+    if (curColor && cur.textColor) curColor.value = cur.textColor.startsWith("#") ? cur.textColor : "#ffffff";
+
+    const curStroke = document.getElementById("input-monitor-cur-stroke-width");
+    const curStrokeVal = document.getElementById("lbl-monitor-cur-stroke-val");
+    if (curStroke) {
+        curStroke.value = cur.strokeWidth !== undefined ? cur.strokeWidth : 2;
+        if (curStrokeVal) curStrokeVal.textContent = curStroke.value;
+    }
+
+    const curLh = document.getElementById("range-monitor-cur-lineheight");
+    const curLhVal = document.getElementById("val-monitor-cur-lineheight");
+    if (curLh) {
+        curLh.value = cur.lineHeight !== undefined ? cur.lineHeight : 1.2;
+        if (curLhVal) curLhVal.textContent = `${parseFloat(curLh.value).toFixed(2)}x`;
+    }
+
+    // 🔵 NEXT
+    const nxtFs = document.getElementById("input-monitor-nxt-font-size");
+    const nxtFsVal = document.getElementById("lbl-monitor-nxt-font-size-val");
+    if (nxtFs) {
+        const val = getNormalizedVwNumber(nxt.fontSize, 6.5);
+        nxtFs.value = val;
+        if (nxtFsVal) nxtFsVal.textContent = val.toFixed(1);
+        monitorSettings.nextBox.fontSize = `${val.toFixed(1)}vw`;
+    }
+
+    const nxtAlign = document.getElementById("select-monitor-nxt-text-align");
+    if (nxtAlign && nxt.textAlign) nxtAlign.value = nxt.textAlign;
+
+    const nxtColor = document.getElementById("input-monitor-nxt-text-color");
+    if (nxtColor && nxt.textColor) nxtColor.value = nxt.textColor.startsWith("#") ? nxt.textColor : "#94a3b8";
+
+    const nxtStroke = document.getElementById("input-monitor-nxt-stroke-width");
+    const nxtStrokeVal = document.getElementById("lbl-monitor-nxt-stroke-val");
+    if (nxtStroke) {
+        nxtStroke.value = nxt.strokeWidth !== undefined ? nxt.strokeWidth : 1;
+        if (nxtStrokeVal) nxtStrokeVal.textContent = nxtStroke.value;
+    }
+
+    const nxtLh = document.getElementById("range-monitor-nxt-lineheight");
+    const nxtLhVal = document.getElementById("val-monitor-nxt-lineheight");
+    if (nxtLh) {
+        nxtLh.value = nxt.lineHeight !== undefined ? nxt.lineHeight : 1.2;
+        if (nxtLhVal) nxtLhVal.textContent = `${parseFloat(nxtLh.value).toFixed(2)}x`;
+    }
+}
+
+// 11. 이벤트 및 초기화 등록
+function initEditorMonitor() {
+    loadMonitorSettings();
+
+    // 저장 버튼들
+    const btnQuick = document.getElementById("btn-monitor-apply-quick");
+    if (btnQuick) btnQuick.onclick = () => saveMonitorSettings(true);
+
+    const btnSave = document.getElementById("btn-save-monitor-layout");
+    if (btnSave) btnSave.onclick = () => saveMonitorSettings(true);
+
+    // 초기화 버튼 (버그 완벽 수정: 캔버스 동기화 덮어쓰기 방지 및 즉각 리셋)
+    const btnReset = document.getElementById("btn-reset-monitor-layout");
+    if (btnReset) {
+        btnReset.onclick = async () => {
+            if (confirm("무대 모니터 레이아웃을 기본값으로 초기화하시겠습니까?")) {
+                monitorSettings = JSON.parse(JSON.stringify(DEFAULT_MONITOR_SETTINGS));
+                localStorage.setItem("subcast_monitor_settings", JSON.stringify(monitorSettings));
+                try {
+                    await fetch("/api/v1/monitor/settings", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(monitorSettings)
+                    });
+                } catch (e) {
+                    console.error("Failed to reset monitor settings to API", e);
+                }
+
+                broadcastMonitorSettings();
+                syncMonitorUIControls(monitorSettings);
+                if (isMonitorOverlayActive) {
+                    initMonitorLayoutCanvas();
+                }
+
+                if (typeof showToast === 'function') {
+                    showToast("무대 모니터 레이아웃이 기본값으로 초기화되었습니다.");
+                } else {
+                    alert("무대 모니터 레이아웃이 기본값으로 초기화되었습니다.");
+                }
+            }
+        };
+    }
+
+    // 🔴 CURRENT 컨트롤 이벤트 바인딩
+    const curFs = document.getElementById("input-monitor-cur-font-size");
+    if (curFs) {
+        curFs.oninput = (e) => {
+            const vwVal = parseFloat(e.target.value);
+            const valSpan = document.getElementById("lbl-monitor-cur-font-size-val");
+            if (valSpan) valSpan.textContent = vwVal.toFixed(1);
+            monitorSettings.currentBox.fontSize = `${vwVal.toFixed(1)}vw`;
+            if (currentGuideBox && monitorCanvas) {
+                const textbox = currentGuideBox.getObjects()[1];
+                if (textbox) {
+                    textbox.set({ fontSize: (vwVal / 100) * monitorCanvas.getWidth() });
+                    monitorCanvas.renderAll();
+                }
+            }
+            broadcastMonitorPreviewSettings();
+        };
+    }
+
+    const curAlign = document.getElementById("select-monitor-cur-text-align");
+    if (curAlign) {
+        curAlign.onchange = (e) => {
+            const align = e.target.value;
+            monitorSettings.currentBox.textAlign = align;
+            if (currentGuideBox && monitorCanvas) {
+                const textbox = currentGuideBox.getObjects()[1];
+                if (textbox) {
+                    textbox.set({ textAlign: align });
+                    monitorCanvas.renderAll();
+                }
+            }
+            broadcastMonitorPreviewSettings();
+        };
+    }
+
+    const curColor = document.getElementById("input-monitor-cur-text-color");
+    if (curColor) {
+        curColor.oninput = (e) => {
+            const color = e.target.value;
+            monitorSettings.currentBox.textColor = color;
+            if (currentGuideBox && monitorCanvas) {
+                const textbox = currentGuideBox.getObjects()[1];
+                if (textbox) {
+                    textbox.set({ fill: color });
+                    monitorCanvas.renderAll();
+                }
+            }
+            broadcastMonitorPreviewSettings();
+        };
+    }
+
+    const curStroke = document.getElementById("input-monitor-cur-stroke-width");
+    if (curStroke) {
+        curStroke.oninput = (e) => {
+            const sw = parseInt(e.target.value);
+            const valSpan = document.getElementById("lbl-monitor-cur-stroke-val");
+            if (valSpan) valSpan.textContent = sw;
+            monitorSettings.currentBox.strokeWidth = sw;
+            if (currentGuideBox && monitorCanvas) {
+                const scale = monitorCanvas.getWidth() / 1920;
+                const textbox = currentGuideBox.getObjects()[1];
+                if (textbox) {
+                    textbox.set({ strokeWidth: sw * scale });
+                    monitorCanvas.renderAll();
+                }
+            }
+            broadcastMonitorPreviewSettings();
+        };
+    }
+
+    const curLh = document.getElementById("range-monitor-cur-lineheight");
+    if (curLh) {
+        curLh.oninput = (e) => {
+            const lh = parseFloat(e.target.value);
+            const valSpan = document.getElementById("val-monitor-cur-lineheight");
+            if (valSpan) valSpan.textContent = `${lh.toFixed(2)}x`;
+            monitorSettings.currentBox.lineHeight = lh;
+            if (currentGuideBox && monitorCanvas) {
+                const textbox = currentGuideBox.getObjects()[1];
+                if (textbox) {
+                    textbox.set({ lineHeight: lh });
+                    monitorCanvas.renderAll();
+                }
+            }
+            broadcastMonitorPreviewSettings();
+        };
+    }
+
+    // 🔵 NEXT 컨트롤 이벤트 바인딩
+    const nxtFs = document.getElementById("input-monitor-nxt-font-size");
+    if (nxtFs) {
+        nxtFs.oninput = (e) => {
+            const vwVal = parseFloat(e.target.value);
+            const valSpan = document.getElementById("lbl-monitor-nxt-font-size-val");
+            if (valSpan) valSpan.textContent = vwVal.toFixed(1);
+            monitorSettings.nextBox.fontSize = `${vwVal.toFixed(1)}vw`;
+            if (nextGuideBox && monitorCanvas) {
+                const textbox = nextGuideBox.getObjects()[1];
+                if (textbox) {
+                    textbox.set({ fontSize: (vwVal / 100) * monitorCanvas.getWidth() });
+                    monitorCanvas.renderAll();
+                }
+            }
+            broadcastMonitorPreviewSettings();
+        };
+    }
+
+    const nxtAlign = document.getElementById("select-monitor-nxt-text-align");
+    if (nxtAlign) {
+        nxtAlign.onchange = (e) => {
+            const align = e.target.value;
+            monitorSettings.nextBox.textAlign = align;
+            if (nextGuideBox && monitorCanvas) {
+                const textbox = nextGuideBox.getObjects()[1];
+                if (textbox) {
+                    textbox.set({ textAlign: align });
+                    monitorCanvas.renderAll();
+                }
+            }
+            broadcastMonitorPreviewSettings();
+        };
+    }
+
+    const nxtColor = document.getElementById("input-monitor-nxt-text-color");
+    if (nxtColor) {
+        nxtColor.oninput = (e) => {
+            const color = e.target.value;
+            monitorSettings.nextBox.textColor = color;
+            if (nextGuideBox && monitorCanvas) {
+                const textbox = nextGuideBox.getObjects()[1];
+                if (textbox) {
+                    textbox.set({ fill: color });
+                    monitorCanvas.renderAll();
+                }
+            }
+            broadcastMonitorPreviewSettings();
+        };
+    }
+
+    const nxtStroke = document.getElementById("input-monitor-nxt-stroke-width");
+    if (nxtStroke) {
+        nxtStroke.oninput = (e) => {
+            const sw = parseInt(e.target.value);
+            const valSpan = document.getElementById("lbl-monitor-nxt-stroke-val");
+            if (valSpan) valSpan.textContent = sw;
+            monitorSettings.nextBox.strokeWidth = sw;
+            if (nextGuideBox && monitorCanvas) {
+                const scale = monitorCanvas.getWidth() / 1920;
+                const textbox = nextGuideBox.getObjects()[1];
+                if (textbox) {
+                    textbox.set({ strokeWidth: sw * scale });
+                    monitorCanvas.renderAll();
+                }
+            }
+            broadcastMonitorPreviewSettings();
+        };
+    }
+
+    const nxtLh = document.getElementById("range-monitor-nxt-lineheight");
+    if (nxtLh) {
+        nxtLh.oninput = (e) => {
+            const lh = parseFloat(e.target.value);
+            const valSpan = document.getElementById("val-monitor-nxt-lineheight");
+            if (valSpan) valSpan.textContent = `${lh.toFixed(2)}x`;
+            monitorSettings.nextBox.lineHeight = lh;
+            if (nextGuideBox && monitorCanvas) {
+                const textbox = nextGuideBox.getObjects()[1];
+                if (textbox) {
+                    textbox.set({ lineHeight: lh });
+                    monitorCanvas.renderAll();
+                }
+            }
+            broadcastMonitorPreviewSettings();
+        };
+    }
+
+    window.addEventListener("resize", () => {
+        if (isMonitorOverlayActive) {
+            initMonitorLayoutCanvas();
+        }
+    });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initEditorMonitor);
+} else {
+    initEditorMonitor();
+}
+
+// 전역 함수 및 인터페이스 export
+window.showMonitorMainViewer = showMonitorMainViewer;
+window.hideMonitorMainViewer = hideMonitorMainViewer;
+window.updateMonitorSlideTexts = updateMonitorSlideTexts;
+window.subcastMonitorEditor = {
+    loadMonitorSettings,
+    saveMonitorSettings,
+    showMonitorMainViewer,
+    hideMonitorMainViewer,
+    updateMonitorSlideTexts,
+    getSettings: () => monitorSettings,
+    isMonitorMode: () => isMonitorOverlayActive
+};
