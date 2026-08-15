@@ -142,6 +142,16 @@
                     </svg>
                     <span>무대 모니터</span>
                 </button>
+                <button class="nav-tab-btn" data-target="panel-broadcast" onclick="switchLeftTab('panel-broadcast')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/>
+                        <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/>
+                        <circle cx="12" cy="12" r="2"/>
+                        <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/>
+                        <path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1"/>
+                    </svg>
+                    <span>방송 화면</span>
+                </button>
             </aside>
 
             <!-- Left Sub Panel (드로어 패널) -->
@@ -583,6 +593,52 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- 10) 방송 화면 탭 패널 (찬양 방송 자막 레이아웃) -->
+                <div class="sidebar-panel" id="panel-broadcast">
+                    <div class="panel-header">
+                        <h3>방송 화면 (찬양 자막)</h3>
+                    </div>
+                    <div class="panel-body" style="padding: 14px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto;">
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" id="btn-save-broadcast-layout" style="flex: 1; padding: 8px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border-radius: 4px; background: #0284c7; color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                                💾 레이아웃 저장
+                            </button>
+                            <button type="button" id="btn-reset-broadcast-layout" style="padding: 8px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border-radius: 4px; background: rgba(255,255,255,0.05); color: #cbd5e1; border: 1px solid var(--panel-border);">
+                                🔄 초기화
+                            </button>
+                        </div>
+
+                        <div style="background: rgba(2, 132, 199, 0.1); border: 1px solid rgba(2, 132, 199, 0.3); border-radius: 6px; padding: 10px; font-size: 0.72rem; color: #bae6fd; line-height: 1.45;">
+                            📌 <strong>찬양 전용 방송 자막</strong><br>
+                            오른쪽 캔버스에서 자막 상자를 마우스로 직접 드래그하여 방송 송출 위치와 크기를 자유롭게 배치하세요. (성경/일반 슬라이드는 원래 디자인 그대로 송출됩니다)
+                        </div>
+
+                        <!-- 자막 스타일 상세 속성 -->
+                        <div style="display: flex; flex-direction: column; gap: 10px; padding: 12px; background: rgba(0,0,0,0.25); border: 1px solid var(--panel-border); border-radius: var(--radius-sm);">
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                <span style="font-size: 0.72rem; color: var(--text-muted);">글자 크기 (<span id="lbl-broadcast-font-size-val">3.5</span>vw)</span>
+                                <input type="range" id="input-broadcast-font-size" min="1.5" max="6.0" step="0.1" value="3.5" style="flex: 1; height: 4px; cursor: pointer;">
+                            </div>
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <span style="font-size: 0.72rem; color: var(--text-muted);">글자 정렬</span>
+                                <select id="select-broadcast-text-align" style="padding: 4px 8px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-xs); font-size: 0.72rem;">
+                                    <option value="left">왼쪽 정렬</option>
+                                    <option value="center" selected>가운데 정렬</option>
+                                    <option value="right">오른쪽 정렬</option>
+                                </select>
+                            </div>
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                <span style="font-size: 0.72rem; color: var(--text-muted);">외곽선 두께 (<span id="lbl-broadcast-stroke-val">3</span>px)</span>
+                                <input type="range" id="input-broadcast-stroke-width" min="0" max="10" step="1" value="3" style="flex: 1; height: 4px; cursor: pointer;">
+                            </div>
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <span style="font-size: 0.72rem; color: var(--text-muted);">반투명 자막 바</span>
+                                <input type="checkbox" id="chk-broadcast-bg-bar" style="cursor: pointer; width: 15px; height: 15px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </aside>
 
             <!-- Center Canvas Workspace -->
@@ -600,6 +656,31 @@
                     <div class="canvas-wrapper-outer">
                         <div class="canvas-wrapper">
                             <canvas id="editor-canvas"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 방송 화면(찬양 자막) 메인 뷰어 오버레이 -->
+                    <div id="broadcast-main-viewer-overlay"
+                        style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #090d16; z-index: 95; flex-direction: column; box-shadow: inset 0 0 12px rgba(0,0,0,0.6);">
+                        
+                        <!-- 1. 상단 안내 바 -->
+                        <div style="padding: 12px 20px; background: rgba(0, 0, 0, 0.5); border-bottom: 1px solid var(--panel-border, #3f3f46); flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 1.05rem; font-weight: 700; color: #38bdf8;">📡 찬양 방송 자막 레이아웃 편집기</span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted); background: rgba(255,255,255,0.06); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.08);">
+                                    마우스로 자막 상자를 드래그하여 방송 송출 위치를 자유롭게 조정하세요
+                                </span>
+                            </div>
+                            <button type="button" id="btn-broadcast-apply-quick" style="padding: 6px 14px; background: #0284c7; border: none; border-radius: 6px; color: #fff; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+                                💾 설정 저장
+                            </button>
+                        </div>
+
+                        <!-- 2. 방송 편집 캔버스 워크스페이스 -->
+                        <div style="flex: 1; position: relative; display: flex; align-items: center; justify-content: center; padding: 20px; overflow: hidden;">
+                            <div id="broadcast-canvas-container" style="position: relative; box-shadow: 0 0 30px rgba(0,0,0,0.8); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 4px; overflow: hidden; background: #0f172a;">
+                                <canvas id="broadcast-editor-canvas"></canvas>
+                            </div>
                         </div>
                     </div>
 
@@ -1198,6 +1279,7 @@
     <script src="js/modules/editor-praise.js"></script>
     <script src="js/modules/editor-stage-bg.js"></script>
     <script src="js/modules/editor-monitor.js"></script>
+    <script src="js/modules/editor-broadcast.js"></script>
     <script src="js/modules/editor-utils.js"></script>
     <script src="js/modules/editor-slides.js"></script>
     <script src="js/modules/editor-ui.js"></script>

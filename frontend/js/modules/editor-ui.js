@@ -36,6 +36,12 @@
             } else {
                 hideStageBgMainViewer();
             }
+            // 방송 화면 탭 처리
+            if (tabId === 'panel-broadcast') {
+                if (typeof showBroadcastMainViewer === 'function') showBroadcastMainViewer();
+            } else {
+                if (typeof hideBroadcastMainViewer === 'function') hideBroadcastMainViewer();
+            }
         }
 
 

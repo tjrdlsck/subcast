@@ -107,6 +107,7 @@
 
         function connectWebSocket() {
             ws = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws?role=editor`);
+            window.ws = ws;
             ws.onmessage = (event) => {
                 const message = JSON.parse(event.data);
                 if (message.type === 'INITIAL_SYNC') {

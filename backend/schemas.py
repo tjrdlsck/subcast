@@ -54,6 +54,7 @@ class SystemSettings(BaseModel):
     backgroundMode: str = "transparent"
     stageBackground: Optional[Dict[str, Any]] = None
     stageBgLibrary: Optional[List[Dict[str, Any]]] = None
+    praiseBroadcastLayout: Optional[Dict[str, Any]] = None
 
 
 class ProjectData(BaseModel):

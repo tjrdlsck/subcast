@@ -128,6 +128,17 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                 save_bg_meta(meta)
                 logger.info(f"Stage background library updated: {len(library_data)} items")
 
+            elif msg_type == "UPDATE_PRAISE_BROADCAST_LAYOUT":
+                layout_data = message.get("layout", {})
+                if manager.project_data and manager.project_data.settings:
+                    manager.project_data.settings.praiseBroadcastLayout = layout_data
+                    await save_project_data(manager.project_data)
+                    await manager.broadcast({
+                        "type": "PRAISE_BROADCAST_LAYOUT_UPDATED",
+                        "layout": layout_data
+                    })
+                    logger.info("Praise broadcast layout saved and broadcasted to all clients.")
+
             elif msg_type == "UPDATE_RESOLUTION":
                 width = message.get("width")
                 height = message.get("height")

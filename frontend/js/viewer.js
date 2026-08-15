@@ -163,6 +163,8 @@
             const urlParams = new URLSearchParams(window.location.search);
             const channel = urlParams.get('channel');
             const isMonitor = urlParams.get('mode') === 'monitor' || channel === 'monitor' || channel === 'preview' || channel === 'monitor_preview';
+            const isStage = channel === 'stage' || urlParams.get('mode') === 'stage';
+            const isBroadcast = !isStage && !isMonitor;
 
             canvas.clear();
 
@@ -183,12 +185,108 @@
             const scale = canvas.getWidth() / targetWidth;
             canvas.setZoom(scale);
 
-            currentSlide.elements.forEach(elem => {
-                const obj = deserializeElement(elem, targetWidth, targetHeight);
-                if (obj) {
-                    canvas.add(obj);
+            // 찬양 슬라이드 전용 판별 (찬양 가사 등록 또는 찬양 템플릿 슬라이드)
+            const isPraise = !!(currentSlide && (
+                currentSlide.slideType === 'praise' || 
+                currentSlide.isPraise || 
+                (currentSlide.id && typeof currentSlide.id === 'string' && currentSlide.id.startsWith('slide_praise_')) || 
+                (currentSlide.name && typeof currentSlide.name === 'string' && (currentSlide.name.startsWith('찬양:') || currentSlide.name.startsWith('자막(템):') || currentSlide.name.startsWith('자막:'))) ||
+                (currentSlide.elements && currentSlide.elements.some(e => e.id && typeof e.id === 'string' && e.id.startsWith('elem_praise_')))
+            ));
+
+            // 찬양 슬라이드의 방송 화면 송출 시: 사용자가 '방송 화면' 탭에서 커스텀한 레이아웃 적용
+            if (isBroadcast && isPraise) {
+                let savedLayout = projectData.settings?.praiseBroadcastLayout;
+                if (!savedLayout) {
+                    try {
+                        const local = localStorage.getItem("subcast_praise_broadcast_layout");
+                        if (local) savedLayout = JSON.parse(local);
+                    } catch (e) {}
                 }
-            });
+
+                const layout = Object.assign({
+                    x: 7.2,
+                    y: 76.0,
+                    width: 85.6,
+                    height: 18.0,
+                    fontSize: "3.5vw",
+                    fontFamily: "Inter",
+                    fontWeight: "700",
+                    textAlign: "center",
+                    fontColor: "#ffffff",
+                    strokeColor: "#000000",
+                    strokeWidth: 3,
+                    hasBgBar: false,
+                    bgBarColor: "rgba(0,0,0,0.65)",
+                    bgBarY: 72.0,
+                    bgBarHeight: 22.0
+                }, savedLayout || {});
+
+                // 1. 반투명 자막 바 (활성화된 경우)
+                if (layout.hasBgBar) {
+                    const barObj = deserializeElement({
+                        id: "elem_praise_broadcast_bar",
+                        type: "rect",
+                        x: 0,
+                        y: layout.bgBarY !== undefined ? layout.bgBarY : 72.0,
+                        width: 100,
+                        height: layout.bgBarHeight !== undefined ? layout.bgBarHeight : 22.0,
+                        style: {
+                            fillColor: layout.bgBarColor || "rgba(0,0,0,0.65)",
+                            strokeColor: "transparent",
+                            strokeWidth: 0,
+                            opacity: 1.0
+                        }
+                    }, targetWidth, targetHeight);
+                    if (barObj) canvas.add(barObj);
+                }
+
+                // 2. 가사 텍스트 재귀 추출 및 커스텀 위치/크기 렌더링
+                function extractLyricText(elements) {
+                    for (const e of elements) {
+                        if (e.type === 'text' && e.content && e.content.trim().length > 0) {
+                            return e.content;
+                        }
+                        if (e.type === 'group' && e.children) {
+                            const found = extractLyricText(e.children);
+                            if (found) return found;
+                        }
+                    }
+                    return "";
+                }
+
+                const lyricContent = extractLyricText(currentSlide.elements || []);
+
+                const lyricObj = deserializeElement({
+                    id: "elem_praise_broadcast_lyric",
+                    type: "text",
+                    content: lyricContent,
+                    x: layout.x,
+                    y: layout.y,
+                    width: layout.width,
+                    height: layout.height,
+                    style: {
+                        fontSize: layout.fontSize || "3.5vw",
+                        fontFamily: layout.fontFamily || "Inter",
+                        fontWeight: layout.fontWeight || "700",
+                        textAlign: layout.textAlign || "center",
+                        fontColor: layout.fontColor || "#ffffff",
+                        strokeColor: layout.strokeColor || "#000000",
+                        strokeWidth: layout.strokeWidth !== undefined ? layout.strokeWidth : 3,
+                        opacity: 1.0
+                    }
+                }, targetWidth, targetHeight);
+                if (lyricObj) canvas.add(lyricObj);
+
+            } else {
+                // 일반 슬라이드, 성경 슬라이드 및 현장 화면(Stage): 슬라이드 원본 1:1 그대로 렌더링
+                currentSlide.elements.forEach(elem => {
+                    const obj = deserializeElement(elem, targetWidth, targetHeight);
+                    if (obj) {
+                        canvas.add(obj);
+                    }
+                });
+            }
 
             canvas.renderAll();
         }
@@ -271,6 +369,12 @@
                         updateCanvasDimensions();
                     }
                 } 
+                else if (message.type === 'PRAISE_BROADCAST_LAYOUT_UPDATED') {
+                    if (projectData && projectData.settings) {
+                        projectData.settings.praiseBroadcastLayout = message.layout;
+                        renderCurrentSlide();
+                    }
+                }
                 else if (message.type === 'SLIDE_UPDATED') {
                     // 슬라이드 갱신 (송출 중인 라이브 슬라이드 갱신인 경우에만 렌더링)
                     if (projectData) {
@@ -802,6 +906,32 @@
                 initCanvas();
             }
             connectWebSocket();
+
+            // 찬양 방송 자막 실시간 BroadcastChannel 수신 (0초 즉시 동기화)
+            if (window.BroadcastChannel) {
+                const bcastBc = new BroadcastChannel("subcast_broadcast_channel");
+                bcastBc.onmessage = (e) => {
+                    const data = e.data;
+                    if (data && data.type === "PRAISE_BROADCAST_LAYOUT_UPDATED" && data.layout) {
+                        if (!projectData) projectData = {};
+                        if (!projectData.settings) projectData.settings = {};
+                        projectData.settings.praiseBroadcastLayout = data.layout;
+                        renderCurrentSlide();
+                    }
+                };
+            }
+
+            // LocalStorage 변경 실시간 감지 폴백
+            window.addEventListener("storage", (e) => {
+                if (e.key === "subcast_praise_broadcast_layout" && e.newValue) {
+                    try {
+                        if (!projectData) projectData = {};
+                        if (!projectData.settings) projectData.settings = {};
+                        projectData.settings.praiseBroadcastLayout = JSON.parse(e.newValue);
+                        renderCurrentSlide();
+                    } catch (err) {}
+                }
+            });
         };
 
         window.onresize = () => {
