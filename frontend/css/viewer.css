@@ -51,6 +51,11 @@ body.system-disconnected #canvas-container {
 body.system-disconnected .disconnect-banner {
     display: block;
 }
+/* 모니터링 전용 검정 배경 모드 (여백 레터박스 포함) */
+body.monitor-mode {
+    background-color: #000000 !important;
+}
+
 /* 크로마키 녹색 배경 모드 */
 body.chromakey-mode {
     background-color: #00ff00 !important;

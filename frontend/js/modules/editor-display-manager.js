@@ -65,10 +65,10 @@
         modal = document.createElement('div');
         modal.id = 'modal-display-manager';
         modal.className = 'modal-overlay';
-        modal.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); z-index: 99999; align-items: center; justify-content: center;';
+        modal.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 99999; align-items: center; justify-content: center; opacity: 0; pointer-events: none;';
         
         modal.innerHTML = `
-            <div class="modal-content" style="width: 540px; max-width: 90vw; background: #111827; border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08)); border-radius: var(--radius-lg, 14px); padding: 22px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); font-family: 'Outfit', 'Pretendard', 'Inter', sans-serif;">
+            <div class="modal-content" style="width: 540px; max-width: 90vw; background: #111827; border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08)); border-radius: var(--radius-lg, 14px); padding: 22px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5); font-family: 'Outfit', 'Pretendard', 'Inter', sans-serif; pointer-events: auto;">
                 <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <h3 style="margin: 0; color: var(--text-main, #f9fafb); font-size: 1.05rem; font-weight: 600;">
                         멀티 디스플레이 송출 설정
@@ -122,6 +122,9 @@
         console.log('[DisplayManager] openDisplayModal 호출됨');
         const modal = ensureModalExists();
         modal.style.setProperty('display', 'flex', 'important');
+        modal.style.setProperty('opacity', '1', 'important');
+        modal.style.setProperty('pointer-events', 'auto', 'important');
+        modal.classList.add('show', 'active', 'is-open');
 
         try {
             if (!cachedScreens || cachedScreens.length === 0) {
@@ -138,7 +141,12 @@
     // 모달 닫기
     window.closeDisplayModal = function () {
         const modal = document.getElementById('modal-display-manager');
-        if (modal) modal.style.display = 'none';
+        if (modal) {
+            modal.style.setProperty('display', 'none', 'important');
+            modal.style.setProperty('opacity', '0', 'important');
+            modal.style.setProperty('pointer-events', 'none', 'important');
+            modal.classList.remove('show', 'active', 'is-open');
+        }
     };
 
     // 비동기 디스플레이 탐색

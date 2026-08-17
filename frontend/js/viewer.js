@@ -43,7 +43,9 @@
             });
 
             if (isMonitor) {
-                document.body.style.backgroundColor = '#000000';
+                document.body.classList.add('monitor-mode');
+            } else {
+                document.body.classList.remove('monitor-mode');
             }
             
             updateCanvasDimensions();
@@ -170,9 +172,10 @@
 
             if (isMonitor) {
                 canvas.backgroundColor = '#000000';
-                document.body.style.backgroundColor = '#000000';
+                document.body.classList.add('monitor-mode');
             } else {
                 canvas.backgroundColor = 'transparent';
+                document.body.classList.remove('monitor-mode');
             }
 
             const currentSlideId = projectData.settings?.currentLiveSlideId;

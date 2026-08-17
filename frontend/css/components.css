@@ -126,3 +126,28 @@
     border-color: var(--primary);
     background: rgba(99, 102, 241, 0.06);
 }
+
+/* 멀티 디스플레이 설정 모달 */
+#modal-display-manager {
+    display: none;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: rgba(0, 0, 0, 0.75) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    z-index: 99999 !important;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+#modal-display-manager.show,
+#modal-display-manager.active,
+#modal-display-manager.is-open {
+    display: flex !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
