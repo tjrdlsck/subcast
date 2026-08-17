@@ -31,10 +31,28 @@ def save_bg_meta(meta: dict):
         logger.error(f"Failed to save bg meta: {e}")
 
 
-def generate_thumbnail_ffmpeg(video_path: Path, output_thumb_path: Path, timestamp_sec: float = 1.0) -> bool:
+import shutil
+
+
+def get_ffmpeg_executable() -> str | None:
+    """시스템 PATH 또는 imageio_ffmpeg에서 ffmpeg 실행 파일 경로를 탐색합니다."""
+    system_ffmpeg = shutil.which("ffmpeg")
+    if system_ffmpeg:
+        return system_ffmpeg
     try:
         import imageio_ffmpeg
-        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return None
+
+
+def generate_thumbnail_ffmpeg(video_path: Path, output_thumb_path: Path, timestamp_sec: float = 1.0) -> bool:
+    try:
+        ffmpeg_exe = get_ffmpeg_executable()
+        if not ffmpeg_exe:
+            logger.warning(f"ffmpeg 실행 파일을 찾을 수 없어 '{video_path.name}'의 썸네일 생성을 건너뜁니다.")
+            return False
+
         cmd = [
             ffmpeg_exe,
             "-ss", str(timestamp_sec),
@@ -47,7 +65,7 @@ def generate_thumbnail_ffmpeg(video_path: Path, output_thumb_path: Path, timesta
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10)
         return res.returncode == 0 and output_thumb_path.exists()
     except Exception as e:
-        logger.error(f"Failed to generate thumbnail for {video_path.name}: {e}")
+        logger.warning(f"Failed to generate thumbnail for {video_path.name}: {e}")
         return False
 
 

@@ -117,6 +117,7 @@ async def list_background_files():
 
                 files.append({
                     "name": p.name,
+                    "title": item_meta.get("title") or (p.stem.split("_", 2)[-1] if p.name.startswith("upload_") else p.name),
                     "url": f"/static/backgrounds/{p.name}",
                     "size": p.stat().st_size,
                     "thumbnailUrl": thumb_url or "",
@@ -163,6 +164,7 @@ async def upload_background_file(file: UploadFile = File(...)):
     return {
         "success": True,
         "filename": unique_name,
+        "title": file.filename,
         "videoUrl": f"/static/backgrounds/{unique_name}",
         "thumbnailUrl": thumb_url
     }

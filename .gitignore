@@ -18,3 +18,8 @@ subcast_user.db
 *.db-shm
 *.legacy_backup
 GAE_Bible.db
+frontend/assets/backgrounds/upload_*
+frontend/assets/backgrounds/thumb_*
+frontend/assets/backgrounds/.trash_*
+frontend/assets/backgrounds/meta.json
+test.mp4

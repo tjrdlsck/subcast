@@ -399,7 +399,8 @@ function filterAndRenderStageBgLibrary() {
     const filterVal = filterSelect ? filterSelect.value : 'all';
 
     let filesToRender = allStageBgFiles.filter(f => {
-        if (searchVal && !f.name.toLowerCase().includes(searchVal)) return false;
+        const searchTarget = `${f.title || ''} ${f.name || ''}`.toLowerCase();
+        if (searchVal && !searchTarget.includes(searchVal)) return false;
         if (filterVal === 'video') return true;
         if (filterVal === 'ambient') return false;
         return true;
@@ -415,8 +416,9 @@ function filterAndRenderStageBgLibrary() {
         const filenameWOExt = f.name.substring(0, f.name.lastIndexOf('.'));
         const isYt = filenameWOExt.length === 11 && !f.name.startsWith('upload_');
         const thumbUrl = f.thumbnailUrl || (isYt ? `https://img.youtube.com/vi/${filenameWOExt}/hqdefault.jpg` : '');
+        const displayName = f.title || (f.name.startsWith('upload_') ? f.name.replace(/^upload_[a-f0-9]+_/, '') : f.name);
         const escOldName = f.name.replace(/'/g, "\\'");
-        const safeName = f.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const safeName = displayName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         const borderStyle = isSelected ? '2px solid #38bdf8' : (isCurrent ? '2px solid #0284c7' : '2px solid var(--panel-border, #3f3f46)');
         const bgStyle = isSelected ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255,255,255,0.04)';
 
@@ -442,7 +444,7 @@ function filterAndRenderStageBgLibrary() {
                 <div>
                     <div class="stage-bg-title" 
                          style="font-size: 0.85rem; font-weight: 600; color: #fff; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; margin-bottom: 4px; cursor: text;" 
-                         title="두 번 클릭하여 제목 수정" 
+                         title="${safeName} (두 번 클릭하여 제목 수정)" 
                          onclick="event.stopPropagation();" 
                          ondblclick="event.stopPropagation(); startInlineRenameStageBg(this, '${escOldName}')">
                         ${safeName}
@@ -695,15 +697,21 @@ function updatePipBgLayer() {
     const ambientCanvas = document.getElementById('pip-bg-ambient-canvas');
     if (!video || !ambientCanvas) return;
 
+    const opacity = currentStageBg.opacity !== undefined ? currentStageBg.opacity : 0.8;
+    const blur = currentStageBg.blur || 0;
+
     if (currentStageBg.type === 'video' && currentStageBg.videoUrl) {
         ambientCanvas.style.display = 'none';
         video.style.display = 'block';
-        if (video.src !== window.location.origin + currentStageBg.videoUrl && !video.src.endsWith(currentStageBg.videoUrl)) {
+        video.muted = true;
+        const targetUrl = currentStageBg.videoUrl.startsWith('http') ? currentStageBg.videoUrl : (window.location.origin + currentStageBg.videoUrl);
+        if (video.src !== targetUrl && !video.src.endsWith(currentStageBg.videoUrl)) {
             video.src = currentStageBg.videoUrl;
+            video.load();
         }
-        video.style.opacity = currentStageBg.opacity;
-        video.style.filter = `blur(${currentStageBg.blur}px)`;
-        video.play().catch(() => {});
+        video.style.opacity = opacity;
+        video.style.filter = blur > 0 ? `blur(${blur}px)` : 'none';
+        video.play().catch(e => console.warn("PiP video play warning:", e));
         if (pipAmbientAnimId) {
             cancelAnimationFrame(pipAmbientAnimId);
             pipAmbientAnimId = null;
@@ -712,8 +720,8 @@ function updatePipBgLayer() {
         video.style.display = 'none';
         video.pause();
         ambientCanvas.style.display = 'block';
-        ambientCanvas.style.opacity = currentStageBg.opacity;
-        ambientCanvas.style.filter = `blur(${currentStageBg.blur}px)`;
+        ambientCanvas.style.opacity = opacity;
+        ambientCanvas.style.filter = blur > 0 ? `blur(${blur}px)` : 'none';
         startPipAmbientLoop();
     }
 }
@@ -893,9 +901,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const data = JSON.parse(xhr.responseText);
                     if (data.success) {
-                        updateYtStatus(`✅ 업로드 완료! 100% (${file.name})`, '#34d399');
-                        selectStageBg({ type: 'video', videoUrl: data.videoUrl, title: data.filename });
+                        const displayName = data.title || file.name;
+                        updateYtStatus(`✅ 업로드 완료! 100% (${displayName})`, '#34d399');
+                        if (typeof showToast === 'function') {
+                            showToast(`🎬 배경 동영상 '${displayName}' 업로드 완료!`);
+                        }
+                        selectStageBg({ type: 'video', videoUrl: data.videoUrl, title: displayName });
                         await loadStageBgLibrary();
+                        setTimeout(() => {
+                            const statusEl = document.getElementById('stage-bg-upload-status');
+                            if (statusEl && statusEl.textContent.includes('업로드 완료')) {
+                                statusEl.textContent = '';
+                            }
+                        }, 5000);
                     } else {
                         updateYtStatus(`❌ 업로드 실패: ${data.detail || '오류 발생'}`, '#ef4444');
                     }

@@ -49,7 +49,10 @@ app.include_router(system_router)
 app.include_router(projects_router)
 app.include_router(monitor_router)
 
+from backend.services.background_service import backgrounds_dir
+
 # 정적 파일 서빙
+app.mount("/static/backgrounds", StaticFiles(directory=str(backgrounds_dir)), name="backgrounds")
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
 
