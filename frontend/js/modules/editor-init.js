@@ -39,10 +39,40 @@
                 resizer.addEventListener("mousedown", (e) => {
                     e.preventDefault();
                     resizer.classList.add("resizing");
+                    panel.style.transition = "none"; // 드래그 중 고무줄 랙 제거
+                    document.body.style.cursor = "col-resize";
+                    document.body.style.userSelect = "none";
                     const startX = e.clientX;
                     const startWidth = panel.getBoundingClientRect().width;
+                    let animationFrameId = null;
 
+                    function onMouseMove(moveEvent) {
+                        const newWidth = startWidth + (moveEvent.clientX - startX);
+                        // 최소 너비 150px, 최대 너비 600px 제한
+                        if (newWidth >= 150 && newWidth <= 600) {
+                            panel.style.width = `${newWidth}px`;
+                            if (!animationFrameId) {
+                                animationFrameId = requestAnimationFrame(() => {
+                                    fitCanvasToScreen(); // V-Sync 동기화 실시간 캔버스 스케일링
+                                    animationFrameId = null;
+                                });
+                            }
+                        }
+                    }
 
+                    function onMouseUp() {
+                        resizer.classList.remove("resizing");
+                        panel.style.transition = ""; // 기존 CSS 트랜지션 애니메이션 복원
+                        document.body.style.cursor = "";
+                        document.body.style.userSelect = "";
+                        if (animationFrameId) {
+                            cancelAnimationFrame(animationFrameId);
+                            animationFrameId = null;
+                        }
+                        fitCanvasToScreen(); // 최종 크기 확정 반영
+                        document.removeEventListener("mousemove", onMouseMove);
+                        document.removeEventListener("mouseup", onMouseUp);
+                    }
 
                     document.addEventListener("mousemove", onMouseMove);
                     document.addEventListener("mouseup", onMouseUp);

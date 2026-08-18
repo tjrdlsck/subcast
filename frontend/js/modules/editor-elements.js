@@ -129,24 +129,6 @@
             updateLayerList();
         }
 
-
-                    function onMouseMove(e) {
-                        const newWidth = startWidth + (e.clientX - startX);
-                        // 최소 너비 150px, 최대 너비 600px 제한
-                        if (newWidth >= 150 && newWidth <= 600) {
-                            panel.style.width = `${newWidth}px`;
-                            fitCanvasToScreen(); // 좌측 드로어 패널 너비 변경에 맞춰 슬라이드 실시간 자동 스케일링
-                        }
-                    }
-
-
-                    function onMouseUp() {
-                        resizer.classList.remove("resizing");
-                        document.removeEventListener("mousemove", onMouseMove);
-                        document.removeEventListener("mouseup", onMouseUp);
-                    }
-
-
             function dragMouseDown(e) {
                 e = e || window.event;
                 if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT') {
