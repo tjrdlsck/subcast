@@ -1,6 +1,7 @@
 import json
 import logging
 import uuid
+import asyncio
 from fastapi import WebSocket, WebSocketDisconnect
 
 from backend.schemas import Slide, SlideTemplate, Element, CustomFont, ProjectData
@@ -13,6 +14,26 @@ logger = logging.getLogger("subcast")
 
 stage_bg_history_queue = []
 song_stage_bg_cache = {}
+
+_pending_save_tasks = {}
+
+async def _debounced_save_project(delay: float = 0.5):
+    """지정된 시간(기본 0.5초) 동안 추가 변경이 없을 때 최신 프로젝트 데이터를 저장합니다."""
+    try:
+        await asyncio.sleep(delay)
+        if manager.project_data:
+            await save_project_data(manager.project_data)
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        logger.error(f"Error in debounced save_project_data: {e}", exc_info=True)
+
+def schedule_debounced_save(delay: float = 0.5):
+    """기존 대기 중인 저장 태스크를 취소하고 새 지연 저장 태스크를 예약합니다."""
+    task = _pending_save_tasks.get("project")
+    if task and not task.done():
+        task.cancel()
+    _pending_save_tasks["project"] = asyncio.create_task(_debounced_save_project(delay))
 
 
 async def handle_websocket_session(websocket: WebSocket, role: str):
@@ -28,7 +49,7 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                 new_slide_id = message.get("slideId")
                 if manager.project_data and manager.project_data.settings:
                     manager.project_data.settings.currentLiveSlideId = new_slide_id
-                    await save_project_data(manager.project_data)
+                    schedule_debounced_save(0.5)
                 
                 await manager.broadcast({
                     "type": "SLIDE_CHANGE",

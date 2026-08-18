@@ -1,6 +1,7 @@
 import os
 import json
 import uuid
+import asyncio
 import aiofiles
 from datetime import datetime
 from pathlib import Path
@@ -172,10 +173,15 @@ async def load_project_data(project_id: Optional[str] = None) -> ProjectData:
         except Exception:
             data = DEFAULT_PROJECT_DATA.model_copy(deep=True)
             data.templates = await load_global_templates()
-            return data
+_project_save_locks = {}
+
+def _get_project_lock(pid: str):
+    if pid not in _project_save_locks:
+        _project_save_locks[pid] = asyncio.Lock()
+    return _project_save_locks[pid]
 
 async def save_project_data(data: ProjectData, project_id: Optional[str] = None) -> None:
-    """프로젝트 데이터를 JSON 파일에 저장합니다."""
+    """프로젝트 데이터를 JSON 파일에 저장합니다 (동시성 락 및 고유 임시 파일 적용)."""
     PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
     pid = project_id or data.id or "proj_default"
     data.id = pid
@@ -186,18 +192,21 @@ async def save_project_data(data: ProjectData, project_id: Optional[str] = None)
         data.createdAt = now_str
 
     target_path = PROJECTS_DIR / f"{pid}.json"
-    temp_path = target_path.with_suffix('.json.tmp')
-    try:
-        async with aiofiles.open(temp_path, mode="w", encoding="utf-8") as f:
-            await f.write(data.model_dump_json(indent=2))
-        os.replace(temp_path, target_path)
-    except Exception as e:
-        if temp_path.exists():
-            try:
-                os.remove(temp_path)
-            except OSError:
-                pass
-        raise e
+    temp_path = target_path.with_suffix(f'.{uuid.uuid4().hex[:8]}.tmp')
+    
+    lock = _get_project_lock(pid)
+    async with lock:
+        try:
+            async with aiofiles.open(temp_path, mode="w", encoding="utf-8") as f:
+                await f.write(data.model_dump_json(indent=2))
+            os.replace(temp_path, target_path)
+        except Exception as e:
+            if temp_path.exists():
+                try:
+                    os.remove(temp_path)
+                except OSError:
+                    pass
+            raise e
 
 async def list_projects() -> List[ProjectListItem]:
     """저장된 모든 프로젝트 목록을 반환합니다."""

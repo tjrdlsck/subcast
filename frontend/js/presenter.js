@@ -208,10 +208,82 @@
             canvas.renderAll();
         }
 
-        // UI 갱신
+        // 슬라이드 활성 상태 및 프리뷰 점진적 갱신 (전체 DOM 재생성 방지)
+        function updateSlideActiveState(liveSlideId, selectedId, scroll = true) {
+            if (!projectData || !projectData.slides) return;
+
+            if (projectData.settings) {
+                projectData.settings.currentLiveSlideId = liveSlideId;
+            }
+            if (liveSlideId) {
+                selectedSlideId = liveSlideId;
+            } else if (selectedId) {
+                selectedSlideId = selectedId;
+            }
+
+            currentLiveIndex = liveSlideId ? projectData.slides.findIndex(s => s.id === liveSlideId) : -1;
+
+            const hasLiveSlide = !!liveSlideId;
+            const liveBadge = document.getElementById("live-status-badge");
+            if (liveBadge) {
+                if (hasLiveSlide) {
+                    liveBadge.classList.add("on");
+                } else {
+                    liveBadge.classList.remove("on");
+                }
+            }
+
+            const indicatorEl = document.getElementById("slide-indicator");
+            if (indicatorEl) {
+                const displayIndex = currentLiveIndex !== -1 ? currentLiveIndex : projectData.slides.findIndex(s => s.id === selectedSlideId);
+                indicatorEl.innerText = `${displayIndex !== -1 ? String(displayIndex + 1).padStart(2, '0') : '00'} / ${String(projectData.slides.length).padStart(2, '0')}`;
+            }
+
+            // 슬라이드 아이템의 클래스 및 배지 색상 증분 업데이트
+            const listEl = document.getElementById("slide-list");
+            if (listEl) {
+                const items = listEl.querySelectorAll(".slide-item");
+                items.forEach((item, index) => {
+                    const slide = projectData.slides[index];
+                    if (!slide) return;
+
+                    const isLive = slide.id === liveSlideId;
+                    const isSelected = slide.id === selectedSlideId;
+
+                    item.classList.toggle("live", isLive);
+                    item.classList.toggle("selected", !isLive && isSelected);
+
+                    const badge = item.querySelector(".slide-number-badge");
+                    if (badge) {
+                        if (isLive) {
+                            badge.style.background = "var(--accent-live)";
+                            badge.style.boxShadow = "0 0 8px var(--accent-live-glow)";
+                        } else if (isSelected) {
+                            badge.style.background = "var(--green-online)";
+                            badge.style.boxShadow = "0 0 8px rgba(16, 185, 129, 0.5)";
+                        } else {
+                            badge.style.background = "var(--primary)";
+                            badge.style.boxShadow = "0 2px 5px rgba(0,0,0,0.5)";
+                        }
+                    }
+                });
+            }
+
+            if (scroll) {
+                const activeItem = document.querySelector(hasLiveSlide ? ".slide-item.live" : ".slide-item.selected");
+                if (activeItem) {
+                    activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }
+
+            renderCurrentLiveSlide();
+        }
+
+        // 전체 슬라이드 덱 구조 렌더링 (초기 로드 또는 슬라이드 추가/삭제/변경 시)
         function renderDeck() {
             const listEl = document.getElementById("slide-list");
             listEl.innerHTML = "";
+            currentLiveIndex = -1;
 
             if (!projectData || !projectData.slides) return;
 
@@ -275,7 +347,7 @@
 
                 item.innerHTML = `
                     <!-- 슬라이드 순번 배지 -->
-                    <div style="position: absolute; top: -8px; left: -8px; background: ${badgeBg}; color: #fff; font-size: 0.7rem; font-weight: 800; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1.5px solid var(--bg-color); z-index: 20; font-family: 'Outfit', sans-serif; box-shadow: ${badgeShadow};">
+                    <div class="slide-number-badge" style="position: absolute; top: -8px; left: -8px; background: ${badgeBg}; color: #fff; font-size: 0.7rem; font-weight: 800; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1.5px solid var(--bg-color); z-index: 20; font-family: 'Outfit', sans-serif; box-shadow: ${badgeShadow};">
                         ${index + 1}
                     </div>
                     <div class="slide-thumbnail-wrapper">
@@ -288,9 +360,11 @@
                 item.onclick = () => {
                     selectedSlideId = slide.id;
                     if (projectData.settings?.currentLiveSlideId) {
+                        currentLiveIndex = index;
+                        updateSlideActiveState(slide.id, slide.id, true);
                         changeSlide(slide.id);
                     } else {
-                        renderDeck();
+                        updateSlideActiveState(null, slide.id, true);
                     }
                 };
 
@@ -336,7 +410,7 @@
             }
         }
 
-        // 이전/다음 슬라이드 전환
+        // 이전/다음 슬라이드 전환 (낙관적 UI 업데이트 적용)
         function navigateSlide(direction) {
             if (!projectData || !projectData.slides) return;
             const len = projectData.slides.length;
@@ -356,9 +430,12 @@
             selectedSlideId = targetSlideId;
 
             if (projectData.settings?.currentLiveSlideId) {
+                // 낙관적 UI 업데이트: 서버 응답을 대기하지 않고 즉시 로컬 인덱스 및 활성 상태를 선반영하여 중복 입력 방지
+                currentLiveIndex = nextIdx;
+                updateSlideActiveState(targetSlideId, targetSlideId, true);
                 changeSlide(targetSlideId);
             } else {
-                renderDeck();
+                updateSlideActiveState(null, targetSlideId, true);
             }
         }
 
@@ -425,11 +502,7 @@
                 }
                 else if (message.type === 'SLIDE_CHANGE') {
                     if (projectData) {
-                        projectData.settings.currentLiveSlideId = message.slideId;
-                        if (message.slideId) {
-                            selectedSlideId = message.slideId;
-                        }
-                        renderDeck();
+                        updateSlideActiveState(message.slideId, message.slideId, true);
                     }
                 }
                 else if (message.type === 'UPDATE_RESOLUTION') {
@@ -566,13 +639,15 @@
             // 키보드 단축키
             window.onkeydown = (e) => {
                 const activeEl = document.activeElement;
-                if (activeEl && activeEl.tagName === 'INPUT') return; // 입력 필드 조작 중인 경우 무시
+                if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) return; // 입력 필드 조작 중인 경우 무시
 
                 if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
                     e.preventDefault();
+                    if (activeEl && activeEl.tagName === 'BUTTON') activeEl.blur();
                     navigateSlide('next');
                 } else if (e.key === 'ArrowLeft' || e.key === 'Backspace' || e.key === 'PageUp') {
                     e.preventDefault();
+                    if (activeEl && activeEl.tagName === 'BUTTON') activeEl.blur();
                     navigateSlide('prev');
                 }
             };
