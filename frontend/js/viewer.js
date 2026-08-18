@@ -466,6 +466,9 @@
             }
         }
 
+        let _stageBgTransitionTimeout = null;
+        let _activeStageVideoIndex = 1;
+
         function applyStageBackground(bgConfig) {
             const urlParams = new URLSearchParams(window.location.search);
             const channel = urlParams.get('channel');
@@ -474,70 +477,103 @@
 
             document.body.classList.add('stage-mode');
 
-            let activeVideoIndex = window._activeStageVideoIndex || 1;
             const videoEl1 = document.getElementById('stage-video-bg-1');
             const videoEl2 = document.getElementById('stage-video-bg-2');
             const legacyVideoEl = document.getElementById('stage-video-bg');
             if (legacyVideoEl) legacyVideoEl.style.display = 'none';
 
             const motionCanvas = document.getElementById('stage-motion-bg');
-            const opacityTarget = bgConfig && bgConfig.opacity !== undefined ? bgConfig.opacity : 0.8;
-            const blurTarget = bgConfig && bgConfig.blur !== undefined ? bgConfig.blur : 0;
+            const opacityTarget = (bgConfig && bgConfig.opacity !== undefined) ? bgConfig.opacity : 0.8;
+            const blurTarget = (bgConfig && bgConfig.blur !== undefined) ? bgConfig.blur : 0;
 
-            if (!bgConfig || bgConfig.type === 'ambient') {
+            if (_stageBgTransitionTimeout) {
+                clearTimeout(_stageBgTransitionTimeout);
+                _stageBgTransitionTimeout = null;
+            }
+
+            if (!bgConfig || bgConfig.type === 'ambient' || !bgConfig.videoUrl) {
                 [videoEl1, videoEl2].forEach(v => {
                     if (v) {
                         v.style.opacity = '0';
-                        setTimeout(() => {
+                        _stageBgTransitionTimeout = setTimeout(() => {
                             v.style.display = 'none';
                             v.pause();
-                            v.removeAttribute('src');
-                            v.load();
                         }, 800);
                     }
                 });
                 initStageMotionBg();
                 if (motionCanvas) motionCanvas.style.display = 'block';
-            } else if (bgConfig.type === 'video' && bgConfig.videoUrl) {
-                if (motionCanvas) motionCanvas.style.display = 'none';
-                
-                const activeEl = activeVideoIndex === 1 ? videoEl1 : videoEl2;
-                const nextEl = activeVideoIndex === 1 ? videoEl2 : videoEl1;
-                if (!activeEl || !nextEl) return;
+                return;
+            }
 
-                const fullUrl = bgConfig.videoUrl.startsWith('http') ? bgConfig.videoUrl : window.location.origin + bgConfig.videoUrl;
+            // Video 배경 모드
+            if (motionCanvas) motionCanvas.style.display = 'none';
 
-                // 이미 동일한 영상이 재생 중인 경우
-                if (activeEl.src === fullUrl && activeEl.style.display !== 'none' && parseFloat(activeEl.style.opacity) > 0) {
-                    activeEl.style.filter = blurTarget > 0 ? `blur(${blurTarget}px)` : 'none';
-                    activeEl.style.opacity = opacityTarget;
-                    if (activeEl.paused) activeEl.play().catch(e => console.warn("Video play failed:", e));
-                    return;
+            const activeEl = _activeStageVideoIndex === 1 ? videoEl1 : videoEl2;
+            const nextEl = _activeStageVideoIndex === 1 ? videoEl2 : videoEl1;
+            if (!activeEl || !nextEl) return;
+
+            const targetPath = bgConfig.videoUrl;
+            const isSameVideo = (activeEl.src && (activeEl.src.endsWith(targetPath) || activeEl.src === targetPath)) &&
+                                activeEl.style.display !== 'none' &&
+                                parseFloat(activeEl.style.opacity || '0') > 0;
+
+            if (isSameVideo) {
+                activeEl.style.filter = blurTarget > 0 ? `blur(${blurTarget}px)` : 'none';
+                activeEl.style.opacity = String(opacityTarget);
+                if (activeEl.paused) {
+                    activeEl.play().catch(e => console.warn("Video play error:", e));
                 }
+                return;
+            }
 
-                // 새로운 비디오로 디졸브 교체
-                nextEl.style.display = 'block';
-                nextEl.style.filter = blurTarget > 0 ? `blur(${blurTarget}px)` : 'none';
-                
-                const onCanPlay = () => {
-                    nextEl.play().then(() => {
-                        nextEl.style.opacity = opacityTarget;
-                        activeEl.style.opacity = '0';
-                        setTimeout(() => {
-                            activeEl.style.display = 'none';
-                            activeEl.pause();
-                        }, 800);
-                        window._activeStageVideoIndex = activeVideoIndex === 1 ? 2 : 1;
-                    }).catch(e => console.warn("Video autoplay prevented:", e));
+            // 신규 비디오 전환
+            nextEl.muted = true;
+            nextEl.loop = true;
+            nextEl.playsInline = true;
+            nextEl.style.display = 'block';
+            nextEl.style.filter = blurTarget > 0 ? `blur(${blurTarget}px)` : 'none';
+
+            const executeTransition = () => {
+                nextEl.play().then(() => {
+                    nextEl.style.opacity = String(opacityTarget);
+                    activeEl.style.opacity = '0';
+                    _stageBgTransitionTimeout = setTimeout(() => {
+                        activeEl.style.display = 'none';
+                        activeEl.pause();
+                    }, 850);
+                    _activeStageVideoIndex = (_activeStageVideoIndex === 1 ? 2 : 1);
+                }).catch(err => {
+                    console.warn("Video play prevented or fallback:", err);
+                    nextEl.style.opacity = String(opacityTarget);
+                    activeEl.style.opacity = '0';
+                    _stageBgTransitionTimeout = setTimeout(() => {
+                        activeEl.style.display = 'none';
+                        activeEl.pause();
+                    }, 850);
+                    _activeStageVideoIndex = (_activeStageVideoIndex === 1 ? 2 : 1);
+                });
+            };
+
+            const isAlreadyLoaded = nextEl.src && (nextEl.src.endsWith(targetPath) || nextEl.src === targetPath);
+            if (!isAlreadyLoaded) {
+                nextEl.src = targetPath;
+                nextEl.load();
+                let transitioned = false;
+                const onReady = () => {
+                    if (transitioned) return;
+                    transitioned = true;
+                    nextEl.removeEventListener('canplay', onReady);
+                    nextEl.removeEventListener('loadeddata', onReady);
+                    executeTransition();
                 };
-
-                if (nextEl.src !== fullUrl) {
-                    nextEl.src = bgConfig.videoUrl;
-                    nextEl.load();
-                    nextEl.addEventListener('canplay', onCanPlay, { once: true });
-                } else {
-                    onCanPlay();
-                }
+                nextEl.addEventListener('canplay', onReady, { once: true });
+                nextEl.addEventListener('loadeddata', onReady, { once: true });
+                setTimeout(() => {
+                    if (!transitioned) onReady();
+                }, 300);
+            } else {
+                executeTransition();
             }
         }
 

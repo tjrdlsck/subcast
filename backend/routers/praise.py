@@ -34,10 +34,10 @@ async def search_praise_songs(query: str = Query("")):
 @router.post("/save")
 async def save_praise_song(req: PraiseSongSaveRequest):
     try:
-        if not req.title.strip() or not req.lyrics.strip():
+        if not req.title or not req.title.strip() or not req.lyrics or not req.lyrics.strip():
             raise HTTPException(status_code=400, detail="제목과 가사를 모두 입력해 주세요.")
         target_mood = req.mood or (req.moods[0] if req.moods else "기본/일반")
-        praise_db.save_song(req.title.strip(), req.lyrics.strip(), song_id=req.id, original_title=req.original_title, mood=target_mood)
+        praise_db.save_song(req.title.strip(), req.lyrics, song_id=req.id, original_title=req.original_title, mood=target_mood)
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -85,6 +85,18 @@ body.stage-mode {
     opacity: 0.85;
 }
 
+.stage-video-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    z-index: 2;
+    pointer-events: none;
+    transition: opacity 0.8s ease-in-out;
+}
+
 #stage-video-bg {
     position: fixed;
     top: 0;
@@ -92,7 +104,7 @@ body.stage-mode {
     width: 100vw;
     height: 100vh;
     object-fit: cover;
-    z-index: 0;
+    z-index: 2;
     pointer-events: none;
     transition: opacity 0.5s ease;
 }

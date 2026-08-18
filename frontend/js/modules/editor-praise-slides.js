@@ -49,7 +49,7 @@ function createPraiseSlideObject(header, content, styleOptions) {
                 opacity: 1.0
             }
         });
-    } else if (styleOptions.backgroundType === "bar") {
+    } else if (styleOptions.backgroundType === "bar" && content && content.trim() !== "") {
         let barY = 38.0;
         if (styleOptions.position === "top") barY = 6.0;
         if (styleOptions.position === "bottom") barY = 70.0;

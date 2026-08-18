@@ -44,6 +44,53 @@
             }
         }
 
+        // 찬양 가사 스마트 단락 분해 (엔터+공백 또는 [빈 화면] 태그를 빈 슬라이드로 인식)
+        function parsePraiseLyricsToBlocks(lyrics) {
+            if (!lyrics) return [];
+            
+            const rawLines = lyrics.split(/\r?\n/);
+            const blocks = [];
+            let currentLines = [];
+
+            for (let i = 0; i < rawLines.length; i++) {
+                const line = rawLines[i];
+                const trimmed = line.trim();
+                
+                // 빈 슬라이드 트리거 조건:
+                // 1) 공백 문자(\s)가 1개 이상 포함된 빈 줄
+                // 2) [빈 화면], [빈슬라이드], (빈 화면), (빈슬라이드), [공백] 등의 명시적 키워드
+                const isExplicitBlankKeyword = /^(\[|\()(빈\s*화면|빈\s*슬라이드|공백)(\]|\))$/i.test(trimmed);
+                const isWhitespaceBlankLine = (trimmed === "" && line.length > 0 && /\s/.test(line));
+
+                if (isExplicitBlankKeyword || isWhitespaceBlankLine) {
+                    if (currentLines.length > 0) {
+                        blocks.push(currentLines.join("\n").trim());
+                        currentLines = [];
+                    }
+                    blocks.push(""); // 빈 슬라이드 블록
+                } else if (trimmed === "") {
+                    // 단순 빈 줄: 현재까지 누적된 가사를 단락으로 분리
+                    if (currentLines.length > 0) {
+                        blocks.push(currentLines.join("\n").trim());
+                        currentLines = [];
+                    }
+                } else {
+                    currentLines.push(line);
+                }
+            }
+
+            if (currentLines.length > 0) {
+                blocks.push(currentLines.join("\n").trim());
+            }
+
+            // 연속된 중복 빈 슬라이드 정리
+            return blocks.filter((b, idx, arr) => {
+                if (b !== "") return true;
+                return idx === 0 || arr[idx - 1] !== "";
+            });
+        }
+        window.parsePraiseLyricsToBlocks = parsePraiseLyricsToBlocks;
+
         function renderPraisePreview(song) {
             const previewList = document.getElementById("praise-preview-list");
             const chkAllPraise = document.getElementById("chk-select-all-praise");
@@ -59,7 +106,7 @@
                 return;
             }
 
-            const blocks = song.lyrics.split(/\n\s*\n/).map(s => s.trim()).filter(s => s !== "");
+            const blocks = parsePraiseLyricsToBlocks(song.lyrics);
             if (blocks.length === 0) {
                 previewList.innerHTML = `<div style="color: var(--text-muted); font-size: 0.7rem; text-align: center; padding: 10px 0;">분해된 가사가 없습니다.</div>`;
                 updatePraiseExpectedCount();
@@ -107,9 +154,14 @@
                 span.style.wordBreak = "break-all";
                 span.style.lineHeight = "1.2";
 
-                // 가사 내용 줄바꿈 표현 지원 ( [1장] 표시 제거 )
-                const escapedText = block.replace(/\n/g, "<br>");
-                span.innerHTML = escapedText;
+                if (block === "") {
+                    // 빈 슬라이드 시각화 뱃지
+                    span.innerHTML = `<span style="display:inline-flex; align-items:center; gap:4px; font-size:0.72rem; font-weight:600; color:#38bdf8; background:rgba(56, 189, 248, 0.12); border:1px solid rgba(56, 189, 248, 0.3); border-radius:4px; padding:2px 6px; user-select:none;">🎬 [빈 화면 / 배경 유지]</span>`;
+                } else {
+                    // 가사 내용 줄바꿈 표현 지원
+                    const escapedText = block.replace(/\n/g, "<br>");
+                    span.innerHTML = escapedText;
+                }
 
                 itemDiv.onclick = (e) => {
                     const checkboxes = previewList.querySelectorAll(".praise-preview-item-chk");
@@ -567,9 +619,9 @@
             if (modalSaveBtn) {
                 modalSaveBtn.onclick = async () => {
                     const title = document.getElementById("modal-praise-title").value.trim();
-                    const lyrics = document.getElementById("modal-praise-lyrics").value.trim();
+                    const lyrics = document.getElementById("modal-praise-lyrics").value;
 
-                    if (!title || !lyrics) {
+                    if (!title || !lyrics || !lyrics.trim()) {
                         alert("제목과 가사를 모두 작성해 주세요.");
                         return;
                     }
@@ -609,7 +661,20 @@
 
                         alert("찬양이 성공적으로 저장/업데이트 되었습니다.");
                         closeAddModal();
-                        fetchPraiseSongs(searchInput.value); // 목록 새로고침
+
+                        // 수정/추가된 곡 데이터를 즉시 선택 상태로 동기화하여 실시간 미리보기 렌더링
+                        const updatedSongObj = {
+                            id: savePayload.id || (currentEditingPraiseSong && currentEditingPraiseSong.id),
+                            title: title,
+                            lyrics: lyrics,
+                            mood: selectedMood,
+                            moods: [selectedMood]
+                        };
+                        selectedPraiseSongs = [updatedSongObj];
+                        activeSelectedPraiseSong = updatedSongObj;
+
+                        await fetchPraiseSongs(searchInput ? searchInput.value : ""); // 목록 새로고침
+                        updatePraiseSelectionUI(); // 우측 미리보기 및 헤더 즉각 갱신
                     } catch (err) {
                         alert("오류 발생: " + err.message);
                     } finally {
@@ -1063,7 +1128,7 @@
 
                 const title = activeSelectedPraiseSong.title;
                 const lyrics = activeSelectedPraiseSong.lyrics;
-                const blocks = lyrics.split(/\n\s*\n/).map(s => s.trim()).filter(s => s !== "");
+                const blocks = parsePraiseLyricsToBlocks(lyrics);
 
                 // 선택된 슬라이드 인덱스 추출
                 const previewChks = document.querySelectorAll(".praise-preview-item-chk");
@@ -1108,7 +1173,8 @@
 
                     blocks.forEach((block, idx) => {
                         if (!checkedIndices.includes(idx)) return;
-                        const headerText = `${title} (${idx + 1}/${blocks.length})`;
+                        const isBlank = (block === "");
+                        const headerText = isBlank ? `${title} (${idx + 1}/${blocks.length}) [빈 화면]` : `${title} (${idx + 1}/${blocks.length})`;
                         const slideObj = createSlideFromTemplateExplicit(targetTpl, headerText, block, targetElementId);
                         slideObj.mood = songMood;
                         slideObj.moods = [songMood];
@@ -1132,7 +1198,8 @@
 
                     blocks.forEach((block, idx) => {
                         if (!checkedIndices.includes(idx)) return;
-                        const headerText = `${title} (${idx + 1}/${blocks.length})`;
+                        const isBlank = (block === "");
+                        const headerText = isBlank ? `${title} (${idx + 1}/${blocks.length}) [빈 화면]` : `${title} (${idx + 1}/${blocks.length})`;
                         const slideObj = createPraiseSlideObject(headerText, block, styleOptions);
                         slideObj.mood = songMood;
                         slideObj.moods = [songMood];
@@ -1199,8 +1266,10 @@
                 return;
             }
 
-            // 이전 선택 정보가 유효한지 보정
-            selectedPraiseSongs = selectedPraiseSongs.filter(sel => currentPraiseSongsList.some(s => s.title === sel.title));
+            // 이전 선택 정보가 유효한지 보정 및 최신 데이터로 동기화
+            selectedPraiseSongs = selectedPraiseSongs
+                .map(sel => currentPraiseSongsList.find(s => (sel.id && s.id && s.id === sel.id) || s.title === sel.title) || sel)
+                .filter(sel => currentPraiseSongsList.some(s => (sel.id && s.id && s.id === sel.id) || s.title === sel.title));
 
             currentPraiseSongsList.forEach((song, index) => {
                 const div = document.createElement("div");
