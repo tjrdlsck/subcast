@@ -198,7 +198,7 @@ function initKeyboardShortcuts() {
                         console.error("시스템 클립보드 쓰기 실패:", err);
                     });
                 }
-            } else if (selectedSlideIds.length > 0) {
+            } else if ((selectedSlideIds && selectedSlideIds.length > 0) || (typeof activeSlideId !== 'undefined' && activeSlideId)) {
                 if (!isStageBgTabActive && !isStageBgVisible) {
                     copySelectedSlides();
                 }

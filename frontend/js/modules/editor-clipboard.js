@@ -1,30 +1,32 @@
         // ==========================================================================
         // Slide Clipboard & Context Menu Helper Logic
         // ==========================================================================
+        function serializeSlideForClipboard(targetSlide) {
+            const cloned = JSON.parse(JSON.stringify(targetSlide || {}));
+            cloned.name = (targetSlide.name || "슬라이드") + " (사본)";
+            delete cloned.id; // 새 슬라이드 생성 시 고유 ID 재발급을 위해 기존 id 제거
+            return cloned;
+        }
+
         async function copySelectedSlides() {
-            if (!selectedSlideIds || selectedSlideIds.length === 0) return;
-            const slidesToCopy = projectData.slides.filter(s => selectedSlideIds.includes(s.id));
+            let targets = (selectedSlideIds && selectedSlideIds.length > 0)
+                ? selectedSlideIds
+                : (activeSlideId ? [activeSlideId] : []);
+            if (targets.length === 0) return;
+
+            const slidesToCopy = projectData.slides.filter(s => targets.includes(s.id));
             if (slidesToCopy.length === 0) return;
 
             let payload;
             if (slidesToCopy.length === 1) {
-                const targetSlide = slidesToCopy[0];
                 payload = {
                     subcastType: "slide",
-                    data: {
-                        name: targetSlide.name + " (사본)",
-                        elements: JSON.parse(JSON.stringify(targetSlide.elements)),
-                        thumbnail: targetSlide.thumbnail
-                    }
+                    data: serializeSlideForClipboard(slidesToCopy[0])
                 };
             } else {
                 payload = {
                     subcastType: "slides",
-                    data: slidesToCopy.map(slide => ({
-                        name: slide.name + " (사본)",
-                        elements: JSON.parse(JSON.stringify(slide.elements)),
-                        thumbnail: slide.thumbnail
-                    }))
+                    data: slidesToCopy.map(slide => serializeSlideForClipboard(slide))
                 };
             }
 
@@ -36,9 +38,13 @@
         }
 
         async function cutSelectedSlides() {
-            if (!selectedSlideIds || selectedSlideIds.length === 0) return;
+            let targets = (selectedSlideIds && selectedSlideIds.length > 0)
+                ? selectedSlideIds
+                : (activeSlideId ? [activeSlideId] : []);
+            if (targets.length === 0) return;
+
             await copySelectedSlides();
-            deleteSlides(selectedSlideIds);
+            deleteSlides(targets);
         }
 
         function pasteSlidesFromClipboardText(textData) {
@@ -81,9 +87,9 @@
                 slidesToAdd.forEach((slideData, idx) => {
                     const newId = `slide_${Math.random().toString(36).substr(2, 8)}`;
                     const newSlide = {
+                        ...JSON.parse(JSON.stringify(slideData)),
                         id: newId,
                         name: slideData.name || "복사된 슬라이드",
-                        thumbnail: slideData.thumbnail || "",
                         elements: JSON.parse(JSON.stringify(slideData.elements || []))
                     };
                     projectData.slides.splice(insertIndex + 1 + idx, 0, newSlide);
@@ -95,6 +101,7 @@
                 ws.send(JSON.stringify({ type: "REORDER_SLIDES", slideIds: updatedSlideIds }));
 
                 if (newCreatedSlides.length > 0) {
+                    selectedSlideIds = newCreatedSlides.map(s => s.id);
                     selectSlideForEdit(newCreatedSlides[0].id);
                 }
                 renderSlides();
