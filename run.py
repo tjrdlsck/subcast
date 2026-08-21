@@ -1,5 +1,6 @@
 import os
 import sys
+import socket
 import webbrowser
 import uvicorn
 import json
@@ -45,9 +46,9 @@ if getattr(sys, 'frozen', False):
     else:
         os.chdir(os.path.dirname(sys.executable))
     
-    # --windowed 모드에서 sys.stdout과 sys.stderr가 None이 되어 발생하는 Uvicorn 에러 방지
+    # --windowed 모드에서 sys.stdout과 sys.stderr가 None이 되어 발생하는 Uvicorn 에러 방지 (즉시 플러시)
     log_path = os.path.join(subcast_appdata, "subcast.log")
-    log_file = open(log_path, "w", encoding="utf-8")
+    log_file = open(log_path, "a", encoding="utf-8", buffering=1)
     sys.stdout = log_file
     sys.stderr = log_file
 
@@ -107,6 +108,38 @@ def save_config(config):
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(config, f)
 
+def is_port_available(host: str, port: int) -> bool:
+    """지정된 host 및 port에 소켓 바인딩이 가능한지 점검합니다."""
+    check_hosts = [host] if host not in ["0.0.0.0", ""] else ["127.0.0.1", "0.0.0.0"]
+    for chost in check_hosts:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind((chost, port))
+        except Exception:
+            return False
+    return True
+
+def find_available_port(host: str, preferred_port: int, max_attempts: int = 50) -> int:
+    """선호 포트 충돌 시 다음 가용 포트(preferred_port + 1 ..)를 자동 탐색합니다."""
+    if is_port_available(host, preferred_port):
+        return preferred_port
+    for offset in range(1, max_attempts + 1):
+        candidate = preferred_port + offset
+        if candidate <= 65535 and is_port_available(host, candidate):
+            return candidate
+    return preferred_port
+
+def open_log_file(icon=None, item=None):
+    """현재 로그 파일을 기본 텍스트 뷰어로 엽니다."""
+    log_path = os.path.join(subcast_appdata, "subcast.log")
+    if os.path.exists(log_path):
+        os.startfile(log_path)
+
+def open_appdata_dir(icon=None, item=None):
+    """Subcast AppData 데이터 폴더를 탐색기로 엽니다."""
+    if os.path.exists(subcast_appdata):
+        os.startfile(subcast_appdata)
+
 config = load_config()
 server_thread = None
 
@@ -122,6 +155,7 @@ class ServerThread(Thread):
         except Exception as e:
             if hasattr(sys, "stderr") and sys.stderr is not None:
                 sys.stderr.write(f"Server error: {e}\n")
+                sys.stderr.flush()
 
     def stop(self):
         self.server.should_exit = True
@@ -136,11 +170,21 @@ def start_server(icon=None, item=None):
     global server_thread
     if not is_running():
         host = config.get("host", "0.0.0.0")
-        server_thread = ServerThread(host, config["port"])
+        preferred_port = config.get("port", DEFAULT_PORT)
+        actual_port = find_available_port(host, preferred_port)
+        
+        if actual_port != preferred_port:
+            config["port"] = actual_port
+            save_config(config)
+            if hasattr(sys, "stderr") and sys.stderr is not None:
+                sys.stderr.write(f"Port {preferred_port} in use. Switched to available port {actual_port}.\n")
+                sys.stderr.flush()
+                
+        server_thread = ServerThread(host, actual_port)
         server_thread.start()
         
         # 브라우저 자동 오픈
-        Timer(1.5, lambda: webbrowser.open(f"http://127.0.0.1:{config['port']}/static/index.html")).start()
+        Timer(1.5, lambda: webbrowser.open(f"http://127.0.0.1:{actual_port}/static/index.html")).start()
 
 def stop_server(icon=None, item=None):
     global server_thread
@@ -278,6 +322,9 @@ if __name__ == "__main__":
         pystray.MenuItem("Change Port...", change_port),
         pystray.MenuItem("Auto Start Server", toggle_auto_start, checked=lambda item: config.get("auto_start_server", True)),
         pystray.MenuItem("Check for Updates", check_for_updates),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem("Open Log File", open_log_file),
+        pystray.MenuItem("Open AppData Folder", open_appdata_dir),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Exit", exit_app)
     )
