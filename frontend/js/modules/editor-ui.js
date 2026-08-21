@@ -2,6 +2,39 @@
 // Subcast Module: editor-ui.js
 // ==========================================================================
 
+        // 전역 논블로킹 토스트 알림 헬퍼
+        function showToast(message, duration = 2500) {
+            let toast = document.getElementById("subcast-editor-toast");
+            if (!toast) {
+                toast = document.createElement("div");
+                toast.id = "subcast-editor-toast";
+                toast.style.position = "fixed";
+                toast.style.bottom = "24px";
+                toast.style.right = "24px";
+                toast.style.backgroundColor = "rgba(15, 23, 42, 0.92)";
+                toast.style.color = "#ffffff";
+                toast.style.padding = "10px 18px";
+                toast.style.borderRadius = "8px";
+                toast.style.fontSize = "0.85rem";
+                toast.style.fontWeight = "600";
+                toast.style.boxShadow = "0 8px 24px rgba(0, 0, 0, 0.45)";
+                toast.style.border = "1px solid rgba(56, 189, 248, 0.4)";
+                toast.style.zIndex = "99999";
+                toast.style.transition = "opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)";
+                toast.style.pointerEvents = "none";
+                document.body.appendChild(toast);
+            }
+            toast.textContent = message;
+            toast.style.opacity = "1";
+            toast.style.transform = "translateY(0)";
+            if (window._toastTimeout) clearTimeout(window._toastTimeout);
+            window._toastTimeout = setTimeout(() => {
+                toast.style.opacity = "0";
+                toast.style.transform = "translateY(8px)";
+            }, duration);
+        }
+        window.showToast = showToast;
+
         // 왼쪽 탭 메뉴 전환
         function switchLeftTab(tabId) {
             document.querySelectorAll('.nav-tab-btn').forEach(btn => {

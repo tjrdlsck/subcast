@@ -1012,7 +1012,9 @@
                     searchInput.value = "";
                     fetchPraiseSongs("");
                 }
-                alert("🎉 찬양 슬라이드가 성공적으로 추가되었습니다.");
+                if (typeof showToast === "function") {
+                    showToast("🎉 찬양 슬라이드가 성공적으로 추가되었습니다.");
+                }
             }
 
             // 모달 닫기 및 임시 변수 해제

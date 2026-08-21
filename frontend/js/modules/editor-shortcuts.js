@@ -116,7 +116,7 @@ function initKeyboardShortcuts() {
                 return;
             }
 
-            if (isPraiseTabActive || (selectedPraiseSongs && selectedPraiseSongs.length > 0)) {
+            if (isPraiseTabActive && selectedPraiseSongs && selectedPraiseSongs.length > 0) {
                 e.preventDefault();
                 e.stopPropagation();
                 if (typeof deleteSelectedPraiseSongsWithConfirm === 'function') {

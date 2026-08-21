@@ -6,8 +6,11 @@
         let selectedPraiseSongs = [];
         let currentPraiseSongsList = [];
         let lastSelectedPraiseIndex = -1;
+        let praiseLastClickedIndex = -1;
         let currentEditingPraiseSong = null;
         let praiseClipboardData = [];
+        let praiseSearchDebounceTimer = null;
+        let praiseSearchAbortController = null;
 
         function updatePraiseExpectedCount() {
             const previewList = document.getElementById("praise-preview-list");
@@ -44,7 +47,7 @@
             }
         }
 
-        // 찬양 가사 스마트 단락 분해 (엔터+공백 또는 [빈 화면] 태그를 빈 슬라이드로 인식)
+        // 찬양 가사 스마트 단락 분해 (엔터는 단락 분리, [빈 화면]/[공백] 태그는 명시적 빈 슬라이드로 인식)
         function parsePraiseLyricsToBlocks(lyrics) {
             if (!lyrics) return [];
             
@@ -56,13 +59,10 @@
                 const line = rawLines[i];
                 const trimmed = line.trim();
                 
-                // 빈 슬라이드 트리거 조건:
-                // 1) 공백 문자(\s)가 1개 이상 포함된 빈 줄
-                // 2) [빈 화면], [빈슬라이드], (빈 화면), (빈슬라이드), [공백] 등의 명시적 키워드
+                // 명시적 빈 슬라이드 키워드 확인: [빈 화면], [빈슬라이드], (빈 화면), (빈슬라이드), [공백], (공백)
                 const isExplicitBlankKeyword = /^(\[|\()(빈\s*화면|빈\s*슬라이드|공백)(\]|\))$/i.test(trimmed);
-                const isWhitespaceBlankLine = (trimmed === "" && line.length > 0 && /\s/.test(line));
 
-                if (isExplicitBlankKeyword || isWhitespaceBlankLine) {
+                if (isExplicitBlankKeyword) {
                     if (currentLines.length > 0) {
                         blocks.push(currentLines.join("\n").trim());
                         currentLines = [];
@@ -542,9 +542,13 @@
                 };
             }
 
-            // 2) 실시간 검색어 입력 시 목록 필터링
+            // 2) 실시간 검색어 입력 시 목록 필터링 (150ms 디바운스 적용)
             searchInput.oninput = (e) => {
-                fetchPraiseSongs(e.target.value);
+                const queryVal = e.target.value;
+                if (praiseSearchDebounceTimer) clearTimeout(praiseSearchDebounceTimer);
+                praiseSearchDebounceTimer = setTimeout(() => {
+                    fetchPraiseSongs(queryVal);
+                }, 150);
             };
 
             // 3) 모달 열기/닫기 제어
@@ -659,7 +663,9 @@
                             throw new Error(err.detail || "저장 실패");
                         }
 
-                        alert("찬양이 성공적으로 저장/업데이트 되었습니다.");
+                        if (typeof showToast === "function") {
+                            showToast("찬양이 성공적으로 저장/업데이트 되었습니다.");
+                        }
                         closeAddModal();
 
                         // 수정/추가된 곡 데이터를 즉시 선택 상태로 동기화하여 실시간 미리보기 렌더링
@@ -1122,41 +1128,34 @@
                 };
             }
 
-            // 6) 슬라이드 추가 모달 오픈 연동 (수정된 디자인 옵션 주입)
+            // 6) 슬라이드 추가 모달 오픈 연동 (수정된 디자인 옵션 주입 & 다중 선택 일괄 추가 지원)
             addSlidesBtn.onclick = () => {
-                if (!activeSelectedPraiseSong) return;
+                const songsToProcess = (selectedPraiseSongs && selectedPraiseSongs.length > 0)
+                    ? selectedPraiseSongs
+                    : (activeSelectedPraiseSong ? [activeSelectedPraiseSong] : []);
 
-                const title = activeSelectedPraiseSong.title;
-                const lyrics = activeSelectedPraiseSong.lyrics;
-                const blocks = parsePraiseLyricsToBlocks(lyrics);
-
-                // 선택된 슬라이드 인덱스 추출
-                const previewChks = document.querySelectorAll(".praise-preview-item-chk");
-                const checkedIndices = Array.from(previewChks)
-                    .filter(chk => chk.checked)
-                    .map(chk => parseInt(chk.dataset.index));
-
-                if (checkedIndices.length === 0) {
-                    alert("추가할 슬라이드를 선택해 주세요.");
+                if (songsToProcess.length === 0) {
+                    alert("추가할 찬양곡을 선택해 주세요.");
                     return;
                 }
 
                 tempPraiseSlidesToAdd = [];
 
-                const songMood = activeSelectedPraiseSong.mood || (activeSelectedPraiseSong.moods && activeSelectedPraiseSong.moods[0]) || "경배/찬양";
-                
                 // 기존 슬라이드 목록에서 사용 중인 overrideBgId 수집하여 중복 방지
                 const existingUsedBgIds = (projectData && projectData.slides)
                     ? projectData.slides.map(s => s.overrideBgId).filter(Boolean)
                     : [];
 
-                const fixedBgId = matchStageBgForSong(songMood, existingUsedBgIds);
-                const praiseGroupId = "praise_grp_" + Math.random().toString(36).substr(2, 9);
+                const isSingleSong = (songsToProcess.length === 1);
+                const isTemplateMode = (presetSelect && presetSelect.value === "template");
 
-                if (presetSelect && presetSelect.value === "template") {
+                // 템플릿 모드일 때 템플릿 검증
+                let targetTpl = null;
+                let targetElementId = "";
+                if (isTemplateMode) {
                     const selectTpl = document.getElementById("select-praise-user-template");
                     const tplId = selectTpl ? selectTpl.value : "";
-                    const targetTpl = projectData && projectData.templates ? projectData.templates.find(t => t.id === tplId) : null;
+                    targetTpl = projectData && projectData.templates ? projectData.templates.find(t => t.id === tplId) : null;
 
                     if (!targetTpl) {
                         alert("적용할 디자인 템플릿을 선택하거나 먼저 등록해 주세요.");
@@ -1164,43 +1163,66 @@
                     }
 
                     const selectBox = document.getElementById("select-praise-target-textbox");
-                    const targetElementId = selectBox ? selectBox.value : "";
+                    targetElementId = selectBox ? selectBox.value : "";
 
                     if (!targetElementId) {
                         alert("선택한 디자인 템플릿에 자막 텍스트를 대입할 수 있는 텍스트 상자가 존재하지 않습니다. 다른 템플릿을 선택해 주세요.");
                         return;
                     }
+                }
+
+                // 커스텀/프리셋 스타일 옵션
+                const opacityVal = fontOpacityInput ? fontOpacityInput.value : 100;
+                const fontColorRgba = hexAndOpacityToRgba(fontColorInput.value, opacityVal);
+                const styleOptions = {
+                    fontColor: fontColorRgba,
+                    fontSize: fontSizeInput.value + "vw",
+                    textAlign: textAlignSelect.value,
+                    position: positionSelect.value,
+                    backgroundType: bgTypeSelect.value
+                };
+
+                // 단일 곡일 경우 미리보기 체크박스 선택 인덱스 수집
+                let checkedIndices = null;
+                if (isSingleSong) {
+                    const previewChks = document.querySelectorAll(".praise-preview-item-chk");
+                    checkedIndices = Array.from(previewChks)
+                        .filter(chk => chk.checked)
+                        .map(chk => parseInt(chk.dataset.index));
+
+                    if (checkedIndices.length === 0) {
+                        alert("추가할 슬라이드를 선택해 주세요.");
+                        return;
+                    }
+                }
+
+                // 곡 순회 처리
+                for (const song of songsToProcess) {
+                    const title = song.title;
+                    const lyrics = song.lyrics || "";
+                    const blocks = parsePraiseLyricsToBlocks(lyrics);
+                    if (blocks.length === 0) continue;
+
+                    const songMood = song.mood || (song.moods && song.moods[0]) || "경배/찬양";
+                    const fixedBgId = matchStageBgForSong(songMood, existingUsedBgIds);
+                    if (fixedBgId) {
+                        existingUsedBgIds.push(fixedBgId);
+                    }
+                    const praiseGroupId = "praise_grp_" + Math.random().toString(36).substr(2, 9);
 
                     blocks.forEach((block, idx) => {
-                        if (!checkedIndices.includes(idx)) return;
+                        if (isSingleSong && checkedIndices && !checkedIndices.includes(idx)) return;
+
                         const isBlank = (block === "");
                         const headerText = isBlank ? `${title} (${idx + 1}/${blocks.length}) [빈 화면]` : `${title} (${idx + 1}/${blocks.length})`;
-                        const slideObj = createSlideFromTemplateExplicit(targetTpl, headerText, block, targetElementId);
-                        slideObj.mood = songMood;
-                        slideObj.moods = [songMood];
-                        slideObj.overrideBgId = fixedBgId;
-                        slideObj.songTitle = title;
-                        slideObj.praiseGroupId = praiseGroupId;
-                        tempPraiseSlidesToAdd.push(slideObj);
-                    });
-                } else {
-                    // 현재 디자인 옵션 수집 (RGBA 색상 변환 적용)
-                    const opacityVal = fontOpacityInput ? fontOpacityInput.value : 100;
-                    const fontColorRgba = hexAndOpacityToRgba(fontColorInput.value, opacityVal);
 
-                    const styleOptions = {
-                        fontColor: fontColorRgba,
-                        fontSize: fontSizeInput.value + "vw",
-                        textAlign: textAlignSelect.value,
-                        position: positionSelect.value,
-                        backgroundType: bgTypeSelect.value
-                    };
+                        let slideObj;
+                        if (isTemplateMode && targetTpl) {
+                            slideObj = createSlideFromTemplateExplicit(targetTpl, headerText, block, targetElementId);
+                        } else {
+                            slideObj = createPraiseSlideObject(headerText, block, styleOptions);
+                        }
 
-                    blocks.forEach((block, idx) => {
-                        if (!checkedIndices.includes(idx)) return;
-                        const isBlank = (block === "");
-                        const headerText = isBlank ? `${title} (${idx + 1}/${blocks.length}) [빈 화면]` : `${title} (${idx + 1}/${blocks.length})`;
-                        const slideObj = createPraiseSlideObject(headerText, block, styleOptions);
                         slideObj.mood = songMood;
                         slideObj.moods = [songMood];
                         slideObj.overrideBgId = fixedBgId;
@@ -1220,20 +1242,28 @@
             };
         }
 
-        // DB에서 찬양 목록 가져오기 및 목록 그리기
+        // DB에서 찬양 목록 가져오기 및 목록 그리기 (AbortController 적용)
         async function fetchPraiseSongs(query = "") {
             const songsList = document.getElementById("praise-songs-list");
             if (!songsList) return;
+
+            // 이전 진행 중이던 검색 요청이 있다면 즉시 취소하여 레이스 컨디션 방지
+            if (praiseSearchAbortController) {
+                praiseSearchAbortController.abort();
+            }
+            praiseSearchAbortController = new AbortController();
+            const signal = praiseSearchAbortController.signal;
 
             // 영타 한글 자동 변환 적용
             const translatedQuery = typeof engTypeToKor === 'function' ? engTypeToKor(query) : query;
 
             try {
-                const response = await fetch(`/api/praise/search?query=${encodeURIComponent(translatedQuery)}`);
+                const response = await fetch(`/api/praise/search?query=${encodeURIComponent(translatedQuery)}`, { signal });
                 if (!response.ok) throw new Error("검색 실패");
                 const results = await response.json();
                 renderPraiseSongsList(results);
             } catch (err) {
+                if (err.name === 'AbortError') return; // 취소된 요청 무시
                 console.error("찬양 목록 조회 오류: ", err);
                 songsList.innerHTML = `<div style="color: #ef4444; font-size: 0.75rem; text-align: center; padding: 10px;">목록 로드 오류</div>`;
             }
