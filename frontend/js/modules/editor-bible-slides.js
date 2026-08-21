@@ -2,24 +2,48 @@
 // Bible Slide Generator & Text Splitter Module
 // ==========================================================================
 
-function splitTextByLength(text, maxLen) {
+function splitTextByLength(text, maxLen = 80) {
+    if (!text) return [""];
     if (text.length <= maxLen) return [text];
 
-    const words = text.split(" ");
+    // 개행 문자(\n) 분할을 먼저 처리
+    const lines = text.split("\n");
     const chunks = [];
     let current = "";
 
-    words.forEach(word => {
-        if ((current + " " + word).trim().length > maxLen) {
-            if (current) chunks.push(current.trim());
-            current = word;
-        } else {
-            current = (current + " " + word).trim();
+    lines.forEach(line => {
+        const words = line.split(" ");
+        words.forEach(word => {
+            if (!word) return;
+
+            // 단일 단어가 maxLen보다 긴 경우 강제 슬라이싱 분할
+            if (word.length > maxLen) {
+                if (current) {
+                    chunks.push(current.trim());
+                    current = "";
+                }
+                for (let i = 0; i < word.length; i += maxLen) {
+                    chunks.push(word.substring(i, i + maxLen));
+                }
+                return;
+            }
+
+            if ((current + " " + word).trim().length > maxLen) {
+                if (current) chunks.push(current.trim());
+                current = word;
+            } else {
+                current = (current + " " + word).trim();
+            }
+        });
+
+        if (current) {
+            chunks.push(current.trim());
+            current = "";
         }
     });
-    if (current) chunks.push(current.trim());
 
-    return chunks;
+    if (current) chunks.push(current.trim());
+    return chunks.length > 0 ? chunks : [text];
 }
 
 function createBibleSlideObject(header, content) {
