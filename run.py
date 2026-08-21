@@ -22,7 +22,7 @@ def get_current_version():
                 return f.read().strip()
         except Exception:
             pass
-    return "1.3.16"
+    return "1.3.17"
 
 CURRENT_VERSION = get_current_version()
 REPO_OWNER = "tjrdlsck"

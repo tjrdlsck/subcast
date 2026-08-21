@@ -25,7 +25,7 @@ def _read_version() -> str:
                     return v
         except Exception:
             pass
-    return "1.3.16"
+    return "1.3.17"
 
 
 CURRENT_VERSION = _read_version()
