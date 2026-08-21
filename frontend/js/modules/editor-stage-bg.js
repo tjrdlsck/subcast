@@ -12,6 +12,19 @@ let lastSelectedStageBgIndex = -1;
 let _renderedStageBgFiles = [];
 let pipAmbientAnimId = null;
 let stageBgGridMinSize = 220;
+let stageBgDebounceTimer = null;
+
+// PiP 백그라운드 렌더링 루프 및 미디어 재생 완전 정지 (자원 해제)
+window.stopPipPreview = function() {
+    if (pipAmbientAnimId) {
+        cancelAnimationFrame(pipAmbientAnimId);
+        pipAmbientAnimId = null;
+    }
+    const pipVideo = document.getElementById('pip-bg-video');
+    if (pipVideo) {
+        pipVideo.pause();
+    }
+};
 
 function updateStageBgGridColumns() {
     const gridContainer = document.getElementById('stage-bg-main-grid');
@@ -77,10 +90,18 @@ window.deleteSelectedStageBgFilesWithConfirm = async function(confirmRequired = 
             }
         }
     }
+    // 검색 필터 등으로 렌더링 목록에 없더라도 전체 목록에 남은 비디오가 있으면 폴백 선택
+    if (!nextFileToSelect) {
+        const remainingInAll = allStageBgFiles.filter(f => !deletedNames.includes(f.name));
+        if (remainingInAll.length > 0) {
+            nextFileToSelect = remainingInAll[0];
+        }
+    }
 
     // 2. 프론트엔드 메모리 목록에서 삭제 대상 즉시 제거 (Optimistic UI Update)
     allStageBgFiles = allStageBgFiles.filter(f => !deletedNames.includes(f.name));
     _renderedStageBgFiles = _renderedStageBgFiles.filter(f => !deletedNames.includes(f.name));
+    lastSelectedStageBgIndex = -1; // 삭제 후 인덱스 오염 방지를 위해 초기화
 
     // 3. 삭제 대상 중 현재 적용 중인 비디오 배경이 있는 경우 미리보기 릴리즈
     const isDeletingCurrent = currentStageBg.type === 'video' && deletedNames.some(name => currentStageBg.videoUrl === `/static/backgrounds/${name}`);
@@ -358,7 +379,7 @@ function showStageBgMainViewer() {
     }
 
     updateStageBgGridColumns();
-    loadStageBgLibrary();
+    loadStageBgLibrary(false);
     initPipPreview();
     const pipContainer = document.getElementById('pip-stage-preview-container');
     if (pipContainer) pipContainer.style.display = 'flex';
@@ -369,10 +390,17 @@ function hideStageBgMainViewer() {
     if (overlay) overlay.style.display = 'none';
     const pipContainer = document.getElementById('pip-stage-preview-container');
     if (pipContainer) pipContainer.style.display = 'none';
+    if (typeof stopPipPreview === 'function') {
+        stopPipPreview();
+    }
 }
 
-// 백엔드 API에서 배경 라이브러리 목록 로드
-async function loadStageBgLibrary() {
+// 백엔드 API에서 배경 라이브러리 목록 로드 (캐싱 지원)
+async function loadStageBgLibrary(force = false) {
+    if (!force && allStageBgFiles && allStageBgFiles.length > 0) {
+        filterAndRenderStageBgLibrary();
+        return;
+    }
     try {
         const res = await fetch('/api/backgrounds/list');
         if (res.ok) {
@@ -401,8 +429,8 @@ function filterAndRenderStageBgLibrary() {
     let filesToRender = allStageBgFiles.filter(f => {
         const searchTarget = `${f.title || ''} ${f.name || ''}`.toLowerCase();
         if (searchVal && !searchTarget.includes(searchVal)) return false;
+        if (filterVal === 'default') return (f.isDefault || f.is_default) === true;
         if (filterVal === 'video') return true;
-        if (filterVal === 'ambient') return false;
         return true;
     });
 
@@ -417,7 +445,7 @@ function filterAndRenderStageBgLibrary() {
         const isYt = filenameWOExt.length === 11 && !f.name.startsWith('upload_');
         const thumbUrl = f.thumbnailUrl || (isYt ? `https://img.youtube.com/vi/${filenameWOExt}/hqdefault.jpg` : '');
         const displayName = f.title || (f.name.startsWith('upload_') ? f.name.replace(/^upload_[a-f0-9]+_/, '') : f.name);
-        const escOldName = f.name.replace(/'/g, "\\'");
+        const safeOldName = f.name.replace(/"/g, '&quot;');
         const safeName = displayName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         const borderStyle = isSelected ? '2px solid #38bdf8' : (isCurrent ? '2px solid #0284c7' : '2px solid var(--panel-border, #3f3f46)');
         const bgStyle = isSelected ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255,255,255,0.04)';
@@ -443,10 +471,11 @@ function filterAndRenderStageBgLibrary() {
                 </div>
                 <div>
                     <div class="stage-bg-title" 
+                         data-filename="${safeOldName}"
                          style="font-size: 0.85rem; font-weight: 600; color: #fff; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; margin-bottom: 4px; cursor: text;" 
                          title="${safeName} (두 번 클릭하여 제목 수정)" 
                          onclick="event.stopPropagation();" 
-                         ondblclick="event.stopPropagation(); startInlineRenameStageBg(this, '${escOldName}')">
+                         ondblclick="event.stopPropagation(); startInlineRenameStageBg(this)">
                         ${safeName}
                     </div>
                     <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;">
@@ -470,8 +499,10 @@ function filterAndRenderStageBgLibrary() {
 }
 
 // 배경 라이브러리 더블 클릭 인라인 이름 변경
-window.startInlineRenameStageBg = function(containerEl, oldName) {
+window.startInlineRenameStageBg = function(containerEl, explicitOldName) {
     if (containerEl.querySelector('input')) return;
+    const oldName = explicitOldName || containerEl.getAttribute('data-filename') || containerEl.textContent.trim();
+    if (!oldName) return;
 
     // 확장자 및 순수 이름 분리 (예: test.mp4 -> base: test, ext: .mp4)
     const lastDotIdx = oldName.lastIndexOf('.');
@@ -568,7 +599,7 @@ window.selectStageBg = function(config, shouldRender = true) {
     }
 };
 
-function applyAndBroadcastStageBg() {
+function applyAndBroadcastStageBg(debounce = false) {
     const opacityInput = document.getElementById('range-stage-bg-opacity');
     const blurInput = document.getElementById('range-stage-bg-blur');
 
@@ -578,11 +609,27 @@ function applyAndBroadcastStageBg() {
     currentStageBg.opacity = parseFloat(valOpacity) / 100;
     currentStageBg.blur = parseInt(valBlur) || 0;
 
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-            type: 'SET_STAGE_BACKGROUND',
-            background: currentStageBg
-        }));
+    if (debounce) {
+        if (stageBgDebounceTimer) clearTimeout(stageBgDebounceTimer);
+        stageBgDebounceTimer = setTimeout(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'SET_STAGE_BACKGROUND',
+                    background: currentStageBg
+                }));
+            }
+        }, 50);
+    } else {
+        if (stageBgDebounceTimer) {
+            clearTimeout(stageBgDebounceTimer);
+            stageBgDebounceTimer = null;
+        }
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+                type: 'SET_STAGE_BACKGROUND',
+                background: currentStageBg
+            }));
+        }
     }
 
     updatePipBgLayer();
@@ -597,6 +644,9 @@ window.togglePipPreview = function() {
         initPipPreview();
     } else {
         pipContainer.style.display = 'none';
+        if (typeof stopPipPreview === 'function') {
+            stopPipPreview();
+        }
     }
 };
 
@@ -771,6 +821,9 @@ let isPipUpdating = false;
 
 function updatePipSlideOverlay() {
     if (isPipUpdating) return;
+    const pipContainer = document.getElementById('pip-stage-preview-container');
+    if (!pipContainer || pipContainer.style.display === 'none') return;
+
     const slideCanvas = document.getElementById('pip-slide-canvas');
     if (!slideCanvas) return;
     const ctx = slideCanvas.getContext('2d');
@@ -830,6 +883,9 @@ document.addEventListener('DOMContentLoaded', () => {
         btnPipClose.addEventListener('click', () => {
             const container = document.getElementById('pip-stage-preview-container');
             if (container) container.style.display = 'none';
+            if (typeof stopPipPreview === 'function') {
+                stopPipPreview();
+            }
         });
     }
     if (btnPipMin) {
@@ -853,7 +909,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (opacityInput) {
         opacityInput.addEventListener('input', (e) => {
             if (opacityVal) opacityVal.innerText = `${e.target.value}%`;
-            applyAndBroadcastStageBg();
+            applyAndBroadcastStageBg(true);
         });
     }
 
@@ -862,7 +918,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (blurInput) {
         blurInput.addEventListener('input', (e) => {
             if (blurVal) blurVal.innerText = `${e.target.value}px`;
-            applyAndBroadcastStageBg();
+            applyAndBroadcastStageBg(true);
         });
     }
 
