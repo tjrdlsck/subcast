@@ -5,7 +5,7 @@ import shutil
 import uuid
 from pathlib import Path
 from typing import List
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel
 
 from backend.services.background_service import (
@@ -20,6 +20,12 @@ logger = logging.getLogger("subcast")
 router = APIRouter(prefix="/api/backgrounds", tags=["backgrounds"])
 
 pending_delete_bg_files = set()
+
+
+class ChunkUploadCompleteRequest(BaseModel):
+    upload_id: str
+    filename: str
+    total_chunks: int
 
 
 class RenameBackgroundRequest(BaseModel):
@@ -90,7 +96,13 @@ async def list_background_files():
 
     if backgrounds_dir.exists():
         for p in backgrounds_dir.glob("*"):
-            if p.name == "meta.json" or p.name.startswith("thumb_") or p.name.startswith(".trash_"):
+            if (
+                p.name == "meta.json"
+                or p.name.startswith("thumb_")
+                or p.name.startswith(".trash_")
+                or p.name.startswith(".chunk_")
+                or p.name in pending_delete_bg_files
+            ):
                 continue
             if p.suffix.lower() in [".mp4", ".webm", ".mov", ".avi", ".jpg", ".png"]:
                 item_meta = meta.get(p.name, {})
@@ -165,6 +177,79 @@ async def upload_background_file(file: UploadFile = File(...)):
         "success": True,
         "filename": unique_name,
         "title": file.filename,
+        "videoUrl": f"/static/backgrounds/{unique_name}",
+        "thumbnailUrl": thumb_url
+    }
+
+
+@router.post("/upload-chunk")
+async def upload_background_chunk(
+    upload_id: str = Form(...),
+    chunk_index: int = Form(...),
+    total_chunks: int = Form(...),
+    file: UploadFile = File(...)
+):
+    if not upload_id or chunk_index < 0:
+        raise HTTPException(status_code=400, detail="유효하지 않은 청크 요청입니다.")
+
+    clean_upload_id = "".join(c for c in upload_id if c.isalnum() or c in ("-", "_"))
+    chunk_filename = f".chunk_{clean_upload_id}_{chunk_index}"
+    chunk_path = backgrounds_dir / chunk_filename
+
+    with open(chunk_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+
+    return {"success": True, "chunk_index": chunk_index}
+
+
+@router.post("/upload-complete")
+async def complete_background_chunk_upload(req: ChunkUploadCompleteRequest):
+    if not req.filename:
+        raise HTTPException(status_code=400, detail="파일명이 올바르지 않습니다.")
+
+    file_ext = Path(req.filename).suffix.lower()
+    if file_ext not in [".mp4", ".webm", ".mov", ".avi"]:
+        raise HTTPException(status_code=400, detail="동영상 파일(.mp4, .webm 등)만 업로드 가능합니다.")
+
+    clean_upload_id = "".join(c for c in req.upload_id if c.isalnum() or c in ("-", "_"))
+    unique_name = f"upload_{uuid.uuid4().hex[:8]}_{req.filename}"
+    save_path = backgrounds_dir / unique_name
+
+    # 청크 조각들을 순서대로 하나의 파일로 병합
+    with open(save_path, "wb") as outfile:
+        for idx in range(req.total_chunks):
+            chunk_file = backgrounds_dir / f".chunk_{clean_upload_id}_{idx}"
+            if not chunk_file.exists():
+                if save_path.exists():
+                    save_path.unlink()
+                raise HTTPException(status_code=400, detail=f"누락된 청크 파일이 있습니다 (청크 번호: {idx}).")
+            
+            with open(chunk_file, "rb") as infile:
+                outfile.write(infile.read())
+            
+            try:
+                chunk_file.unlink()
+            except Exception:
+                pass
+
+    thumb_filename = f"thumb_{Path(unique_name).stem}.jpg"
+    thumb_path = backgrounds_dir / thumb_filename
+    thumb_url = ""
+    if generate_thumbnail_ffmpeg(save_path, thumb_path):
+        thumb_url = f"/static/backgrounds/{thumb_filename}"
+
+    meta = load_bg_meta()
+    meta[unique_name] = {
+        "thumbnailUrl": thumb_url,
+        "title": req.filename
+    }
+    save_bg_meta(meta)
+
+    return {
+        "success": True,
+        "filename": unique_name,
+        "title": req.filename,
         "videoUrl": f"/static/backgrounds/{unique_name}",
         "thumbnailUrl": thumb_url
     }

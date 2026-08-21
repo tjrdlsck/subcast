@@ -55,7 +55,7 @@ window.pasteStageBgFiles = async function() {
             if (typeof showToast === 'function') {
                 showToast(`${data.new_files?.length || 0}개의 현장 배경이 붙여넣기 되었습니다.`);
             }
-            await loadStageBgLibrary();
+            await loadStageBgLibrary(true);
         } else {
             const err = await res.json().catch(() => ({}));
             alert("붙여넣기 실패: " + (err.detail || res.statusText));
@@ -77,67 +77,82 @@ window.deleteSelectedStageBgFilesWithConfirm = async function(confirmRequired = 
 
     const deletedNames = selectedStageBgFiles.map(f => f.name);
 
-    // 1. 삭제 후 자동으로 선택 및 미리보기 재생할 다음 배경 영상 결정
-    let nextFileToSelect = null;
-    if (_renderedStageBgFiles && _renderedStageBgFiles.length > 0) {
-        const firstDelIdx = _renderedStageBgFiles.findIndex(f => deletedNames.includes(f.name));
-        const remainingFiles = _renderedStageBgFiles.filter(f => !deletedNames.includes(f.name));
-        if (remainingFiles.length > 0) {
-            if (firstDelIdx >= 0 && firstDelIdx < remainingFiles.length) {
-                nextFileToSelect = remainingFiles[firstDelIdx];
-            } else {
-                nextFileToSelect = remainingFiles[remainingFiles.length - 1];
-            }
-        }
-    }
-    // 검색 필터 등으로 렌더링 목록에 없더라도 전체 목록에 남은 비디오가 있으면 폴백 선택
-    if (!nextFileToSelect) {
-        const remainingInAll = allStageBgFiles.filter(f => !deletedNames.includes(f.name));
-        if (remainingInAll.length > 0) {
-            nextFileToSelect = remainingInAll[0];
-        }
-    }
+    // 1. 실패 시 롤백을 위한 이전 상태 백업
+    const backupAll = [...allStageBgFiles];
+    const backupRendered = [..._renderedStageBgFiles];
+    const backupSelected = [...selectedStageBgFiles];
 
-    // 2. 프론트엔드 메모리 목록에서 삭제 대상 즉시 제거 (Optimistic UI Update)
+    // 2. 현재 적용 중인 비디오 배경이 삭제 대상에 포함되어 있는지 판별
+    const isDeletingCurrent = currentStageBg.type === 'video' && deletedNames.some(name => {
+        const decodedUrl = decodeURIComponent(currentStageBg.videoUrl || '');
+        return decodedUrl.endsWith(name) || decodedUrl.endsWith(`/static/backgrounds/${name}`);
+    });
+
+    // 3. 프론트엔드 메모리 목록 및 클립보드에서 삭제 대상 제거 (Optimistic UI Update)
     allStageBgFiles = allStageBgFiles.filter(f => !deletedNames.includes(f.name));
     _renderedStageBgFiles = _renderedStageBgFiles.filter(f => !deletedNames.includes(f.name));
-    lastSelectedStageBgIndex = -1; // 삭제 후 인덱스 오염 방지를 위해 초기화
+    if (stageBgClipboardFiles && stageBgClipboardFiles.length > 0) {
+        stageBgClipboardFiles = stageBgClipboardFiles.filter(f => !deletedNames.includes(f.name));
+    }
+    selectedStageBgFiles = [];
+    lastSelectedStageBgIndex = -1;
 
-    // 3. 삭제 대상 중 현재 적용 중인 비디오 배경이 있는 경우 미리보기 릴리즈
-    const isDeletingCurrent = currentStageBg.type === 'video' && deletedNames.some(name => currentStageBg.videoUrl === `/static/backgrounds/${name}`);
-    const pipVideo = document.getElementById('pip-bg-video');
-    if (isDeletingCurrent || pipVideo) {
+    // 4. 현재 적용 중이던 영상이 삭제된 경우에만 다음 배경 영상 또는 Ambient로 전환
+    if (isDeletingCurrent) {
+        const pipVideo = document.getElementById('pip-bg-video');
         if (pipVideo) {
             pipVideo.pause();
             pipVideo.removeAttribute('src');
             pipVideo.load();
         }
-    }
 
-    // 4. 즉시 다음 배경 영상으로 화면 선택 및 미리보기 전환 (남은 영상이 없으면 Ambient)
-    if (nextFileToSelect) {
-        selectedStageBgFiles = [nextFileToSelect];
-        selectStageBg({ type: 'video', videoUrl: nextFileToSelect.url, title: nextFileToSelect.name }, true);
+        let nextFileToSelect = (_renderedStageBgFiles && _renderedStageBgFiles.length > 0)
+            ? _renderedStageBgFiles[0]
+            : (allStageBgFiles.length > 0 ? allStageBgFiles[0] : null);
+
+        if (nextFileToSelect) {
+            selectedStageBgFiles = [nextFileToSelect];
+            selectStageBg({ type: 'video', videoUrl: nextFileToSelect.url, title: nextFileToSelect.name }, true);
+        } else {
+            selectStageBg({ type: 'ambient' }, true);
+        }
     } else {
-        selectedStageBgFiles = [];
-        selectStageBg({ type: 'ambient' }, true);
+        // 현재 적용 중인 배경은 유지하고 목록 그리드만 갱신
+        filterAndRenderStageBgLibrary();
     }
 
-    // 5. UI 카드 그리드 즉시 갱신 및 완료 토스트 출력 (사용자 화면에서 즉각 삭제 처리)
-    filterAndRenderStageBgLibrary();
+    // 5. 프로젝트 설정에 라이브러리 최신 상태 영속화
+    if (typeof saveStageBgLibraryData === 'function') {
+        saveStageBgLibraryData();
+    }
+
+    // 6. 완료 토스트 알림
     if (typeof showToast === 'function') {
         showToast(`${deletedNames.length}개의 현장 배경이 삭제되었습니다.`);
     }
 
-    // 6. 백엔드 비동기 삭제 API 호출 (백엔드가 메타 제거 및 백그라운드 파일 정리 수행)
+    // 7. 백엔드 비동기 삭제 API 호출 및 실패 시 롤백
     try {
-        await fetch('/api/backgrounds/delete', {
+        const res = await fetch('/api/backgrounds/delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ names: deletedNames })
         });
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+        }
     } catch (e) {
-        console.error("Failed to call background delete API", e);
+        console.error("Failed to delete stage bg files", e);
+        if (typeof showToast === 'function') {
+            showToast(`⚠️ 배경 삭제 실패: 화면 상태를 복원합니다.`);
+        }
+        allStageBgFiles = backupAll;
+        _renderedStageBgFiles = backupRendered;
+        selectedStageBgFiles = backupSelected;
+        filterAndRenderStageBgLibrary();
+        if (typeof saveStageBgLibraryData === 'function') {
+            saveStageBgLibraryData();
+        }
     }
 };
 
@@ -564,7 +579,7 @@ window.startInlineRenameStageBg = function(containerEl, explicitOldName) {
                 applyAndBroadcastStageBg();
             }
 
-            await loadStageBgLibrary();
+            await loadStageBgLibrary(true);
         } catch (err) {
             alert('제목 변경 오류: ' + err.message);
             containerEl.textContent = oldName;
@@ -935,59 +950,119 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function handleLocalFileUpload(fileInput) {
-        if (!fileInput || !fileInput.files || !fileInput.files[0]) return;
-        const file = fileInput.files[0];
-        const formData = new FormData();
-        formData.append('file', file);
+        if (!fileInput || !fileInput.files || fileInput.files.length === 0) return;
+        const files = Array.from(fileInput.files);
+        const totalFiles = files.length;
+        const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB 청크 단위
 
-        updateYtStatus(`⏳ 로컬 비디오 파일 업로드 중... 0%`, '#fbbf24');
+        let successCount = 0;
+        let lastUploadedData = null;
 
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', '/api/backgrounds/upload', true);
+        for (let i = 0; i < totalFiles; i++) {
+            const file = files[i];
+            const filePrefix = totalFiles > 1 ? `[${i + 1}/${totalFiles}] ` : '';
+            const uploadId = `up_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+            const totalChunks = Math.max(1, Math.ceil(file.size / CHUNK_SIZE));
 
-        xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-                const percent = Math.round((e.loaded / e.total) * 100);
-                updateYtStatus(`⏳ 로컬 비디오 파일 업로드 중... ${percent}%`, '#fbbf24');
-            }
-        };
+            updateYtStatus(`⏳ ${filePrefix}'${file.name}' 업로드 준비 중 (0%)...`, '#fbbf24');
 
-        xhr.onload = async () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-                try {
-                    const data = JSON.parse(xhr.responseText);
-                    if (data.success) {
-                        const displayName = data.title || file.name;
-                        updateYtStatus(`✅ 업로드 완료! 100% (${displayName})`, '#34d399');
-                        if (typeof showToast === 'function') {
-                            showToast(`🎬 배경 동영상 '${displayName}' 업로드 완료!`);
+            let fileUploadSuccess = true;
+
+            for (let chunkIdx = 0; chunkIdx < totalChunks; chunkIdx++) {
+                const start = chunkIdx * CHUNK_SIZE;
+                const end = Math.min(file.size, start + CHUNK_SIZE);
+                const chunkBlob = file.slice(start, end);
+
+                const formData = new FormData();
+                formData.append('upload_id', uploadId);
+                formData.append('chunk_index', chunkIdx);
+                formData.append('total_chunks', totalChunks);
+                formData.append('file', chunkBlob, file.name);
+
+                // 청크 전송 (최대 3회 지수 백오프 재시도)
+                let chunkSuccess = false;
+                for (let attempt = 1; attempt <= 3; attempt++) {
+                    try {
+                        const res = await fetch('/api/backgrounds/upload-chunk', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        if (res.ok) {
+                            chunkSuccess = true;
+                            break;
                         }
-                        selectStageBg({ type: 'video', videoUrl: data.videoUrl, title: displayName });
-                        await loadStageBgLibrary();
-                        setTimeout(() => {
-                            const statusEl = document.getElementById('stage-bg-upload-status');
-                            if (statusEl && statusEl.textContent.includes('업로드 완료')) {
-                                statusEl.textContent = '';
-                            }
-                        }, 5000);
-                    } else {
-                        updateYtStatus(`❌ 업로드 실패: ${data.detail || '오류 발생'}`, '#ef4444');
+                    } catch (err) {
+                        console.warn(`[Chunk Retry] ${file.name} chunk ${chunkIdx} attempt ${attempt} failed:`, err);
                     }
-                } catch (e) {
-                    updateYtStatus(`❌ 응답 처리 오류: ${e.message}`, '#ef4444');
+                    await new Promise(r => setTimeout(r, attempt * 400));
                 }
-            } else {
-                updateYtStatus(`❌ 업로드 실패: HTTP ${xhr.status}`, '#ef4444');
+
+                if (!chunkSuccess) {
+                    fileUploadSuccess = false;
+                    updateYtStatus(`❌ ${filePrefix}'${file.name}' 청크 전송 실패`, '#ef4444');
+                    break;
+                }
+
+                const percent = Math.round(((chunkIdx + 1) / totalChunks) * 100);
+                updateYtStatus(`⏳ ${filePrefix}'${file.name}' 전송 중... ${percent}%`, '#fbbf24');
             }
-            fileInput.value = '';
-        };
 
-        xhr.onerror = () => {
-            updateYtStatus(`❌ 업로드 통신 오류 발생`, '#ef4444');
-            fileInput.value = '';
-        };
+            if (!fileUploadSuccess) continue;
 
-        xhr.send(formData);
+            // 모든 청크 전송 완료 -> 백엔드 병합 요청
+            try {
+                updateYtStatus(`⚙️ ${filePrefix}'${file.name}' 병합 및 썸네일 생성 중...`, '#38bdf8');
+                const completeRes = await fetch('/api/backgrounds/upload-complete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        upload_id: uploadId,
+                        filename: file.name,
+                        total_chunks: totalChunks
+                    })
+                });
+
+                if (completeRes.ok) {
+                    const data = await completeRes.json();
+                    if (data.success) {
+                        successCount++;
+                        lastUploadedData = data;
+                        updateYtStatus(`✅ ${filePrefix}'${data.title || file.name}' 완료!`, '#34d399');
+                    } else {
+                        updateYtStatus(`❌ ${filePrefix}'${file.name}' 병합 실패: ${data.detail || '오류'}`, '#ef4444');
+                    }
+                } else {
+                    const errData = await completeRes.json().catch(() => ({}));
+                    updateYtStatus(`❌ ${filePrefix}'${file.name}' 병합 실패: ${errData.detail || completeRes.statusText}`, '#ef4444');
+                }
+            } catch (e) {
+                updateYtStatus(`❌ ${filePrefix}'${file.name}' 완료 처리 오류: ${e.message}`, '#ef4444');
+            }
+        }
+
+        fileInput.value = '';
+
+        if (successCount > 0) {
+            updateYtStatus(`✅ 총 ${successCount}개 파일 업로드 완료! (100%)`, '#34d399');
+            if (typeof showToast === 'function') {
+                showToast(`🎬 ${successCount}개의 배경 동영상 업로드 완료!`);
+            }
+            await loadStageBgLibrary(true);
+            if (lastUploadedData) {
+                selectStageBg({ type: 'video', videoUrl: lastUploadedData.videoUrl, title: lastUploadedData.title });
+                const uploadedFile = allStageBgFiles.find(f => f.name === lastUploadedData.filename || f.url === lastUploadedData.videoUrl);
+                if (uploadedFile) {
+                    selectedStageBgFiles = [uploadedFile];
+                    filterAndRenderStageBgLibrary();
+                }
+            }
+            setTimeout(() => {
+                const statusEl = document.getElementById('stage-bg-upload-status');
+                if (statusEl && statusEl.textContent.includes('완료')) {
+                    statusEl.textContent = '';
+                }
+            }, 5000);
+        }
     }
 
     if (btnUploadFile && inputUploadFile) {

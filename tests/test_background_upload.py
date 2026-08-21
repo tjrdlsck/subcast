@@ -44,3 +44,52 @@ def test_upload_background_valid_video():
 
     # 테스트 후 생성된 파일 정리
     client.post("/api/backgrounds/delete", json={"names": [data["filename"]]})
+
+
+def test_chunk_upload_and_complete():
+    # 가상 청크 3개 생성 및 순차 업로드 테스트
+    chunk1 = b"CHUNK1_HEADER_MP4_"
+    chunk2 = b"CHUNK2_BODY_DATA_"
+    chunk3 = b"CHUNK3_TAIL_FOOTER"
+    full_content = chunk1 + chunk2 + chunk3
+    upload_id = "test_chunk_up_12345"
+
+    chunks = [chunk1, chunk2, chunk3]
+    for idx, c_data in enumerate(chunks):
+        res = client.post(
+            "/api/backgrounds/upload-chunk",
+            data={
+                "upload_id": upload_id,
+                "chunk_index": idx,
+                "total_chunks": 3
+            },
+            files={"file": ("chunk.bin", io.BytesIO(c_data), "application/octet-stream")}
+        )
+        assert res.status_code == 200
+        assert res.json()["success"] is True
+
+    # 청크 병합 요청
+    complete_res = client.post(
+        "/api/backgrounds/upload-complete",
+        json={
+            "upload_id": upload_id,
+            "filename": "chunked_worship_sample.mp4",
+            "total_chunks": 3
+        }
+    )
+    assert complete_res.status_code == 200
+    comp_data = complete_res.json()
+    assert comp_data["success"] is True
+    assert comp_data["title"] == "chunked_worship_sample.mp4"
+    assert "upload_" in comp_data["filename"]
+
+    # 목록 조회 시 등록 여부 확인
+    list_res = client.get("/api/backgrounds/list")
+    assert list_res.status_code == 200
+    files_list = list_res.json()["files"]
+    uploaded_item = next((f for f in files_list if f["name"] == comp_data["filename"]), None)
+    assert uploaded_item is not None
+    assert uploaded_item["title"] == "chunked_worship_sample.mp4"
+
+    # 테스트 후 생성된 파일 정리
+    client.post("/api/backgrounds/delete", json={"names": [comp_data["filename"]]})
