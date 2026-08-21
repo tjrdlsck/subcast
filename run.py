@@ -159,12 +159,24 @@ class ServerThread(Thread):
 
     def stop(self):
         self.server.should_exit = True
+        self.server.force_exit = True
 
 def is_running(item=None):
     return server_thread is not None and server_thread.is_alive()
 
 def is_stopped(item=None):
     return not is_running()
+
+def clean_port_input(raw_output: str) -> int | None:
+    """PowerShell 출력에서 BOM 및 공백을 제거하고 유효한 포트 번호(1024-65535)를 추출합니다."""
+    if not raw_output:
+        return None
+    cleaned = raw_output.replace('\ufeff', '').strip()
+    if cleaned.isdigit():
+        val = int(cleaned)
+        if 1024 <= val <= 65535:
+            return val
+    return None
 
 def start_server(icon=None, item=None):
     global server_thread
@@ -183,6 +195,12 @@ def start_server(icon=None, item=None):
         server_thread = ServerThread(host, actual_port)
         server_thread.start()
         
+        if icon:
+            try:
+                icon.update_menu()
+            except Exception:
+                pass
+        
         # 브라우저 자동 오픈
         Timer(1.5, lambda: webbrowser.open(f"http://127.0.0.1:{actual_port}/static/index.html")).start()
 
@@ -192,36 +210,72 @@ def stop_server(icon=None, item=None):
         server_thread.stop()
         server_thread.join(timeout=3.0)
         server_thread = None
+    if icon:
+        try:
+            icon.update_menu()
+        except Exception:
+            pass
 
-def change_port(icon=None, item=None):
+def _change_port_worker(icon=None):
+    current_port = config.get("port", DEFAULT_PORT)
     script = f'''
+    $OutputEncoding = [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     Add-Type -AssemblyName Microsoft.VisualBasic
-    [Microsoft.VisualBasic.Interaction]::InputBox("Enter new port number (1024-65535)", "Subcast Port Setup", "{config["port"]}")
+    [Microsoft.VisualBasic.Interaction]::InputBox("Enter new port number (1024-65535)", "Subcast Port Setup", "{current_port}")
     '''
     CREATE_NO_WINDOW = 0x08000000
     try:
-        result = subprocess.run(["powershell", "-Command", script], capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
-        out = result.stdout.strip()
-        if out.isdigit():
-            new_port = int(out)
-            if 1024 <= new_port <= 65535:
-                config["port"] = new_port
-                save_config(config)
-                
-                # Restart server if running
-                if is_running():
-                    stop_server()
-                    start_server()
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="ignore",
+            creationflags=CREATE_NO_WINDOW
+        )
+        new_port = clean_port_input(result.stdout)
+        if new_port is None:
+            return
+
+        host = config.get("host", "0.0.0.0")
+        if not is_port_available(host, new_port):
+            alert_script = f'''
+            Add-Type -AssemblyName PresentationFramework
+            [System.Windows.MessageBox]::Show("Port {new_port} is already in use by another application.", "Port Conflict", 'OK', 'Error')
+            '''
+            subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", alert_script], creationflags=CREATE_NO_WINDOW)
+            return
+
+        config["port"] = new_port
+        save_config(config)
+
+        if is_running():
+            stop_server(icon=icon)
+            start_server(icon=icon)
+        elif icon:
+            try:
+                icon.update_menu()
+            except Exception:
+                pass
     except Exception as e:
         if hasattr(sys, "stderr") and sys.stderr is not None:
             sys.stderr.write(f"Port change error: {e}\n")
+            sys.stderr.flush()
+
+def change_port(icon=None, item=None):
+    threading.Thread(target=_change_port_worker, args=(icon,), daemon=True).start()
 
 def toggle_auto_start(icon, item):
     config["auto_start_server"] = not config.get("auto_start_server", True)
     save_config(config)
+    if icon:
+        try:
+            icon.update_menu()
+        except Exception:
+            pass
 
 def exit_app(icon, item):
-    stop_server()
+    stop_server(icon)
     icon.stop()
 
 def create_image():
