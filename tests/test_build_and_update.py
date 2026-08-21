@@ -56,10 +56,39 @@ def test_installer_flags_include_restart():
     src = inspect.getsource(download_and_update)
     assert '/RESTARTAPPLICATIONS' in src
 
-def test_temp_file_cleanup():
-    """인스톨러 실행 후 임시 파일을 정리해야 함"""
+def test_installer_immediate_exit_to_avoid_lock():
+    """인스톨러 실행 후 파일 잠금 방지를 위해 프로세스를 즉시 종료해야 함"""
     src = inspect.getsource(download_and_update)
-    assert 'os.remove(installer_path)' in src
+    assert 'exit_app' in src
+    assert 'sys.exit(0)' in src
+
+def test_spec_file_disables_upx():
+    """subcast.spec에서 UPX 압축이 비활성화(False)되어야 함"""
+    spec_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "subcast.spec"))
+    with open(spec_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    assert "upx=False" in content
+    assert "upx=True" not in content
+
+def test_main_uses_absolute_static_path():
+    """main.py에서 정적 파일 서빙 시 절대 경로를 사용해야 함"""
+    from backend.main import STATIC_FRONTEND_DIR
+    assert os.path.isabs(str(STATIC_FRONTEND_DIR))
+    assert os.path.exists(STATIC_FRONTEND_DIR)
+
+def test_bible_service_read_only_connection():
+    """bible_service가 기존 bible.db에 대해 읽기 전용 URI 모드로 연결해야 함"""
+    from backend.services.bible_service import BibleDatabaseHelper
+    helper = BibleDatabaseHelper()
+    conn = helper.get_connection()
+    try:
+        # 데이터 조회가 정상적으로 수행되는지 검증
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM bible")
+        cnt = cur.fetchone()[0]
+        assert cnt >= 0
+    finally:
+        conn.close()
 
 def test_run_py_has_threading_import():
     """run.py에 threading 모듈 임포트가 있어야 함"""

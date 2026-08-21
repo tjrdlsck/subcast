@@ -44,41 +44,55 @@ class BibleDatabaseHelper:
         self.init_table()
 
     def get_connection(self):
-        conn = sqlite3.connect(self.db_path)
+        if str(self.db_path).startswith("file:") or "?mode=" in str(self.db_path):
+            conn = sqlite3.connect(self.db_path, uri=True)
+        elif os.path.exists(self.db_path):
+            # 파일이 이미 존재하는 경우 읽기 전용 URI로 연결하여 쓰기 잠금 및 권한 에러 방지
+            abs_path = os.path.abspath(self.db_path).replace("\\", "/")
+            conn = sqlite3.connect(f"file:{abs_path}?mode=ro", uri=True)
+        else:
+            conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         return conn
 
     def init_table(self):
-        conn = self.get_connection()
-        cursor = conn.cursor()
+        # 파일이 이미 존재하고 크기가 유효한 경우 init_table을 건너뜁니다 (읽기 전용 DB 쓰기 방지)
+        if os.path.exists(self.db_path) and os.path.getsize(self.db_path) > 0:
+            return
+
         try:
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS bible (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    version_code TEXT NOT NULL DEFAULT 'KRV',
-                    book_code TEXT NOT NULL,
-                    book_name TEXT NOT NULL,
-                    chapter INTEGER NOT NULL,
-                    verse INTEGER NOT NULL,
-                    content TEXT NOT NULL,
-                    title TEXT
-                )
-            """)
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_bible_version_book_chap ON bible(version_code, book_code, chapter)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_bible_version_search ON bible(version_code, content)")
-            
-            # 테이블 데이터 존재 여부 확인 및 자동 파싱 연동
-            cursor.execute("SELECT COUNT(*) as cnt FROM bible")
-            cnt = cursor.fetchone()["cnt"]
-            if cnt == 0:
-                try:
-                    from parse_bible import parse_and_import_krv
-                    parse_and_import_krv(db_path=self.db_path)
-                except Exception as e:
-                    print(f"자동 성경 파싱 실패: {e}")
-            conn.commit()
-        finally:
-            conn.close()
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS bible (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        version_code TEXT NOT NULL DEFAULT 'KRV',
+                        book_code TEXT NOT NULL,
+                        book_name TEXT NOT NULL,
+                        chapter INTEGER NOT NULL,
+                        verse INTEGER NOT NULL,
+                        content TEXT NOT NULL,
+                        title TEXT
+                    )
+                """)
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_bible_version_book_chap ON bible(version_code, book_code, chapter)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_bible_version_search ON bible(version_code, content)")
+                
+                # 테이블 데이터 존재 여부 확인 및 자동 파싱 연동
+                cursor.execute("SELECT COUNT(*) as cnt FROM bible")
+                cnt = cursor.fetchone()[0]
+                if cnt == 0:
+                    try:
+                        from parse_bible import parse_and_import_krv
+                        parse_and_import_krv(db_path=self.db_path)
+                    except Exception as e:
+                        print(f"자동 성경 파싱 실패: {e}")
+                conn.commit()
+            finally:
+                conn.close()
+        except sqlite3.OperationalError:
+            pass
 
     def get_books(self, version_code: str = "KRV") -> List[Dict[str, Any]]:
         conn = self.get_connection()

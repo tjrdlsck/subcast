@@ -61,6 +61,18 @@ for old_dir in [os.path.join(install_dir, "data"), os.path.join(install_dir, "_i
         except Exception as e:
             print(f"Failed to migrate data dir from {old_dir}: {e}")
 
+# 기본 배경화면 에셋을 AppData로 시딩(동기화)
+new_bg_dir = os.path.join(subcast_appdata, "frontend", "assets", "backgrounds")
+for old_bg_dir in [
+    os.path.join(install_dir, "frontend", "assets", "backgrounds"),
+    os.path.join(install_dir, "_internal", "frontend", "assets", "backgrounds")
+]:
+    if os.path.exists(old_bg_dir):
+        try:
+            shutil.copytree(old_bg_dir, new_bg_dir, dirs_exist_ok=True)
+        except Exception as e:
+            print(f"Failed to seed background assets from {old_bg_dir}: {e}")
+
 os.environ["SUBCAST_DATA_DIR"] = subcast_appdata
 
 from backend.services.migration_service import migrate_legacy_db_if_needed
@@ -210,16 +222,9 @@ def download_and_update(asset_url, installer_name):
         subprocess.run(["powershell", "-Command", script], creationflags=0x08000000)
         
         # Run installer with restart
-        proc = subprocess.Popen([installer_path, '/VERYSILENT', '/SUPPRESSMSGBOXES', '/FORCECLOSEAPPLICATIONS', '/RESTARTAPPLICATIONS', '/NOCANCEL'])
+        subprocess.Popen([installer_path, '/VERYSILENT', '/SUPPRESSMSGBOXES', '/FORCECLOSEAPPLICATIONS', '/RESTARTAPPLICATIONS', '/NOCANCEL'])
         
-        # Wait briefly then clean up temp installer file
-        proc.wait(timeout=5)
-        try:
-            os.remove(installer_path)
-        except Exception:
-            pass
-        
-        # Exit current app
+        # Exit current app immediately so Inno Setup can update files cleanly
         if icon is not None:
             exit_app(icon, None)
         else:

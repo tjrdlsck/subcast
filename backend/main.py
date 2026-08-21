@@ -49,11 +49,22 @@ app.include_router(system_router)
 app.include_router(projects_router)
 app.include_router(monitor_router)
 
+import os
+import sys
+from pathlib import Path
+
+def get_base_dir() -> Path:
+    if getattr(sys, 'frozen', False):
+        return Path(getattr(sys, '_MEIPASS', os.path.dirname(sys.executable)))
+    return Path(__file__).resolve().parent.parent
+
+STATIC_FRONTEND_DIR = get_base_dir() / "frontend"
+
 from backend.services.background_service import backgrounds_dir
 
 # 정적 파일 서빙
 app.mount("/static/backgrounds", StaticFiles(directory=str(backgrounds_dir)), name="backgrounds")
-app.mount("/static", StaticFiles(directory="frontend"), name="static")
+app.mount("/static", StaticFiles(directory=str(STATIC_FRONTEND_DIR)), name="static")
 
 
 @app.get("/")
