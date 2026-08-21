@@ -137,6 +137,15 @@
                             // 최신 동기화 데이터 기반으로 현재 편집중인 슬라이드 캔버스를 다시 로드
                             loadSlideToCanvas(activeSlideId);
                         }
+                    } else {
+                        // 슬라이드가 비어있는 경우 안전 초기화
+                        activeSlideId = null;
+                        selectedSlideIds = [];
+                        if (typeof canvas !== 'undefined' && canvas) {
+                            canvas.clear();
+                            canvas.backgroundColor = '#000000';
+                            canvas.requestRenderAll();
+                        }
                     }
 
                     // 커스텀 폰트 동적 로드 및 셀렉트 박스 갱신
@@ -179,20 +188,19 @@
                         undoBtn.disabled = !(message.historyCount && message.historyCount > 0);
                     }
 
-                    // 썸네일이 없는 슬라이드가 있다면 순차적으로 자동 생성하여 반영 및 서버 동기화
-                    let needsUpdate = false;
-                    const promises = projectData.slides.map(slide => {
-                        if (!slide.thumbnail) {
-                            needsUpdate = true;
-                            return autoGenerateThumbnail(slide);
+                    // 썸네일이 없는 슬라이드가 있다면 배치(Batch Size 2) 단위로 순차 생성하여 메모리 스파이크 방지
+                    if (projectData.slides && projectData.slides.length > 0) {
+                        const missingSlides = projectData.slides.filter(s => !s.thumbnail);
+                        if (missingSlides.length > 0) {
+                            (async () => {
+                                const batchSize = 2;
+                                for (let i = 0; i < missingSlides.length; i += batchSize) {
+                                    const batch = missingSlides.slice(i, i + batchSize);
+                                    await Promise.all(batch.map(slide => autoGenerateThumbnail(slide)));
+                                    renderSlides();
+                                }
+                            })();
                         }
-                        return Promise.resolve();
-                    });
-
-                    if (needsUpdate) {
-                        Promise.all(promises).then(() => {
-                            renderSlides();
-                        });
                     }
                 }
                 else if (message.type === 'SLIDE_LOCKED') {

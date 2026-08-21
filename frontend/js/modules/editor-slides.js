@@ -16,15 +16,14 @@
                     backgroundColor: '#000000'
                 });
 
-                slide.elements.forEach(elem => {
+                (slide.elements || []).forEach(elem => {
                     const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
                     if (obj) tempCanvas.add(obj);
                 });
 
                 tempCanvas.renderAll();
 
-                // 2. 최종 출력용 캔버스에 검정 배경을 먼저 확실히 칠한 뒤
-                //    fabric 렌더링 결과를 그 위에 합성 (fabric의 backgroundColor 미적용 버그 방지)
+                // 2. 최종 출력용 캔버스에 검정 배경을 먼저 확실히 칠한 뒤 합성
                 const outputCanvasEl = document.createElement('canvas');
                 outputCanvasEl.width = BASE_WIDTH;
                 outputCanvasEl.height = BASE_HEIGHT;
@@ -38,10 +37,13 @@
                 tempCanvas.dispose();
                 slide.thumbnail = dataUrl;
 
-                if (ws && ws.readyState === WebSocket.OPEN) {
+                // 프로젝트에 슬라이드가 여전히 유효하게 존재하는지 확인 후 동기화
+                const currentSlide = projectData?.slides?.find(s => s.id === slide.id);
+                if (currentSlide && ws && ws.readyState === WebSocket.OPEN) {
+                    currentSlide.thumbnail = dataUrl;
                     ws.send(JSON.stringify({
                         type: "SAVE_SLIDE",
-                        slide: slide
+                        slide: currentSlide
                     }));
                 }
 
@@ -126,33 +128,44 @@
                     item.style.borderTop = "";
                     item.style.borderBottom = "";
 
-                    const fromIndex = parseInt(e.dataTransfer.getData("text/plain"));
-                    let toIndex = parseInt(item.dataset.index);
+                    const fromIndex = parseInt(e.dataTransfer.getData("text/plain"), 10);
+                    const toIndex = parseInt(item.dataset.index, 10);
 
-                    if (fromIndex === toIndex) return;
-
-                    const rect = item.getBoundingClientRect();
-                    const relativeY = e.clientY - rect.top;
-
-                    // 드롭하는 위치에 따라 앞 또는 뒤 정렬 보정
-                    if (relativeY >= rect.height / 2) {
-                        if (fromIndex > toIndex) {
-                            toIndex = toIndex + 1;
-                        }
-                    } else {
-                        if (fromIndex < toIndex) {
-                            toIndex = toIndex - 1;
-                        }
-                    }
+                    if (isNaN(fromIndex) || isNaN(toIndex)) return;
 
                     const draggedSlide = projectData.slides[fromIndex];
-                    projectData.slides.splice(fromIndex, 1);
-                    projectData.slides.splice(toIndex, 0, draggedSlide);
+                    const targetSlide = projectData.slides[toIndex];
+                    if (!draggedSlide || !targetSlide) return;
 
-                    // 서버 정렬 동기화 메시지 발송
+                    // 1. 이동할 슬라이드 묶음 결정 (다중 선택된 슬라이드가 드래그된 경우 전체 묶음 이동)
+                    let movingSlides = [draggedSlide];
+                    if (selectedSlideIds && selectedSlideIds.includes(draggedSlide.id) && selectedSlideIds.length > 1) {
+                        movingSlides = projectData.slides.filter(s => selectedSlideIds.includes(s.id));
+                    }
+                    const movingIds = movingSlides.map(s => s.id);
+
+                    // 타겟 슬라이드가 이동할 슬라이드 묶음 안에 있다면 이동 불필요
+                    if (movingIds.includes(targetSlide.id)) return;
+
+                    const rect = item.getBoundingClientRect();
+                    const isTopHalf = (e.clientY - rect.top) < (rect.height / 2);
+
+                    // 2. 이동 대상 슬라이드들을 제외한 나머지 슬라이드 배열 생성
+                    const remainingSlides = projectData.slides.filter(s => !movingIds.includes(s.id));
+                    const targetIdxInRemaining = remainingSlides.findIndex(s => s.id === targetSlide.id);
+                    if (targetIdxInRemaining === -1) return;
+
+                    const insertIdx = isTopHalf ? targetIdxInRemaining : targetIdxInRemaining + 1;
+                    remainingSlides.splice(insertIdx, 0, ...movingSlides);
+                    projectData.slides = remainingSlides;
+
+                    // 3. 서버 정렬 동기화 메시지 발송
                     const updatedSlideIds = projectData.slides.map(s => s.id);
-                    ws.send(JSON.stringify({ type: "REORDER_SLIDES", slideIds: updatedSlideIds }));
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ type: "REORDER_SLIDES", slideIds: updatedSlideIds }));
+                    }
 
+                    selectedSlideIds = movingIds;
                     renderSlides();
                 });
 
@@ -211,6 +224,19 @@
         }
 
 
+        // 모듈 전역 BroadcastChannel 싱글톤 인스턴스
+        let monitorBroadcastChannel = null;
+        function getMonitorBroadcastChannel() {
+            if (!monitorBroadcastChannel && window.BroadcastChannel) {
+                try {
+                    monitorBroadcastChannel = new BroadcastChannel("subcast_monitor_channel");
+                } catch (e) {
+                    console.error("BroadcastChannel 초기화 실패:", e);
+                }
+            }
+            return monitorBroadcastChannel;
+        }
+
         function notifyMonitorSlideChange(currentIndex) {
             if (!projectData || !projectData.slides || currentIndex < 0) return;
 
@@ -233,9 +259,9 @@
 
             const isPraise = !!(curSlide && (curSlide.slideType === 'praise' || curSlide.isPraise || (curSlide.id && typeof curSlide.id === 'string' && curSlide.id.startsWith('slide_praise_')) || (curSlide.name && typeof curSlide.name === 'string' && (curSlide.name.startsWith('찬양:') || curSlide.name.startsWith('자막(템):')))));
 
-            if (window.BroadcastChannel) {
+            const bc = getMonitorBroadcastChannel();
+            if (bc) {
                 try {
-                    const bc = new BroadcastChannel("subcast_monitor_channel");
                     bc.postMessage({
                         type: "SLIDE_CHANGE",
                         currentIndex: currentIndex,
@@ -245,7 +271,6 @@
                         isLastSlide: isLastSlide,
                         isPraise: isPraise
                     });
-                    bc.close();
                 } catch (e) {
                     console.error("Failed to post SLIDE_CHANGE to BroadcastChannel", e);
                 }
@@ -263,14 +288,35 @@
                 }
                 return;
             }
+
+            // 1. 기존 슬라이드 작업 내용이 변경된 경우(Dirty) 메모리에 선반영 및 동기화
+            if (activeSlideId && typeof isSlideDirty === 'function' && isSlideDirty() && projectData && projectData.slides) {
+                const prevSlide = projectData.slides.find(s => s.id === activeSlideId);
+                if (prevSlide && typeof canvas !== 'undefined' && canvas) {
+                    prevSlide.elements = canvas.getObjects().map(obj => serializeElement(obj, BASE_WIDTH, BASE_HEIGHT));
+                    if (typeof setCanvasZoom === 'function') {
+                        const prevZoom = canvasZoom;
+                        setCanvasZoom(1.0);
+                        if (!canvas.backgroundColor) canvas.backgroundColor = '#000000';
+                        prevSlide.thumbnail = canvas.toDataURL({ format: 'jpeg', quality: 0.4 });
+                        setCanvasZoom(prevZoom);
+                    }
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ type: "SAVE_SLIDE", slide: prevSlide }));
+                    }
+                }
+            }
+
             if (activeSlideId) releaseActiveLock();
             activeSlideId = slideId;
             if (!selectedSlideIds.includes(slideId)) {
                 selectedSlideIds = [slideId];
             }
-            const editorName = document.getElementById("editor-name").value;
+            const editorName = document.getElementById("editor-name")?.value || "편집자";
             isLockRequested = true;
-            ws.send(JSON.stringify({ type: "LOCK_SLIDE", slideId: slideId, editorName: editorName }));
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: "LOCK_SLIDE", slideId: slideId, editorName: editorName }));
+            }
             loadSlideToCanvas(slideId);
             setControlsState(true);
             renderSlides();
@@ -312,10 +358,21 @@
             // 줌이 배제된 768, 432 해상도 기준으로 원소들을 직렬화하여 서버 저장
             const elements = canvas.getObjects().map(obj => serializeElement(obj, BASE_WIDTH, BASE_HEIGHT));
             const updatedSlide = { id: slide.id, name: slide.name, thumbnail: thumbnailData, elements: elements };
-            ws.send(JSON.stringify({ type: "SAVE_SLIDE", slide: updatedSlide }));
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: "SAVE_SLIDE", slide: updatedSlide }));
+            }
             const idx = projectData.slides.findIndex(s => s.id === activeSlideId);
             if (idx !== -1) projectData.slides[idx] = updatedSlide;
-            alert("슬라이드가 저장 및 동기화되었습니다.");
+
+            // 비침습적 피드백 제공 (블로킹 alert 제거)
+            const statusText = document.getElementById("status-text");
+            if (statusText) {
+                statusText.innerText = "저장 완료";
+                setTimeout(() => {
+                    if (ws && ws.readyState === WebSocket.OPEN) statusText.innerText = "Connected";
+                }, 2000);
+            }
+
             renderSlides();
             setSlideDirty(false);
         }
@@ -587,33 +644,42 @@
                     e.preventDefault();
                     card.classList.remove("drag-over-left", "drag-over-right");
 
-                    const fromIndex = parseInt(e.dataTransfer.getData("text/plain"));
-                    let toIndex = parseInt(card.dataset.index);
+                    const fromIndex = parseInt(e.dataTransfer.getData("text/plain"), 10);
+                    const toIndex = parseInt(card.dataset.index, 10);
 
-                    if (isNaN(fromIndex) || isNaN(toIndex) || fromIndex === toIndex) return;
-
-                    const rect = card.getBoundingClientRect();
-                    const relativeX = e.clientX - rect.left;
-
-                    if (relativeX >= rect.width / 2) {
-                        if (fromIndex > toIndex) {
-                            toIndex = toIndex + 1;
-                        }
-                    } else {
-                        if (fromIndex < toIndex) {
-                            toIndex = toIndex - 1;
-                        }
-                    }
+                    if (isNaN(fromIndex) || isNaN(toIndex)) return;
 
                     const draggedSlide = projectData.slides[fromIndex];
-                    projectData.slides.splice(fromIndex, 1);
-                    projectData.slides.splice(toIndex, 0, draggedSlide);
+                    const targetSlide = projectData.slides[toIndex];
+                    if (!draggedSlide || !targetSlide) return;
+
+                    // 1. 이동할 슬라이드 묶음 결정
+                    let movingSlides = [draggedSlide];
+                    if (selectedSlideIds && selectedSlideIds.includes(draggedSlide.id) && selectedSlideIds.length > 1) {
+                        movingSlides = projectData.slides.filter(s => selectedSlideIds.includes(s.id));
+                    }
+                    const movingIds = movingSlides.map(s => s.id);
+
+                    if (movingIds.includes(targetSlide.id)) return;
+
+                    const rect = card.getBoundingClientRect();
+                    const isLeftHalf = (e.clientX - rect.left) < (rect.width / 2);
+
+                    // 2. 이동 대상 슬라이드들을 제외한 나머지 슬라이드 배열 생성
+                    const remainingSlides = projectData.slides.filter(s => !movingIds.includes(s.id));
+                    const targetIdxInRemaining = remainingSlides.findIndex(s => s.id === targetSlide.id);
+                    if (targetIdxInRemaining === -1) return;
+
+                    const insertIdx = isLeftHalf ? targetIdxInRemaining : targetIdxInRemaining + 1;
+                    remainingSlides.splice(insertIdx, 0, ...movingSlides);
+                    projectData.slides = remainingSlides;
 
                     const updatedSlideIds = projectData.slides.map(s => s.id);
                     if (ws && ws.readyState === WebSocket.OPEN) {
                         ws.send(JSON.stringify({ type: "REORDER_SLIDES", slideIds: updatedSlideIds }));
                     }
 
+                    selectedSlideIds = movingIds;
                     renderSlides();
                     renderSlideSorter();
                 });
@@ -693,24 +759,26 @@
             // 2. 로컬 slides 배열 갱신
             projectData.slides = projectData.slides.filter(s => !slideIds.includes(s.id));
 
-            // 3. 만약 slides가 완전히 비었다면 임시 슬라이드를 하나 가상으로 생성
+            // 3. 만약 slides가 완전히 비었다면 빈 캔버스 상태로 유지
             if (projectData.slides.length === 0) {
-                projectData.slides.push({
-                    id: "slide_placeholder",
-                    name: "새 슬라이드 1",
-                    elements: []
-                });
-            }
-
-            // 4. 활성 슬라이드가 삭제 대상에 포함되어 있었다면 다른 슬라이드로 포커스 이동
-            if (slideIds.includes(activeSlideId)) {
-                const nextActiveId = projectData.slides[0].id;
-                selectedSlideIds = [nextActiveId];
-                selectSlideForEdit(nextActiveId);
+                activeSlideId = null;
+                selectedSlideIds = [];
+                if (typeof canvas !== 'undefined' && canvas) {
+                    canvas.clear();
+                    canvas.backgroundColor = '#000000';
+                    canvas.requestRenderAll();
+                }
             } else {
-                selectedSlideIds = selectedSlideIds.filter(id => !slideIds.includes(id));
-                if (selectedSlideIds.length === 0 && activeSlideId) {
-                    selectedSlideIds = [activeSlideId];
+                // 4. 활성 슬라이드가 삭제 대상에 포함되어 있었다면 다른 슬라이드로 포커스 이동
+                if (slideIds.includes(activeSlideId)) {
+                    const nextActiveId = projectData.slides[0].id;
+                    selectedSlideIds = [nextActiveId];
+                    selectSlideForEdit(nextActiveId);
+                } else {
+                    selectedSlideIds = selectedSlideIds.filter(id => !slideIds.includes(id));
+                    if (selectedSlideIds.length === 0 && activeSlideId) {
+                        selectedSlideIds = [activeSlideId];
+                    }
                 }
             }
 

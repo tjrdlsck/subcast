@@ -126,7 +126,7 @@ function initKeyboardShortcuts() {
                 deleteElement();
             } else if (isTemplateTabActive && selectedTemplateIds.length > 0) {
                 deleteTemplate();
-            } else if (selectedSlideIds.length > 0) {
+            } else if ((document.getElementById('panel-slides')?.classList.contains('active') || isSorterActive) && selectedSlideIds.length > 0) {
                 deleteSelectedSlidesWithConfirm();
             }
         } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
