@@ -22,6 +22,11 @@
                 fitCanvasToScreen();
             }
 
+            // 슬라이드 탭이 아닌 다른 탭 클릭 시 슬라이드 모아보기 자동 닫기
+            if (tabId !== 'panel-slides' && window.subcastSlideSorter && typeof window.subcastSlideSorter.isOpen === 'function' && window.subcastSlideSorter.isOpen()) {
+                window.subcastSlideSorter.close();
+            }
+
             // 성경 탭이 아닐 경우 성경 메인 표 뷰어 숨김
             if (tabId !== 'panel-bible') {
                 hideBibleMainViewer();

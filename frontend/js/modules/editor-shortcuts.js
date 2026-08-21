@@ -15,6 +15,24 @@ function initKeyboardShortcuts() {
             return;
         }
 
+        // Ctrl+G: 슬라이드 모아보기(Slide Sorter) 토글
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
+            e.preventDefault();
+            if (window.subcastSlideSorter && typeof window.subcastSlideSorter.toggle === 'function') {
+                window.subcastSlideSorter.toggle();
+            }
+            return;
+        }
+
+        // Escape: 슬라이드 모아보기가 열려있을 때 닫고 에디터 복귀
+        if (e.key === 'Escape') {
+            if (window.subcastSlideSorter && typeof window.subcastSlideSorter.isOpen === 'function' && window.subcastSlideSorter.isOpen()) {
+                e.preventDefault();
+                window.subcastSlideSorter.close();
+                return;
+            }
+        }
+
         // Ctrl+C / Ctrl+X 사용 시 드래그된 화면 텍스트 선택이 존재하는 경우 캔버스/슬라이드 복사를 우회하여 순수 텍스트 복사 허용
         if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'c' || e.key.toLowerCase() === 'x')) {
             if (hasTextSelection) {
@@ -55,6 +73,16 @@ function initKeyboardShortcuts() {
         }
 
         if (e.key === 'Delete') {
+            const isSorterActive = !!(window.subcastSlideSorter && typeof window.subcastSlideSorter.isOpen === 'function' && window.subcastSlideSorter.isOpen());
+            if (isSorterActive) {
+                if (selectedSlideIds && selectedSlideIds.length > 0) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    deleteSelectedSlidesWithConfirm();
+                }
+                return;
+            }
+
             const activeObj = canvas.getActiveObject();
             const isMonitorMode = !!(window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode());
             const isMonitorTabActive = document.getElementById('panel-monitor')?.classList.contains('active');
@@ -109,6 +137,16 @@ function initKeyboardShortcuts() {
             redo();
         } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') {
             // 잘라내기 (Ctrl+X)
+            const isSorterActive = !!(window.subcastSlideSorter && typeof window.subcastSlideSorter.isOpen === 'function' && window.subcastSlideSorter.isOpen());
+            if (isSorterActive) {
+                if (selectedSlideIds && selectedSlideIds.length > 0) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    cutSelectedSlides();
+                }
+                return;
+            }
+
             const isPraiseTabActive = document.getElementById('panel-praise')?.classList.contains('active');
             if (isPraiseTabActive && selectedPraiseSongs && selectedPraiseSongs.length > 0) {
                 e.preventDefault();
@@ -151,6 +189,16 @@ function initKeyboardShortcuts() {
             }
         } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
             // 복사 (Ctrl+C)
+            const isSorterActive = !!(window.subcastSlideSorter && typeof window.subcastSlideSorter.isOpen === 'function' && window.subcastSlideSorter.isOpen());
+            if (isSorterActive) {
+                if ((selectedSlideIds && selectedSlideIds.length > 0) || (typeof activeSlideId !== 'undefined' && activeSlideId)) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    copySelectedSlides();
+                }
+                return;
+            }
+
             const isStageBgTabActive = document.getElementById('panel-stage-bg')?.classList.contains('active');
             const isStageBgVisible = document.getElementById('stage-bg-main-viewer-overlay')?.style.display !== 'none';
             if ((isStageBgTabActive || isStageBgVisible) && selectedStageBgFiles && selectedStageBgFiles.length > 0) {

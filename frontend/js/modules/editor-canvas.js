@@ -23,6 +23,7 @@
 
         // 브라우저 뷰포트 크기에 맞춰 캔버스를 최적 비율로 줌 조정하는 함수
         function fitCanvasToScreen() {
+            if (typeof isSlideSorterOpen !== 'undefined' && isSlideSorterOpen) return;
             if (!canvas) return;
             const viewport = document.querySelector('.canvas-viewport');
             if (!viewport) return;
