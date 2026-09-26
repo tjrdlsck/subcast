@@ -14,7 +14,7 @@
     <!-- Fabric.js 안정 버전 5.3.0 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
     <link rel="stylesheet" href="css/components.css?v=header-menu-2">
-    <link rel="stylesheet" href="css/editor.css?v=tag-manager-layout-2">
+    <link rel="stylesheet" href="css/editor.css?v=slide-tag-highlight-1">
 </head>
 
 <body>
@@ -1389,7 +1389,7 @@
         </div>
     </div>
 
-        <script src="js/modules/editor-clipboard.js"></script>
+        <script src="js/modules/editor-clipboard.js?v=slide-tag-highlight-1"></script>
     <script src="js/modules/editor-bible-slides.js?v=bible-blank-1"></script>
     <script src="js/modules/editor-bible.js?v=bible-blank-1"></script>
     <script src="js/modules/editor-praise-slides.js"></script>
@@ -1735,8 +1735,9 @@
             </div>
             <div style="padding: 16px 0;">
                 <div id="slide-tag-assignment-count" style="margin-bottom: 12px; color: var(--text-muted); font-size: 0.85rem;"></div>
+                <div id="slide-tag-assignment-current" style="margin-bottom: 10px; color: var(--text-muted); font-size: 0.78rem; line-height: 1.5;"></div>
                 <div id="slide-tag-assignment-options" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
-                <p style="margin: 14px 0 0; color: var(--text-muted); font-size: 0.78rem;">‘기존 태그 사용’을 선택하면 슬라이드별 지정이 해제됩니다.</p>
+                <p style="margin: 14px 0 0; color: var(--text-muted); font-size: 0.78rem;">강조된 태그는 현재 적용 중인 태그입니다. 직접 지정된 태그를 다시 누르면 자동 매칭으로 돌아갑니다.</p>
             </div>
             <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
                 <button type="button" id="btn-slide-tag-modal-cancel" class="btn-modal btn-cancel">취소</button>

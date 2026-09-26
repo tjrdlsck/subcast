@@ -1,7 +1,7 @@
 import json
 import urllib.parse
 from typing import List
-from fastapi import APIRouter, HTTPException, UploadFile, File, Response
+from fastapi import APIRouter, HTTPException, UploadFile, File, Response, Form
 
 from backend.schemas import ProjectCreateRequest, ProjectUpdateRequest, ProjectBatchRequest
 from backend.storage import (
@@ -10,7 +10,12 @@ from backend.storage import (
     duplicate_projects_bulk, delete_projects_bulk, import_project_data
 )
 from backend.services.connection_manager import manager
-from backend.services.tag_service import canonicalize_project
+from backend.services.tag_service import canonicalize_project, canonical_tag_name, get_tags
+from backend.services.project_import_tags import (
+    apply_import_tag_mappings,
+    load_import_tag_mappings,
+    save_import_tag_mappings,
+)
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -165,19 +170,44 @@ async def export_projects_batch(req: ProjectBatchRequest):
 
 
 @router.post("/import")
-async def import_project_endpoint(file: UploadFile = File(...)):
+async def import_project_endpoint(file: UploadFile = File(...), tag_mapping: str = Form("{}")):
     try:
         content = await file.read()
         raw = json.loads(content.decode('utf-8'))
+        mappings = json.loads(tag_mapping)
+        if not isinstance(mappings, dict) or any(
+            not isinstance(source, str) or not isinstance(target, str)
+            for source, target in mappings.items()
+        ):
+            raise HTTPException(status_code=400, detail="태그 매칭 정보가 올바르지 않습니다.")
+
+        valid_tags = {tag["name"] for tag in get_tags(include_usage=False)}
+        canonical_mappings = {}
+        for source, target in mappings.items():
+            canonical_target = canonical_tag_name(target)
+            if canonical_target not in valid_tags:
+                raise HTTPException(status_code=400, detail=f"현재 컴퓨터에 없는 태그입니다: {target}")
+            canonical_mappings[source] = canonical_target
+
         if isinstance(raw, list):
             imported_projects = []
             for item in raw:
-                imported_projects.append(await import_project_data(item))
-            return {"status": "success", "imported_count": len(imported_projects), "projects": imported_projects}
+                imported_projects.append(await import_project_data(apply_import_tag_mappings(item, canonical_mappings)))
+            result = {"status": "success", "imported_count": len(imported_projects), "projects": imported_projects}
         else:
-            imported_project = await import_project_data(raw)
-            return {"status": "success", "imported_count": 1, "projects": [imported_project]}
+            imported_project = await import_project_data(apply_import_tag_mappings(raw, canonical_mappings))
+            result = {"status": "success", "imported_count": 1, "projects": [imported_project]}
+        if canonical_mappings:
+            save_import_tag_mappings({**load_import_tag_mappings(), **canonical_mappings})
+        return result
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="유효하지 않은 JSON 파일입니다.")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"프로젝트 가져오기 실패: {str(e)}")
+
+
+@router.get("/import/tag-mappings")
+async def get_project_import_tag_mappings():
+    return {"mappings": load_import_tag_mappings()}

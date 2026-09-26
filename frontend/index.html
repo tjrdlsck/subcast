@@ -115,10 +115,25 @@
     </div>
 
     <!-- 토스트 알림 메시지 -->
+    <div class="modal-overlay" id="project-import-tag-modal" role="dialog" aria-modal="true" aria-labelledby="project-import-tag-title">
+        <div class="modal-box import-tag-modal-box">
+            <div class="modal-header" id="project-import-tag-title">태그 연결 확인</div>
+            <p class="import-tag-description">
+                원본 태그별로 이 컴퓨터에서 사용할 태그를 선택하세요. 선택은 프로젝트 전체에 적용되고 다음 가져오기 때 수정 가능한 초기값으로 불러옵니다.
+                원본 컴퓨터에서 직접 지정한 영상은 가져오지 않으며, 이 컴퓨터의 등록 영상에서 선택한 태그에 맞춰 다시 선택합니다.
+            </p>
+            <div id="project-import-tag-list" class="import-tag-list"></div>
+            <div class="modal-footer">
+                <button class="btn-cancel" id="btn-cancel-project-import">취소</button>
+                <button class="btn-submit" id="btn-confirm-project-import">가져오기</button>
+            </div>
+        </div>
+    </div>
+
     <div class="toast-notification" id="toast"></div>
 
     <script src="js/header-display-menu.js"></script>
     <script src="js/modules/editor-display-manager.js?v=1.0.3"></script>
-    <script src="js/index.js?v=header-menu-3"></script>
+    <script src="js/index.js?v=project-import-tag-mapping-1"></script>
 </body>
 </html>

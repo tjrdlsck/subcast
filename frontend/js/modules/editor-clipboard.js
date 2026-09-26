@@ -436,6 +436,23 @@
 
         let slideTagAssignmentIds = [];
         let selectedSlideTagValue;
+        let slideTagAssignmentCurrentTags = new Set();
+        let slideTagAssignmentPartialTags = new Set();
+        let slideTagAssignmentExplicitTag = null;
+
+        function normalizeSlideAssignmentTag(value) {
+            return String(value || "").trim().replace(/^#/, "").trim().toLocaleLowerCase();
+        }
+
+        function resolveSlideAssignmentTag(value) {
+            const key = normalizeSlideAssignmentTag(value);
+            if (!key) return null;
+            const match = (window.moodTags || []).find(tag =>
+                normalizeSlideAssignmentTag(tag.name) === key
+                || (tag.aliases || []).some(alias => normalizeSlideAssignmentTag(alias) === key)
+            );
+            return match ? match.name : String(value).trim().replace(/^#/, "").trim();
+        }
 
         function openSlideTagAssignmentModal() {
             const modal = document.getElementById("slide-tag-assignment-modal");
@@ -447,29 +464,85 @@
                 .filter(id => projectData.slides.some(slide => slide.id === id && !checkIsLockedByOthers(id)));
             if (!slideTagAssignmentIds.length) return;
             selectedSlideTagValue = undefined;
+            const selectedSlides = projectData.slides.filter(slide => slideTagAssignmentIds.includes(slide.id));
+            const currentStatus = document.getElementById("slide-tag-assignment-current");
             document.getElementById("slide-tag-assignment-count").textContent = `${slideTagAssignmentIds.length}개 슬라이드에 적용합니다.`;
             options.replaceChildren();
+
+            const directTags = selectedSlides.map(slide => resolveSlideAssignmentTag(slide.stageBgMoodOverride));
+            const allHaveSameDirectTag = directTags.length > 0
+                && directTags.every(tag => tag && normalizeSlideAssignmentTag(tag) === normalizeSlideAssignmentTag(directTags[0]));
+            slideTagAssignmentExplicitTag = allHaveSameDirectTag ? directTags[0] : null;
+            const effectiveTagLists = selectedSlides.map(slide => {
+                const values = slide.stageBgMoodOverride
+                    ? [slide.stageBgMoodOverride]
+                    : (Array.isArray(slide.moods) && slide.moods.length ? slide.moods : (slide.mood ? [slide.mood] : []));
+                return [...new Set(values.map(resolveSlideAssignmentTag).filter(Boolean))];
+            });
+            const effectiveTagKeys = effectiveTagLists.map(tags => tags.map(normalizeSlideAssignmentTag).sort().join("|"));
+            const sameEffectiveTags = effectiveTagKeys.length > 0 && effectiveTagKeys.every(key => key && key === effectiveTagKeys[0]);
+            slideTagAssignmentCurrentTags = new Set();
+            slideTagAssignmentPartialTags = new Set();
+            if (sameEffectiveTags && effectiveTagLists[0].length === 1) {
+                slideTagAssignmentCurrentTags.add(normalizeSlideAssignmentTag(effectiveTagLists[0][0]));
+            } else {
+                effectiveTagLists.flat().forEach(tag => slideTagAssignmentPartialTags.add(normalizeSlideAssignmentTag(tag)));
+            }
+
+            if (currentStatus) {
+                if (slideTagAssignmentExplicitTag) {
+                    currentStatus.textContent = `현재 직접 지정: #${slideTagAssignmentExplicitTag}. 강조된 태그를 다시 누르면 직접 지정이 해제됩니다.`;
+                } else if (sameEffectiveTags && effectiveTagLists[0]?.length === 1) {
+                    currentStatus.textContent = `현재 적용 태그: #${effectiveTagLists[0][0]}. 다른 태그를 선택하면 선택한 슬라이드 전체에 직접 지정됩니다.`;
+                } else if (slideTagAssignmentPartialTags.size > 0) {
+                    currentStatus.textContent = "선택한 슬라이드의 태그가 서로 다릅니다. 태그를 선택하면 선택한 슬라이드 전체에 적용됩니다.";
+                } else {
+                    currentStatus.textContent = "현재 적용 중인 태그가 없습니다. 태그를 선택하면 선택한 슬라이드 전체에 적용됩니다.";
+                }
+            }
 
             const addOption = (value, label) => {
                 const button = document.createElement("button");
                 button.type = "button";
                 button.textContent = label;
                 button.dataset.value = value;
-                button.style.cssText = "padding: 7px 11px; border: 1px solid var(--panel-border); border-radius: 16px; background: rgba(255,255,255,.06); color: var(--text-main); cursor: pointer;";
+                button.className = "slide-tag-option";
+                const tagKey = normalizeSlideAssignmentTag(value);
+                if (slideTagAssignmentCurrentTags.has(tagKey)) button.classList.add("is-current");
+                else if (slideTagAssignmentPartialTags.has(tagKey)) button.classList.add("is-partial");
                 button.addEventListener("click", () => {
-                    selectedSlideTagValue = value;
+                    const isClearAction = slideTagAssignmentExplicitTag
+                        && normalizeSlideAssignmentTag(slideTagAssignmentExplicitTag) === tagKey;
+                    if (isClearAction) {
+                        selectedSlideTagValue = selectedSlideTagValue === "__inherit__" ? undefined : "__inherit__";
+                    } else {
+                        selectedSlideTagValue = selectedSlideTagValue === value ? undefined : value;
+                    }
                     options.querySelectorAll("button").forEach(item => {
-                        const active = item === button;
-                        item.style.borderColor = active ? "var(--primary)" : "var(--panel-border)";
-                        item.style.background = active ? "var(--primary)" : "rgba(255,255,255,.06)";
-                        item.style.color = active ? "#fff" : "var(--text-main)";
+                        item.classList.toggle("is-pending", selectedSlideTagValue === item.dataset.value);
+                        item.classList.toggle("is-current", selectedSlideTagValue !== "__inherit__" && slideTagAssignmentCurrentTags.has(normalizeSlideAssignmentTag(item.dataset.value)));
+                        item.classList.toggle("is-partial", selectedSlideTagValue !== "__inherit__"
+                            && selectedSlideTagValue !== item.dataset.value
+                            && slideTagAssignmentPartialTags.has(normalizeSlideAssignmentTag(item.dataset.value)));
                     });
-                    document.getElementById("btn-slide-tag-modal-apply").disabled = false;
+                    if (currentStatus && selectedSlideTagValue === "__inherit__") {
+                        currentStatus.textContent = "직접 지정 해제 후 슬라이드/곡 태그로 자동 매칭합니다.";
+                    } else if (currentStatus && selectedSlideTagValue && selectedSlideTagValue !== "__inherit__") {
+                        currentStatus.textContent = `#${selectedSlideTagValue} 태그를 선택한 슬라이드 전체에 적용합니다.`;
+                    } else if (currentStatus && slideTagAssignmentExplicitTag) {
+                        currentStatus.textContent = `현재 직접 지정: #${slideTagAssignmentExplicitTag}. 강조된 태그를 다시 누르면 직접 지정이 해제됩니다.`;
+                    } else if (currentStatus && sameEffectiveTags && effectiveTagLists[0]?.length === 1) {
+                        currentStatus.textContent = `현재 적용 태그: #${effectiveTagLists[0][0]}. 다른 태그를 선택하면 선택한 슬라이드 전체에 직접 지정됩니다.`;
+                    } else if (currentStatus && slideTagAssignmentPartialTags.size > 0) {
+                        currentStatus.textContent = "선택한 슬라이드의 태그가 서로 다릅니다. 태그를 선택하면 선택한 슬라이드 전체에 적용됩니다.";
+                    } else if (currentStatus) {
+                        currentStatus.textContent = "현재 적용 중인 태그가 없습니다. 태그를 선택하면 선택한 슬라이드 전체에 적용됩니다.";
+                    }
+                    document.getElementById("btn-slide-tag-modal-apply").disabled = selectedSlideTagValue === undefined;
                 });
                 options.appendChild(button);
             };
 
-            addOption("__inherit__", "기존 태그 사용 (자동 매칭)");
             (window.moodTags || []).forEach(tag => addOption(tag.name, `#${tag.name}`));
             document.getElementById("btn-slide-tag-modal-apply").disabled = true;
             modal.style.display = "flex";

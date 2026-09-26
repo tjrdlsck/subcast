@@ -271,30 +271,125 @@ document.addEventListener('DOMContentLoaded', () => {
                     fileImportProject.click();
                 });
 
-                fileImportProject.addEventListener('change', async (e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
+                const importTagModal = document.getElementById('project-import-tag-modal');
+                const importTagList = document.getElementById('project-import-tag-list');
+                const confirmImportButton = document.getElementById('btn-confirm-project-import');
+                const cancelImportButton = document.getElementById('btn-cancel-project-import');
+                let pendingProjectImport = null;
+                let pendingImportTags = [];
+                let localImportTags = [];
+
+                const normalizeImportTag = value => String(value || '').normalize('NFKC').trim().replace(/^#/, '').trim().toLocaleLowerCase();
+                const extractImportTags = raw => {
+                    const projects = Array.isArray(raw) ? raw : [raw];
+                    const unique = new Map();
+                    const collect = item => {
+                        if (!item || typeof item !== 'object') return;
+                        const values = [item.mood, item.tag, item.stageBgMoodOverride];
+                        values.push(...(Array.isArray(item.moods) ? item.moods : [item.moods]));
+                        values.forEach(value => {
+                            if (typeof value !== 'string' || !value.trim()) return;
+                            const name = value.trim().replace(/^#/, '').trim();
+                            const key = normalizeImportTag(name);
+                            if (key && !unique.has(key)) unique.set(key, name);
+                        });
+                    };
+                    projects.forEach(project => {
+                        if (!project || typeof project !== 'object') return;
+                        (Array.isArray(project.slides) ? project.slides : []).forEach(collect);
+                    });
+                    return [...unique.values()].sort((a, b) => a.localeCompare(b, 'ko'));
+                };
+
+                const closeImportTagModal = () => {
+                    if (importTagModal) importTagModal.classList.remove('show');
+                    pendingProjectImport = null;
+                    fileImportProject.value = '';
+                };
+
+                cancelImportButton?.addEventListener('click', closeImportTagModal);
+                importTagModal?.addEventListener('click', event => {
+                    if (event.target === importTagModal) closeImportTagModal();
+                });
+
+                confirmImportButton?.addEventListener('click', async () => {
+                    if (!pendingProjectImport) return;
+                    const mappings = {};
+                    importTagList.querySelectorAll('.import-tag-row').forEach(row => {
+                        const source = pendingImportTags[Number(row.dataset.index)];
+                        const target = row.querySelector('select')?.value;
+                        if (source && target) mappings[source] = target;
+                    });
 
                     const formData = new FormData();
-                    formData.append('file', file);
-
+                    formData.append('file', pendingProjectImport.file);
+                    formData.append('tag_mapping', JSON.stringify(mappings));
+                    confirmImportButton.disabled = true;
                     try {
                         showToast('프로젝트 가져오는 중...');
-                        const res = await fetch('/api/projects/import', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        if (!res.ok) {
-                            const errData = await res.json();
-                            throw new Error(errData.detail || '가져오기 실패');
+                        const response = await fetch('/api/projects/import', { method: 'POST', body: formData });
+                        if (!response.ok) {
+                            const errorData = await response.json().catch(() => ({}));
+                            throw new Error(errorData.detail || '가져오기에 실패했습니다.');
                         }
-                        const data = await res.json();
-                        showToast(`성공적으로 ${data.imported_count || 1}개의 프로젝트를 가져왔습니다.`);
+                        const data = await response.json();
+                        closeImportTagModal();
+                        showToast(`${data.imported_count || 1}개 프로젝트를 가져왔습니다.`);
                         await fetchProjects();
-                    } catch (err) {
-                        alert('프로젝트 가져오기 실패: ' + err.message);
+                    } catch (error) {
+                        alert('프로젝트 가져오기 실패: ' + error.message);
+                    } finally {
+                        confirmImportButton.disabled = false;
                     }
                 });
+
+                // Inspect the file before upload so the user can confirm each tag mapping.
+                fileImportProject.addEventListener('change', async event => {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    try {
+                        const raw = JSON.parse(await file.text());
+                        if (!(Array.isArray(raw) || (raw && typeof raw === 'object'))) {
+                            throw new Error('프로젝트 JSON 구조가 올바르지 않습니다.');
+                        }
+                        pendingProjectImport = { file };
+                        pendingImportTags = extractImportTags(raw);
+                        const [tagsResponse, mappingsResponse] = await Promise.all([
+                            fetch('/api/tags'),
+                            fetch('/api/projects/import/tag-mappings')
+                        ]);
+                        if (!tagsResponse.ok || !mappingsResponse.ok) throw new Error('태그 정보를 불러오지 못했습니다.');
+                        localImportTags = await tagsResponse.json();
+                        const savedRules = (await mappingsResponse.json()).mappings || {};
+                        const rulesByKey = new Map(Object.entries(savedRules).map(([source, target]) => [normalizeImportTag(source), target]));
+
+                        if (pendingImportTags.length === 0) {
+                            importTagList.innerHTML = '<div class="import-tag-empty">이 프로젝트에는 연결할 태그가 없습니다.<br>현재 컴퓨터의 배경 영상 설정을 사용해 가져옵니다.</div>';
+                        } else {
+                            importTagList.innerHTML = pendingImportTags.map((source, index) => {
+                                const savedTarget = rulesByKey.get(normalizeImportTag(source));
+                                const exactTag = localImportTags.find(tag => normalizeImportTag(tag.name) === normalizeImportTag(source)
+                                    || (tag.aliases || []).some(alias => normalizeImportTag(alias) === normalizeImportTag(source)));
+                                const selectedTag = localImportTags.find(tag => normalizeImportTag(tag.name) === normalizeImportTag(savedTarget)
+                                    || (tag.aliases || []).some(alias => normalizeImportTag(alias) === normalizeImportTag(savedTarget))) || exactTag;
+                                const selectedName = selectedTag?.name || localImportTags[0]?.name || '';
+                                const options = localImportTags.map(tag => `<option value="${escapeHtml(tag.name)}" ${tag.name === selectedName ? 'selected' : ''}>${escapeHtml(tag.name)}</option>`).join('');
+                                return `<div class="import-tag-row" data-index="${index}">
+                                    <div class="import-tag-source">${escapeHtml(source)}</div>
+                                    <select class="import-tag-select" aria-label="${escapeHtml(source)} 태그 연결">${options}</select>
+                                </div>`;
+                            }).join('');
+                        }
+                        importTagModal.classList.add('show');
+                        confirmImportButton.focus();
+                    } catch (error) {
+                        pendingProjectImport = null;
+                        fileImportProject.value = '';
+                        alert('프로젝트 파일을 읽지 못했습니다: ' + error.message);
+                    }
+                });
+
+
             }
 
             // 선택 후 페이지 이동 (글로벌 바인딩)
