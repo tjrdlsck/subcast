@@ -104,6 +104,64 @@
     font-weight: 600;
 }
 
+/* Shared header display menu */
+.header-display-menu {
+    position: relative;
+}
+
+.header-display-menu > summary {
+    cursor: pointer;
+    list-style: none;
+    white-space: nowrap;
+}
+
+.header-display-menu > summary::-webkit-details-marker {
+    display: none;
+}
+
+.header-display-menu > summary:focus-visible,
+.header-display-options .nav-link:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.header-display-menu[open] > summary {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.header-display-menu .menu-chevron {
+    margin-left: 4px;
+    display: inline-block;
+    transition: transform 0.2s ease;
+}
+
+.header-display-menu[open] .menu-chevron {
+    transform: rotate(180deg);
+}
+
+.header-display-options {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    z-index: 200;
+    width: max-content;
+    min-width: 160px;
+    padding: 6px;
+    background: #1f2937;
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+}
+
+.header-nav-menu .header-display-options .nav-link {
+    display: flex;
+    width: 100%;
+    padding: 9px 12px;
+    text-align: left;
+    white-space: nowrap;
+}
+
 /* 멀티 디스플레이 설정 슬롯 카드 */
 .display-slot-card {
     display: flex;

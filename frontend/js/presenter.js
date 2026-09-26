@@ -505,7 +505,7 @@
             ws.onopen = () => {
                 const badge = document.getElementById("status-badge");
                 badge.classList.add("connected");
-                document.getElementById("status-text").innerText = "Connected";
+                document.getElementById("status-text").innerText = "연결됨";
             };
 
             ws.onmessage = (event) => {
@@ -603,7 +603,7 @@
             ws.onclose = () => {
                 const badge = document.getElementById("status-badge");
                 badge.classList.remove("connected");
-                document.getElementById("status-text").innerText = "Disconnected";
+                document.getElementById("status-text").innerText = "연결 끊김";
                 setTimeout(connectWebSocket, 3000);
             };
         }

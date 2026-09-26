@@ -1,9 +1,23 @@
 import os
 import sqlite3
+import unicodedata
 from typing import List, Dict, Any, Optional
 
 APP_DATA_DIR = os.environ.get("SUBCAST_DATA_DIR", ".")
 DEFAULT_USER_DB_PATH = os.environ.get("SUBCAST_USER_DB_PATH", os.environ.get("SUBCAST_DB_PATH", os.path.join(APP_DATA_DIR, "subcast_user.db")))
+
+
+class DuplicatePraiseTitleError(ValueError):
+    """Raised when a save would reuse another song's title."""
+
+
+class PraiseSongNotFoundError(LookupError):
+    """Raised when an update cannot identify exactly one existing song."""
+
+
+def normalize_song_title(title: str) -> str:
+    """Normalize title whitespace and Unicode for duplicate comparisons."""
+    return unicodedata.normalize("NFKC", title).strip().casefold()
 
 
 class PraiseDatabaseHelper:
@@ -66,37 +80,49 @@ class PraiseDatabaseHelper:
         finally:
             conn.close()
 
-    def save_song(self, title: str, lyrics: str, song_id: Optional[int] = None, original_title: Optional[str] = None, mood: str = "기본/일반"):
+    def save_song(self, title: str, lyrics: str, song_id: Optional[int] = None, original_title: Optional[str] = None, mood: str = "기본/일반") -> int:
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
+            cursor.execute("BEGIN IMMEDIATE")
+            title = title.strip()
+            target_id = song_id
+
             if song_id is not None:
-                cursor.execute("""
-                    UPDATE praise_songs 
-                    SET title = ?, lyrics = ?, mood = ?, updated_at = CURRENT_TIMESTAMP 
-                    WHERE id = ?
-                """, (title, lyrics, mood, song_id))
+                cursor.execute("SELECT id FROM praise_songs WHERE id = ?", (song_id,))
+                if cursor.fetchone() is None:
+                    raise PraiseSongNotFoundError("수정할 찬양곡을 찾을 수 없습니다. 목록을 새로고침해 주세요.")
             elif original_title is not None:
+                old_key = normalize_song_title(original_title)
+                cursor.execute("SELECT id, title FROM praise_songs")
+                matches = [row["id"] for row in cursor.fetchall() if normalize_song_title(row["title"]) == old_key]
+                if len(matches) != 1:
+                    raise PraiseSongNotFoundError("수정할 찬양곡을 하나로 확인할 수 없습니다. 목록을 새로고침해 주세요.")
+                target_id = matches[0]
+
+            target_key = normalize_song_title(title)
+            cursor.execute("SELECT id, title FROM praise_songs")
+            for row in cursor.fetchall():
+                if row["id"] != target_id and normalize_song_title(row["title"]) == target_key:
+                    raise DuplicatePraiseTitleError("같은 제목의 찬양곡이 이미 등록되어 있습니다.")
+
+            if target_id is not None:
                 cursor.execute("""
-                    UPDATE praise_songs 
-                    SET title = ?, lyrics = ?, mood = ?, updated_at = CURRENT_TIMESTAMP 
-                    WHERE title = ?
-                """, (title, lyrics, mood, original_title))
+                    UPDATE praise_songs
+                    SET title = ?, lyrics = ?, mood = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """, (title, lyrics, mood, target_id))
             else:
-                cursor.execute("SELECT id FROM praise_songs WHERE title = ?", (title,))
-                row = cursor.fetchone()
-                if row:
-                    cursor.execute("""
-                        UPDATE praise_songs 
-                        SET lyrics = ?, mood = ?, updated_at = CURRENT_TIMESTAMP 
-                        WHERE id = ?
-                    """, (lyrics, mood, row["id"]))
-                else:
-                    cursor.execute("""
-                        INSERT INTO praise_songs (title, lyrics, mood) 
-                        VALUES (?, ?, ?)
-                    """, (title, lyrics, mood))
+                cursor.execute("""
+                    INSERT INTO praise_songs (title, lyrics, mood)
+                    VALUES (?, ?, ?)
+                """, (title, lyrics, mood))
+                target_id = cursor.lastrowid
             conn.commit()
+            return int(target_id)
+        except Exception:
+            conn.rollback()
+            raise
         finally:
             conn.close()
 
@@ -146,6 +172,10 @@ class PraiseDatabaseHelper:
         cursor = conn.cursor()
         count = 0
         try:
+            cursor.execute("BEGIN IMMEDIATE")
+            cursor.execute("SELECT title FROM praise_songs")
+            existing_titles = {normalize_song_title(row["title"]) for row in cursor.fetchall()}
+
             for song in songs:
                 orig_title = str(song.get("title", "")).strip()
                 lyrics = str(song.get("lyrics", ""))
@@ -154,10 +184,7 @@ class PraiseDatabaseHelper:
 
                 candidate_title = orig_title
                 counter = 1
-                while True:
-                    cursor.execute("SELECT id FROM praise_songs WHERE title = ?", (candidate_title,))
-                    if not cursor.fetchone():
-                        break
+                while normalize_song_title(candidate_title) in existing_titles:
                     candidate_title = f"{orig_title} ({counter})"
                     counter += 1
 
@@ -165,6 +192,7 @@ class PraiseDatabaseHelper:
                     INSERT INTO praise_songs (title, lyrics)
                     VALUES (?, ?)
                 """, (candidate_title, lyrics))
+                existing_titles.add(normalize_song_title(candidate_title))
                 count += 1
             conn.commit()
             return count

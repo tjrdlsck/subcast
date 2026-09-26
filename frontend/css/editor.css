@@ -41,6 +41,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: relative;
             height: 56px;
             padding: 0 24px;
             background: rgba(17, 24, 39, 0.85);

@@ -268,7 +268,7 @@
                 const text = document.getElementById("status-text");
                 if (badge && text) {
                     badge.classList.add("connected");
-                    text.innerText = "Connected";
+                    text.innerText = "연결됨";
                 }
                 handleOnline();
                 if (activeSlideId) {
@@ -282,7 +282,7 @@
                 const text = document.getElementById("status-text");
                 if (badge && text) {
                     badge.classList.remove("connected");
-                    text.innerText = "Disconnected";
+                    text.innerText = "연결 끊김";
                 }
                 handleOffline();
                 setTimeout(connectWebSocket, 3000);

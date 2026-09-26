@@ -429,7 +429,7 @@
             if (statusText) {
                 statusText.innerText = "저장 완료";
                 setTimeout(() => {
-                    if (ws && ws.readyState === WebSocket.OPEN) statusText.innerText = "Connected";
+                    if (ws && ws.readyState === WebSocket.OPEN) statusText.innerText = "연결됨";
                 }, 2000);
             }
 

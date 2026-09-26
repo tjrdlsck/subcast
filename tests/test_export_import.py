@@ -110,6 +110,29 @@ def test_praise_import_duplicate_titles():
     if clean_ids:
         client.post("/api/praise/delete", json={"ids": clean_ids})
 
+
+def test_praise_import_skips_normalized_title_collisions_without_overwriting():
+    first_title = "Café Song"
+    second_title = "CAFÉ SONG (1)"
+    client.post("/api/praise/save", json={"title": first_title, "lyrics": "기존 첫 가사"})
+    client.post("/api/praise/save", json={"title": second_title, "lyrics": "기존 두 번째 가사"})
+
+    file_bytes = json.dumps([
+        {"title": " CAFÉ SONG ", "lyrics": "가져온 가사"},
+    ]).encode("utf-8")
+    import_res = client.post(
+        "/api/praise/import",
+        files={"file": ("praise_normalized_dup.json", io.BytesIO(file_bytes), "application/json")},
+    )
+
+    assert import_res.status_code == 200
+    assert import_res.json()["imported_count"] == 1
+    songs = client.get("/api/praise/export").json()
+    imported = next(song for song in songs if song["lyrics"] == "가져온 가사")
+    assert imported["title"] == "CAFÉ SONG (2)"
+    assert next(song for song in songs if song["title"] == first_title)["lyrics"] == "기존 첫 가사"
+    assert next(song for song in songs if song["title"] == second_title)["lyrics"] == "기존 두 번째 가사"
+
 def test_template_export_and_import():
     # 1. 템플릿 가져오기 (Import)
     test_templates = [

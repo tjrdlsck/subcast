@@ -378,6 +378,8 @@
             }
 
             let successCount = 0;
+            let duplicateCount = 0;
+            let failureCount = 0;
             for (const song of itemsToPaste) {
                 const newTitle = song.title + " (복사본)";
                 try {
@@ -387,14 +389,23 @@
                         body: JSON.stringify({ title: newTitle, lyrics: song.lyrics })
                     });
                     if (resp.ok) successCount++;
+                    else if (resp.status === 409) duplicateCount++;
+                    else failureCount++;
                 } catch (err) {
                     console.error("붙여넣기 저장 오류:", err);
+                    failureCount++;
                 }
             }
 
             if (successCount > 0) {
                 const searchInput = document.getElementById("input-praise-search");
                 fetchPraiseSongs(searchInput ? searchInput.value : "");
+            }
+            if (duplicateCount > 0 || failureCount > 0) {
+                const messages = [];
+                if (duplicateCount > 0) messages.push(`${duplicateCount}곡은 같은 제목이 이미 등록되어 있어 저장하지 않았습니다.`);
+                if (failureCount > 0) messages.push(`${failureCount}곡 저장에 실패했습니다.`);
+                alert(messages.join("\n"));
             }
         }
 
@@ -663,6 +674,7 @@
                             const err = await response.json();
                             throw new Error(err.detail || "저장 실패");
                         }
+                        const savedSong = await response.json();
 
                         if (typeof showToast === "function") {
                             showToast("찬양이 성공적으로 저장/업데이트 되었습니다.");
@@ -671,7 +683,7 @@
 
                         // 수정/추가된 곡 데이터를 즉시 선택 상태로 동기화하여 실시간 미리보기 렌더링
                         const updatedSongObj = {
-                            id: savePayload.id || (currentEditingPraiseSong && currentEditingPraiseSong.id),
+                            id: savedSong.id || savePayload.id || (currentEditingPraiseSong && currentEditingPraiseSong.id),
                             title: title,
                             lyrics: lyrics,
                             mood: selectedMood,
