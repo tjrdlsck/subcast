@@ -148,7 +148,7 @@ class PraiseDatabaseHelper:
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
-            cursor.execute("SELECT id, title, lyrics FROM praise_songs ORDER BY title ASC")
+            cursor.execute("SELECT id, title, lyrics, mood FROM praise_songs ORDER BY title ASC")
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
         finally:
@@ -161,7 +161,7 @@ class PraiseDatabaseHelper:
         cursor = conn.cursor()
         try:
             placeholders = ",".join(["?"] * len(song_ids))
-            cursor.execute(f"SELECT id, title, lyrics FROM praise_songs WHERE id IN ({placeholders}) ORDER BY title ASC", song_ids)
+            cursor.execute(f"SELECT id, title, lyrics, mood FROM praise_songs WHERE id IN ({placeholders}) ORDER BY title ASC", song_ids)
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
         finally:
@@ -188,10 +188,16 @@ class PraiseDatabaseHelper:
                     candidate_title = f"{orig_title} ({counter})"
                     counter += 1
 
+                imported_mood = song.get("mood")
+                imported_moods = song.get("moods")
+                if not imported_mood and isinstance(imported_moods, list):
+                    imported_mood = next((mood for mood in imported_moods if isinstance(mood, str) and mood.strip()), None)
+                imported_mood = str(imported_mood or "기본/일반").strip() or "기본/일반"
+
                 cursor.execute("""
-                    INSERT INTO praise_songs (title, lyrics)
-                    VALUES (?, ?)
-                """, (candidate_title, lyrics))
+                    INSERT INTO praise_songs (title, lyrics, mood)
+                    VALUES (?, ?, ?)
+                """, (candidate_title, lyrics, imported_mood))
                 existing_titles.add(normalize_song_title(candidate_title))
                 count += 1
             conn.commit()

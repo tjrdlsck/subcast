@@ -23,12 +23,22 @@ def load_bg_meta() -> dict:
     return {}
 
 
-def save_bg_meta(meta: dict):
+def save_bg_meta(meta: dict) -> bool:
+    temp_file = meta_file.with_suffix(".json.tmp")
     try:
-        with open(meta_file, "w", encoding="utf-8") as f:
+        with open(temp_file, "w", encoding="utf-8") as f:
             json.dump(meta, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temp_file, meta_file)
+        return True
     except Exception as e:
         logger.error(f"Failed to save bg meta: {e}")
+        try:
+            temp_file.unlink(missing_ok=True)
+        except OSError:
+            pass
+        return False
 
 
 import shutil

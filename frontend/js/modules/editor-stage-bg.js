@@ -226,19 +226,41 @@ window.updateStageBgBulkBar = function() {
     }
 };
 
+window.pendingStageBgLibrarySaves = window.pendingStageBgLibrarySaves || new Map();
+
 function saveStageBgLibraryData() {
-    if (projectData && projectData.settings) {
-        projectData.settings.stageBgLibrary = allStageBgFiles;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        if (typeof showToast === 'function') showToast("서버 연결이 없어 배경 태그를 저장하지 못했습니다.");
+        return Promise.resolve(false);
     }
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-            type: "UPDATE_STAGE_BG_LIBRARY",
-            library: allStageBgFiles
-        }));
-    }
-    if (typeof triggerAutoSave === 'function') {
-        triggerAutoSave();
-    }
+
+    const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const library = JSON.parse(JSON.stringify(allStageBgFiles));
+    return new Promise(resolve => {
+        const timeoutId = setTimeout(() => {
+            window.pendingStageBgLibrarySaves.delete(requestId);
+            if (typeof showToast === 'function') showToast("배경 태그 저장 확인을 받지 못했습니다. 연결을 확인하고 다시 저장해 주세요.");
+            resolve(false);
+        }, 8000);
+        window.pendingStageBgLibrarySaves.set(requestId, result => {
+            clearTimeout(timeoutId);
+            if (result.success) {
+                if (projectData && projectData.settings) projectData.settings.stageBgLibrary = library;
+                resolve(true);
+            } else {
+                if (typeof showToast === 'function') showToast(`배경 태그 저장에 실패했습니다: ${result.error || "서버 저장 오류"}`);
+                resolve(false);
+            }
+        });
+        try {
+            ws.send(JSON.stringify({ type: "UPDATE_STAGE_BG_LIBRARY", requestId, library }));
+        } catch (error) {
+            clearTimeout(timeoutId);
+            window.pendingStageBgLibrarySaves.delete(requestId);
+            if (typeof showToast === 'function') showToast("배경 태그 저장 요청을 보내지 못했습니다.");
+            resolve(false);
+        }
+    });
 }
 
 let _stageBgMoodTargets = [];
@@ -309,9 +331,14 @@ function initStageBgMoodModalEvents() {
     if (cancelBtn) cancelBtn.onclick = closeModal;
 
     if (saveBtn) {
-        saveBtn.onclick = () => {
+        saveBtn.onclick = async () => {
             const activeChip = document.querySelector('.stage-bg-mood-chip.active');
             const selectedMood = activeChip ? activeChip.getAttribute('data-mood') : "기본/일반";
+            const previousValues = _stageBgMoodTargets.map(targetBg => ({
+                targetBg,
+                mood: targetBg.mood,
+                moods: targetBg.moods
+            }));
 
             _stageBgMoodTargets.forEach(targetBg => {
                 targetBg.mood = selectedMood;
@@ -323,7 +350,24 @@ function initStageBgMoodModalEvents() {
                 }
             });
 
-            saveStageBgLibraryData();
+            const saved = await saveStageBgLibraryData();
+            if (!saved) {
+                previousValues.forEach(({ targetBg, mood, moods }) => {
+                    if (mood === undefined) delete targetBg.mood;
+                    else targetBg.mood = mood;
+                    if (moods === undefined) delete targetBg.moods;
+                    else targetBg.moods = moods;
+                    const matchInAll = allStageBgFiles.find(f => f.name === targetBg.name);
+                    if (matchInAll) {
+                        if (mood === undefined) delete matchInAll.mood;
+                        else matchInAll.mood = mood;
+                        if (moods === undefined) delete matchInAll.moods;
+                        else matchInAll.moods = moods;
+                    }
+                });
+                filterAndRenderStageBgLibrary();
+                return;
+            }
             filterAndRenderStageBgLibrary();
             closeModal();
         };
@@ -338,9 +382,10 @@ function initStageBgMoodModalEvents() {
 
     const btnBulkDefault = document.getElementById('btn-stage-bg-bulk-default');
     if (btnBulkDefault) {
-        btnBulkDefault.onclick = () => {
+        btnBulkDefault.onclick = async () => {
             if (!selectedStageBgFiles || selectedStageBgFiles.length === 0) return;
             const isDef = confirm(`선택한 ${selectedStageBgFiles.length}개 배경을 기본(Default) 배경으로 지정하시겠습니까?`);
+            const previousValues = selectedStageBgFiles.map(file => ({ file, isDefault: file.isDefault }));
             selectedStageBgFiles.forEach(f => {
                 f.isDefault = isDef;
                 const matchInAll = allStageBgFiles.find(item => item.name === f.name);
@@ -348,7 +393,18 @@ function initStageBgMoodModalEvents() {
                     matchInAll.isDefault = isDef;
                 }
             });
-            saveStageBgLibraryData();
+            const saved = await saveStageBgLibraryData();
+            if (!saved) {
+                previousValues.forEach(({ file, isDefault }) => {
+                    if (isDefault === undefined) delete file.isDefault;
+                    else file.isDefault = isDefault;
+                    const matchInAll = allStageBgFiles.find(item => item.name === file.name);
+                    if (matchInAll) {
+                        if (isDefault === undefined) delete matchInAll.isDefault;
+                        else matchInAll.isDefault = isDefault;
+                    }
+                });
+            }
             filterAndRenderStageBgLibrary();
         };
     }

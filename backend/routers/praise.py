@@ -17,7 +17,7 @@ class PraiseSongSaveRequest(BaseModel):
     id: Optional[int] = None
     title: str
     lyrics: str
-    mood: Optional[str] = "기본/일반"
+    mood: Optional[str] = None
     moods: Optional[List[str]] = None
     original_title: Optional[str] = None
 
@@ -40,7 +40,10 @@ async def save_praise_song(req: PraiseSongSaveRequest):
     try:
         if not req.title or not req.title.strip() or not req.lyrics or not req.lyrics.strip():
             raise HTTPException(status_code=400, detail="제목과 가사를 모두 입력해 주세요.")
-        target_mood = req.mood or (req.moods[0] if req.moods else "기본/일반")
+        target_mood = next(
+            (m.strip() for m in [req.mood, *(req.moods or [])] if isinstance(m, str) and m.strip()),
+            "기본/일반",
+        )
         saved_id = praise_db.save_song(req.title.strip(), req.lyrics, song_id=req.id, original_title=req.original_title, mood=target_mood)
         return {"status": "success", "id": saved_id}
     except DuplicatePraiseTitleError as e:
@@ -76,7 +79,7 @@ async def export_praise_songs(ids: Optional[str] = Query(None)):
         if not songs:
             raise HTTPException(status_code=404, detail="내보낼 찬양 데이터가 없습니다.")
 
-        export_data = [{"title": s["title"], "lyrics": s["lyrics"]} for s in songs]
+        export_data = [{"title": s["title"], "lyrics": s["lyrics"], "mood": s.get("mood") or "기본/일반"} for s in songs]
         
         if len(songs) == 1:
             safe_title = "".join(c for c in songs[0]["title"] if c.isalnum() or c in (' ', '_', '-')).rstrip()

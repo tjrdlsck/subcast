@@ -110,7 +110,14 @@
             window.ws = ws;
             ws.onmessage = (event) => {
                 const message = JSON.parse(event.data);
-                if (message.type === 'INITIAL_SYNC') {
+                if (message.type === 'STAGE_BG_LIBRARY_SAVE_RESULT') {
+                    const resolveSave = window.pendingStageBgLibrarySaves?.get(message.requestId);
+                    if (resolveSave) {
+                        window.pendingStageBgLibrarySaves.delete(message.requestId);
+                        resolveSave(message);
+                    }
+                }
+                else if (message.type === 'INITIAL_SYNC') {
                     projectData = message.data;
                     if (message.lockedSlides) {
                         lockedSlides = {};

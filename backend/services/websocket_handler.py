@@ -33,7 +33,13 @@ def _available_stage_backgrounds(project_library: list[dict]) -> list[dict]:
     for item in project_library:
         name = item.get("name")
         if name in available:
-            library.append({**item, "url": f"/static/backgrounds/{name}"})
+            item_meta = meta.get(name, {})
+            merged = {**item}
+            for field in ("mood", "moods", "isDefault"):
+                if field not in merged or merged[field] in (None, "", []):
+                    if field in item_meta:
+                        merged[field] = item_meta[field]
+            library.append({**merged, "url": f"/static/backgrounds/{name}"})
             known_names.add(name)
     for name in sorted(available - known_names):
         item_meta = meta.get(name, {})
@@ -194,24 +200,47 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
 
             elif msg_type == "UPDATE_STAGE_BG_LIBRARY":
                 library_data = message.get("library", [])
-                if manager.project_data and manager.project_data.settings:
-                    setattr(manager.project_data.settings, "stageBgLibrary", library_data)
-                    await save_project_data(manager.project_data)
-                
-                meta = load_bg_meta()
-                for item in library_data:
-                    name = item.get("name")
-                    if name:
-                        if name not in meta:
-                            meta[name] = {}
-                        if "mood" in item:
-                            meta[name]["mood"] = item["mood"]
-                        if "moods" in item:
-                            meta[name]["moods"] = item["moods"]
-                        if "isDefault" in item:
-                            meta[name]["isDefault"] = item["isDefault"]
-                save_bg_meta(meta)
-                logger.info(f"Stage background library updated: {len(library_data)} items")
+                request_id = message.get("requestId")
+                settings = manager.project_data.settings if manager.project_data else None
+                previous_library = getattr(settings, "stageBgLibrary", None) if settings else None
+                try:
+                    if not isinstance(library_data, list):
+                        raise ValueError("배경 라이브러리 형식이 올바르지 않습니다.")
+                    if manager.project_data and manager.project_data.settings:
+                        setattr(manager.project_data.settings, "stageBgLibrary", library_data)
+                        await save_project_data(manager.project_data)
+
+                    meta = load_bg_meta()
+                    for item in library_data:
+                        name = item.get("name") if isinstance(item, dict) else None
+                        if name:
+                            if name not in meta:
+                                meta[name] = {}
+                            for field in ("mood", "moods", "isDefault"):
+                                if field in item:
+                                    meta[name][field] = item[field]
+                    if not save_bg_meta(meta):
+                        raise OSError("배경 태그 메타데이터를 저장하지 못했습니다.")
+                    await websocket.send_text(json.dumps({
+                        "type": "STAGE_BG_LIBRARY_SAVE_RESULT",
+                        "requestId": request_id,
+                        "success": True,
+                    }))
+                    logger.info(f"Stage background library updated: {len(library_data)} items")
+                except Exception as e:
+                    if settings:
+                        setattr(settings, "stageBgLibrary", previous_library)
+                        try:
+                            await save_project_data(manager.project_data)
+                        except Exception:
+                            logger.exception("Failed to roll back stage background library")
+                    logger.exception("Failed to save stage background library")
+                    await websocket.send_text(json.dumps({
+                        "type": "STAGE_BG_LIBRARY_SAVE_RESULT",
+                        "requestId": request_id,
+                        "success": False,
+                        "error": str(e),
+                    }))
 
             elif msg_type == "UPDATE_PRAISE_BROADCAST_LAYOUT":
                 layout_data = message.get("layout", {})
