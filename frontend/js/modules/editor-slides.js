@@ -52,6 +52,42 @@
         }
 
 
+        function ensureActiveSlideVisible(center = false) {
+            const panel = document.getElementById("panel-slides");
+            const scrollContainer = panel?.querySelector(".panel-body");
+            const activeItem = activeSlideId
+                ? document.getElementById(`slide-item-${activeSlideId}`)
+                : null;
+            if (!panel?.classList.contains("active") || !scrollContainer || !activeItem) return;
+
+            const containerRect = scrollContainer.getBoundingClientRect();
+            const itemRect = activeItem.getBoundingClientRect();
+            const visibleTop = containerRect.top + scrollContainer.clientTop;
+            const visibleBottom = visibleTop + scrollContainer.clientHeight;
+            let targetScrollTop = scrollContainer.scrollTop;
+
+            if (center) {
+                const itemCenter = (itemRect.top + itemRect.bottom) / 2;
+                const visibleCenter = (visibleTop + visibleBottom) / 2;
+                targetScrollTop += itemCenter - visibleCenter;
+            } else if (itemRect.top < visibleTop) {
+                targetScrollTop += itemRect.top - visibleTop;
+            } else if (itemRect.bottom > visibleBottom) {
+                targetScrollTop += itemRect.bottom - visibleBottom;
+            } else {
+                return;
+            }
+
+            scrollContainer.scrollTo({
+                top: Math.max(0, targetScrollTop),
+                behavior: "auto"
+            });
+        }
+
+        function scheduleActiveSlideVisibility(center = false) {
+            requestAnimationFrame(() => ensureActiveSlideVisible(center));
+        }
+
         function renderSlides() {
             const listEl = document.getElementById("slide-list");
             listEl.innerHTML = "";
@@ -218,6 +254,8 @@
             });
             listEl.appendChild(fragment);
 
+            scheduleActiveSlideVisibility(true);
+
             if (isSlideSorterOpen) {
                 renderSlideSorter();
             }
@@ -346,6 +384,7 @@
                     selectedSlideIds = [slideId];
                 }
                 updateSlideListSelection();
+                scheduleActiveSlideVisibility();
                 return;
             }
 
@@ -380,6 +419,7 @@
             loadSlideToCanvas(slideId);
             setControlsState(true);
             updateSlideListSelection();
+            scheduleActiveSlideVisibility();
             if (typeof updateMonitorSlideTexts === 'function') {
                 updateMonitorSlideTexts();
             }

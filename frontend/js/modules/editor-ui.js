@@ -37,12 +37,21 @@
 
         // 왼쪽 탭 메뉴 전환
         function switchLeftTab(tabId) {
+            const wasSlidesPanelActive = document.getElementById("panel-slides")?.classList.contains("active");
             document.querySelectorAll('.nav-tab-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.getAttribute('data-target') === tabId);
             });
             document.querySelectorAll('.sidebar-panel').forEach(panel => {
                 panel.classList.toggle('active', panel.id === tabId);
             });
+
+            if (tabId === 'panel-slides' && !wasSlidesPanelActive) {
+                requestAnimationFrame(() => {
+                    if (typeof ensureActiveSlideVisible === 'function') {
+                        ensureActiveSlideVisible(true);
+                    }
+                });
+            }
 
             // 탭 클릭 시 닫혀있던 서브 패널이 있으면 자동으로 펼침
             const subPanel = document.querySelector(".left-sub-panel");
