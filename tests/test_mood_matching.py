@@ -56,7 +56,7 @@ def test_anti_repetition_sequential_matching():
     
     assert first_id != second_id, "연속 추출 시 동일 배경이 나오지 않아야 함"
 
-def test_multitier_fallback():
+def test_unmatched_tag_requires_explicit_default_background():
     bg_library = [
         {"id": "bg_def", "name": "기본배경", "url": "/default.mp4", "isDefault": True, "mood": "기본/일반"},
         {"id": "bg_other", "name": "일반배경", "url": "/other.mp4", "isDefault": False, "mood": "절기/특별"}
@@ -79,7 +79,7 @@ def test_multitier_fallback():
         override_bg_id=None,
         bg_library=no_def_library
     )
-    assert res_all["id"] == "bg_other"
+    assert res_all["type"] == "ambient"
 
     # 3. 비어있는 라이브러리면 ambient 반환
     res_ambient = select_stage_background(

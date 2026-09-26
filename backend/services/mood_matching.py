@@ -120,7 +120,7 @@ def select_stage_background(
         if bg.get("isDefault") or bg.get("is_default") or normalize_tag(bg.get("mood")) == "기본/일반" or "기본/일반" in extract_normalized_tags(bg.get("moods"))
     ]
     
-    fallback_pool = tag_candidates if tag_candidates else (default_candidates if default_candidates else bg_library)
+    fallback_pool = tag_candidates if tag_candidates else default_candidates
     res = pick_from_candidates(fallback_pool)
     if res:
         return res

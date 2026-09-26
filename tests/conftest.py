@@ -4,6 +4,7 @@ import backend.storage as storage
 import backend.database as database
 import backend.monitor_repository as monitor_repository
 from backend.services.praise_service import praise_db
+from backend.services import tag_service
 
 @pytest.fixture(autouse=True)
 def isolate_test_data_dir(tmp_path, monkeypatch):
@@ -18,6 +19,11 @@ def isolate_test_data_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(storage, "ACTIVE_PROJECT_FILE", test_data_dir / "active_project_id.txt")
     monkeypatch.setattr(storage, "OLD_DATA_FILE_PATH", test_data_dir / "project_data.json")
     monkeypatch.setattr(storage, "TEMPLATES_FILE_PATH", test_data_dir / "templates.json")
+    monkeypatch.setattr(tag_service, "TAG_FILE", test_data_dir / "mood_tags.json")
+    monkeypatch.setattr(tag_service, "PROJECTS_DIR", test_projects_dir)
+    monkeypatch.setattr(tag_service, "load_bg_meta", lambda: {})
+    monkeypatch.setattr(tag_service, "_TAG_CACHE", None)
+    monkeypatch.setattr(tag_service, "_TAG_CACHE_MTIME_NS", None)
 
     test_user_db = str(test_data_dir / "subcast_user.db")
     monkeypatch.setattr(praise_db, "db_path", test_user_db)

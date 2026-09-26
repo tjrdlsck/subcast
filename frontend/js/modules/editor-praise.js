@@ -13,6 +13,69 @@
         let praiseSearchDebounceTimer = null;
         let praiseSearchAbortController = null;
 
+        function renderPraiseMoodSelector(selectedMood = "기본/일반") {
+            const container = document.getElementById("modal-praise-mood-chips");
+            if (!container) return;
+            const selected = window.canonicalMoodTag ? window.canonicalMoodTag(selectedMood) : selectedMood;
+            container.replaceChildren();
+            (window.moodTags || []).forEach(tag => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = `mood-chip${tag.name === selected ? " active" : ""}`;
+                button.dataset.mood = tag.name;
+                button.textContent = `#${tag.name}`;
+                button.style.cssText = tag.name === selected
+                    ? "padding:4px 10px;font-size:.72rem;border-radius:12px;border:1px solid var(--primary);background:var(--primary);color:#fff;cursor:pointer;"
+                    : "padding:4px 10px;font-size:.72rem;border-radius:12px;border:1px solid var(--panel-border);background:rgba(255,255,255,.05);color:#cbd5e1;cursor:pointer;";
+                button.onclick = () => renderPraiseMoodSelector(tag.name);
+                container.append(button);
+            });
+        }
+
+        function renderPraiseMoodFilters() {
+            const container = document.getElementById("praise-mood-filter-chips");
+            if (!container) return;
+            const previousFilter = activePraiseMoodFilter;
+            const canonicalFilter = window.canonicalMoodTag ? window.canonicalMoodTag(previousFilter) : previousFilter;
+            const knownNames = (window.moodTags || []).map(tag => tag.name);
+            activePraiseMoodFilter = previousFilter === "all" || knownNames.includes(canonicalFilter) ? canonicalFilter : "all";
+            container.replaceChildren();
+            const filters = [{ name: "all", label: "전체" }, ...(window.moodTags || []).map(tag => ({ name: tag.name, label: `#${tag.name}` }))];
+            filters.forEach(filter => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = `praise-filter-chip${activePraiseMoodFilter === filter.name ? " active" : ""}`;
+                button.dataset.filter = filter.name;
+                button.setAttribute("aria-pressed", activePraiseMoodFilter === filter.name ? "true" : "false");
+                button.textContent = filter.label;
+                button.style.cssText = activePraiseMoodFilter === filter.name
+                    ? "padding:4px 9px;font-size:.68rem;font-weight:600;border-radius:10px;border:1px solid var(--primary);background:var(--primary);color:#fff;cursor:pointer;white-space:nowrap;"
+                    : "padding:4px 9px;font-size:.68rem;font-weight:600;border-radius:10px;border:1px solid var(--panel-border);background:rgba(255,255,255,.05);color:#cbd5e1;cursor:pointer;white-space:nowrap;";
+                button.onclick = () => {
+                    activePraiseMoodFilter = filter.name;
+                    renderPraiseMoodFilters();
+                    const searchInput = document.getElementById("input-praise-search");
+                    fetchPraiseSongs(searchInput ? searchInput.value : "");
+                };
+                container.append(button);
+            });
+            const manageButton = document.createElement("button");
+            manageButton.type = "button";
+            manageButton.className = "btn-open-tag-manager";
+            manageButton.textContent = "태그 관리";
+            manageButton.style.cssText = "padding:4px 8px;font-size:.68rem;border-radius:10px;border:1px solid var(--panel-border);background:rgba(255,255,255,.05);color:var(--text-muted);cursor:pointer;";
+            manageButton.onclick = window.openMoodTagManager;
+            container.append(manageButton);
+        }
+
+        document.addEventListener("mood-tags-updated", () => {
+            renderPraiseMoodFilters();
+            const active = document.querySelector("#modal-praise-mood-chips .mood-chip.active")?.dataset.mood || "기본/일반";
+            renderPraiseMoodSelector(active);
+            const searchInput = document.getElementById("input-praise-search");
+            if (searchInput) fetchPraiseSongs(searchInput.value);
+        });
+
         function updatePraiseExpectedCount() {
             const previewList = document.getElementById("praise-preview-list");
             const valExpected = document.getElementById("val-praise-expected-slides");
@@ -250,6 +313,7 @@
             const moodChipsContainer = document.getElementById("modal-praise-mood-chips");
             if (moodChipsContainer) {
                 const targetMood = (song.moods && song.moods[0]) || song.mood || "경배/찬양";
+                renderPraiseMoodSelector(targetMood);
                 const chips = moodChipsContainer.querySelectorAll(".mood-chip");
                 chips.forEach(chip => {
                     const m = chip.getAttribute("data-mood");
@@ -284,6 +348,7 @@
 
             const moodChipsContainer = document.getElementById("modal-praise-mood-chips");
             if (moodChipsContainer) {
+                renderPraiseMoodSelector("기본/일반");
                 const chips = moodChipsContainer.querySelectorAll(".mood-chip");
                 chips.forEach((chip, idx) => {
                     if (idx === 0) {
@@ -432,42 +497,8 @@
                 btnCloseViewer.onclick = hidePraiseMainViewer;
             }
 
-            const filterChips = document.querySelectorAll(".praise-filter-chip");
-            filterChips.forEach(chip => {
-                chip.onclick = () => {
-                    filterChips.forEach(c => {
-                        c.classList.remove("active");
-                        c.setAttribute("aria-pressed", "false");
-                        c.style.outline = "none";
-                    });
-                    chip.classList.add("active");
-                    chip.setAttribute("aria-pressed", "true");
-                    chip.style.outline = "2px solid rgba(255, 255, 255, 0.85)";
-                    chip.style.outlineOffset = "1px";
-
-                    activePraiseMoodFilter = chip.getAttribute("data-filter") || "all";
-                    fetchPraiseSongs(searchInput ? searchInput.value : "");
-                };
-            });
-
-            const moodChipsContainer = document.getElementById("modal-praise-mood-chips");
-            if (moodChipsContainer) {
-                const chips = moodChipsContainer.querySelectorAll(".mood-chip");
-                chips.forEach(chip => {
-                    chip.onclick = () => {
-                        chips.forEach(c => {
-                            c.classList.remove("active");
-                            c.style.background = "rgba(255,255,255,0.05)";
-                            c.style.borderColor = "var(--panel-border)";
-                            c.style.color = "#cbd5e1";
-                        });
-                        chip.classList.add("active");
-                        chip.style.background = "var(--primary)";
-                        chip.style.borderColor = "var(--primary)";
-                        chip.style.color = "#ffffff";
-                    };
-                });
-            }
+            renderPraiseMoodFilters();
+            renderPraiseMoodSelector("기본/일반");
 
             if (chkAllPraise && previewList) {
                 chkAllPraise.onchange = (e) => {
@@ -699,9 +730,9 @@
 
             // 곡 분위기에 맞는 고정 현장 배경 1개 매칭 헬퍼 함수 (중복 방지 excludeBgIds 지원)
             function matchStageBgForSong(songMood, excludeBgIds = []) {
-                const bgList = (projectData && projectData.settings && projectData.settings.stageBgLibrary && projectData.settings.stageBgLibrary.length > 0)
-                    ? projectData.settings.stageBgLibrary
-                    : (allStageBgFiles || []);
+                const bgList = (allStageBgFiles && allStageBgFiles.length > 0)
+                    ? allStageBgFiles
+                    : (projectData && projectData.settings && projectData.settings.stageBgLibrary) || [];
 
                 if (!bgList || bgList.length === 0) return null;
 
@@ -725,6 +756,7 @@
                     const arr = Array.isArray(val) ? val : [val];
                     const res = [];
                     arr.forEach(item => {
+                        if (window.canonicalMoodTag) item = window.canonicalMoodTag(item);
                         const norm = normalizeTag(item);
                         if (norm && !res.includes(norm)) res.push(norm);
                     });
@@ -766,7 +798,7 @@
                         ? String(excludeBgIds[excludeBgIds.length - 1]) 
                         : null;
                     
-                    let fallbackPool = matchingCandidates.length > 0 ? matchingCandidates : (defaultCandidates.length > 0 ? defaultCandidates : bgList);
+                    let fallbackPool = matchingCandidates.length > 0 ? matchingCandidates : defaultCandidates;
                     if (lastUsedId && fallbackPool.length > 1) {
                         const nonLastPool = fallbackPool.filter(bg => getBgIdentifier(bg) !== lastUsedId);
                         if (nonLastPool.length > 0) {
@@ -866,9 +898,9 @@
                 const activeChip = document.querySelector(".slide-bg-modal-chip.active");
                 const filterVal = activeChip ? activeChip.getAttribute("data-filter") : "all";
 
-                const bgList = (projectData && projectData.settings && projectData.settings.stageBgLibrary && projectData.settings.stageBgLibrary.length > 0)
-                    ? projectData.settings.stageBgLibrary
-                    : (allStageBgFiles || []);
+                const bgList = (allStageBgFiles && allStageBgFiles.length > 0)
+                    ? allStageBgFiles
+                    : (projectData && projectData.settings && projectData.settings.stageBgLibrary) || [];
 
                 let filtered = bgList.filter(bg => {
                     const nameMatch = !query || bg.name.toLowerCase().includes(query);

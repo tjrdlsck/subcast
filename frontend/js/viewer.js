@@ -468,6 +468,9 @@
 
         let _stageBgTransitionTimeout = null;
         let _activeStageVideoIndex = 1;
+        let _stageBgRequestVersion = 0;
+        let _stageBgPendingCleanup = null;
+        let _stageBgOutgoingVideo = null;
 
         function applyStageBackground(bgConfig) {
             const urlParams = new URLSearchParams(window.location.search);
@@ -485,22 +488,38 @@
             const motionCanvas = document.getElementById('stage-motion-bg');
             const opacityTarget = (bgConfig && bgConfig.opacity !== undefined) ? bgConfig.opacity : 0.8;
             const blurTarget = (bgConfig && bgConfig.blur !== undefined) ? bgConfig.blur : 0;
+            const requestVersion = ++_stageBgRequestVersion;
+
+            if (_stageBgPendingCleanup) {
+                _stageBgPendingCleanup();
+                _stageBgPendingCleanup = null;
+            }
 
             if (_stageBgTransitionTimeout) {
                 clearTimeout(_stageBgTransitionTimeout);
                 _stageBgTransitionTimeout = null;
+            }
+            if (_stageBgOutgoingVideo) {
+                _stageBgOutgoingVideo.style.display = 'none';
+                _stageBgOutgoingVideo.pause();
+                _stageBgOutgoingVideo = null;
             }
 
             if (!bgConfig || bgConfig.type === 'ambient' || !bgConfig.videoUrl) {
                 [videoEl1, videoEl2].forEach(v => {
                     if (v) {
                         v.style.opacity = '0';
-                        _stageBgTransitionTimeout = setTimeout(() => {
-                            v.style.display = 'none';
-                            v.pause();
-                        }, 800);
                     }
                 });
+                _stageBgTransitionTimeout = setTimeout(() => {
+                    if (requestVersion !== _stageBgRequestVersion) return;
+                    [videoEl1, videoEl2].forEach(v => {
+                        if (!v) return;
+                        v.style.display = 'none';
+                        v.pause();
+                    });
+                    _stageBgTransitionTimeout = null;
+                }, 800);
                 initStageMotionBg();
                 if (motionCanvas) motionCanvas.style.display = 'block';
                 return;
@@ -533,48 +552,78 @@
             nextEl.loop = true;
             nextEl.playsInline = true;
             nextEl.style.display = 'block';
+            nextEl.style.opacity = '0';
             nextEl.style.filter = blurTarget > 0 ? `blur(${blurTarget}px)` : 'none';
 
-            const executeTransition = () => {
-                nextEl.play().then(() => {
-                    nextEl.style.opacity = String(opacityTarget);
-                    activeEl.style.opacity = '0';
-                    _stageBgTransitionTimeout = setTimeout(() => {
-                        activeEl.style.display = 'none';
-                        activeEl.pause();
-                    }, 850);
-                    _activeStageVideoIndex = (_activeStageVideoIndex === 1 ? 2 : 1);
-                }).catch(err => {
-                    console.warn("Video play prevented or fallback:", err);
-                    nextEl.style.opacity = String(opacityTarget);
-                    activeEl.style.opacity = '0';
-                    _stageBgTransitionTimeout = setTimeout(() => {
-                        activeEl.style.display = 'none';
-                        activeEl.pause();
-                    }, 850);
-                    _activeStageVideoIndex = (_activeStageVideoIndex === 1 ? 2 : 1);
-                });
+            let transitionStarted = false;
+            const executeTransition = async () => {
+                if (requestVersion !== _stageBgRequestVersion) return;
+                if (transitionStarted) return;
+                transitionStarted = true;
+                cleanupPendingLoad();
+                try {
+                    await nextEl.play();
+                } catch (err) {
+                    if (requestVersion !== _stageBgRequestVersion) return;
+                    failTransition(err);
+                    return;
+                }
+                if (requestVersion !== _stageBgRequestVersion) return;
+
+                nextEl.style.opacity = String(opacityTarget);
+                activeEl.style.opacity = '0';
+                _stageBgOutgoingVideo = activeEl;
+                _stageBgTransitionTimeout = setTimeout(() => {
+                    if (requestVersion !== _stageBgRequestVersion) return;
+                    activeEl.style.display = 'none';
+                    activeEl.pause();
+                    if (_stageBgOutgoingVideo === activeEl) _stageBgOutgoingVideo = null;
+                    _stageBgTransitionTimeout = null;
+                }, 850);
+                _activeStageVideoIndex = (_activeStageVideoIndex === 1 ? 2 : 1);
             };
 
-            const isAlreadyLoaded = nextEl.src === targetUrl;
-            if (!isAlreadyLoaded) {
+            let loadTimeout = null;
+            const cleanupPendingLoad = () => {
+                nextEl.removeEventListener('canplay', onReady);
+                nextEl.removeEventListener('loadeddata', onReady);
+                nextEl.removeEventListener('error', onError);
+                if (loadTimeout) clearTimeout(loadTimeout);
+                if (_stageBgPendingCleanup === cleanupPendingLoad) _stageBgPendingCleanup = null;
+            };
+            const failTransition = (error) => {
+                cleanupPendingLoad();
+                if (requestVersion !== _stageBgRequestVersion) return;
+                console.warn("Stage background video could not be played:", error);
+                nextEl.style.opacity = '0';
+                nextEl.style.display = 'none';
+                nextEl.pause();
+                const hasVisibleBackground = [activeEl, nextEl].some(video =>
+                    video.style.display !== 'none' && parseFloat(video.style.opacity || '0') > 0
+                );
+                if (!hasVisibleBackground) {
+                    initStageMotionBg();
+                    if (motionCanvas) motionCanvas.style.display = 'block';
+                }
+            };
+            const onReady = () => {
+                if (requestVersion !== _stageBgRequestVersion) return;
+                executeTransition();
+            };
+            const onError = () => failTransition(nextEl.error || new Error('Media load failed'));
+            const isAlreadyLoaded = nextEl.src === targetUrl && nextEl.readyState >= 2 && !nextEl.error;
+            if (isAlreadyLoaded) {
+                executeTransition();
+            } else {
+                _stageBgPendingCleanup = cleanupPendingLoad;
+                nextEl.addEventListener('canplay', onReady);
+                nextEl.addEventListener('loadeddata', onReady);
+                nextEl.addEventListener('error', onError);
+                loadTimeout = setTimeout(() => {
+                    failTransition(new Error('Media load timed out'));
+                }, 15000);
                 nextEl.src = targetPath;
                 nextEl.load();
-                let transitioned = false;
-                const onReady = () => {
-                    if (transitioned) return;
-                    transitioned = true;
-                    nextEl.removeEventListener('canplay', onReady);
-                    nextEl.removeEventListener('loadeddata', onReady);
-                    executeTransition();
-                };
-                nextEl.addEventListener('canplay', onReady, { once: true });
-                nextEl.addEventListener('loadeddata', onReady, { once: true });
-                setTimeout(() => {
-                    if (!transitioned) onReady();
-                }, 300);
-            } else {
-                executeTransition();
             }
         }
 

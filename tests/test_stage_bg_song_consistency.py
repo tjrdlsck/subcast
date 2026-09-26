@@ -62,3 +62,15 @@ def test_stale_background_records_are_excluded(tmp_path, monkeypatch):
     ])
     assert [item["name"] for item in library] == ["available.mp4"]
     assert library[0]["mood"] == "경배/찬양"
+
+
+def test_automatic_song_cache_must_still_match_current_mood():
+    praise_bg = {"name": "praise.mp4", "mood": "경배/찬양"}
+    quiet_bg = {"name": "quiet.mp4", "mood": "잔잔/묵상"}
+    default_bg = {"name": "default.mp4", "mood": "기본/일반"}
+    library = [praise_bg, quiet_bg, default_bg]
+
+    assert websocket_handler._cached_background_matches_moods(praise_bg, ["경배/찬양"], library)
+    assert not websocket_handler._cached_background_matches_moods(praise_bg, ["잔잔/묵상"], library)
+    assert websocket_handler._cached_background_matches_moods(default_bg, ["기도/회개"], library)
+    assert not websocket_handler._cached_background_matches_moods(quiet_bg, ["기도/회개"], library)

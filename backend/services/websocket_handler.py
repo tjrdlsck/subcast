@@ -9,7 +9,8 @@ from backend.schemas import Slide, SlideTemplate, Element, CustomFont, ProjectDa
 from backend.storage import save_project_data, save_global_templates, load_global_templates
 from backend.services.connection_manager import manager
 from backend.services.background_service import backgrounds_dir, load_bg_meta, save_bg_meta
-from backend.services.mood_matching import select_stage_background
+from backend.services.mood_matching import extract_normalized_tags, normalize_tag, select_stage_background
+from backend.services.tag_service import canonicalize_item, canonical_tag_name
 
 logger = logging.getLogger("subcast")
 
@@ -34,7 +35,10 @@ def _available_stage_backgrounds(project_library: list[dict]) -> list[dict]:
         name = item.get("name")
         if name in available:
             item_meta = meta.get(name, {})
-            merged = {**item}
+            merged = canonicalize_item(item)
+            if not item_meta.get("mood") and not item_meta.get("moods") and merged.get("mood") == "기본/일반":
+                merged.pop("mood", None)
+                merged.pop("moods", None)
             for field in ("mood", "moods", "isDefault"):
                 if field not in merged or merged[field] in (None, "", []):
                     if field in item_meta:
@@ -43,14 +47,49 @@ def _available_stage_backgrounds(project_library: list[dict]) -> list[dict]:
             known_names.add(name)
     for name in sorted(available - known_names):
         item_meta = meta.get(name, {})
+        tag_data = canonicalize_item({
+            "mood": item_meta.get("mood"),
+            "moods": item_meta.get("moods", [item_meta["mood"]] if item_meta.get("mood") else []),
+        })
         library.append({
             "name": name,
             "url": f"/static/backgrounds/{name}",
-            "mood": item_meta.get("mood", "기본/일반"),
-            "moods": item_meta.get("moods", [item_meta.get("mood", "기본/일반")]),
+            **tag_data,
             "isDefault": item_meta.get("isDefault", False),
         })
     return library
+
+
+def _cached_background_matches_moods(
+    background: dict, slide_moods: list[str] | str | None, bg_library: list[dict]
+) -> bool:
+    """Keep automatic song background choices only while they remain eligible."""
+    target_tags = extract_normalized_tags(slide_moods)
+    default_tag = normalize_tag(canonical_tag_name("기본/일반"))
+
+    def background_tags(item: dict) -> list[str]:
+        values = [item.get("mood"), item.get("tag")]
+        moods = item.get("moods")
+        if isinstance(moods, list):
+            values.extend(moods)
+        elif isinstance(moods, str):
+            values.append(moods)
+        return extract_normalized_tags(values)
+
+    tagged_matches = [
+        item for item in bg_library
+        if target_tags and set(target_tags).intersection(background_tags(item))
+    ]
+    if tagged_matches:
+        return background in tagged_matches
+
+    default_matches = [
+        item for item in bg_library
+        if item.get("isDefault") or item.get("is_default")
+        or normalize_tag(item.get("mood")) == default_tag
+        or default_tag in background_tags(item)
+    ]
+    return background in default_matches
 
 
 def _legacy_praise_group_key(slide_id: str, slides: list[Slide]) -> str | None:
@@ -151,6 +190,10 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                 slides = manager.project_data.slides if manager.project_data else []
                 slide = next((item for item in slides if item.id == slide_id), None)
                 slide_moods = (slide.moods or ([slide.mood] if slide.mood else [])) if slide else message.get("slideMoods", [])
+                if isinstance(slide_moods, list):
+                    slide_moods = [canonical_tag_name(tag) for tag in slide_moods]
+                elif slide_moods:
+                    slide_moods = canonical_tag_name(slide_moods)
                 override_bg_id = slide.overrideBgId if slide else message.get("overrideBgId")
                 praise_group_id = slide.praiseGroupId if slide else message.get("praiseGroupId")
                 song_title = slide.songTitle if slide else message.get("songTitle")
@@ -163,10 +206,22 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                 project_library = getattr(manager.project_data.settings, "stageBgLibrary", None) if manager.project_data and manager.project_data.settings else None
                 bg_library = _available_stage_backgrounds(project_library or [])
                 
+                has_explicit_override = bool(override_bg_id and any(
+                    bg.get("id") == override_bg_id or bg.get("name") == override_bg_id
+                    for bg in bg_library
+                ))
+                reused_explicit_cache = False
                 if not override_bg_id and song_key and song_key in song_stage_bg_cache:
-                    cached_bg_id = song_stage_bg_cache[song_key]
-                    if any((bg.get("id") == cached_bg_id or bg.get("name") == cached_bg_id) for bg in bg_library):
+                    cached_entry = song_stage_bg_cache[song_key]
+                    cached_bg_id = cached_entry.get("id") if isinstance(cached_entry, dict) else cached_entry
+                    cached_bg = next((
+                        bg for bg in bg_library
+                        if bg.get("id") == cached_bg_id or bg.get("name") == cached_bg_id
+                    ), None)
+                    cached_is_explicit = isinstance(cached_entry, dict) and cached_entry.get("explicit") is True
+                    if cached_bg and (cached_is_explicit or _cached_background_matches_moods(cached_bg, slide_moods, bg_library)):
                         override_bg_id = cached_bg_id
+                        reused_explicit_cache = cached_is_explicit
 
                 missing_bg_id = override_bg_id if override_bg_id and not any(
                     bg.get("id") == override_bg_id or bg.get("name") == override_bg_id for bg in bg_library
@@ -186,7 +241,10 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                     }))
                 
                 if song_key and bg_data.get("id"):
-                    song_stage_bg_cache[song_key] = bg_data.get("id")
+                    song_stage_bg_cache[song_key] = {
+                        "id": bg_data.get("id"),
+                        "explicit": has_explicit_override or reused_explicit_cache,
+                    }
                 
                 if manager.project_data and manager.project_data.settings:
                     setattr(manager.project_data.settings, "stageBackground", bg_data)

@@ -15,6 +15,7 @@ from backend.services.background_service import (
     generate_thumbnail_ffmpeg,
     cleanup_trash_backgrounds,
 )
+from backend.services.tag_service import canonicalize_item
 
 logger = logging.getLogger("subcast")
 router = APIRouter(prefix="/api/backgrounds", tags=["backgrounds"])
@@ -127,16 +128,16 @@ async def list_background_files():
                         meta[p.name]["thumbnailUrl"] = thumb_url
                         meta_updated = True
 
-                files.append({
+                files.append(canonicalize_item({
                     "name": p.name,
                     "title": item_meta.get("title") or (p.stem.split("_", 2)[-1] if p.name.startswith("upload_") else p.name),
                     "url": f"/static/backgrounds/{p.name}",
                     "size": p.stat().st_size,
                     "thumbnailUrl": thumb_url or "",
-                    "mood": item_meta.get("mood", "기본/일반"),
-                    "moods": item_meta.get("moods", [item_meta.get("mood", "기본/일반")] if item_meta.get("mood") else []),
+                    "mood": item_meta.get("mood"),
+                    "moods": item_meta.get("moods", [item_meta["mood"]] if item_meta.get("mood") else []),
                     "isDefault": item_meta.get("isDefault", False)
-                })
+                }))
 
     if meta_updated:
         save_bg_meta(meta)

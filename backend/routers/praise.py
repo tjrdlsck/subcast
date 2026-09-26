@@ -9,6 +9,7 @@ from backend.services.praise_service import (
     PraiseSongNotFoundError,
     praise_db,
 )
+from backend.services.tag_service import canonical_tag_name, tag_search_variants
 
 router = APIRouter(prefix="/api/praise", tags=["praise"])
 
@@ -30,7 +31,15 @@ class PraiseSongDeleteRequest(BaseModel):
 @router.get("/search")
 async def search_praise_songs(query: str = Query("")):
     try:
-        return praise_db.search_songs(query)
+        songs_by_id = {}
+        for search_term in tag_search_variants(query) if query.strip() else [query]:
+            for song in praise_db.search_songs(search_term):
+                songs_by_id[song["id"]] = song
+        songs = sorted(songs_by_id.values(), key=lambda song: song["title"].casefold())[:50]
+        for song in songs:
+            song["mood"] = canonical_tag_name(song.get("mood"))
+            song["moods"] = [song["mood"]]
+        return songs
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -44,6 +53,7 @@ async def save_praise_song(req: PraiseSongSaveRequest):
             (m.strip() for m in [req.mood, *(req.moods or [])] if isinstance(m, str) and m.strip()),
             "기본/일반",
         )
+        target_mood = canonical_tag_name(target_mood)
         saved_id = praise_db.save_song(req.title.strip(), req.lyrics, song_id=req.id, original_title=req.original_title, mood=target_mood)
         return {"status": "success", "id": saved_id}
     except DuplicatePraiseTitleError as e:
@@ -79,7 +89,7 @@ async def export_praise_songs(ids: Optional[str] = Query(None)):
         if not songs:
             raise HTTPException(status_code=404, detail="내보낼 찬양 데이터가 없습니다.")
 
-        export_data = [{"title": s["title"], "lyrics": s["lyrics"], "mood": s.get("mood") or "기본/일반"} for s in songs]
+        export_data = [{"title": s["title"], "lyrics": s["lyrics"], "mood": canonical_tag_name(s.get("mood"))} for s in songs]
         
         if len(songs) == 1:
             safe_title = "".join(c for c in songs[0]["title"] if c.isalnum() or c in (' ', '_', '-')).rstrip()

@@ -10,6 +10,7 @@ from backend.storage import (
     duplicate_projects_bulk, delete_projects_bulk, import_project_data
 )
 from backend.services.connection_manager import manager
+from backend.services.tag_service import canonicalize_project
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -134,7 +135,7 @@ async def export_project(project_id: str):
         file_name = f"project_{project.name}_{project.id}.json"
         safe_filename = "".join(c for c in file_name if c.isalnum() or c in (' ', '_', '-')).rstrip() + ".json"
         encoded_filename = urllib.parse.quote(safe_filename)
-        json_bytes = json.dumps(project.model_dump(), indent=2, ensure_ascii=False).encode('utf-8')
+        json_bytes = json.dumps(canonicalize_project(project.model_dump()), indent=2, ensure_ascii=False).encode('utf-8')
         return Response(
             content=json_bytes,
             media_type="application/json",
@@ -152,7 +153,7 @@ async def export_projects_batch(req: ProjectBatchRequest):
         export_list = []
         for pid in req.ids:
             p = await load_project_data(pid)
-            export_list.append(p.model_dump())
+            export_list.append(canonicalize_project(p.model_dump()))
         json_bytes = json.dumps(export_list, indent=2, ensure_ascii=False).encode('utf-8')
         return Response(
             content=json_bytes,

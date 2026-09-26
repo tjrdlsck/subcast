@@ -288,11 +288,12 @@ window.openStageBgMoodModal = function(targetFiles) {
         bulkModeContainer.style.display = _stageBgMoodTargets.length > 1 ? 'flex' : 'none';
     }
 
-    const standardPresets = ["경배/찬양", "잔잔/묵상", "기도/회개", "결단/헌금", "웅장/선포", "절기/특별", "기본/일반"];
+    const standardPresets = (window.moodTags || []).map(tag => tag.name);
     let currentSelectedMood = "경배/찬양";
     if (_stageBgMoodTargets.length > 0) {
         const firstBg = _stageBgMoodTargets[0];
-        currentSelectedMood = (firstBg.moods && firstBg.moods[0]) || firstBg.mood || "경배/찬양";
+        const selectedMood = (firstBg.moods && firstBg.moods[0]) || firstBg.mood || "경배/찬양";
+        currentSelectedMood = window.canonicalMoodTag ? window.canonicalMoodTag(selectedMood) : selectedMood;
     }
 
     function renderChips() {
@@ -303,7 +304,7 @@ window.openStageBgMoodModal = function(targetFiles) {
             const style = isActive 
                 ? 'padding: 5px 12px; font-size: 0.76rem; border-radius: 14px; border: 1px solid var(--primary); background: var(--primary); color: #fff; cursor: pointer; font-weight: 600;'
                 : 'padding: 5px 12px; font-size: 0.76rem; border-radius: 14px; border: 1px solid var(--panel-border); background: rgba(255,255,255,0.05); color: #cbd5e1; cursor: pointer;';
-            html += `<button type="button" class="stage-bg-mood-chip ${isActive ? 'active' : ''}" data-mood="${m}" style="${style}">#${m}</button>`;
+            html += `<button type="button" class="stage-bg-mood-chip ${isActive ? 'active' : ''}" data-mood="${m.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}" style="${style}">#${m.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</button>`;
         });
         chipsContainer.innerHTML = html;
 
@@ -426,6 +427,14 @@ function initStageBgMoodModalEvents() {
         };
     }
 }
+
+document.addEventListener('mood-tags-updated', async () => {
+    await loadStageBgLibrary(true);
+    const modal = document.getElementById('stage-bg-mood-modal');
+    if (modal?.style.display === 'flex' && _stageBgMoodTargets.length > 0) {
+        openStageBgMoodModal(_stageBgMoodTargets);
+    }
+});
 
 // 현장 배경 메인 뷰어 열기/닫기
 function showStageBgMainViewer() {

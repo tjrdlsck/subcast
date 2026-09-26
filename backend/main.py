@@ -21,6 +21,7 @@ from backend.routers.templates import router as templates_router
 from backend.routers.system import router as system_router
 from backend.routers.projects import router as projects_router
 from backend.routers.monitor import router as monitor_router
+from backend.routers.tags import router as tags_router
 
 from backend.services.migration_service import migrate_legacy_db_if_needed
 from backend.database import APP_DATA_DIR
@@ -48,6 +49,7 @@ app.include_router(templates_router)
 app.include_router(system_router)
 app.include_router(projects_router)
 app.include_router(monitor_router)
+app.include_router(tags_router)
 
 import os
 import sys

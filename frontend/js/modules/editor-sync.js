@@ -117,6 +117,12 @@
                         resolveSave(message);
                     }
                 }
+                else if (message.type === 'MOOD_TAGS_UPDATED') {
+                    if (Array.isArray(message.tags)) {
+                        window.moodTags = message.tags;
+                        document.dispatchEvent(new CustomEvent('mood-tags-updated'));
+                    }
+                }
                 else if (message.type === 'INITIAL_SYNC') {
                     projectData = message.data;
                     if (message.lockedSlides) {
