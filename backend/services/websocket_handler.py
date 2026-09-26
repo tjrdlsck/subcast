@@ -2,18 +2,76 @@ import json
 import logging
 import uuid
 import asyncio
+import re
 from fastapi import WebSocket, WebSocketDisconnect
 
 from backend.schemas import Slide, SlideTemplate, Element, CustomFont, ProjectData
 from backend.storage import save_project_data, save_global_templates, load_global_templates
 from backend.services.connection_manager import manager
-from backend.services.background_service import load_bg_meta, save_bg_meta
+from backend.services.background_service import backgrounds_dir, load_bg_meta, save_bg_meta
 from backend.services.mood_matching import select_stage_background
 
 logger = logging.getLogger("subcast")
 
 stage_bg_history_queue = []
 song_stage_bg_cache = {}
+
+_STAGE_BG_EXTENSIONS = {".mp4", ".webm", ".mov", ".avi", ".jpg", ".png"}
+_PRAISE_SLIDE_NAME = re.compile(r"^(?P<kind>찬양:|자막\(템\):|자막:)\s*(?P<title>.+?)\s+\((?P<number>\d+)/(?P<total>\d+)\)(?:\s+\[[^]]+\])?(?P<copy>(?:\s+\(사본\))*)$")
+
+
+def _available_stage_backgrounds(project_library: list[dict]) -> list[dict]:
+    """Return only videos and images that are present on disk."""
+    available = {
+        path.name for path in backgrounds_dir.iterdir()
+        if path.is_file() and path.suffix.lower() in _STAGE_BG_EXTENSIONS
+        and not path.name.startswith((".trash_", ".chunk_"))
+    }
+    meta = load_bg_meta()
+    library = []
+    known_names = set()
+    for item in project_library:
+        name = item.get("name")
+        if name in available:
+            library.append({**item, "url": f"/static/backgrounds/{name}"})
+            known_names.add(name)
+    for name in sorted(available - known_names):
+        item_meta = meta.get(name, {})
+        library.append({
+            "name": name,
+            "url": f"/static/backgrounds/{name}",
+            "mood": item_meta.get("mood", "기본/일반"),
+            "moods": item_meta.get("moods", [item_meta.get("mood", "기본/일반")]),
+            "isDefault": item_meta.get("isDefault", False),
+        })
+    return library
+
+
+def _legacy_praise_group_key(slide_id: str, slides: list[Slide]) -> str | None:
+    """Find the first numbered verse, even when unrelated slides were inserted."""
+    index = next((i for i, slide in enumerate(slides) if slide.id == slide_id), None)
+    if index is None:
+        return None
+    match = _PRAISE_SLIDE_NAME.match(slides[index].name)
+    if not match:
+        return None
+    label = (match["kind"], match["title"].strip(), match["total"], match["copy"])
+    expected = int(match["number"]) - 1
+    while expected > 0:
+        found = False
+        for candidate_index in range(index - 1, -1, -1):
+            candidate = _PRAISE_SLIDE_NAME.match(slides[candidate_index].name)
+            if not candidate or (candidate["kind"], candidate["title"].strip(), candidate["total"], candidate["copy"]) != label:
+                continue
+            number = int(candidate["number"])
+            if number == expected:
+                index = candidate_index
+                expected -= 1
+                found = True
+            break
+        if not found:
+            break
+    return f"legacy:{slides[index].id}"
 
 _pending_save_tasks = {}
 
@@ -83,30 +141,30 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                 logger.info(f"Stage background updated: {bg_data.get('type')}")
 
             elif msg_type == "SELECT_STAGE_BACKGROUND_BY_MOOD":
-                slide_moods = message.get("slideMoods", [])
-                override_bg_id = message.get("overrideBgId")
-                praise_group_id = message.get("praiseGroupId")
-                song_title = message.get("songTitle")
-                song_key = praise_group_id or song_title
+                slide_id = message.get("slideId")
+                slides = manager.project_data.slides if manager.project_data else []
+                slide = next((item for item in slides if item.id == slide_id), None)
+                slide_moods = (slide.moods or ([slide.mood] if slide.mood else [])) if slide else message.get("slideMoods", [])
+                override_bg_id = slide.overrideBgId if slide else message.get("overrideBgId")
+                praise_group_id = slide.praiseGroupId if slide else message.get("praiseGroupId")
+                song_title = slide.songTitle if slide else message.get("songTitle")
+                legacy_key = _legacy_praise_group_key(slide_id, slides) if slide_id and slide else None
+                first_legacy_slide = next((item for item in slides if legacy_key == f"legacy:{item.id}"), None)
+                song_key = (first_legacy_slide.praiseGroupId if first_legacy_slide else None) or praise_group_id or legacy_key or song_title
+                if song_key and manager.project_data:
+                    song_key = f"{manager.project_data.id}:{song_key}"
 
-                bg_library = getattr(manager.project_data.settings, "stageBgLibrary", []) if manager.project_data and manager.project_data.settings else []
-                if not bg_library:
-                    meta = load_bg_meta()
-                    bg_library = []
-                    for name, item_meta in meta.items():
-                        bg_library.append({
-                            "name": name,
-                            "url": f"/static/backgrounds/{name}",
-                            "mood": item_meta.get("mood", "기본/일반"),
-                            "moods": item_meta.get("moods", [item_meta.get("mood", "기본/일반")] if item_meta.get("mood") else []),
-                            "isDefault": item_meta.get("isDefault", False),
-                            "thumbnailUrl": item_meta.get("thumbnailUrl", "")
-                        })
+                project_library = getattr(manager.project_data.settings, "stageBgLibrary", None) if manager.project_data and manager.project_data.settings else None
+                bg_library = _available_stage_backgrounds(project_library or [])
                 
                 if not override_bg_id and song_key and song_key in song_stage_bg_cache:
                     cached_bg_id = song_stage_bg_cache[song_key]
                     if any((bg.get("id") == cached_bg_id or bg.get("name") == cached_bg_id) for bg in bg_library):
                         override_bg_id = cached_bg_id
+
+                missing_bg_id = override_bg_id if override_bg_id and not any(
+                    bg.get("id") == override_bg_id or bg.get("name") == override_bg_id for bg in bg_library
+                ) else None
 
                 bg_data = select_stage_background(
                     slide_moods=slide_moods,
@@ -114,6 +172,12 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                     bg_library=bg_library,
                     history_queue=stage_bg_history_queue
                 )
+                if missing_bg_id:
+                    await websocket.send_text(json.dumps({
+                        "type": "STAGE_BACKGROUND_MISSING",
+                        "backgroundId": missing_bg_id,
+                        "fallbackType": bg_data.get("type")
+                    }))
                 
                 if song_key and bg_data.get("id"):
                     song_stage_bg_cache[song_key] = bg_data.get("id")
@@ -491,6 +555,22 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                         "lockedSlides": manager.locked_slides
                     })
                     logger.info(f"Bulk slides added: {len(slides_data)} slides")
+
+            elif msg_type == "SAVE_SLIDES_BULK":
+                slides_data = message.get("slides", [])
+                if slides_data and manager.project_data:
+                    updated = {slide.id: slide for slide in (Slide.model_validate(data) for data in slides_data)}
+                    for index, existing in enumerate(manager.project_data.slides):
+                        if existing.id in updated:
+                            manager.project_data.slides[index] = updated[existing.id]
+                    await save_project_data(manager.project_data)
+                    for slide in updated.values():
+                        await manager.broadcast({
+                            "type": "SLIDE_UPDATED",
+                            "slideId": slide.id,
+                            "slide": slide.model_dump(),
+                            "isLive": slide.id == manager.project_data.settings.currentLiveSlideId,
+                        })
 
             elif msg_type == "SAVE_SLIDE":
                 slide_data = message.get("slide")

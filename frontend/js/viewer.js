@@ -514,7 +514,8 @@
             if (!activeEl || !nextEl) return;
 
             const targetPath = bgConfig.videoUrl;
-            const isSameVideo = (activeEl.src && (activeEl.src.endsWith(targetPath) || activeEl.src === targetPath)) &&
+            const targetUrl = new URL(targetPath, window.location.href).href;
+            const isSameVideo = activeEl.src === targetUrl &&
                                 activeEl.style.display !== 'none' &&
                                 parseFloat(activeEl.style.opacity || '0') > 0;
 
@@ -555,7 +556,7 @@
                 });
             };
 
-            const isAlreadyLoaded = nextEl.src && (nextEl.src.endsWith(targetPath) || nextEl.src === targetPath);
+            const isAlreadyLoaded = nextEl.src === targetUrl;
             if (!isAlreadyLoaded) {
                 nextEl.src = targetPath;
                 nextEl.load();

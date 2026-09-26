@@ -199,7 +199,14 @@ async def save_project_data(data: ProjectData, project_id: Optional[str] = None)
         try:
             async with aiofiles.open(temp_path, mode="w", encoding="utf-8") as f:
                 await f.write(data.model_dump_json(indent=2))
-            os.replace(temp_path, target_path)
+            for attempt in range(5):
+                try:
+                    os.replace(temp_path, target_path)
+                    break
+                except PermissionError:
+                    if attempt == 4:
+                        raise
+                    await asyncio.sleep(0.05 * (2 ** attempt))
         except Exception as e:
             if temp_path.exists():
                 try:

@@ -27,6 +27,25 @@
         let canvas = null;
         let targetWidth = 1920;
         let targetHeight = 1080;
+        const warnedMissingStageBgIds = new Set();
+
+        function warnMissingStageBackground(backgroundId, fallbackType) {
+            if (!backgroundId || warnedMissingStageBgIds.has(backgroundId)) return;
+            warnedMissingStageBgIds.add(backgroundId);
+
+            let notice = document.getElementById('stage-bg-missing-notice');
+            if (!notice) {
+                notice = document.createElement('div');
+                notice.id = 'stage-bg-missing-notice';
+                notice.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:10000;max-width:420px;padding:12px 16px;border-radius:8px;background:#7f1d1d;color:#fff;box-shadow:0 8px 24px #0008;font-size:14px;';
+                document.body.appendChild(notice);
+            }
+            const fallbackLabel = fallbackType === 'ambient' ? '앰비언트 배경' : '기본 배경';
+            notice.textContent = `현장 배경 영상 '${backgroundId}'을 찾지 못해 ${fallbackLabel}을 표시합니다.`;
+            notice.style.display = 'block';
+            clearTimeout(notice.hideTimer);
+            notice.hideTimer = setTimeout(() => { notice.style.display = 'none'; }, 8000);
+        }
 
         // 백그라운드에서 썸네일을 자동 생성하는 함수
         function autoGenerateThumbnail(slide) {
@@ -211,6 +230,8 @@
         // 슬라이드 활성 상태 및 프리뷰 점진적 갱신 (전체 DOM 재생성 방지)
         function updateSlideActiveState(liveSlideId, selectedId, scroll = true) {
             if (!projectData || !projectData.slides) return;
+            const previousLiveId = projectData.settings?.currentLiveSlideId;
+            const previousSelectedId = selectedSlideId;
 
             if (projectData.settings) {
                 projectData.settings.currentLiveSlideId = liveSlideId;
@@ -239,34 +260,30 @@
                 indicatorEl.innerText = `${displayIndex !== -1 ? String(displayIndex + 1).padStart(2, '0') : '00'} / ${String(projectData.slides.length).padStart(2, '0')}`;
             }
 
-            // 슬라이드 아이템의 클래스 및 배지 색상 증분 업데이트
-            const listEl = document.getElementById("slide-list");
-            if (listEl) {
-                const items = listEl.querySelectorAll(".slide-item");
-                items.forEach((item, index) => {
-                    const slide = projectData.slides[index];
-                    if (!slide) return;
+            // 이전/현재 활성 카드만 갱신한다.
+            for (const slideId of new Set([previousLiveId, previousSelectedId, liveSlideId, selectedSlideId])) {
+                if (!slideId) continue;
+                const item = document.getElementById(`slide-item-${slideId}`);
+                if (!item) continue;
+                const isLive = slideId === liveSlideId;
+                const isSelected = slideId === selectedSlideId;
 
-                    const isLive = slide.id === liveSlideId;
-                    const isSelected = slide.id === selectedSlideId;
+                item.classList.toggle("live", isLive);
+                item.classList.toggle("selected", !isLive && isSelected);
 
-                    item.classList.toggle("live", isLive);
-                    item.classList.toggle("selected", !isLive && isSelected);
-
-                    const badge = item.querySelector(".slide-number-badge");
-                    if (badge) {
-                        if (isLive) {
-                            badge.style.background = "var(--accent-live)";
-                            badge.style.boxShadow = "0 0 8px var(--accent-live-glow)";
-                        } else if (isSelected) {
-                            badge.style.background = "var(--green-online)";
-                            badge.style.boxShadow = "0 0 8px rgba(16, 185, 129, 0.5)";
-                        } else {
-                            badge.style.background = "var(--primary)";
-                            badge.style.boxShadow = "0 2px 5px rgba(0,0,0,0.5)";
-                        }
+                const badge = item.querySelector(".slide-number-badge");
+                if (badge) {
+                    if (isLive) {
+                        badge.style.background = "var(--accent-live)";
+                        badge.style.boxShadow = "0 0 8px var(--accent-live-glow)";
+                    } else if (isSelected) {
+                        badge.style.background = "var(--green-online)";
+                        badge.style.boxShadow = "0 0 8px rgba(16, 185, 129, 0.5)";
+                    } else {
+                        badge.style.background = "var(--primary)";
+                        badge.style.boxShadow = "0 2px 5px rgba(0,0,0,0.5)";
                     }
-                });
+                }
             }
 
             if (scroll) {
@@ -286,6 +303,7 @@
             currentLiveIndex = -1;
 
             if (!projectData || !projectData.slides) return;
+            const fragment = document.createDocumentFragment();
 
             document.getElementById("slide-count").innerText = `${projectData.slides.length} Slides`;
 
@@ -351,14 +369,13 @@
                         ${index + 1}
                     </div>
                     <div class="slide-thumbnail-wrapper">
-                        ${slide.thumbnail ? `<img src="${slide.thumbnail}">` : `<span style="font-size: 0.72rem; color: var(--text-muted);">미리보기 없음</span>`}
+                        ${slide.thumbnail ? `<img src="${slide.thumbnail}" loading="lazy">` : `<span style="font-size: 0.72rem; color: var(--text-muted);">미리보기 없음</span>`}
                     </div>
                     ${isLocked ? `<div class="slide-lock-indicator">🔒 ${lockedSlides[slide.id] || ''} 편집 중</div>` : ''}
                 `;
 
                 // 클릭 시 슬라이드 선택 (LIVE ON 상태이면 클릭 시 즉시 라이브 전환!)
                 item.onclick = () => {
-                    selectedSlideId = slide.id;
                     if (projectData.settings?.currentLiveSlideId) {
                         currentLiveIndex = index;
                         updateSlideActiveState(slide.id, slide.id, true);
@@ -368,8 +385,9 @@
                     }
                 };
 
-                listEl.appendChild(item);
+                fragment.appendChild(item);
             });
+            listEl.appendChild(fragment);
 
             // 상단 퀵 네비게이션 인디케이터 업데이트
             const indicatorEl = document.getElementById("slide-indicator");
@@ -387,6 +405,44 @@
             renderCurrentLiveSlide();
         }
 
+        function updateDeckItem(slideId) {
+            const item = document.getElementById(`slide-item-${slideId}`);
+            const slide = projectData?.slides?.find(s => s.id === slideId);
+            if (!item || !slide) return false;
+
+            const wrapper = item.querySelector(".slide-thumbnail-wrapper");
+            if (wrapper) {
+                const img = wrapper.querySelector("img");
+                if (slide.thumbnail) {
+                    if (img) {
+                        if (img.src !== slide.thumbnail) img.src = slide.thumbnail;
+                    } else {
+                        wrapper.innerHTML = `<img src="${slide.thumbnail}" loading="lazy">`;
+                    }
+                } else if (img) {
+                    wrapper.innerHTML = '<span style="font-size: 0.72rem; color: var(--text-muted);">미리보기 없음</span>';
+                }
+            }
+
+            const isLocked = lockedSlides[slideId] !== undefined;
+            item.classList.toggle("locked", isLocked);
+            const lockLabel = item.querySelector(".slide-lock-indicator");
+            if (isLocked) {
+                const labelText = `🔒 ${lockedSlides[slideId] || ''} 편집 중`;
+                if (lockLabel) {
+                    lockLabel.textContent = labelText;
+                } else {
+                    const label = document.createElement("div");
+                    label.className = "slide-lock-indicator";
+                    label.textContent = labelText;
+                    item.appendChild(label);
+                }
+            } else if (lockLabel) {
+                lockLabel.remove();
+            }
+            return true;
+        }
+
         // 슬라이드 전환 명령 송신
         function changeSlide(slideId) {
             if (!ws || ws.readyState !== WebSocket.OPEN) return;
@@ -400,6 +456,7 @@
                 if (targetSlide) {
                     ws.send(JSON.stringify({
                         type: "SELECT_STAGE_BACKGROUND_BY_MOOD",
+                        slideId: slideId,
                         slideMood: targetSlide.mood || (targetSlide.moods && targetSlide.moods[0]) || "기본/일반",
                         slideMoods: targetSlide.moods || (targetSlide.mood ? [targetSlide.mood] : ["기본/일반"]),
                         overrideBgId: targetSlide.overrideBgId || null,
@@ -427,7 +484,6 @@
             }
 
             const targetSlideId = projectData.slides[nextIdx].id;
-            selectedSlideId = targetSlideId;
 
             if (projectData.settings?.currentLiveSlideId) {
                 // 낙관적 UI 업데이트: 서버 응답을 대기하지 않고 즉시 로컬 인덱스 및 활성 상태를 선반영하여 중복 입력 방지
@@ -500,6 +556,9 @@
                     const radioEl = document.getElementById(`bg-${message.mode}`);
                     if (radioEl) radioEl.checked = true;
                 }
+                else if (message.type === 'STAGE_BACKGROUND_MISSING') {
+                    warnMissingStageBackground(message.backgroundId, message.fallbackType);
+                }
                 else if (message.type === 'SLIDE_CHANGE') {
                     if (projectData) {
                         updateSlideActiveState(message.slideId, message.slideId, true);
@@ -520,11 +579,11 @@
                 }
                 else if (message.type === 'SLIDE_LOCKED') {
                     lockedSlides[message.slideId] = message.editorName;
-                    renderDeck();
+                    updateDeckItem(message.slideId);
                 }
                 else if (message.type === 'SLIDE_UNLOCKED') {
                     delete lockedSlides[message.slideId];
-                    renderDeck();
+                    updateDeckItem(message.slideId);
                 }
                 else if (message.type === 'SLIDE_UPDATED') {
                     // 슬라이드 데이터 변경 감지 (Presenter 화면에서도 미리보기 조용히 갱신)
@@ -535,7 +594,8 @@
                         } else {
                             projectData.slides.push(message.slide);
                         }
-                        renderDeck();
+                        if (!updateDeckItem(message.slideId)) renderDeck();
+                        else if (message.slideId === projectData.settings?.currentLiveSlideId) renderCurrentLiveSlide();
                     }
                 }
             };

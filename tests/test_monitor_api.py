@@ -124,4 +124,4 @@ def test_update_monitor_settings_api_invalid_font_size():
     res_data = response.json()
     assert res_data["status"] == "error"
     assert res_data["errorCode"] == "INVALID_BOUNDS"
-    assert "fontSize must be between 10 and 200" in res_data["message"]
+    assert "fontSize must be between 0.5 and 200" in res_data["message"]

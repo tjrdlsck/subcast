@@ -56,6 +56,7 @@
             const listEl = document.getElementById("slide-list");
             listEl.innerHTML = "";
             if (!projectData || !projectData.slides) return;
+            const fragment = document.createDocumentFragment();
 
             listEl.oncontextmenu = (e) => {
                 // 슬라이드 패널 빈 영역 클릭 시 우클릭 메뉴 노출
@@ -93,7 +94,7 @@
                     </div>
                     <div style="position: relative; width: 100%;">
                         <div class="slide-thumbnail-wrapper" style="margin-top: 0;">
-                            ${slide.thumbnail ? `<img src="${slide.thumbnail}">` : `<span style="font-size: 0.7rem; color: var(--text-muted);">미리보기 없음</span>`}
+                            ${slide.thumbnail ? `<img src="${slide.thumbnail}" loading="lazy">` : `<span style="font-size: 0.7rem; color: var(--text-muted);">미리보기 없음</span>`}
                         </div>
                         ${isLockedByOthers ? `<div class="lock-owner-text" style="font-size: 0.75rem; color: var(--accent-live); margin-top: 4px;">🔒 ${lockName}님이 편집 중</div>` : ''}
                     </div>
@@ -178,7 +179,7 @@
                 item.oncontextmenu = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    if (!isLockedByOthers) {
+                    if (!checkIsLockedByOthers(slide.id)) {
                         if (!selectedSlideIds.includes(slide.id)) {
                             selectedSlideIds = [slide.id];
                             selectSlideForEdit(slide.id);
@@ -187,40 +188,95 @@
                     showSlideContextMenu(e.clientX, e.clientY);
                 };
 
-                if (!isLockedByOthers) {
-                    item.onclick = (e) => {
-                        if (e.ctrlKey || e.metaKey) {
-                            if (selectedSlideIds.includes(slide.id)) {
-                                if (selectedSlideIds.length > 1) {
-                                    selectedSlideIds = selectedSlideIds.filter(id => id !== slide.id);
-                                }
-                            } else {
-                                selectedSlideIds.push(slide.id);
-                            }
-                        } else if (e.shiftKey) {
-                            const activeIndex = projectData.slides.findIndex(s => s.id === activeSlideId);
-                            const clickedIndex = index;
-                            if (activeIndex !== -1) {
-                                const start = Math.min(activeIndex, clickedIndex);
-                                const end = Math.max(activeIndex, clickedIndex);
-                                selectedSlideIds = [];
-                                for (let i = start; i <= end; i++) {
-                                    selectedSlideIds.push(projectData.slides[i].id);
-                                }
+                item.onclick = (e) => {
+                    if (checkIsLockedByOthers(slide.id)) return;
+                    if (e.ctrlKey || e.metaKey) {
+                        if (selectedSlideIds.includes(slide.id)) {
+                            if (selectedSlideIds.length > 1) {
+                                selectedSlideIds = selectedSlideIds.filter(id => id !== slide.id);
                             }
                         } else {
-                            selectedSlideIds = [slide.id];
+                            selectedSlideIds.push(slide.id);
                         }
-                        selectSlideForEdit(slide.id);
-                        renderSlides();
-                    };
-                }
-                listEl.appendChild(item);
+                    } else if (e.shiftKey) {
+                        const activeIndex = projectData.slides.findIndex(s => s.id === activeSlideId);
+                        const clickedIndex = index;
+                        if (activeIndex !== -1) {
+                            const start = Math.min(activeIndex, clickedIndex);
+                            const end = Math.max(activeIndex, clickedIndex);
+                            selectedSlideIds = [];
+                            for (let i = start; i <= end; i++) {
+                                selectedSlideIds.push(projectData.slides[i].id);
+                            }
+                        }
+                    } else {
+                        selectedSlideIds = [slide.id];
+                    }
+                    selectSlideForEdit(slide.id);
+                };
+                fragment.appendChild(item);
             });
+            listEl.appendChild(fragment);
 
             if (isSlideSorterOpen) {
                 renderSlideSorter();
             }
+        }
+
+        function updateSlideListSelection() {
+            const listEl = document.getElementById("slide-list");
+            if (listEl && projectData?.slides) {
+                const selected = new Set(selectedSlideIds);
+                for (const slide of projectData.slides) {
+                    const item = document.getElementById(`slide-item-${slide.id}`);
+                    if (!item) continue;
+                    item.classList.toggle("editing", slide.id === activeSlideId);
+                    item.classList.toggle("selected-multi", selected.has(slide.id));
+                }
+            }
+            if (isSlideSorterOpen) updateSlideSorterSelection();
+        }
+
+        function updateSlideListItem(slideId) {
+            const item = document.getElementById(`slide-item-${slideId}`);
+            const slide = projectData?.slides?.find(s => s.id === slideId);
+            if (!item || !slide) return false;
+
+            const thumbnail = item.querySelector(".slide-thumbnail-wrapper");
+            if (thumbnail) {
+                const img = thumbnail.querySelector("img");
+                if (slide.thumbnail) {
+                    if (img) {
+                        if (img.src !== slide.thumbnail) img.src = slide.thumbnail;
+                    } else {
+                        thumbnail.innerHTML = `<img src="${slide.thumbnail}" loading="lazy">`;
+                    }
+                } else if (img) {
+                    thumbnail.innerHTML = '<span style="font-size: 0.7rem; color: var(--text-muted);">미리보기 없음</span>';
+                }
+            }
+
+            const isLocked = checkIsLockedByOthers(slideId);
+            item.classList.toggle("locked", isLocked);
+            const wrapper = thumbnail?.parentElement;
+            const lockLabel = wrapper?.querySelector(".lock-owner-text");
+            if (isLocked) {
+                const owner = lockedSlides[slideId];
+                const name = (owner && typeof owner === 'object' && owner.editorName) || '다른 편집자';
+                if (lockLabel) {
+                    lockLabel.textContent = `🔒 ${name}님이 편집 중`;
+                } else if (wrapper) {
+                    const label = document.createElement("div");
+                    label.className = "lock-owner-text";
+                    label.style.cssText = "font-size: 0.75rem; color: var(--accent-live); margin-top: 4px;";
+                    label.textContent = `🔒 ${name}님이 편집 중`;
+                    wrapper.appendChild(label);
+                }
+            } else if (lockLabel) {
+                lockLabel.remove();
+            }
+            if (isSlideSorterOpen) renderSlideSorter();
+            return true;
         }
 
 
@@ -286,6 +342,7 @@
                 if (!selectedSlideIds || selectedSlideIds.length === 0) {
                     selectedSlideIds = [slideId];
                 }
+                updateSlideListSelection();
                 return;
             }
 
@@ -319,7 +376,7 @@
             }
             loadSlideToCanvas(slideId);
             setControlsState(true);
-            renderSlides();
+            updateSlideListSelection();
             if (typeof updateMonitorSlideTexts === 'function') {
                 updateMonitorSlideTexts();
             }
@@ -357,7 +414,7 @@
 
             // 줌이 배제된 768, 432 해상도 기준으로 원소들을 직렬화하여 서버 저장
             const elements = canvas.getObjects().map(obj => serializeElement(obj, BASE_WIDTH, BASE_HEIGHT));
-            const updatedSlide = { id: slide.id, name: slide.name, thumbnail: thumbnailData, elements: elements };
+            const updatedSlide = { ...slide, thumbnail: thumbnailData, elements: elements };
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: "SAVE_SLIDE", slide: updatedSlide }));
             }
@@ -373,7 +430,7 @@
                 }, 2000);
             }
 
-            renderSlides();
+            updateSlideListItem(activeSlideId);
             setSlideDirty(false);
         }
 
@@ -589,7 +646,7 @@
                         selectedSlideIds = [slide.id];
                     }
                     selectSlideForEdit(slide.id);
-                    renderSlideSorter();
+                    updateSlideSorterSelection();
                 };
 
                 // 2. 더블클릭: 단일 슬라이드 편집기로 즉시 복귀
@@ -690,6 +747,28 @@
 
                 gridEl.appendChild(card);
             });
+        }
+
+        function updateSlideSorterSelection() {
+            const selected = new Set(selectedSlideIds);
+            const gridEl = document.getElementById("slide-sorter-grid");
+            if (!gridEl) return;
+            for (const card of gridEl.querySelectorAll(".sorter-card")) {
+                const slideId = card.dataset.slideId;
+                card.classList.toggle("editing", slideId === activeSlideId);
+                card.classList.toggle("selected-multi", selected.has(slideId));
+                const footer = card.querySelector(".sorter-card-footer");
+                const editingTag = footer?.querySelector(".sorter-tag-editing");
+                const hasTypeTag = footer?.querySelector(".sorter-tag-praise, .sorter-tag-bible");
+                if (slideId === activeSlideId && !hasTypeTag && !editingTag && footer) {
+                    const tag = document.createElement("span");
+                    tag.className = "sorter-card-tag sorter-tag-editing";
+                    tag.textContent = "편집중";
+                    footer.appendChild(tag);
+                } else if (slideId !== activeSlideId && editingTag) {
+                    editingTag.remove();
+                }
+            }
         }
 
         function initSlideSorterEvents() {

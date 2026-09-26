@@ -84,6 +84,9 @@
                 }
 
                 const newCreatedSlides = [];
+                const pastedPraiseGroups = new Map();
+                let lastLegacyPraiseTitle = null;
+                let lastLegacyPraiseGroupId = null;
                 slidesToAdd.forEach((slideData, idx) => {
                     const newId = `slide_${Math.random().toString(36).substr(2, 8)}`;
                     const newSlide = {
@@ -92,6 +95,24 @@
                         name: slideData.name || "복사된 슬라이드",
                         elements: JSON.parse(JSON.stringify(slideData.elements || []))
                     };
+                    if (slideData.praiseGroupId) {
+                        if (!pastedPraiseGroups.has(slideData.praiseGroupId)) {
+                            pastedPraiseGroups.set(slideData.praiseGroupId, `praise_grp_${Math.random().toString(36).slice(2, 11)}`);
+                        }
+                        newSlide.praiseGroupId = pastedPraiseGroups.get(slideData.praiseGroupId);
+                        lastLegacyPraiseTitle = null;
+                    } else {
+                        const legacyPraise = /^(?:찬양:|자막\(템\):|자막:)\s*(.+?)\s+\(\d+\/\d+\)/.exec(slideData.name || '');
+                        const title = legacyPraise ? legacyPraise[1].trim() : null;
+                        if (title) {
+                            if (title !== lastLegacyPraiseTitle) {
+                                lastLegacyPraiseGroupId = `praise_grp_${Math.random().toString(36).slice(2, 11)}`;
+                            }
+                            newSlide.praiseGroupId = lastLegacyPraiseGroupId;
+                            newSlide.songTitle = title;
+                        }
+                        lastLegacyPraiseTitle = title;
+                    }
                     projectData.slides.splice(insertIndex + 1 + idx, 0, newSlide);
                     ws.send(JSON.stringify({ type: "SAVE_SLIDE", slide: newSlide }));
                     newCreatedSlides.push(newSlide);

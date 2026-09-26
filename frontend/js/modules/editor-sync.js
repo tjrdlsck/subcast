@@ -85,13 +85,13 @@
             setCanvasZoom(prevZoom);
 
             const elements = canvas.getObjects().map(obj => serializeElement(obj, BASE_WIDTH, BASE_HEIGHT));
-            const updatedSlide = { id: slide.id, name: slide.name, thumbnail: thumbnailData, elements: elements };
+            const updatedSlide = { ...slide, thumbnail: thumbnailData, elements: elements };
 
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: "SAVE_SLIDE", slide: updatedSlide }));
                 const idx = projectData.slides.findIndex(s => s.id === activeSlideId);
                 if (idx !== -1) projectData.slides[idx] = updatedSlide;
-                renderSlides();
+                updateSlideListItem(activeSlideId);
                 setSlideDirty(false);
                 updateAutoSaveStatus("saved", "모든 변경사항 저장됨");
             } else {
@@ -197,7 +197,8 @@
                                 for (let i = 0; i < missingSlides.length; i += batchSize) {
                                     const batch = missingSlides.slice(i, i + batchSize);
                                     await Promise.all(batch.map(slide => autoGenerateThumbnail(slide)));
-                                    renderSlides();
+                                    updateSlideListItem(batch[0].id);
+                                    if (batch[1]) updateSlideListItem(batch[1].id);
                                 }
                             })();
                         }
@@ -224,7 +225,7 @@
                             setControlsState(false);
                         }
                     }
-                    renderSlides();
+                    updateSlideListItem(message.slideId);
                 }
                 else if (message.type === 'LOCK_FAILED') {
                     isLockRequested = false;
@@ -243,7 +244,7 @@
                         document.getElementById("lock-banner").style.display = "none";
                         setControlsState(true);
                     }
-                    renderSlides();
+                    updateSlideListItem(message.slideId);
                 }
                 else if (message.type === 'SLIDE_UPDATED') {
                     const idx = projectData.slides.findIndex(s => s.id === message.slideId);
@@ -251,7 +252,7 @@
                     if (message.slideId === activeSlideId && checkIsLockedByOthers(activeSlideId)) {
                         loadSlideToCanvas(activeSlideId);
                     }
-                    renderSlides();
+                    if (!updateSlideListItem(message.slideId)) renderSlides();
                 }
                 else if (message.type === 'PROJECT_SYNC') {
                     projectData = message.data;

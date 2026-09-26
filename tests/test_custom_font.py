@@ -73,5 +73,5 @@ async def test_add_custom_font():
             
             # 백엔드 데이터 정리
             manager.project_data.customFonts = []
-            from backend.main import save_project_data
+            from backend.storage import save_project_data
             await save_project_data(manager.project_data)

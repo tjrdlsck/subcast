@@ -33,8 +33,13 @@ class Slide(BaseModel):
     id: str
     name: str
     thumbnail: Optional[str] = None
+    mood: Optional[str] = None
     moods: Optional[List[str]] = Field(default_factory=list)
     overrideBgId: Optional[str] = None
+    songTitle: Optional[str] = None
+    praiseGroupId: Optional[str] = None
+    slideType: Optional[str] = None
+    isPraise: Optional[bool] = None
     elements: List[Element] = Field(default_factory=list)
 
 class SlideTemplate(BaseModel):

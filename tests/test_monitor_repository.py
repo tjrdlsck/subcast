@@ -108,12 +108,8 @@ def test_validation_bounds_and_range():
     with pytest.raises(ValueError, match="topPct \\+ heightPct must not exceed 100%"):
         validate_box_settings("currentBox", {"leftPct": 5.0, "topPct": 60.0, "widthPct": 50.0, "heightPct": 50.0, "fontSize": 20})
 
-    # fontSize < 10
-    with pytest.raises(ValueError, match="fontSize must be between 10 and 200"):
-        validate_box_settings("currentBox", {"leftPct": 5.0, "topPct": 5.0, "widthPct": 50.0, "heightPct": 40.0, "fontSize": 5})
-
     # fontSize > 200
-    with pytest.raises(ValueError, match="fontSize must be between 10 and 200"):
+    with pytest.raises(ValueError, match="fontSize must be between 0.5 and 200"):
         validate_box_settings("currentBox", {"leftPct": 5.0, "topPct": 5.0, "widthPct": 50.0, "heightPct": 40.0, "fontSize": 250})
 
 def test_validate_monitor_settings_wrapper():

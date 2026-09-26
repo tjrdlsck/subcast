@@ -775,6 +775,37 @@
             // === 슬라이드 현장 배경 직접 지정 모달 제어 ===
             let activeTargetSlideForBgModal = null;
 
+            function getLegacyPraiseRun(slide) {
+                const pattern = /^(찬양:|자막\(템\):|자막:)\s*(.+?)\s+\((\d+)\/(\d+)\)(?:\s+\[[^\]]+\])?((?:\s+\(사본\))*)$/;
+                const match = pattern.exec(slide.name || '');
+                const slides = projectData?.slides || [];
+                const index = slides.findIndex(item => item.id === slide.id);
+                if (!match || index < 0) return null;
+
+                const label = `${match[1]}|${match[2].trim()}|${match[4]}|${match[5]}`;
+                const sameSong = candidate => candidate && `${candidate[1]}|${candidate[2].trim()}|${candidate[4]}|${candidate[5]}` === label;
+                let first = index;
+                let expected = Number(match[3]) - 1;
+                for (let i = index - 1; i >= 0 && expected > 0; i--) {
+                    const candidate = pattern.exec(slides[i].name || '');
+                    if (!sameSong(candidate)) continue;
+                    if (Number(candidate[3]) !== expected) break;
+                    first = i;
+                    expected--;
+                }
+
+                const run = [slides[first]];
+                expected = Number(pattern.exec(slides[first].name)[3]) + 1;
+                for (let i = first + 1; i < slides.length && expected <= Number(match[4]); i++) {
+                    const candidate = pattern.exec(slides[i].name || '');
+                    if (!sameSong(candidate)) continue;
+                    if (Number(candidate[3]) !== expected) break;
+                    run.push(slides[i]);
+                    expected++;
+                }
+                return { title: match[2].trim(), slides: run };
+            }
+
             function showSlideBgSelectModal(slide) {
                 if (!slide) return;
                 activeTargetSlideForBgModal = slide;
@@ -802,13 +833,14 @@
 
                 const chkApplyAll = document.getElementById("chk-slide-bg-modal-apply-all-song");
                 if (chkApplyAll) {
-                    const isPraise = Boolean(slide.praiseGroupId || slide.songTitle);
+                    const legacyPraise = getLegacyPraiseRun(slide);
+                    const isPraise = Boolean(slide.praiseGroupId || slide.songTitle || legacyPraise);
                     chkApplyAll.checked = isPraise;
                     chkApplyAll.disabled = !isPraise;
                     const label = chkApplyAll.nextElementSibling;
                     if (label) {
                         label.textContent = isPraise
-                            ? `🎵 해당 찬양 곡 [${slide.songTitle || slide.name}] 전체 슬라이드에 일괄 적용`
+                            ? `🎵 해당 찬양 곡 [${slide.songTitle || legacyPraise?.title || slide.name}] 전체 슬라이드에 일괄 적용`
                             : "🎵 단일 일반 슬라이드 (곡 일괄 적용 불가)";
                     }
                 }
@@ -891,31 +923,52 @@
 
             function applySelectedBgToSlide(bgId) {
                 if (!activeTargetSlideForBgModal || !projectData || !projectData.slides) return;
+                if (!ws || ws.readyState !== WebSocket.OPEN) {
+                    showToast('서버 연결이 없어 현장 배경을 저장할 수 없습니다.');
+                    return;
+                }
+
+                if (activeSlideId && typeof saveSlideData === 'function') saveSlideData();
+                activeTargetSlideForBgModal = projectData.slides.find(
+                    slide => slide.id === activeTargetSlideForBgModal.id
+                ) || activeTargetSlideForBgModal;
 
                 const chkApplyAll = document.getElementById("chk-slide-bg-modal-apply-all-song");
                 const applyAll = chkApplyAll ? chkApplyAll.checked : false;
-
+                const changedSlides = [];
                 if (applyAll) {
                     const targetGroupId = activeTargetSlideForBgModal.praiseGroupId;
                     const targetSongTitle = activeTargetSlideForBgModal.songTitle;
+                    const legacyPraise = getLegacyPraiseRun(activeTargetSlideForBgModal);
+                    const legacyIds = new Set(legacyPraise?.slides.map(slide => slide.id) || []);
+                    const restoreLegacyGroup = legacyPraise && (!targetGroupId || legacyPraise.slides.some(slide => slide.praiseGroupId !== targetGroupId));
+                    const restoredGroupId = restoreLegacyGroup
+                        ? (targetGroupId || `praise_grp_${Math.random().toString(36).slice(2, 11)}`)
+                        : null;
 
                     projectData.slides.forEach(s => {
                         let isTarget = false;
-                        if (targetGroupId && s.praiseGroupId === targetGroupId) {
+                        if (restoreLegacyGroup && legacyIds.has(s.id)) {
                             isTarget = true;
-                        } else if (!targetGroupId && targetSongTitle && s.songTitle === targetSongTitle) {
+                            s.praiseGroupId = restoredGroupId;
+                            s.songTitle = legacyPraise.title;
+                        } else if (!restoreLegacyGroup && targetGroupId && s.praiseGroupId === targetGroupId) {
+                            isTarget = true;
+                        } else if (!targetGroupId && !legacyPraise && targetSongTitle && s.songTitle === targetSongTitle) {
                             isTarget = true;
                         }
 
                         if (isTarget) {
                             s.overrideBgId = bgId;
+                            changedSlides.push(s);
                         }
                     });
                 } else {
                     activeTargetSlideForBgModal.overrideBgId = bgId;
+                    changedSlides.push(activeTargetSlideForBgModal);
                 }
 
-                triggerAutoSave();
+                ws.send(JSON.stringify({ type: 'SAVE_SLIDES_BULK', slides: changedSlides }));
                 renderSlides();
 
                 const modal = document.getElementById("slide-bg-select-modal");

@@ -3,7 +3,7 @@ import asyncio
 from fastapi.testclient import TestClient
 from backend.main import app, manager
 from backend.schemas import SlideTemplate
-from backend.storage import save_project_data
+from backend.storage import save_global_templates, save_project_data
 
 client = TestClient(app)
 
@@ -39,6 +39,7 @@ def test_template_bulk_apply_and_undo():
     # 기존 템플릿 캐시에 없으면 추가
     if not any(t.id == "tpl_test_undo" for t in manager.project_data.templates):
         manager.project_data.templates.append(SlideTemplate.model_validate(test_tpl))
+    asyncio.run(save_global_templates(manager.project_data.templates))
     
     # 원본 슬라이드 1의 요소 개수 및 텍스트 보관 (복구 검증용)
     slide_1_orig = next(s for s in manager.project_data.slides if s.id == "slide_1")
@@ -82,4 +83,5 @@ def test_template_bulk_apply_and_undo():
 
     # 6. 사후 정리 (Tear-down): 주입했던 임시 테스트 템플릿 제거 및 디스크 저장
     manager.project_data.templates = [t for t in manager.project_data.templates if t.id != "tpl_test_undo"]
+    asyncio.run(save_global_templates(manager.project_data.templates))
     asyncio.run(save_project_data(manager.project_data))

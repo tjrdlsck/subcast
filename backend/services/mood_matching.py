@@ -50,6 +50,16 @@ def select_stage_background(
         target = next((bg for bg in bg_library if bg.get("id") == override_bg_id or bg.get("name") == override_bg_id), None)
         if target:
             return {"type": "video", "videoUrl": target.get("url") or target.get("file_path"), "id": target.get("id") or target.get("name"), "item": target}
+        default_candidates = [
+            bg for bg in bg_library
+            if bg.get("isDefault") or bg.get("is_default")
+            or normalize_tag(bg.get("mood")) == "기본/일반"
+            or "기본/일반" in extract_normalized_tags(bg.get("moods"))
+        ]
+        if default_candidates:
+            chosen = sorted(default_candidates, key=lambda bg: str(bg.get("name") or bg.get("id")))[0]
+            return {"type": "video", "videoUrl": chosen.get("url") or chosen.get("file_path"), "id": chosen.get("id") or chosen.get("name"), "item": chosen}
+        return {"type": "ambient"}
     
     target_tags = extract_normalized_tags(slide_moods)
     

@@ -3,6 +3,7 @@ __pycache__/
 .env
 .test_results/
 test_results/
+.slide_perf/
 node_modules/
 *.log
 *.lock

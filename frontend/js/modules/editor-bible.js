@@ -88,6 +88,17 @@
             const selectBook = document.getElementById("select-bible-book");
             if (selectBook) selectBook.onchange = onBibleBookChange;
 
+            const inputChapter = document.getElementById("input-bible-chapter");
+            if (inputChapter) {
+                inputChapter.onkeydown = (e) => {
+                    if (e.key !== "Enter" || e.isComposing) return;
+                    e.preventDefault();
+                    document.getElementById("input-bible-start-verse").value = 1;
+                    document.getElementById("input-bible-end-verse").value = "";
+                    fetchBibleCoordinates();
+                };
+            }
+
             // 도서 검색 필터 및 팝업 제어 리스너 연동
             const filterInput = document.getElementById("input-bible-book-filter");
             if (filterInput) {
@@ -96,28 +107,24 @@
                     filterBibleBooks(filterInput.value);
                 };
                 filterInput.onkeydown = (e) => {
-                    if (e.key === "Enter") {
+                    if (e.key === "Enter" && !e.isComposing) {
                         const popup = document.getElementById("bible-book-dropdown-popup");
-                        // 1) 자동완성 결과가 1개이고 팝업이 노출 중인 경우 즉각 선택 및 팝업 닫기
-                        if (lastFilteredBooks.length === 1 && popup && popup.style.display !== "none") {
+                        const currentVal = filterInput.value.trim();
+                        const exactBook = bibleBooksList.find(b => b.book_name === currentVal);
+                        const book = exactBook || (popup && popup.style.display !== "none" && lastFilteredBooks.length === 1
+                            ? lastFilteredBooks[0]
+                            : null);
+                        if (book) {
                             e.preventDefault();
-                            const book = lastFilteredBooks[0];
                             filterInput.value = book.book_name;
                             const sel = document.getElementById("select-bible-book");
                             if (sel) {
                                 sel.value = book.book_code;
                                 onBibleBookChange();
                             }
-                            popup.style.display = "none";
-                        }
-                        // 2) 팝업이 닫혀 있고 현재 입력한 값이 올바른 책 이름과 일치할 시 즉각 조회 및 본문 로드 실행
-                        else if (popup && popup.style.display === "none") {
-                            const currentVal = filterInput.value.trim();
-                            const matchedBook = bibleBooksList.find(b => b.book_name === currentVal);
-                            if (matchedBook) {
-                                e.preventDefault();
-                                fetchBibleCoordinates();
-                            }
+                            if (popup) popup.style.display = "none";
+                            inputChapter?.focus();
+                            inputChapter?.select();
                         }
                     }
                 };
