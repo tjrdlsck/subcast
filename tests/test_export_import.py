@@ -38,6 +38,7 @@ def test_project_export_and_import():
     client.delete(f"/api/projects/{imported_proj['id']}")
 
 def test_praise_export_and_import():
+    client.post("/api/praise/save", json={"title": "내보내기 테스트 찬양", "lyrics": "테스트 가사"})
     # 1. Export praise songs
     export_res = client.get("/api/praise/export")
     assert export_res.status_code == 200
@@ -47,7 +48,7 @@ def test_praise_export_and_import():
     # 2. Import praise songs
     test_songs = [
         {"title": "테스트 찬양 101", "lyrics": "가사 테스트 101"},
-        {"title": "테스트 찬양 102", "lyrics": "가사 테스트 102"}
+        {"title": "테스트 찬양 102", "lyrics": "가사 테스트 102\n "}
     ]
     file_bytes = json.dumps(test_songs).encode("utf-8")
     import_res = client.post(
@@ -63,6 +64,10 @@ def test_praise_export_and_import():
     assert search_res.status_code == 200
     found_songs = search_res.json()
     assert any(s["title"] == "테스트 찬양 101" for s in found_songs)
+
+    preserved_res = client.get("/api/praise/search?query=테스트 찬양 102")
+    assert preserved_res.status_code == 200
+    assert any(s["lyrics"] == "가사 테스트 102\n " for s in preserved_res.json())
     
     # 3. Export specific praise song by id
     if found_songs:
@@ -74,7 +79,10 @@ def test_praise_export_and_import():
         assert single_exported_data[0]["title"] == found_songs[0]["title"]
     
     # Clean up test praise songs
-    test_ids = [s["id"] for s in found_songs if s["title"] in ["테스트 찬양 101", "테스트 찬양 102"]]
+    test_ids = [
+        s["id"] for s in found_songs + preserved_res.json()
+        if s["title"] in ["테스트 찬양 101", "테스트 찬양 102"]
+    ]
     if test_ids:
         client.post("/api/praise/delete", json={"ids": test_ids})
 

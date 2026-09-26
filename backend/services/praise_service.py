@@ -148,8 +148,8 @@ class PraiseDatabaseHelper:
         try:
             for song in songs:
                 orig_title = str(song.get("title", "")).strip()
-                lyrics = str(song.get("lyrics", "")).strip()
-                if not orig_title or not lyrics:
+                lyrics = str(song.get("lyrics", ""))
+                if not orig_title or not lyrics.strip():
                     continue
 
                 candidate_title = orig_title

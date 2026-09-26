@@ -862,6 +862,8 @@
         }
 
         function extractSlideText(slide, fallbackName = "") {
+            if (slide?.slideType === 'bibleBlank') return '[빈 화면]';
+            if (isPraiseSlide(slide) && /\[빈\s*화면\]\s*$/.test(slide.name || '')) return '[빈 화면]';
             if (!slide || !slide.elements) return fallbackName;
             const texts = slide.elements
                 .filter(e => e.type === "text" || e.type === "i-text" || e.type === "textbox")

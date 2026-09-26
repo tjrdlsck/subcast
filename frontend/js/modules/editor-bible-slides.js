@@ -104,3 +104,12 @@ function createBibleSlideObject(header, content) {
         ]
     };
 }
+
+function createBibleBlankSlideObject() {
+    return {
+        id: "slide_bible_blank_" + Math.random().toString(36).substr(2, 8),
+        name: "성경: 빈 화면",
+        slideType: "bibleBlank",
+        elements: []
+    };
+}

@@ -301,6 +301,9 @@
             const nextSlide = (currentIndex + 1 < slides.length) ? slides[currentIndex + 1] : null;
 
             const extractText = (slide) => {
+                if (slide?.slideType === 'bibleBlank') return '[빈 화면]';
+                if (slide && (slide.slideType === 'praise' || slide.isPraise === true || slide.id?.startsWith('slide_praise_') || /^(찬양:|자막\(템\):)/.test(slide.name || ''))
+                    && /\[빈\s*화면\]\s*$/.test(slide.name || '')) return '[빈 화면]';
                 if (!slide || !slide.elements) return "";
                 return slide.elements
                     .filter(e => e.type === "text" || e.type === "i-text" || e.type === "textbox")
@@ -599,7 +602,9 @@
                 const isPraise = !!(slide.slideType === 'praise' || slide.isPraise || (typeof slide.id === 'string' && slide.id.startsWith('slide_praise_')) || (slide.name && (slide.name.startsWith('찬양:') || slide.name.startsWith('자막(템):'))));
                 const isBible = !!(slide.slideType === 'bible' || (slide.name && slide.name.startsWith('성경:')));
                 let tagHtml = '';
-                if (isPraise) {
+                if (slide.slideType === 'bibleBlank') {
+                    tagHtml = `<span class="sorter-card-tag sorter-tag-bible">빈 화면</span>`;
+                } else if (isPraise) {
                     tagHtml = `<span class="sorter-card-tag sorter-tag-praise">찬양</span>`;
                 } else if (isBible) {
                     tagHtml = `<span class="sorter-card-tag sorter-tag-bible">성경</span>`;

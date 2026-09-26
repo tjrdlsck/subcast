@@ -315,7 +315,9 @@
         }
         /* Left Sub Panel (드로어 패널) */
         .left-sub-panel {
-            width: 280px;
+            width: clamp(220px, 22vw, 280px);
+            container-type: inline-size;
+            container-name: slide-panel;
             background: rgba(17, 24, 39, 0.95);
             backdrop-filter: var(--panel-blur);
             border-right: 1px solid var(--panel-border);
@@ -376,6 +378,51 @@
             font-size: 0.95rem;
             font-weight: 600;
             color: var(--text-main);
+        }
+        #panel-slides .panel-header {
+            gap: 8px;
+        }
+        #panel-slides .panel-header h3 {
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .slide-header-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .slide-header-actions .btn-template-action {
+            width: auto;
+            font-size: 0.78rem;
+            white-space: nowrap;
+        }
+        #btn-toggle-sorter {
+            padding: 6px 10px;
+            background: rgba(99, 102, 241, 0.15);
+            border-color: rgba(99, 102, 241, 0.4);
+            color: #a5b4fc;
+            gap: 4px;
+        }
+        #btn-toggle-sorter svg {
+            flex-shrink: 0;
+        }
+        #btn-add-slide {
+            padding: 6px 12px;
+            background: var(--primary);
+            border-color: var(--primary);
+            gap: 4px;
+        }
+        @container slide-panel (max-width: 270px) {
+            #panel-slides .panel-header {
+                padding-inline: 16px;
+            }
+            .slide-header-actions .slide-action-label {
+                display: none;
+            }
+            .slide-header-actions .btn-template-action {
+                padding: 6px 8px;
+            }
         }
         .panel-body {
             flex: 1;

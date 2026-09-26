@@ -1,6 +1,9 @@
 import pytest
 from pathlib import Path
 import backend.storage as storage
+import backend.database as database
+import backend.monitor_repository as monitor_repository
+from backend.services.praise_service import praise_db
 
 @pytest.fixture(autouse=True)
 def isolate_test_data_dir(tmp_path, monkeypatch):
@@ -15,5 +18,11 @@ def isolate_test_data_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(storage, "ACTIVE_PROJECT_FILE", test_data_dir / "active_project_id.txt")
     monkeypatch.setattr(storage, "OLD_DATA_FILE_PATH", test_data_dir / "project_data.json")
     monkeypatch.setattr(storage, "TEMPLATES_FILE_PATH", test_data_dir / "templates.json")
+
+    test_user_db = str(test_data_dir / "subcast_user.db")
+    monkeypatch.setattr(praise_db, "db_path", test_user_db)
+    monkeypatch.setattr(database, "DEFAULT_DB_PATH", test_user_db)
+    monkeypatch.setattr(monitor_repository, "DEFAULT_DB_PATH", test_user_db)
+    praise_db.init_table()
     
     yield

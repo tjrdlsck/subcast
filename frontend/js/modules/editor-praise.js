@@ -47,7 +47,7 @@
             }
         }
 
-        // 찬양 가사 스마트 단락 분해 (엔터는 단락 분리, [빈 화면]/[공백] 태그는 명시적 빈 슬라이드로 인식)
+        // 빈 줄은 단락을 나누고, 공백만 있는 줄이나 명시적 태그는 빈 슬라이드를 만든다.
         function parsePraiseLyricsToBlocks(lyrics) {
             if (!lyrics) return [];
             
@@ -61,8 +61,9 @@
                 
                 // 명시적 빈 슬라이드 키워드 확인: [빈 화면], [빈슬라이드], (빈 화면), (빈슬라이드), [공백], (공백)
                 const isExplicitBlankKeyword = /^(\[|\()(빈\s*화면|빈\s*슬라이드|공백)(\]|\))$/i.test(trimmed);
+                const isWhitespaceBlankLine = trimmed === "" && line.length > 0 && /\s/.test(line);
 
-                if (isExplicitBlankKeyword) {
+                if (isExplicitBlankKeyword || isWhitespaceBlankLine) {
                     if (currentLines.length > 0) {
                         blocks.push(currentLines.join("\n").trim());
                         currentLines = [];
@@ -1290,6 +1291,8 @@
                     renderBibleModalSlideGrid();
                     const modalTitle = document.querySelector("#bible-insert-modal h3");
                     if (modalTitle) modalTitle.textContent = "📍 찬양 슬라이드 삽입 위치 선택";
+                    const bibleSummary = document.getElementById("bible-modal-batch-summary");
+                    if (bibleSummary) bibleSummary.style.display = "none";
                     document.getElementById("bible-insert-modal").style.display = "flex";
                 }
             };

@@ -148,8 +148,10 @@
 
             // 분할 모드 변경 및 슬라이드 추가 버튼 바인딩
             const selectSplit = document.getElementById("select-bible-split-mode");
+            const trailingBlank = document.getElementById("chk-bible-trailing-blank");
             const btnAddSlides = document.getElementById("btn-add-bible-slides");
             if (selectSplit) selectSplit.onchange = updateBibleExpectedSlides;
+            if (trailingBlank) trailingBlank.onchange = updateBibleExpectedSlides;
             if (btnAddSlides) btnAddSlides.onclick = addBibleSlidesToProject;
 
             // 성경 메인 표 뷰어 이벤트 바인딩
@@ -810,13 +812,11 @@
                 } else if (mode === "all") {
                     expected = 1;
                 } else if (mode === "auto") {
-                    // 80자 기준 분할 예측
-                    let tempSlides = 0;
                     selectedBibleVerses.forEach(v => {
-                        tempSlides += Math.ceil((v.content || "").length / 80);
+                        expected += splitTextByLength(v.content, 80).length;
                     });
-                    expected = tempSlides;
                 }
+                if (document.getElementById("chk-bible-trailing-blank")?.checked) expected += 1;
             }
 
             const selCountEl = document.getElementById("val-selected-count");
@@ -982,9 +982,20 @@
             }
 
             if (tempBibleSlidesToAdd.length > 0) {
+                const verseSlideCount = tempBibleSlidesToAdd.length;
+                const includeBlank = document.getElementById("chk-bible-trailing-blank")?.checked ?? true;
+                if (includeBlank) tempBibleSlidesToAdd.push(createBibleBlankSlideObject());
+
                 // 모달 띄우고 격자 목록 그리기
                 targetInsertAfterSlideId = null;
                 renderBibleModalSlideGrid();
+                const modalTitle = document.querySelector("#bible-insert-modal h3");
+                if (modalTitle) modalTitle.textContent = "📍 성경 슬라이드 삽입 위치 선택";
+                const summary = document.getElementById("bible-modal-batch-summary");
+                if (summary) {
+                    summary.textContent = `추가 예정: 성경 구절 ${verseSlideCount}장${includeBlank ? " + 빈 슬라이드 1장" : ""}`;
+                    summary.style.display = "block";
+                }
                 const modal = document.getElementById("bible-insert-modal");
                 if (modal) modal.style.display = "flex";
             }

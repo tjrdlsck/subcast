@@ -453,7 +453,7 @@
 
             if (projectData && projectData.slides) {
                 const targetSlide = projectData.slides.find(s => s.id === slideId);
-                if (targetSlide) {
+                if (targetSlide && targetSlide.slideType !== 'bibleBlank') {
                     ws.send(JSON.stringify({
                         type: "SELECT_STAGE_BACKGROUND_BY_MOOD",
                         slideId: slideId,

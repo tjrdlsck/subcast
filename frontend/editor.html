@@ -162,16 +162,15 @@
                 <!-- 1) 슬라이드 리스트 탭 -->
                 <div class="sidebar-panel active" id="panel-slides">
                     <div class="panel-header">
-                        <h3>슬라이드 목록</h3>
-                        <div style="display: flex; gap: 6px; align-items: center;">
-                            <button class="btn-template-action" id="btn-toggle-sorter" title="전체 슬라이드 격자 모아보기 (Ctrl+G)"
-                                style="width: auto; padding: 6px 10px; font-size: 0.78rem; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); color: #a5b4fc; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
-                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                                모아보기
+                        <h3 title="슬라이드 목록">목록</h3>
+                        <div class="slide-header-actions">
+                            <button class="btn-template-action" id="btn-toggle-sorter" title="전체 슬라이드 격자 모아보기 (Ctrl+G)" aria-label="전체 슬라이드 격자 모아보기">
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                                <span class="slide-action-label">모아보기</span>
                             </button>
-                            <button class="btn-template-action" id="btn-add-slide"
-                                style="width: auto; padding: 6px 12px; font-size: 0.78rem; background: var(--primary); border-color: var(--primary);">+
-                                새 슬라이드</button>
+                            <button class="btn-template-action" id="btn-add-slide" title="새 슬라이드 추가" aria-label="새 슬라이드 추가">
+                                <span aria-hidden="true">+</span><span class="slide-action-label">새 슬라이드</span>
+                            </button>
                         </div>
                     </div>
                     <div class="panel-body">
@@ -425,6 +424,11 @@
                                     <option value="auto">글자 수 기준 자동 분할 (80자)</option>
                                 </select>
                             </div>
+
+                            <label for="chk-bible-trailing-blank" style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--text-main); cursor: pointer; user-select: none;">
+                                <input type="checkbox" id="chk-bible-trailing-blank" checked style="width: 15px; height: 15px; cursor: pointer;">
+                                마지막에 빈 슬라이드 1장 추가
+                            </label>
 
                             <!-- 슬라이드 생성 개수 실시간 피드백 컴포넌트 -->
                             <div id="bible-generation-status"
@@ -1375,16 +1379,16 @@
     </div>
 
         <script src="js/modules/editor-clipboard.js"></script>
-    <script src="js/modules/editor-bible-slides.js"></script>
-    <script src="js/modules/editor-bible.js"></script>
+    <script src="js/modules/editor-bible-slides.js?v=bible-blank-1"></script>
+    <script src="js/modules/editor-bible.js?v=bible-blank-1"></script>
     <script src="js/modules/editor-praise-slides.js"></script>
-    <script src="js/modules/editor-praise.js"></script>
+    <script src="js/modules/editor-praise.js?v=praise-blank-lines-1"></script>
     <script src="js/modules/editor-stage-bg.js"></script>
     <script src="js/modules/editor-display-manager.js?v=1.0.3"></script>
-    <script src="js/modules/editor-monitor.js"></script>
+    <script src="js/modules/editor-monitor.js?v=praise-blank-label-1"></script>
     <script src="js/modules/editor-broadcast.js"></script>
     <script src="js/modules/editor-utils.js"></script>
-    <script src="js/modules/editor-slides.js"></script>
+    <script src="js/modules/editor-slides.js?v=praise-blank-label-1"></script>
     <script src="js/modules/editor-ui.js"></script>
     <script src="js/modules/editor-shortcuts.js"></script>
     <script src="js/modules/editor-canvas.js"></script>
@@ -1426,8 +1430,9 @@
                     <label style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">가사 원문 (빈 줄 분할
                         적용)</label>
                     <textarea id="modal-praise-lyrics"
-                        placeholder="가사를 입력해 주세요.&#13;&#10;자막 슬라이드를 나눌 때는 빈 줄(엔터 2번)을 한 칸 띄우시면 됩니다.&#13;&#10;&#13;&#10;예시:&#13;&#10;첫 번째 슬라이드 가사 줄&#13;&#10;&#13;&#10;두 번째 슬라이드 가사 줄"
+                        placeholder="가사를 입력해 주세요.&#13;&#10;빈 줄은 슬라이드를 나누고, 공백만 있는 줄(스페이스 1개)은 빈 화면을 만듭니다.&#13;&#10;&#13;&#10;예시:&#13;&#10;첫 번째 슬라이드 가사 줄&#13;&#10;&#13;&#10;두 번째 슬라이드 가사 줄"
                         style="width: 100%; height: 260px; padding: 10px; background: var(--bg-dark); border: 1px solid var(--panel-border); color: var(--text-main); border-radius: var(--radius-sm); font-size: 0.8rem; line-height: 1.4; resize: none; outline: none; font-family: inherit;"></textarea>
+                    <span style="font-size: 0.7rem; color: var(--text-muted);">빈 화면을 넣으려면 한 줄에 스페이스 1개 또는 [빈 화면]을 입력하세요. 비어 있는 줄은 가사 단락만 나눕니다.</span>
                 </div>
             </div>
             <div class="modal-footer"
@@ -1453,6 +1458,7 @@
                 <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4;">
                     성경 구절 슬라이드를 삽입할 슬라이드를 선택해 주세요. 해당 슬라이드의 **바로 뒤**에 생성됩니다. (미선택 시 목록 맨 끝에 추가)
                 </p>
+                <p id="bible-modal-batch-summary" style="display: none; font-size: 0.8rem; color: var(--text-main); margin: 0 0 8px;"></p>
                 <div id="bible-modal-slide-grid" class="custom-scrollbar"
                     style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-height: 280px; overflow-y: auto; padding: 8px; background: rgba(0,0,0,0.2); border-radius: var(--radius-sm); border: 1px solid var(--panel-border);">
                     <!-- JavaScript를 통해 슬라이드 목록이 격자로 렌더링됨 -->

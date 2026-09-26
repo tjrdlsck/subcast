@@ -14,8 +14,9 @@ def parse_praise_lyrics_to_blocks_py(lyrics: str):
     for line in raw_lines:
         trimmed = line.strip()
         is_explicit_blank_keyword = bool(re.match(r'^(\[|\()(빈\s*화면|빈\s*슬라이드|공백)(\]|\))$', trimmed, re.IGNORECASE))
+        is_whitespace_blank_line = trimmed == "" and len(line) > 0 and bool(re.search(r'\s', line))
 
-        if is_explicit_blank_keyword:
+        if is_explicit_blank_keyword or is_whitespace_blank_line:
             if current_lines:
                 blocks.append("\n".join(current_lines).strip())
                 current_lines = []
@@ -43,9 +44,10 @@ def parse_praise_lyrics_to_blocks_py(lyrics: str):
 def test_lyrics_parsing_with_whitespace_lines():
     lyrics = "은혜로다 주의 은혜\r\n   \r\n한없는 주의 사랑"
     blocks = parse_praise_lyrics_to_blocks_py(lyrics)
-    assert len(blocks) == 2
+    assert len(blocks) == 3
     assert blocks[0] == "은혜로다 주의 은혜"
-    assert blocks[1] == "한없는 주의 사랑"
+    assert blocks[1] == ""
+    assert blocks[2] == "한없는 주의 사랑"
 
 
 def test_lyrics_parsing_with_explicit_blank_keywords():
