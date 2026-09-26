@@ -35,6 +35,7 @@ class Slide(BaseModel):
     thumbnail: Optional[str] = None
     mood: Optional[str] = None
     moods: Optional[List[str]] = Field(default_factory=list)
+    stageBgMoodOverride: Optional[str] = None
     overrideBgId: Optional[str] = None
     songTitle: Optional[str] = None
     praiseGroupId: Optional[str] = None

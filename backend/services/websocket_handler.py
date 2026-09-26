@@ -92,6 +92,32 @@ def _cached_background_matches_moods(
     return background in default_matches
 
 
+def _should_reuse_cached_background(
+    background: dict | None,
+    is_explicit: bool,
+    has_slide_tag_override: bool,
+    slide_moods: list[str] | str | None,
+    bg_library: list[dict],
+) -> bool:
+    if not background:
+        return False
+    if is_explicit and not has_slide_tag_override:
+        return True
+    return _cached_background_matches_moods(background, slide_moods, bg_library)
+
+
+def _slide_background_moods(slide: Slide | None, fallback: list[str] | str | None) -> list[str] | str | None:
+    """Resolve a slide-specific background tag before its existing song/slide tags."""
+    if slide and slide.stageBgMoodOverride:
+        return [canonical_tag_name(slide.stageBgMoodOverride)]
+    slide_moods = (slide.moods or ([slide.mood] if slide.mood else [])) if slide else fallback
+    if isinstance(slide_moods, list):
+        return [canonical_tag_name(tag) for tag in slide_moods]
+    if slide_moods:
+        return canonical_tag_name(slide_moods)
+    return slide_moods
+
+
 def _legacy_praise_group_key(slide_id: str, slides: list[Slide]) -> str | None:
     """Find the first numbered verse, even when unrelated slides were inserted."""
     index = next((i for i, slide in enumerate(slides) if slide.id == slide_id), None)
@@ -189,11 +215,7 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                 slide_id = message.get("slideId")
                 slides = manager.project_data.slides if manager.project_data else []
                 slide = next((item for item in slides if item.id == slide_id), None)
-                slide_moods = (slide.moods or ([slide.mood] if slide.mood else [])) if slide else message.get("slideMoods", [])
-                if isinstance(slide_moods, list):
-                    slide_moods = [canonical_tag_name(tag) for tag in slide_moods]
-                elif slide_moods:
-                    slide_moods = canonical_tag_name(slide_moods)
+                slide_moods = _slide_background_moods(slide, message.get("slideMoods", []))
                 override_bg_id = slide.overrideBgId if slide else message.get("overrideBgId")
                 praise_group_id = slide.praiseGroupId if slide else message.get("praiseGroupId")
                 song_title = slide.songTitle if slide else message.get("songTitle")
@@ -219,7 +241,13 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                         if bg.get("id") == cached_bg_id or bg.get("name") == cached_bg_id
                     ), None)
                     cached_is_explicit = isinstance(cached_entry, dict) and cached_entry.get("explicit") is True
-                    if cached_bg and (cached_is_explicit or _cached_background_matches_moods(cached_bg, slide_moods, bg_library)):
+                    if _should_reuse_cached_background(
+                        cached_bg,
+                        cached_is_explicit,
+                        bool(slide and slide.stageBgMoodOverride),
+                        slide_moods,
+                        bg_library,
+                    ):
                         override_bg_id = cached_bg_id
                         reused_explicit_cache = cached_is_explicit
 

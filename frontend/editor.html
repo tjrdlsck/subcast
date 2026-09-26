@@ -1534,7 +1534,10 @@
     <!-- 슬라이드 우클릭 커스텀 컨텍스트 메뉴 -->
     <div id="slide-context-menu" class="slide-context-menu">
         <div class="slide-context-menu-item" id="menu-slide-moods">
-            <span>🎬 현장 배경 지정...</span>
+            <span>🏷️ 태그 지정...</span>
+        </div>
+        <div class="slide-context-menu-item" id="menu-slide-background">
+            <span>🎬 배경 영상 직접 지정...</span>
         </div>
         <div class="slide-context-menu-divider"></div>
         <div class="slide-context-menu-item" id="menu-slide-copy">
@@ -1721,6 +1724,24 @@
                 <button type="button" id="btn-add-mood-tag" class="btn-modal btn-confirm">추가</button>
             </div>
             <div id="mood-tag-manager-list" class="custom-scrollbar" style="overflow:auto; display:flex; flex-direction:column; gap:6px; min-height:80px;"></div>
+        </div>
+    </div>
+
+    <div id="slide-tag-assignment-modal" class="modal-overlay" style="display: none; z-index: 10050;">
+        <div class="modal-content" style="width: 440px; max-width: 92vw;">
+            <div class="modal-header">
+                <h3 style="margin: 0;">선택한 슬라이드에 태그 지정</h3>
+                <button type="button" id="btn-slide-tag-modal-close" class="btn-modal btn-cancel">닫기</button>
+            </div>
+            <div style="padding: 16px 0;">
+                <div id="slide-tag-assignment-count" style="margin-bottom: 12px; color: var(--text-muted); font-size: 0.85rem;"></div>
+                <div id="slide-tag-assignment-options" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+                <p style="margin: 14px 0 0; color: var(--text-muted); font-size: 0.78rem;">‘기존 태그 사용’을 선택하면 슬라이드별 지정이 해제됩니다.</p>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" id="btn-slide-tag-modal-cancel" class="btn-modal btn-cancel">취소</button>
+                <button type="button" id="btn-slide-tag-modal-apply" class="btn-modal btn-confirm">적용</button>
+            </div>
         </div>
     </div>
 </body>

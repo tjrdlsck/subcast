@@ -457,8 +457,8 @@
                     ws.send(JSON.stringify({
                         type: "SELECT_STAGE_BACKGROUND_BY_MOOD",
                         slideId: slideId,
-                        slideMood: targetSlide.mood || (targetSlide.moods && targetSlide.moods[0]) || "기본/일반",
-                        slideMoods: targetSlide.moods || (targetSlide.mood ? [targetSlide.mood] : ["기본/일반"]),
+                        slideMood: targetSlide.stageBgMoodOverride || targetSlide.mood || (targetSlide.moods && targetSlide.moods[0]) || "기본/일반",
+                        slideMoods: targetSlide.stageBgMoodOverride ? [targetSlide.stageBgMoodOverride] : (targetSlide.moods || (targetSlide.mood ? [targetSlide.mood] : ["기본/일반"])),
                         overrideBgId: targetSlide.overrideBgId || null,
                         praiseGroupId: targetSlide.praiseGroupId || null,
                         songTitle: targetSlide.songTitle || null

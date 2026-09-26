@@ -26,6 +26,25 @@ def test_legacy_praise_slides_group_across_inserted_copies():
     assert key("h", slides) == key("i", slides)
 
 
+def test_slide_background_tag_override_takes_precedence_and_can_be_cleared():
+    slide = Slide(id="tagged", name="tagged", mood="song-default", stageBgMoodOverride="slide-choice")
+    assert websocket_handler._slide_background_moods(slide, []) == ["slide-choice"]
+
+    slide.stageBgMoodOverride = None
+    assert websocket_handler._slide_background_moods(slide, []) == ["song-default"]
+
+
+def test_slide_tag_override_blocks_stale_explicit_song_cache():
+    wrong_tag_bg = {"name": "quiet.mp4", "mood": "quiet"}
+    library = [wrong_tag_bg, {"name": "worship.mp4", "mood": "worship"}]
+    assert not websocket_handler._should_reuse_cached_background(
+        wrong_tag_bg, True, True, ["worship"], library
+    )
+    assert websocket_handler._should_reuse_cached_background(
+        wrong_tag_bg, True, False, ["worship"], library
+    )
+
+
 def test_missing_override_uses_default_consistently():
     library = [
         {"name": "z.mp4", "url": "/z.mp4", "mood": "기본/일반"},

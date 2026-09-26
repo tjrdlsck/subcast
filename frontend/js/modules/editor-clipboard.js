@@ -359,26 +359,36 @@
 
         function bindSlideContextMenuEvents() {
             const moodBtn = document.getElementById("menu-slide-moods");
+            const backgroundBtn = document.getElementById("menu-slide-background");
             const copyBtn = document.getElementById("menu-slide-copy");
             const cutBtn = document.getElementById("menu-slide-cut");
             const pasteBtn = document.getElementById("menu-slide-paste");
             const deleteBtn = document.getElementById("menu-slide-delete");
+            const closeTagModalBtn = document.getElementById("btn-slide-tag-modal-close");
+            const cancelTagModalBtn = document.getElementById("btn-slide-tag-modal-cancel");
+            const applyTagModalBtn = document.getElementById("btn-slide-tag-modal-apply");
+
+            if (closeTagModalBtn) closeTagModalBtn.onclick = closeSlideTagAssignmentModal;
+            if (cancelTagModalBtn) cancelTagModalBtn.onclick = closeSlideTagAssignmentModal;
+            if (applyTagModalBtn) applyTagModalBtn.onclick = applySlideTagAssignment;
 
             if (moodBtn) {
                 moodBtn.onclick = (e) => {
                     e.stopPropagation();
                     hideSlideContextMenu();
-                    const targetId = selectedSlideId || (selectedSlideIds && selectedSlideIds[0]);
-                    if (targetId && projectData && projectData.slides) {
-                        const slide = projectData.slides.find(s => s.id === targetId);
-                        if (slide) {
-                            if (typeof showSlideBgSelectModal === 'function') {
-                                showSlideBgSelectModal(slide);
-                            } else if (typeof window.showSlideBgSelectModal === 'function') {
-                                window.showSlideBgSelectModal(slide);
-                            }
-                        }
-                    }
+                    openSlideTagAssignmentModal();
+                };
+            }
+
+            if (backgroundBtn) {
+                backgroundBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    hideSlideContextMenu();
+                    const targetId = (selectedSlideIds && selectedSlideIds[0]) || selectedSlideId || activeSlideId;
+                    const slide = projectData?.slides?.find(s => s.id === targetId);
+                    if (!slide) return;
+                    if (typeof showSlideBgSelectModal === 'function') showSlideBgSelectModal(slide);
+                    else if (typeof window.showSlideBgSelectModal === 'function') window.showSlideBgSelectModal(slide);
                 };
             }
 
@@ -422,6 +432,74 @@
                     deleteSelectedSlidesWithConfirm();
                 };
             }
+        }
+
+        let slideTagAssignmentIds = [];
+        let selectedSlideTagValue;
+
+        function openSlideTagAssignmentModal() {
+            const modal = document.getElementById("slide-tag-assignment-modal");
+            const options = document.getElementById("slide-tag-assignment-options");
+            if (!modal || !options || !projectData?.slides) return;
+
+            slideTagAssignmentIds = (selectedSlideIds?.length ? selectedSlideIds : [selectedSlideId || activeSlideId])
+                .filter(Boolean)
+                .filter(id => projectData.slides.some(slide => slide.id === id && !checkIsLockedByOthers(id)));
+            if (!slideTagAssignmentIds.length) return;
+            selectedSlideTagValue = undefined;
+            document.getElementById("slide-tag-assignment-count").textContent = `${slideTagAssignmentIds.length}개 슬라이드에 적용합니다.`;
+            options.replaceChildren();
+
+            const addOption = (value, label) => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.textContent = label;
+                button.dataset.value = value;
+                button.style.cssText = "padding: 7px 11px; border: 1px solid var(--panel-border); border-radius: 16px; background: rgba(255,255,255,.06); color: var(--text-main); cursor: pointer;";
+                button.addEventListener("click", () => {
+                    selectedSlideTagValue = value;
+                    options.querySelectorAll("button").forEach(item => {
+                        const active = item === button;
+                        item.style.borderColor = active ? "var(--primary)" : "var(--panel-border)";
+                        item.style.background = active ? "var(--primary)" : "rgba(255,255,255,.06)";
+                        item.style.color = active ? "#fff" : "var(--text-main)";
+                    });
+                    document.getElementById("btn-slide-tag-modal-apply").disabled = false;
+                });
+                options.appendChild(button);
+            };
+
+            addOption("__inherit__", "기존 태그 사용 (자동 매칭)");
+            (window.moodTags || []).forEach(tag => addOption(tag.name, `#${tag.name}`));
+            document.getElementById("btn-slide-tag-modal-apply").disabled = true;
+            modal.style.display = "flex";
+        }
+
+        function closeSlideTagAssignmentModal() {
+            const modal = document.getElementById("slide-tag-assignment-modal");
+            if (modal) modal.style.display = "none";
+        }
+
+        function applySlideTagAssignment() {
+            if (selectedSlideTagValue === undefined || !projectData?.slides) return;
+            const selected = new Set(slideTagAssignmentIds);
+            const changedSlides = projectData.slides.filter(slide => selected.has(slide.id) && !checkIsLockedByOthers(slide.id));
+            for (const slide of changedSlides) {
+                // A tag choice requests automatic matching, so remove any stale direct-video assignment.
+                delete slide.overrideBgId;
+                if (selectedSlideTagValue === "__inherit__") delete slide.stageBgMoodOverride;
+                else slide.stageBgMoodOverride = selectedSlideTagValue;
+                if (ws?.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: "SAVE_SLIDE", slide }));
+                }
+            }
+            const liveSlideId = projectData.settings?.currentLiveSlideId;
+            const liveSlide = projectData.slides.find(slide => slide.id === liveSlideId);
+            if (liveSlide && liveSlide.slideType !== "bibleBlank" && selected.has(liveSlideId) && ws?.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: "SELECT_STAGE_BACKGROUND_BY_MOOD", slideId: liveSlideId }));
+            }
+            renderSlides();
+            closeSlideTagAssignmentModal();
         }
 
         function bindStageBgContextMenuEvents() {

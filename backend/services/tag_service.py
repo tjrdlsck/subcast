@@ -128,7 +128,7 @@ def _collect_legacy_names() -> set[str]:
 
 def _tag_values(item: dict[str, Any]) -> set[str]:
     values: set[str] = set()
-    for value in (item.get("mood"), item.get("tag")):
+    for value in (item.get("mood"), item.get("tag"), item.get("stageBgMoodOverride")):
         if isinstance(value, str) and value.strip():
             values.add(value.strip().lstrip("#").strip())
     moods = item.get("moods")
