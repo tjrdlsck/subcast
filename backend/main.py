@@ -69,7 +69,7 @@ app.mount("/static", StaticFiles(directory=str(STATIC_FRONTEND_DIR)), name="stat
 
 @app.get("/")
 async def get_index():
-    return RedirectResponse(url="/static/index.html")
+    return RedirectResponse(url="/static/index.html?v=header-menu-3")
 
 
 @app.websocket("/ws")

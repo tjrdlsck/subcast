@@ -148,8 +148,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 ` : `
                                     <button class="action-btn btn-select" onclick="event.stopPropagation(); selectProject('${proj.id}')">작업 전환</button>
                                 `}
-                                <button class="action-btn btn-editor" onclick="event.stopPropagation(); openPage('${proj.id}', '/static/editor.html')">Editor</button>
-                                <button class="action-btn btn-presenter" onclick="event.stopPropagation(); openPage('${proj.id}', '/static/presenter.html')">Presenter</button>
+                                <button class="action-btn btn-editor" onclick="event.stopPropagation(); openPage('${proj.id}', '/static/editor.html')">편집</button>
+                                <button class="action-btn btn-presenter" onclick="event.stopPropagation(); openPage('${proj.id}', '/static/presenter.html')">송출 제어</button>
                                 <button class="action-btn btn-export" title="프로젝트 내보내기" style="padding: 8px 10px;" onclick="event.stopPropagation(); exportProject('${proj.id}')"><img src="/static/assets/icons/upload.svg" style="width: 14px; height: 14px; filter: brightness(0) invert(1);" alt="내보내기" /></button>
                                 ${currentProjects.length > 1 ? `
                                     <button class="action-btn btn-delete" onclick="event.stopPropagation(); deleteProject('${proj.id}', '${escapeHtml(proj.name)}')">삭제</button>
