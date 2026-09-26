@@ -481,15 +481,21 @@
                                 autocomplete="off">
                         </div>
 
-                        <!-- 2) 분위기 태그 필터 칩 바 -->
-                        <div id="praise-mood-filter-chips" style="display: flex; gap: 4px; overflow-x: auto; padding: 2px 0; flex-shrink: 0;" class="custom-scrollbar">
-                            <button type="button" class="praise-filter-chip active" data-filter="all" style="padding: 3px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid var(--primary); background: var(--primary); color: #ffffff; cursor: pointer; white-space: nowrap;">전체</button>
-                            <button type="button" class="praise-filter-chip" data-filter="경배/찬양" style="padding: 3px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid rgba(129, 140, 248, 0.4); background: rgba(99, 102, 241, 0.15); color: #818cf8; cursor: pointer; white-space: nowrap;">#경배/찬양</button>
-                            <button type="button" class="praise-filter-chip" data-filter="잔잔/묵상" style="padding: 3px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid rgba(52, 211, 153, 0.4); background: rgba(16, 185, 129, 0.15); color: #34d399; cursor: pointer; white-space: nowrap;">#잔잔/묵상</button>
-                            <button type="button" class="praise-filter-chip" data-filter="기도/회개" style="padding: 3px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid rgba(244, 63, 94, 0.4); background: rgba(244, 63, 94, 0.15); color: #f43f5e; cursor: pointer; white-space: nowrap;">#기도/회개</button>
-                            <button type="button" class="praise-filter-chip" data-filter="결단/헌금" style="padding: 3px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid rgba(251, 191, 36, 0.4); background: rgba(245, 158, 11, 0.15); color: #fbbf24; cursor: pointer; white-space: nowrap;">#결단/헌금</button>
-                            <button type="button" class="praise-filter-chip" data-filter="웅장/선포" style="padding: 3px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(14, 165, 233, 0.15); color: #38bdf8; cursor: pointer; white-space: nowrap;">#웅장/선포</button>
-                            <button type="button" class="praise-filter-chip" data-filter="절기/특별" style="padding: 3px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid rgba(168, 85, 247, 0.4); background: rgba(168, 85, 247, 0.15); color: #a855f7; cursor: pointer; white-space: nowrap;">#절기/특별</button>
+                        <!-- 2) 분위기 필터: 줄바꿈으로 모든 항목을 표시 -->
+                        <div style="display: flex; flex-direction: column; gap: 5px; flex-shrink: 0;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 0.7rem; color: var(--text-muted);">분위기</span>
+                                <span id="praise-filter-result-count" style="font-size: 0.68rem; color: var(--text-muted);">검색 결과</span>
+                            </div>
+                            <div id="praise-mood-filter-chips" style="display: flex; flex-wrap: wrap; gap: 5px; padding: 1px 0;">
+                                <button type="button" class="praise-filter-chip active" data-filter="all" aria-pressed="true" style="padding: 4px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid var(--primary); background: var(--primary); color: #ffffff; cursor: pointer; white-space: nowrap;">전체</button>
+                                <button type="button" class="praise-filter-chip" data-filter="경배/찬양" aria-pressed="false" style="padding: 4px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid rgba(129, 140, 248, 0.4); background: rgba(99, 102, 241, 0.15); color: #818cf8; cursor: pointer; white-space: nowrap;">#경배/찬양</button>
+                                <button type="button" class="praise-filter-chip" data-filter="잔잔/묵상" aria-pressed="false" style="padding: 4px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid rgba(52, 211, 153, 0.4); background: rgba(16, 185, 129, 0.15); color: #34d399; cursor: pointer; white-space: nowrap;">#잔잔/묵상</button>
+                                <button type="button" class="praise-filter-chip" data-filter="기도/회개" aria-pressed="false" style="padding: 4px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid rgba(244, 63, 94, 0.4); background: rgba(244, 63, 94, 0.15); color: #f43f5e; cursor: pointer; white-space: nowrap;">#기도/회개</button>
+                                <button type="button" class="praise-filter-chip" data-filter="결단/헌금" aria-pressed="false" style="padding: 4px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid rgba(251, 191, 36, 0.4); background: rgba(245, 158, 11, 0.15); color: #fbbf24; cursor: pointer; white-space: nowrap;">#결단/헌금</button>
+                                <button type="button" class="praise-filter-chip" data-filter="웅장/선포" aria-pressed="false" style="padding: 4px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(14, 165, 233, 0.15); color: #38bdf8; cursor: pointer; white-space: nowrap;">#웅장/선포</button>
+                                <button type="button" class="praise-filter-chip" data-filter="절기/특별" aria-pressed="false" style="padding: 4px 9px; font-size: 0.68rem; font-weight: 600; border-radius: 10px; border: 1px solid rgba(168, 85, 247, 0.4); background: rgba(168, 85, 247, 0.15); color: #a855f7; cursor: pointer; white-space: nowrap;">#절기/특별</button>
+                            </div>
                         </div>
 
                         <!-- 3) 데이터베이스 내 찬양곡 리스트 (영구 스크롤 뷰) -->

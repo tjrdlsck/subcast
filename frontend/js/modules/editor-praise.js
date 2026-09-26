@@ -5,6 +5,7 @@
         let activeSelectedPraiseSong = null;
         let selectedPraiseSongs = [];
         let currentPraiseSongsList = [];
+        let activePraiseMoodFilter = "all";
         let lastSelectedPraiseIndex = -1;
         let praiseLastClickedIndex = -1;
         let currentEditingPraiseSong = null;
@@ -436,23 +437,16 @@
                 chip.onclick = () => {
                     filterChips.forEach(c => {
                         c.classList.remove("active");
-                        c.style.background = "rgba(255,255,255,0.05)";
-                        c.style.borderColor = "var(--panel-border)";
-                        c.style.color = "#cbd5e1";
+                        c.setAttribute("aria-pressed", "false");
+                        c.style.outline = "none";
                     });
                     chip.classList.add("active");
-                    chip.style.background = "var(--primary)";
-                    chip.style.borderColor = "var(--primary)";
-                    chip.style.color = "#ffffff";
+                    chip.setAttribute("aria-pressed", "true");
+                    chip.style.outline = "2px solid rgba(255, 255, 255, 0.85)";
+                    chip.style.outlineOffset = "1px";
 
-                    const filterVal = chip.getAttribute("data-filter");
-                    if (filterVal === "all") {
-                        if (searchInput) searchInput.value = "";
-                        fetchPraiseSongs("");
-                    } else {
-                        if (searchInput) searchInput.value = filterVal;
-                        fetchPraiseSongs(filterVal);
-                    }
+                    activePraiseMoodFilter = chip.getAttribute("data-filter") || "all";
+                    fetchPraiseSongs(searchInput ? searchInput.value : "");
                 };
             });
 
@@ -1329,7 +1323,16 @@
                 const response = await fetch(`/api/praise/search?query=${encodeURIComponent(translatedQuery)}`, { signal });
                 if (!response.ok) throw new Error("검색 실패");
                 const results = await response.json();
-                renderPraiseSongsList(results);
+                const filteredResults = activePraiseMoodFilter === "all"
+                    ? results
+                    : results.filter(song => {
+                        const moods = [
+                            ...(Array.isArray(song.moods) ? song.moods : []),
+                            song.mood
+                        ].filter(Boolean);
+                        return moods.includes(activePraiseMoodFilter);
+                    });
+                renderPraiseSongsList(filteredResults);
             } catch (err) {
                 if (err.name === 'AbortError') return; // 취소된 요청 무시
                 console.error("찬양 목록 조회 오류: ", err);
@@ -1355,6 +1358,8 @@
             if (!songsList) return;
 
             currentPraiseSongsList = songs || [];
+            const resultCount = document.getElementById("praise-filter-result-count");
+            if (resultCount) resultCount.textContent = `검색 결과 ${currentPraiseSongsList.length}곡`;
             songsList.innerHTML = "";
 
             if (currentPraiseSongsList.length === 0) {
