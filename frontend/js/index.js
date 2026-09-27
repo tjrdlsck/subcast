@@ -687,17 +687,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 return overlay;
             }
 
-            function pollUntilServerReady(onReady, maxWaitMs = 60000) {
+            function pollUntilServerReady(expectedVersion, onReady, onTimeout, maxWaitMs = 60000) {
                 const start = Date.now();
                 const interval = setInterval(async () => {
                     if (Date.now() - start > maxWaitMs) {
                         clearInterval(interval);
-                        onReady(); // 타임아웃 시에도 새로고침 시도
+                        onTimeout();
                         return;
                     }
                     try {
                         const r = await fetch('/api/system/version', { cache: 'no-store' });
-                        if (r.ok) {
+                        const data = r.ok ? await r.json() : null;
+                        if (data && data.version === expectedVersion) {
                             clearInterval(interval);
                             onReady();
                         }
@@ -720,6 +721,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     btnCheckUpdate.innerText = '확인 중...';
                     try {
                         const res = await fetch('/api/system/check-update');
+                        if (!res.ok) throw new Error('최신 버전을 확인하지 못했습니다. 네트워크 연결을 확인해 주세요.');
                         const data = await res.json();
                         if (data.has_update) {
                             const confirmUpdate = confirm(`🚀 새 버전 [${data.latest_version}]이 출시되었습니다!\n현재 버전: ${data.current_version}\n\n지금 자동으로 업데이트를 진행하시겠습니까?`);
@@ -733,14 +735,15 @@ document.addEventListener('DOMContentLoaded', () => {
                                     throw new Error(errData.detail || '업데이트 요청 실패');
                                 }
 
-                                // 서버가 인스톨러를 실행하고 종료되기까지 대기 후 폴링
                                 showUpdateOverlay('업데이트 설치 중... 앱이 재시작됩니다.', true, 15);
-                                await new Promise(r => setTimeout(r, 8000)); // 서버 종료 대기
-
-                                pollUntilServerReady(() => {
+                                pollUntilServerReady(data.latest_version, () => {
                                     showUpdateOverlay('업데이트 완료! 페이지를 새로고침합니다.');
                                     setTimeout(hardReload, 1500);
-                                }, 60000);
+                                }, () => {
+                                    const overlay = document.getElementById('update-overlay');
+                                    if (overlay) overlay.remove();
+                                    alert('업데이트 완료 여부를 확인하지 못했습니다. 잠시 후 프로그램 버전을 확인해 주세요.');
+                                }, 180000);
                             }
                         } else {
                             alert(`현재 최신 버전(v${data.current_version})을 사용 중입니다.`);

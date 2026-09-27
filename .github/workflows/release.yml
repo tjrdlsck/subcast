@@ -24,6 +24,7 @@ jobs:
           $ver = $ver.Trim()
           echo "VERSION=$ver" >> $env:GITHUB_OUTPUT
           echo "TAG=v$ver" >> $env:GITHUB_OUTPUT
+          if ($env:GITHUB_REF_NAME -ne "v$ver") { throw "Release tag $env:GITHUB_REF_NAME does not match version.txt v$ver" }
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -70,6 +71,14 @@ jobs:
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           & $iscc /DMyAppVersion=$ver setup.iss
 
+      - name: Create installer checksum
+        shell: pwsh
+        run: |
+          $ver = '${{ steps.version.outputs.VERSION }}'
+          $installer = "dist\Subcast_Setup_v$ver.exe"
+          $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -Path "${installer}.sha256" -Value $hash -NoNewline -Encoding ascii
+
       - name: Create ZIP package
         shell: pwsh
         run: |
@@ -98,4 +107,5 @@ jobs:
           prerelease: false
           files: |
             dist/Subcast_Setup_v${{ steps.version.outputs.VERSION }}.exe
+            dist/Subcast_Setup_v${{ steps.version.outputs.VERSION }}.exe.sha256
             dist/${{ steps.zip.outputs.ZIP_NAME }}

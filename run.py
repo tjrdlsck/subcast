@@ -9,6 +9,10 @@ import threading
 from threading import Timer, Thread
 import urllib.request
 import tempfile
+import hashlib
+import re
+import ctypes
+from urllib.parse import urlparse
 
 import pystray
 from PIL import Image, ImageDraw
@@ -22,7 +26,7 @@ def get_current_version():
                 return f.read().strip()
         except Exception:
             pass
-    return "1.3.17"
+    return "1.3.18"
 
 CURRENT_VERSION = get_current_version()
 REPO_OWNER = "tjrdlsck"
@@ -54,11 +58,31 @@ if getattr(sys, 'frozen', False):
 
 install_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.getcwd()
 
+def copy_missing_tree(source, destination):
+    """Seed legacy app files without ever replacing files already in AppData."""
+    source_path = Path(source)
+    destination_path = Path(destination)
+    if not source_path.is_dir():
+        return
+    for root, _dirs, files in os.walk(source_path):
+        relative = Path(root).relative_to(source_path)
+        target_dir = destination_path / relative
+        target_dir.mkdir(parents=True, exist_ok=True)
+        for filename in files:
+            source_file = Path(root) / filename
+            target_file = target_dir / filename
+            if not target_file.exists():
+                try:
+                    shutil.copy2(source_file, target_file)
+                except FileExistsError:
+                    # Another startup process may have created the destination first.
+                    pass
+
 new_data_dir = os.path.join(subcast_appdata, "data")
 for old_dir in [os.path.join(install_dir, "data"), os.path.join(install_dir, "_internal", "data")]:
     if os.path.exists(old_dir):
         try:
-            shutil.copytree(old_dir, new_data_dir, dirs_exist_ok=True)
+            copy_missing_tree(old_dir, new_data_dir)
         except Exception as e:
             print(f"Failed to migrate data dir from {old_dir}: {e}")
 
@@ -70,7 +94,7 @@ for old_bg_dir in [
 ]:
     if os.path.exists(old_bg_dir):
         try:
-            shutil.copytree(old_bg_dir, new_bg_dir, dirs_exist_ok=True)
+            copy_missing_tree(old_bg_dir, new_bg_dir)
         except Exception as e:
             print(f"Failed to seed background assets from {old_bg_dir}: {e}")
 
@@ -296,22 +320,72 @@ def get_latest_release_info():
         return None
 
 def parse_version(v_str):
-    return [int(x) for x in v_str.replace('v', '').split('.') if x.isdigit()]
+    match = re.fullmatch(r"v?(\d+(?:\.\d+){1,3})", str(v_str).strip())
+    if not match:
+        raise ValueError("Invalid release version")
+    return [int(x) for x in match.group(1).split('.')]
 
-def download_and_update(asset_url, installer_name):
-    global icon
+def _trusted_release_url(url):
+    parsed = urlparse(url or "")
+    return parsed.scheme == "https" and parsed.hostname in {"github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com"}
+
+def _download_verified_asset(release_info):
+    version = release_info.get("tag_name", "").lstrip("v")
+    parse_version(version)
+    filename = f"Subcast_Setup_v{version}.exe"
+    assets = {asset.get("name"): asset.get("browser_download_url") for asset in release_info.get("assets", [])}
+    installer_url, checksum_url = assets.get(filename), assets.get(filename + ".sha256")
+    if not _trusted_release_url(installer_url) or not _trusted_release_url(checksum_url):
+        raise ValueError("Release installer/checksum is missing or untrusted")
+    temp_dir = tempfile.mkdtemp(prefix="subcast_update_")
+    installer_path = os.path.join(temp_dir, filename)
     try:
-        temp_dir = tempfile.gettempdir()
-        installer_path = os.path.join(temp_dir, installer_name)
-        
-        req = urllib.request.Request(asset_url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req) as response, open(installer_path, 'wb') as out_file:
-            chunk_size = 65536
+        def open_url(url):
+            request = urllib.request.Request(url, headers={"User-Agent": "Subcast-AutoUpdater"})
+            response = urllib.request.urlopen(request, timeout=300)
+            if not _trusted_release_url(response.geturl()):
+                response.close()
+                raise ValueError("Untrusted download redirect")
+            return response
+        with open_url(checksum_url) as response:
+            checksum = response.read(4096).decode("ascii").strip()
+        match = re.fullmatch(r"([0-9a-fA-F]{64})(?:\s+\*?.+)?", checksum)
+        if not match:
+            raise ValueError("Invalid checksum file")
+        digest, size = hashlib.sha256(), 0
+        with open_url(installer_url) as response, open(installer_path, "xb") as output:
             while True:
-                chunk = response.read(chunk_size)
+                chunk = response.read(65536)
                 if not chunk:
                     break
-                out_file.write(chunk)
+                size += len(chunk)
+                if size > 1_000_000_000:
+                    raise ValueError("Installer exceeds size limit")
+                digest.update(chunk)
+                output.write(chunk)
+        with open(installer_path, "rb") as installer:
+            if installer.read(2) != b"MZ" or size < 1024:
+                raise ValueError("Downloaded file is not a Windows installer")
+        if digest.hexdigest().lower() != match.group(1).lower():
+            raise ValueError("Installer checksum mismatch")
+        return installer_path, temp_dir
+    except Exception:
+        import shutil
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        raise
+
+def download_and_update(release_info):
+    global icon
+    temp_dir = None
+    try:
+        if is_running():
+            api_url = f"http://127.0.0.1:{config.get('port', DEFAULT_PORT)}/api/system/auto-update"
+            request = urllib.request.Request(api_url, data=b"", method="POST")
+            with urllib.request.urlopen(request, timeout=360) as response:
+                if response.status != 200:
+                    raise RuntimeError("The application update endpoint rejected the request")
+            return
+        installer_path, temp_dir = _download_verified_asset(release_info)
             
         script = f'''
         Add-Type -AssemblyName PresentationFramework
@@ -319,8 +393,11 @@ def download_and_update(asset_url, installer_name):
         '''
         subprocess.run(["powershell", "-Command", script], creationflags=0x08000000)
         
-        # Run installer with restart
-        subprocess.Popen([installer_path, '/VERYSILENT', '/SUPPRESSMSGBOXES', '/FORCECLOSEAPPLICATIONS', '/RESTARTAPPLICATIONS', '/NOCANCEL'])
+        result = ctypes.windll.shell32.ShellExecuteW(None, "runas", installer_path,
+            "/SILENT /NORESTARTAPPLICATIONS /SUBCASTUPDATE=1 /LOG", None, 1)
+        if result <= 32:
+            raise OSError(f"Windows could not start installer (ShellExecute error {result})")
+        _schedule_update_temp_cleanup(temp_dir)
         
         # Exit current app immediately so Inno Setup can update files cleanly
         if icon is not None:
@@ -329,8 +406,32 @@ def download_and_update(asset_url, installer_name):
             stop_server()
             sys.exit(0)
     except Exception as e:
+        if temp_dir:
+            import shutil
+            shutil.rmtree(temp_dir, ignore_errors=True)
         if hasattr(sys, "stderr") and sys.stderr is not None:
             sys.stderr.write(f"Update failed: {e}\n")
+
+def _schedule_update_temp_cleanup(temp_dir):
+    env = os.environ.copy()
+    env["SUBCAST_UPDATE_TEMP"] = temp_dir
+    command = (
+        "$p=$env:SUBCAST_UPDATE_TEMP; "
+        "for ($i=0; $i -lt 20 -and (Test-Path -LiteralPath $p); $i++) { "
+        "Start-Sleep -Seconds 30; "
+        "Remove-Item -LiteralPath $p -Recurse -Force -ErrorAction SilentlyContinue }"
+    )
+    try:
+        subprocess.Popen(
+            ["powershell.exe", "-NoProfile", "-WindowStyle", "Hidden", "-Command", command],
+            env=env,
+            creationflags=0x08000000,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception as e:
+        if hasattr(sys, "stderr") and sys.stderr is not None:
+            sys.stderr.write(f"Update cleanup scheduling failed: {e}\n")
 
 def check_for_updates(_icon=None, item=None):
     def _check():
@@ -343,9 +444,10 @@ def check_for_updates(_icon=None, item=None):
             return
             
         try:
-            if parse_version(latest_version) > parse_version(CURRENT_VERSION):
+            if parse_version(latest_version) > parse_version(CURRENT_VERSION) and not release_info.get("draft") and not release_info.get("prerelease"):
+                expected_name = f"Subcast_Setup_v{latest_version.lstrip('v')}.exe"
                 for asset in release_info.get("assets", []):
-                    if asset["name"].endswith(".exe"):
+                    if asset.get("name") == expected_name:
                         script = f'''
                         Add-Type -AssemblyName PresentationFramework
                         $result = [System.Windows.MessageBox]::Show("새로운 버전({latest_version})이 있습니다. 업데이트 하시겠습니까?", "Subcast Update", 'YesNo')
@@ -353,7 +455,7 @@ def check_for_updates(_icon=None, item=None):
                         '''
                         ret = subprocess.run(["powershell", "-Command", script], creationflags=0x08000000)
                         if ret.returncode == 0:
-                            threading.Thread(target=download_and_update, args=(asset["browser_download_url"], asset["name"])).start()
+                            threading.Thread(target=download_and_update, args=(release_info,), daemon=True).start()
                         break
         except Exception as e:
             if hasattr(sys, "stderr") and sys.stderr is not None:

@@ -119,8 +119,10 @@ def migrate_legacy_db_if_needed(appdata_dir: str, install_dir: Optional[str] = N
                         placeholders = ", ".join(["?"] * len(col_names))
                         cols_str = ", ".join(col_names)
                         values = [r[k] for k in col_names]
+                        # Old backups can still exist after upgrade. Never let them
+                        # overwrite settings that the current installation already owns.
                         user_conn.execute(
-                            f"INSERT OR REPLACE INTO monitor_settings ({cols_str}) VALUES ({placeholders})",
+                            f"INSERT OR IGNORE INTO monitor_settings ({cols_str}) VALUES ({placeholders})",
                             values
                         )
                     logger.info(f"{legacy_db_path}에서 모니터 설정 이관/확인 완료")
