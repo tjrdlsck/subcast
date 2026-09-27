@@ -14,6 +14,7 @@ def migrate_legacy_db_if_needed(appdata_dir: str, install_dir: Optional[str] = N
     신규 subcast_user.db로 무손실 이관 및 병합(Zero-Loss Migration & Merge)합니다.
     """
     user_db_path = os.path.join(appdata_dir, "subcast_user.db")
+    user_db_preexisting = os.path.exists(user_db_path)
     os.makedirs(appdata_dir, exist_ok=True)
 
     # 신규 사용자 DB 생성 및 테이블 초기화
@@ -54,6 +55,7 @@ def migrate_legacy_db_if_needed(appdata_dir: str, install_dir: Optional[str] = N
         user_conn = sqlite3.connect(user_db_path)
         user_conn.row_factory = sqlite3.Row
 
+        allow_legacy_settings_overwrite = not user_db_preexisting
         for legacy_db_path in legacy_db_paths:
             logger.info(f"레거시 DB 병합 시도: {legacy_db_path}")
             legacy_conn = sqlite3.connect(legacy_db_path)
@@ -119,12 +121,15 @@ def migrate_legacy_db_if_needed(appdata_dir: str, install_dir: Optional[str] = N
                         placeholders = ", ".join(["?"] * len(col_names))
                         cols_str = ", ".join(col_names)
                         values = [r[k] for k in col_names]
-                        # Old backups can still exist after upgrade. Never let them
-                        # overwrite settings that the current installation already owns.
+                        # The first migration must replace defaults created with the
+                        # new DB. Later startups only fill missing settings so an old
+                        # legacy backup cannot revert edits made by the current app.
+                        conflict_action = "IGNORE" if not allow_legacy_settings_overwrite else "REPLACE"
                         user_conn.execute(
-                            f"INSERT OR IGNORE INTO monitor_settings ({cols_str}) VALUES ({placeholders})",
+                            f"INSERT OR {conflict_action} INTO monitor_settings ({cols_str}) VALUES ({placeholders})",
                             values
                         )
+                    allow_legacy_settings_overwrite = False
                     logger.info(f"{legacy_db_path}에서 모니터 설정 이관/확인 완료")
 
                 user_conn.commit()

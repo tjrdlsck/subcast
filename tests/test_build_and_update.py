@@ -70,7 +70,7 @@ def test_legacy_seed_does_not_overwrite_appdata():
     migration_path = os.path.join(ROOT, "backend", "services", "migration_service.py")
     with open(migration_path, encoding="utf-8") as f:
         migration_source = f.read()
-    assert "INSERT OR IGNORE INTO monitor_settings" in migration_source
+    assert '"IGNORE" if not allow_legacy_settings_overwrite else "REPLACE"' in migration_source
 
 def test_installer_uses_visible_progress_and_explicit_relaunch():
     """Silent update shows progress and asks the installer to start the app once."""

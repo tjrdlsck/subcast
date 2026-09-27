@@ -88,6 +88,15 @@ class TestDataMigration(unittest.TestCase):
         self.assertEqual(settings["currentBox"]["fontSize"], 32)
         self.assertEqual(settings["currentBox"]["textColor"], "#FFFF00")
 
+        # Re-running startup migration must not restore the stale legacy values.
+        conn = sqlite3.connect(user_db_path)
+        conn.execute("UPDATE monitor_settings SET current_font_size = 40 WHERE setting_id = 'default_profile'")
+        conn.commit()
+        conn.close()
+        self.assertTrue(migrate_legacy_db_if_needed(self.appdata_dir, self.install_dir))
+        settings = monitor_repo.get_settings("default_profile")
+        self.assertEqual(settings["currentBox"]["fontSize"], 40)
+
         # 6. Verify backup created
         backup_path = os.path.join(self.appdata_dir, "GAE_Bible.db.legacy_backup")
         self.assertTrue(os.path.exists(backup_path))
