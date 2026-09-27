@@ -32,7 +32,7 @@ def _read_version() -> str:
                 return value
         except OSError:
             pass
-    return "1.3.19"
+    return "1.3.20"
 
 
 CURRENT_VERSION = _read_version()

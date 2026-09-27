@@ -73,6 +73,7 @@ jobs:
 
       - name: Verify upgrade from v1.3.18 preserves user data
         shell: pwsh
+        timeout-minutes: 8
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -88,7 +89,8 @@ jobs:
           $actualHash = (Get-FileHash $oldInstaller -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($expectedHash -ne $actualHash) { throw 'Previous installer checksum mismatch' }
 
-          $old = Start-Process -FilePath $oldInstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$installDir") -Wait -PassThru -WindowStyle Hidden
+          $old = Start-Process -FilePath $oldInstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$installDir") -PassThru -WindowStyle Hidden
+          if (-not $old.WaitForExit(120000)) { Stop-Process -Id $old.Id -Force; throw 'Previous installer timed out' }
           if ($old.ExitCode -ne 0 -or -not (Test-Path (Join-Path $installDir 'subcast.exe'))) { throw 'Previous installer failed' }
           Get-CimInstance Win32_Process -Filter "Name='subcast.exe'" |
             Where-Object { $_.ExecutablePath -eq (Join-Path $installDir 'subcast.exe') } |
@@ -98,7 +100,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not seed upgrade fixture' }
 
           $newInstaller = (Resolve-Path "dist\Subcast_Setup_v${{ steps.version.outputs.VERSION }}.exe").Path
-          $new = Start-Process -FilePath $newInstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SUBCASTUPDATE=1', '/SUBCASTORIGINALUSER=1', "/DIR=$installDir") -Wait -PassThru -WindowStyle Hidden
+          $new = Start-Process -FilePath $newInstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SUBCASTUPDATE=1', '/SUBCASTORIGINALUSER=1', "/DIR=$installDir") -PassThru -WindowStyle Hidden
+          if (-not $new.WaitForExit(120000)) { Stop-Process -Id $new.Id -Force; throw 'New installer timed out' }
           if ($new.ExitCode -ne 0) { throw "New installer failed with exit code $($new.ExitCode)" }
 
           $started = $false
