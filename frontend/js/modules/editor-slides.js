@@ -338,10 +338,16 @@
             const curSlide = slides[currentIndex];
             const nextSlide = (currentIndex + 1 < slides.length) ? slides[currentIndex + 1] : null;
 
+            const isBlankSlide = (slide) => {
+                if (slide?.slideType === 'bibleBlank') return true;
+                const isPraise = slide && (slide.slideType === 'praise' || slide.isPraise === true || slide.id?.startsWith('slide_praise_') || /^(찬양:|자막\(템\):)/.test(slide.name || ''));
+                if (isPraise && /\[빈\s*화면\]\s*$/.test(slide.name || '')) return true;
+                return Array.isArray(slide?.elements) && slide.elements.every(elem =>
+                    ['text', 'i-text', 'textbox'].includes(elem.type) && !String(elem.content || '').trim()
+                );
+            };
+
             const extractText = (slide) => {
-                if (slide?.slideType === 'bibleBlank') return '[빈 화면]';
-                if (slide && (slide.slideType === 'praise' || slide.isPraise === true || slide.id?.startsWith('slide_praise_') || /^(찬양:|자막\(템\):)/.test(slide.name || ''))
-                    && /\[빈\s*화면\]\s*$/.test(slide.name || '')) return '[빈 화면]';
                 if (!slide || !slide.elements) return "";
                 return slide.elements
                     .filter(e => e.type === "text" || e.type === "i-text" || e.type === "textbox")
@@ -350,11 +356,12 @@
                     .join("\n");
             };
 
-            const curContent = curSlide ? (extractText(curSlide) || slideNameOrFallback(curSlide, currentIndex + 1)) : "";
+            const curContent = curSlide ? (isBlankSlide(curSlide) ? '' : (extractText(curSlide) || slideNameOrFallback(curSlide, currentIndex + 1))) : "";
             const isLastSlide = (currentIndex + 1 >= slides.length);
-            const nextContent = isLastSlide ? "[마지막 슬라이드입니다]" : (nextSlide ? (extractText(nextSlide) || slideNameOrFallback(nextSlide, currentIndex + 2)) : "");
+            const nextContent = isLastSlide ? "[마지막 슬라이드입니다]" : (nextSlide ? (isBlankSlide(nextSlide) ? '' : (extractText(nextSlide) || slideNameOrFallback(nextSlide, currentIndex + 2))) : "");
 
-            const isPraise = !!(curSlide && (curSlide.slideType === 'praise' || curSlide.isPraise || (curSlide.id && typeof curSlide.id === 'string' && curSlide.id.startsWith('slide_praise_')) || (curSlide.name && typeof curSlide.name === 'string' && (curSlide.name.startsWith('찬양:') || curSlide.name.startsWith('자막(템):')))));
+            const isPraiseSlide = (slide) => !!(slide && (slide.slideType === 'praise' || slide.isPraise || (slide.id && typeof slide.id === 'string' && slide.id.startsWith('slide_praise_')) || (slide.name && typeof slide.name === 'string' && (slide.name.startsWith('찬양:') || slide.name.startsWith('자막(템):')))));
+            const isPraise = isPraiseSlide(curSlide) || (isBlankSlide(curSlide) && isPraiseSlide(nextSlide));
 
             const bc = getMonitorBroadcastChannel();
             if (bc) {

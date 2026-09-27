@@ -153,10 +153,18 @@ function broadcastMonitorPreviewSettings() {
 }
 
 // 3. 슬라이드 텍스트 추출 함수
+function isBlankMonitorSlide(slide) {
+    if (!slide) return false;
+    if (slide.slideType === "bibleBlank") return true;
+    const isPraise = slide.slideType === "praise" || slide.isPraise === true || slide.id?.startsWith("slide_praise_") || /^(찬양:|자막\(템\):)/.test(slide.name || "");
+    if (isPraise && /\[빈\s*화면\]\s*$/.test(slide.name || "")) return true;
+    return Array.isArray(slide.elements) && slide.elements.every(elem =>
+        ["text", "i-text", "textbox"].includes(elem.type) && !String(elem.content || "").trim()
+    );
+}
+
 function extractSlidePlainText(slide, fallbackName = "") {
-    if (slide?.slideType === "bibleBlank") return "[빈 화면]";
-    if (slide && (slide.slideType === "praise" || slide.isPraise === true || slide.id?.startsWith("slide_praise_") || /^(찬양:|자막\(템\):)/.test(slide.name || ""))
-        && /\[빈\s*화면\]\s*$/.test(slide.name || "")) return "[빈 화면]";
+    if (isBlankMonitorSlide(slide)) return "";
     if (!slide || !slide.elements) return fallbackName;
     const texts = slide.elements
         .filter(e => e.type === "text" || e.type === "i-text" || e.type === "textbox")

@@ -877,9 +877,19 @@
             return false;
         }
 
+        function isBlankMonitorSlide(slide) {
+            if (!slide) return false;
+            if (slide.slideType === 'bibleBlank') return true;
+            if (isPraiseSlide(slide) && /\[빈\s*화면\]\s*$/.test(slide.name || '')) return true;
+            return Array.isArray(slide.elements) && slide.elements.every(elem =>
+                ['text', 'i-text', 'textbox'].includes(elem.type) && !String(elem.content || '').trim()
+            );
+        }
+
         function updateMonitorViewerTexts(currentContent, nextContent, isLastSlide = false, isPraise = true) {
             const monitorContainer = document.getElementById("monitor-viewer-container");
             const canvasContainer = document.getElementById("canvas-container");
+            const curCard = document.getElementById("monitor-current-card");
             const curText = document.getElementById("monitor-current-text");
             const nxtText = document.getElementById("monitor-next-text");
             const nxtCard = document.getElementById("monitor-next-card");
@@ -887,23 +897,23 @@
             if (!isPraise) {
                 // 찬양이 아닌 성경/일반 슬라이드: 모니터 2분할 텍스트 뷰어 숨기고, 원본 슬라이드 디자인 캔버스 출력
                 if (monitorContainer) monitorContainer.style.display = "none";
-                if (canvasContainer) canvasContainer.style.display = "block";
+                if (canvasContainer) canvasContainer.style.display = "flex";
                 renderCurrentSlide();
             } else {
                 // 찬양 슬라이드: 모니터 2분할(CURRENT + NEXT) 텍스트 뷰어 출력
                 if (monitorContainer) monitorContainer.style.display = "block";
                 if (canvasContainer) canvasContainer.style.display = "none";
 
-                if (curText) {
-                    curText.textContent = currentContent || "(내용 없음)";
-                }
+                if (curCard) curCard.style.display = currentContent ? "flex" : "none";
+                if (curText) curText.textContent = currentContent || "";
                 if (nxtText && nxtCard) {
-                    nxtCard.style.display = "flex";
                     if (isLastSlide) {
+                        nxtCard.style.display = "flex";
                         nxtText.textContent = "[마지막 슬라이드입니다]";
                         nxtCard.style.opacity = "0.4";
                     } else {
-                        nxtText.textContent = nextContent || "(다음 슬라이드 없음)";
+                        nxtCard.style.display = nextContent ? "flex" : "none";
+                        nxtText.textContent = nextContent || "";
                         nxtCard.style.opacity = "1.0";
                     }
                 }
@@ -911,8 +921,7 @@
         }
 
         function extractSlideText(slide, fallbackName = "") {
-            if (slide?.slideType === 'bibleBlank') return '[빈 화면]';
-            if (isPraiseSlide(slide) && /\[빈\s*화면\]\s*$/.test(slide.name || '')) return '[빈 화면]';
+            if (isBlankMonitorSlide(slide)) return "";
             if (!slide || !slide.elements) return fallbackName;
             const texts = slide.elements
                 .filter(e => e.type === "text" || e.type === "i-text" || e.type === "textbox")
@@ -939,8 +948,8 @@
             const curText = curSlide ? extractSlideText(curSlide, curSlide.name || `슬라이드 ${currentIndex + 1}`) : "";
             const nextText = isLastSlide ? "[마지막 슬라이드입니다]" : (nextSlide ? extractSlideText(nextSlide, nextSlide.name || `슬라이드 ${currentIndex + 2}`) : "");
 
-            const isPraise = isPraiseSlide(curSlide);
-            updateMonitorViewerTexts(curText, nextText, isLastSlide, isPraise);
+            const showTextLayout = isPraiseSlide(curSlide) || (isBlankMonitorSlide(curSlide) && isPraiseSlide(nextSlide));
+            updateMonitorViewerTexts(curText, nextText, isLastSlide, showTextLayout);
         }
 
         async function initMonitorModeViewer() {
@@ -1033,6 +1042,7 @@
             const urlParams = new URLSearchParams(window.location.search);
             const channel = urlParams.get('channel');
             if (urlParams.get('mode') === 'monitor' || channel === 'monitor' || channel === 'preview' || channel === 'monitor_preview') {
+                updateCanvasDimensions();
                 requestAnimationFrame(renderMonitorViewerLayout);
             } else {
                 updateCanvasDimensions();

@@ -22,7 +22,7 @@ class TestStageMonitorConditionalSplit(unittest.TestCase):
         with open(self.viewer_js_path, "r", encoding="utf-8") as f:
             content = f.read()
         self.assertIn("function isPraiseSlide", content, "viewer.js에 isPraiseSlide 헬퍼 함수가 존재해야 합니다.")
-        self.assertIn("canvasContainer.style.display = \"block\"", content, "성경/일반 슬라이드 시 원본 슬라이드 캔버스를 활성화해야 합니다.")
+        self.assertIn("canvasContainer.style.display = \"flex\"", content, "성경/일반 슬라이드 시 원본 슬라이드 캔버스를 중앙에 표시해야 합니다.")
         self.assertIn("renderCurrentSlide()", content, "성경/일반 슬라이드 시 슬라이드 원본 디자인 전체를 렌더링해야 합니다.")
 
     def test_editor_slides_payload_includes_ispraise(self):
