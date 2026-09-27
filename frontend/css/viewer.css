@@ -68,6 +68,15 @@ body.stage-mode {
     animation: stageAmbientGradient 16s ease infinite !important;
 }
 
+body.stage-bible-slide::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: #000000;
+    z-index: 9;
+    pointer-events: none;
+}
+
 @keyframes stageAmbientGradient {
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }

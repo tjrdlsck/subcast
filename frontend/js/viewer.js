@@ -169,6 +169,7 @@
             const isBroadcast = !isStage && !isMonitor;
 
             canvas.clear();
+            document.body.classList.remove('stage-bible-slide');
 
             if (isMonitor) {
                 canvas.backgroundColor = '#000000';
@@ -183,6 +184,13 @@
 
             const currentSlide = projectData.slides.find(s => s.id === currentSlideId);
             if (!currentSlide) return;
+
+            const isBibleVerse = currentSlide.slideType !== 'bibleBlank' &&
+                (currentSlide.id?.startsWith('slide_bible_') || currentSlide.name?.startsWith('성경:')) &&
+                currentSlide.elements?.some(elem =>
+                    ['text', 'i-text', 'textbox'].includes(elem.type) && String(elem.content || '').trim()
+                );
+            document.body.classList.toggle('stage-bible-slide', isStage && !!isBibleVerse);
 
             // 반응형 줌 비율(Scale Ratio) 계산 및 캔버스 적용
             const scale = canvas.getWidth() / targetWidth;
