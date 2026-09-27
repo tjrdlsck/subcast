@@ -532,6 +532,64 @@
             padding-bottom: 40px;
         }
 
+        .sorter-praise-group-header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            min-width: 0;
+            margin: 10px 0 -8px;
+            padding: 9px 12px;
+            border: 1px solid rgba(45, 212, 191, 0.28);
+            border-left: 3px solid #2dd4bf;
+            border-radius: 7px;
+            background: rgba(20, 184, 166, 0.08);
+        }
+
+        .sorter-praise-group-title {
+            min-width: 0;
+            overflow: hidden;
+            color: #99f6e4;
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .sorter-praise-group-count {
+            flex: 0 0 auto;
+            color: #a5b4fc;
+            font-size: 0.72rem;
+        }
+
+        .sorter-praise-group-select {
+            flex: 0 0 auto;
+            margin-left: auto;
+            padding: 5px 9px;
+            border: 1px solid rgba(45, 212, 191, 0.35);
+            border-radius: 5px;
+            background: rgba(20, 184, 166, 0.14);
+            color: #ccfbf1;
+            font-size: 0.72rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .sorter-praise-group-select:hover,
+        .sorter-praise-group-select.is-selected {
+            border-color: #2dd4bf;
+            background: rgba(20, 184, 166, 0.28);
+            color: #fff;
+        }
+
+        .sorter-card-praise-group {
+            border-color: rgba(45, 212, 191, 0.25);
+        }
+
+        .sorter-card-praise-group.selected-multi {
+            border-color: #38bdf8;
+        }
+
         .sorter-card {
             position: relative;
             background: #0f172a;

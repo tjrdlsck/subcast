@@ -595,11 +595,121 @@
             }
         }
 
+        function parseLegacyPraiseSlideName(slide) {
+            if (!slide || slide.praiseGroupId) return null;
+            const name = String(slide.name || "");
+            const match = /^(찬양:|예배곡[^:]*:)\s*(.+?)\s+\((\d+)\/(\d+)\)(?:\s+\[[^\]]+\])?((?:\s+\([^)]*\))*)$/.exec(name);
+            if (!match) return null;
+            return {
+                title: match[2].trim(),
+                part: Number(match[3]),
+                total: Number(match[4]),
+                signature: `${match[1]}|${match[2].trim()}|${match[4]}|${match[5]}`,
+                suffix: match[5].trim()
+            };
+        }
+
+        function getPraiseSorterGroups(slides) {
+            const groupsByStartIndex = new Map();
+            const groupBySlideId = new Map();
+            let index = 0;
+
+            while (index < slides.length) {
+                const slide = slides[index];
+                let group = null;
+
+                if (slide.praiseGroupId) {
+                    const members = [slide];
+                    let nextIndex = index + 1;
+                    while (nextIndex < slides.length && slides[nextIndex].praiseGroupId === slide.praiseGroupId) {
+                        members.push(slides[nextIndex]);
+                        nextIndex++;
+                    }
+                    group = {
+                        id: slide.praiseGroupId,
+                        title: slide.songTitle || parseLegacyPraiseSlideName(slide)?.title || slide.name || "찬양",
+                        songTitle: slide.songTitle || null,
+                        slides: members,
+                        startIndex: index,
+                        legacy: false
+                    };
+                    index = nextIndex;
+                } else {
+                    const parsed = parseLegacyPraiseSlideName(slide);
+                    if (parsed) {
+                        const members = [slide];
+                        let nextIndex = index + 1;
+                        let expectedPart = parsed.part + 1;
+                        while (nextIndex < slides.length && expectedPart <= parsed.total) {
+                            const candidate = slides[nextIndex];
+                            const candidateName = parseLegacyPraiseSlideName(candidate);
+                            if (!candidateName || candidateName.signature !== parsed.signature || candidateName.part !== expectedPart) break;
+                            members.push(candidate);
+                            expectedPart++;
+                            nextIndex++;
+                        }
+                        group = {
+                            id: null,
+                            title: `${parsed.title}${parsed.suffix ? ` ${parsed.suffix}` : ""}`,
+                            songTitle: parsed.title,
+                            slides: members,
+                            startIndex: index,
+                            legacy: true
+                        };
+                        index = nextIndex;
+                    } else {
+                        index++;
+                    }
+                }
+
+                if (!group) continue;
+                groupsByStartIndex.set(group.startIndex, group);
+                group.slides.forEach(member => groupBySlideId.set(member.id, group));
+            }
+
+            return { groupsByStartIndex, groupBySlideId };
+        }
+
+        function selectPraiseSorterGroup(group) {
+            if (!group || !projectData?.slides) return;
+            const targetSlides = group.id
+                ? projectData.slides.filter(slide => slide.praiseGroupId === group.id)
+                : group.slides;
+            const editableSlides = targetSlides.filter(slide => !checkIsLockedByOthers(slide.id));
+            if (!editableSlides.length) return;
+
+            if (group.legacy && editableSlides.length === targetSlides.length && ws?.readyState === WebSocket.OPEN) {
+                const groupId = `praise_grp_${Math.random().toString(36).slice(2, 11)}`;
+                targetSlides.forEach(slide => {
+                    slide.praiseGroupId = groupId;
+                    slide.songTitle = group.songTitle || group.title;
+                });
+                ws.send(JSON.stringify({ type: "SAVE_SLIDES_BULK", slides: targetSlides }));
+                group.id = groupId;
+                group.legacy = false;
+            }
+
+            const editableIds = editableSlides.map(slide => slide.id);
+            selectSlideForEdit(editableIds[0]);
+            selectedSlideIds = editableIds;
+            updateSlideSorterSelection();
+            if (editableSlides.length < targetSlides.length && typeof showToast === "function") {
+                showToast(`${targetSlides.length - editableSlides.length}개 슬라이드는 다른 사용자가 편집 중이라 제외했습니다.`);
+            }
+        }
+
         function renderSlideSorter() {
             const gridEl = document.getElementById("slide-sorter-grid");
             const countEl = document.getElementById("sorter-slide-count");
             if (!gridEl) return;
             gridEl.innerHTML = "";
+
+            const sorterGroups = getPraiseSorterGroups(projectData?.slides || []);
+            const assignTagsButton = document.getElementById("btn-sorter-assign-tags");
+            if (assignTagsButton) {
+                assignTagsButton.disabled = !selectedSlideIds?.length;
+                assignTagsButton.style.opacity = selectedSlideIds?.length ? "1" : "0.55";
+            }
 
             if (!projectData || !projectData.slides || projectData.slides.length === 0) {
                 if (countEl) countEl.textContent = "총 0개 슬라이드";
@@ -626,6 +736,34 @@
             };
 
             projectData.slides.forEach((slide, index) => {
+                const praiseGroup = sorterGroups.groupsByStartIndex.get(index);
+                if (praiseGroup) {
+                    const groupHeader = document.createElement("div");
+                    groupHeader.className = "sorter-praise-group-header";
+                    const title = document.createElement("span");
+                    title.className = "sorter-praise-group-title";
+                    title.textContent = `찬양 묶음 · ${praiseGroup.title}`;
+                    const count = document.createElement("span");
+                    count.className = "sorter-praise-group-count";
+                    const praiseGroupSlideCount = praiseGroup.id
+                        ? projectData.slides.filter(member => member.praiseGroupId === praiseGroup.id).length
+                        : praiseGroup.slides.length;
+                    count.textContent = `${praiseGroupSlideCount}장`;
+                    const selectButton = document.createElement("button");
+                    selectButton.type = "button";
+                    selectButton.className = "sorter-praise-group-select";
+                    selectButton.textContent = "묶음 선택";
+                    selectButton.dataset.praiseGroupStart = String(index);
+                    selectButton.title = "이 찬양 묶음의 슬라이드를 모두 선택합니다";
+                    selectButton.onclick = (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        selectPraiseSorterGroup(praiseGroup);
+                    };
+                    groupHeader.append(title, count, selectButton);
+                    gridEl.appendChild(groupHeader);
+                }
+
                 const card = document.createElement("div");
                 card.className = "sorter-card";
                 card.id = `sorter-card-${slide.id}`;
@@ -635,6 +773,8 @@
 
                 if (slide.id === activeSlideId) card.classList.add("editing");
                 if (selectedSlideIds.includes(slide.id)) card.classList.add("selected-multi");
+                const cardPraiseGroup = sorterGroups.groupBySlideId.get(slide.id);
+                if (cardPraiseGroup) card.classList.add("sorter-card-praise-group");
                 const isLockedByOthers = checkIsLockedByOthers(slide.id);
                 if (isLockedByOthers) card.classList.add("locked");
 
@@ -798,6 +938,21 @@
             const selected = new Set(selectedSlideIds);
             const gridEl = document.getElementById("slide-sorter-grid");
             if (!gridEl) return;
+            const groups = getPraiseSorterGroups(projectData?.slides || []);
+            const assignTagsButton = document.getElementById("btn-sorter-assign-tags");
+            if (assignTagsButton) {
+                assignTagsButton.disabled = selected.size === 0;
+                assignTagsButton.style.opacity = selected.size ? "1" : "0.55";
+            }
+            for (const button of gridEl.querySelectorAll(".sorter-praise-group-select")) {
+                const group = groups.groupsByStartIndex.get(Number(button.dataset.praiseGroupStart));
+                const groupSlides = group?.id
+                    ? projectData.slides.filter(slide => slide.praiseGroupId === group.id)
+                    : (group?.slides || []);
+                const isSelected = groupSlides.length > 0 && groupSlides.every(slide => selected.has(slide.id));
+                button.classList.toggle("is-selected", isSelected);
+                button.textContent = isSelected ? "묶음 선택됨" : "묶음 선택";
+            }
             for (const card of gridEl.querySelectorAll(".sorter-card")) {
                 const slideId = card.dataset.slideId;
                 card.classList.toggle("editing", slideId === activeSlideId);
@@ -823,10 +978,18 @@
             const btnZoomOut = document.getElementById("btn-sorter-zoom-out");
             const btnZoomReset = document.getElementById("btn-sorter-zoom-reset");
             const inputZoom = document.getElementById("input-sorter-zoom");
+            const assignTagsButton = document.getElementById("btn-sorter-assign-tags");
             const sorterOverlay = document.getElementById("slide-sorter-overlay");
 
             if (btnToggle) btnToggle.onclick = () => toggleSlideSorter();
             if (btnClose) btnClose.onclick = () => closeSlideSorter();
+            if (assignTagsButton) {
+                assignTagsButton.onclick = () => {
+                    if (selectedSlideIds?.length && typeof openSlideTagAssignmentModal === "function") {
+                        openSlideTagAssignmentModal();
+                    }
+                };
+            }
 
             if (btnZoomIn) {
                 btnZoomIn.onclick = () => setSorterZoom(sorterCardSize + 30);
