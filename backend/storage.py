@@ -33,10 +33,10 @@ async def load_global_templates() -> List[SlideTemplate]:
                         try:
                             tpl = SlideTemplate.model_validate(t_data)
                             templates_map[tpl.id] = tpl
-                        except Exception:
-                            pass
-            except Exception:
-                pass
+                        except Exception as exc:
+                            raise ValueError(f"Cannot recover template from saved project: {pfile}") from exc
+            except Exception as exc:
+                raise ValueError(f"Cannot recover templates from saved project: {pfile}") from exc
         
         merged_templates = list(templates_map.values())
         await save_global_templates(merged_templates)
@@ -47,8 +47,8 @@ async def load_global_templates() -> List[SlideTemplate]:
         try:
             raw_list = json.loads(content)
             return [SlideTemplate.model_validate(t) for t in raw_list]
-        except Exception:
-            return []
+        except Exception as exc:
+            raise ValueError(f"Cannot read saved templates: {TEMPLATES_FILE_PATH}") from exc
 
 async def save_global_templates(templates: List[SlideTemplate]) -> None:
     """전역 템플릿 목록을 templates.json 파일에 저장합니다."""
@@ -120,8 +120,9 @@ def get_active_project_id() -> str:
             pid = ACTIVE_PROJECT_FILE.read_text(encoding="utf-8").strip()
             if pid:
                 return pid
-        except Exception:
-            pass
+            raise ValueError(f"Active project ID is empty: {ACTIVE_PROJECT_FILE}")
+        except Exception as exc:
+            raise ValueError(f"Cannot read active project ID: {ACTIVE_PROJECT_FILE}") from exc
     return "proj_default"
 
 def set_active_project_id(project_id: str) -> None:
@@ -148,8 +149,12 @@ async def load_project_data(project_id: Optional[str] = None) -> ProjectData:
                     data.name = "기본 프로젝트"
                     await save_project_data(data)
                     return data
-            except Exception:
-                pass
+            except Exception as exc:
+                raise ValueError(f"Cannot migrate saved project: {OLD_DATA_FILE_PATH}") from exc
+
+        if (project_id != "proj_default" or any(PROJECTS_DIR.glob("*.json"))
+                or (ACTIVE_PROJECT_FILE.exists() and get_active_project_id() == project_id)):
+            raise FileNotFoundError(f"Saved project is missing: {target_path}")
 
         # 파일이 없으면 기본 데이터 생성 및 저장
         new_data = DEFAULT_PROJECT_DATA.model_copy(deep=True)
@@ -170,9 +175,8 @@ async def load_project_data(project_id: Optional[str] = None) -> ProjectData:
                 data.id = project_id
             data.templates = await load_global_templates()
             return data
-        except Exception:
-            data = DEFAULT_PROJECT_DATA.model_copy(deep=True)
-            data.templates = await load_global_templates()
+        except Exception as exc:
+            raise ValueError(f"Cannot read saved project: {target_path}") from exc
 _project_save_locks = {}
 
 def _get_project_lock(pid: str):

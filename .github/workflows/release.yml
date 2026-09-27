@@ -71,6 +71,53 @@ jobs:
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           & $iscc /DMyAppVersion=$ver setup.iss
 
+      - name: Verify upgrade from v1.3.18 preserves user data
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $smokeDir = Join-Path $env:RUNNER_TEMP 'subcast-upgrade-smoke'
+          $installDir = Join-Path $smokeDir 'installed'
+          $dataDir = Join-Path $env:APPDATA 'Subcast'
+          $stateFile = Join-Path $smokeDir 'fixture-state.json'
+          New-Item -ItemType Directory -Force -Path $smokeDir | Out-Null
+          gh release download v1.3.18 --pattern 'Subcast_Setup_v1.3.18.exe*' --dir $smokeDir
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download the previous installer' }
+          $oldInstaller = Join-Path $smokeDir 'Subcast_Setup_v1.3.18.exe'
+          $expectedHash = (Get-Content "${oldInstaller}.sha256" -Raw).Trim().ToLowerInvariant()
+          $actualHash = (Get-FileHash $oldInstaller -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($expectedHash -ne $actualHash) { throw 'Previous installer checksum mismatch' }
+
+          $old = Start-Process -FilePath $oldInstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$installDir") -Wait -PassThru -WindowStyle Hidden
+          if ($old.ExitCode -ne 0 -or -not (Test-Path (Join-Path $installDir 'subcast.exe'))) { throw 'Previous installer failed' }
+          Get-CimInstance Win32_Process -Filter "Name='subcast.exe'" |
+            Where-Object { $_.ExecutablePath -eq (Join-Path $installDir 'subcast.exe') } |
+            ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+          $env:SUBCAST_DATA_DIR = $dataDir
+          python tests/release_upgrade_fixture.py seed $dataDir $stateFile
+          if ($LASTEXITCODE -ne 0) { throw 'Could not seed upgrade fixture' }
+
+          $newInstaller = (Resolve-Path "dist\Subcast_Setup_v${{ steps.version.outputs.VERSION }}.exe").Path
+          $new = Start-Process -FilePath $newInstaller -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SUBCASTUPDATE=1', '/SUBCASTORIGINALUSER=1', "/DIR=$installDir") -Wait -PassThru -WindowStyle Hidden
+          if ($new.ExitCode -ne 0) { throw "New installer failed with exit code $($new.ExitCode)" }
+
+          $started = $false
+          for ($attempt = 0; $attempt -lt 60; $attempt++) {
+            try {
+              $version = Invoke-RestMethod 'http://127.0.0.1:18543/api/system/version' -TimeoutSec 2
+              if ($version.version -eq '${{ steps.version.outputs.VERSION }}') {
+                $projects = Invoke-RestMethod 'http://127.0.0.1:18543/api/projects' -TimeoutSec 2
+                if ($projects.id -contains 'proj_upgrade') { $started = $true; break }
+              }
+            } catch { Start-Sleep -Seconds 1 }
+          }
+          if (-not $started) { throw 'Updated application did not start with the existing project' }
+          Get-CimInstance Win32_Process -Filter "Name='subcast.exe'" |
+            Where-Object { $_.ExecutablePath -eq (Join-Path $installDir 'subcast.exe') } |
+            ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+          python tests/release_upgrade_fixture.py verify $dataDir $stateFile
+          if ($LASTEXITCODE -ne 0) { throw 'User data changed during installer upgrade' }
+
       - name: Create installer checksum
         shell: pwsh
         run: |
@@ -94,6 +141,12 @@ jobs:
           tag_name: ${{ steps.version.outputs.TAG }}
           name: Subcast v${{ steps.version.outputs.VERSION }}
           body: |
+            ### 데이터 보존 검증
+            - 설치 전 사용자 데이터 백업 및 백업 실패 시 업데이트 중단
+            - 손상된 프로젝트나 DB 이전 실패 시 원본 덮어쓰기 방지
+            - 자동 업데이트 후 원래 Windows 사용자 계정으로 재실행
+            - v1.3.18에서 실제 설치 업그레이드 및 데이터 보존 검증 통과 후 게시
+
             ## Subcast v${{ steps.version.outputs.VERSION }} 릴리즈
 
             ### 설치 방법

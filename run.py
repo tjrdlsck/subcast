@@ -26,7 +26,7 @@ def get_current_version():
                 return f.read().strip()
         except Exception:
             pass
-    return "1.3.18"
+    return "1.3.19"
 
 CURRENT_VERSION = get_current_version()
 REPO_OWNER = "tjrdlsck"
@@ -84,7 +84,7 @@ for old_dir in [os.path.join(install_dir, "data"), os.path.join(install_dir, "_i
         try:
             copy_missing_tree(old_dir, new_data_dir)
         except Exception as e:
-            print(f"Failed to migrate data dir from {old_dir}: {e}")
+            raise RuntimeError(f"Failed to migrate data dir from {old_dir}") from e
 
 # 기본 배경화면 에셋을 AppData로 시딩(동기화)
 new_bg_dir = os.path.join(subcast_appdata, "frontend", "assets", "backgrounds")
@@ -96,12 +96,13 @@ for old_bg_dir in [
         try:
             copy_missing_tree(old_bg_dir, new_bg_dir)
         except Exception as e:
-            print(f"Failed to seed background assets from {old_bg_dir}: {e}")
+            raise RuntimeError(f"Failed to seed background assets from {old_bg_dir}") from e
 
 os.environ["SUBCAST_DATA_DIR"] = subcast_appdata
 
 from backend.services.migration_service import migrate_legacy_db_if_needed
-migrate_legacy_db_if_needed(subcast_appdata, install_dir)
+if not migrate_legacy_db_if_needed(subcast_appdata, install_dir):
+    raise RuntimeError("User database migration failed; existing data was preserved")
 
 # 워킹 디렉토리 세팅 후 app을 임포트합니다.
 from backend.main import app
@@ -114,8 +115,8 @@ def load_config():
     if os.path.exists(old_config) and not os.path.exists(CONFIG_FILE):
         try:
             shutil.copy2(old_config, CONFIG_FILE)
-        except:
-            pass
+        except Exception as exc:
+            raise RuntimeError(f"Cannot migrate saved configuration: {old_config}") from exc
             
     if os.path.exists(CONFIG_FILE):
         try:
@@ -124,8 +125,8 @@ def load_config():
                 if "host" not in cfg:
                     cfg["host"] = "0.0.0.0"
                 return cfg
-        except:
-            pass
+        except Exception as exc:
+            raise RuntimeError(f"Cannot read saved configuration: {CONFIG_FILE}") from exc
     return {"port": DEFAULT_PORT, "host": "0.0.0.0", "auto_start_server": True}
 
 def save_config(config):
@@ -393,8 +394,10 @@ def download_and_update(release_info):
         '''
         subprocess.run(["powershell", "-Command", script], creationflags=0x08000000)
         
-        result = ctypes.windll.shell32.ShellExecuteW(None, "runas", installer_path,
-            "/SILENT /NORESTARTAPPLICATIONS /SUBCASTUPDATE=1 /LOG", None, 1)
+        from backend.services.update_backup import create_update_backup
+        create_update_backup(subcast_appdata)
+        result = ctypes.windll.shell32.ShellExecuteW(None, "open", installer_path,
+            "/SILENT /NORESTARTAPPLICATIONS /SUBCASTUPDATE=1 /SUBCASTORIGINALUSER=1 /LOG", None, 1)
         if result <= 32:
             raise OSError(f"Windows could not start installer (ShellExecute error {result})")
         _schedule_update_temp_cleanup(temp_dir)

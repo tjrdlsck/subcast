@@ -88,12 +88,45 @@ def test_installer_launch_failure_keeps_app_and_allows_retry(monkeypatch, tmp_pa
     monkeypatch.setattr(system, "_latest_release", latest)
     monkeypatch.setattr(system, "_download_verified_installer", downloaded)
     monkeypatch.setattr(system, "_flush_project_state", flushed)
-    monkeypatch.setattr(system, "_launch_elevated", launch_fails)
+    monkeypatch.setattr(system, "create_update_backup", lambda _path: tmp_path / "backup.zip")
+    monkeypatch.setattr(system, "_launch_installer", launch_fails)
     monkeypatch.setattr(system.ipaddress, "ip_address", lambda _host: SimpleNamespace(is_loopback=True))
     system._UPDATE_IN_PROGRESS = False
 
     response = client.post("/api/system/auto-update")
 
+    assert response.status_code == 500
+    assert system._UPDATE_IN_PROGRESS is False
+    assert not (tmp_path / "update").exists()
+
+
+def test_backup_failure_prevents_installer_launch(monkeypatch, tmp_path):
+    async def latest():
+        return release("99.0.0")
+
+    async def downloaded(_url, _checksum):
+        update_dir = tmp_path / "update"
+        update_dir.mkdir()
+        return str(update_dir / "installer.exe"), str(update_dir)
+
+    async def flushed():
+        return None
+
+    def backup_fails(_path):
+        raise OSError("backup disk full")
+
+    def unexpected_launch(_path):
+        pytest.fail("installer launched without a verified backup")
+
+    monkeypatch.setattr(system, "_latest_release", latest)
+    monkeypatch.setattr(system, "_download_verified_installer", downloaded)
+    monkeypatch.setattr(system, "_flush_project_state", flushed)
+    monkeypatch.setattr(system, "create_update_backup", backup_fails)
+    monkeypatch.setattr(system, "_launch_installer", unexpected_launch)
+    monkeypatch.setattr(system.ipaddress, "ip_address", lambda _host: SimpleNamespace(is_loopback=True))
+    system._UPDATE_IN_PROGRESS = False
+
+    response = client.post("/api/system/auto-update")
     assert response.status_code == 500
     assert system._UPDATE_IN_PROGRESS is False
     assert not (tmp_path / "update").exists()

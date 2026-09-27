@@ -16,6 +16,8 @@ from fastapi import APIRouter, HTTPException, Request
 from backend.services.connection_manager import manager
 from backend.services.websocket_handler import _pending_save_tasks
 from backend.storage import save_project_data
+from backend.services.update_backup import create_update_backup
+from backend.database import APP_DATA_DIR
 
 logger = logging.getLogger("subcast")
 router = APIRouter(prefix="/api/system", tags=["system"])
@@ -30,7 +32,7 @@ def _read_version() -> str:
                 return value
         except OSError:
             pass
-    return "1.3.18"
+    return "1.3.19"
 
 
 CURRENT_VERSION = _read_version()
@@ -145,12 +147,12 @@ async def _download_verified_installer(installer_url: str, checksum_url: str) ->
         raise
 
 
-def _launch_elevated(installer_path: str) -> None:
+def _launch_installer(installer_path: str) -> None:
     if os.name != "nt":
         raise OSError("Automatic installation is supported only on Windows")
     import ctypes
-    result = ctypes.windll.shell32.ShellExecuteW(None, "runas", installer_path,
-        "/SILENT /NORESTARTAPPLICATIONS /SUBCASTUPDATE=1 /LOG", None, 1)
+    result = ctypes.windll.shell32.ShellExecuteW(None, "open", installer_path,
+        "/SILENT /NORESTARTAPPLICATIONS /SUBCASTUPDATE=1 /SUBCASTORIGINALUSER=1 /LOG", None, 1)
     if result <= 32:
         raise OSError(f"Windows could not start the installer (ShellExecute error {result})")
 
@@ -222,8 +224,9 @@ async def perform_auto_update(request: Request):
                 raise HTTPException(status_code=409, detail="설치할 새 버전이 없습니다.")
             installer_path, temp_dir = await _download_verified_installer(installer_url, checksum_url)
             await _flush_project_state()
+            create_update_backup(APP_DATA_DIR)
             # Resolve UAC cancellation and process launch errors before reporting success.
-            _launch_elevated(installer_path)
+            _launch_installer(installer_path)
             _UPDATE_IN_PROGRESS = True
             _schedule_temp_cleanup(temp_dir)
             asyncio.create_task(_exit_after_install_launch(installer_path))

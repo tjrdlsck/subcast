@@ -1,11 +1,16 @@
 import os
 import sqlite3
-import shutil
 import logging
+from contextlib import closing
 from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger("subcast.migration")
+
+
+def _remove_incomplete_db(path: str, existed_before: bool) -> None:
+    if not existed_before and os.path.exists(path):
+        os.remove(path)
 
 
 def migrate_legacy_db_if_needed(appdata_dir: str, install_dir: Optional[str] = None) -> bool:
@@ -21,9 +26,14 @@ def migrate_legacy_db_if_needed(appdata_dir: str, install_dir: Optional[str] = N
     from backend.database import init_monitor_db
     from backend.services.praise_service import PraiseDatabaseHelper
 
-    init_monitor_db(user_db_path)
-    praise_helper = PraiseDatabaseHelper(user_db_path)
-    praise_helper.init_table()
+    try:
+        init_monitor_db(user_db_path)
+        praise_helper = PraiseDatabaseHelper(user_db_path)
+        praise_helper.init_table()
+    except Exception:
+        logger.exception("Could not initialize the user database")
+        _remove_incomplete_db(user_db_path, user_db_preexisting)
+        return False
 
     # 레거시 DB 후보 경로 탐색 (AppData, 설치 디렉터리 우선 탐색)
     legacy_candidates = [
@@ -51,11 +61,31 @@ def migrate_legacy_db_if_needed(appdata_dir: str, install_dir: Optional[str] = N
         logger.info("레거시 DB가 발견되지 않았습니다. 기본 subcast_user.db를 유지합니다.")
         return True
 
+    appdata_legacy = os.path.join(appdata_dir, "GAE_Bible.db")
+    backup_path = os.path.join(appdata_dir, "GAE_Bible.db.legacy_backup")
+    if os.path.exists(appdata_legacy) and not os.path.exists(backup_path):
+        temporary_backup = backup_path + ".tmp"
+        try:
+            with closing(sqlite3.connect(f"file:{Path(appdata_legacy).as_posix()}?mode=ro", uri=True)) as original:
+                with closing(sqlite3.connect(temporary_backup)) as backup:
+                    original.backup(backup)
+            os.replace(temporary_backup, backup_path)
+        except Exception:
+            logger.exception("Could not back up the legacy database")
+            try:
+                os.remove(temporary_backup)
+            except FileNotFoundError:
+                pass
+            _remove_incomplete_db(user_db_path, user_db_preexisting)
+            return False
+
+    user_conn = None
     try:
         user_conn = sqlite3.connect(user_db_path)
         user_conn.row_factory = sqlite3.Row
 
         allow_legacy_settings_overwrite = not user_db_preexisting
+        user_conn.execute("BEGIN IMMEDIATE")
         for legacy_db_path in legacy_db_paths:
             logger.info(f"레거시 DB 병합 시도: {legacy_db_path}")
             legacy_conn = sqlite3.connect(legacy_db_path)
@@ -132,23 +162,23 @@ def migrate_legacy_db_if_needed(appdata_dir: str, install_dir: Optional[str] = N
                     allow_legacy_settings_overwrite = False
                     logger.info(f"{legacy_db_path}에서 모니터 설정 이관/확인 완료")
 
-                user_conn.commit()
             finally:
                 legacy_conn.close()
 
+        user_conn.commit()
         user_conn.close()
-
-        # 레거시 DB 안전 백업 (AppData 내에 존재할 경우)
-        appdata_legacy = os.path.join(appdata_dir, "GAE_Bible.db")
-        if os.path.exists(appdata_legacy):
-            backup_path = os.path.join(appdata_dir, "GAE_Bible.db.legacy_backup")
-            if not os.path.exists(backup_path):
-                shutil.copy2(appdata_legacy, backup_path)
-                logger.info(f"레거시 DB 백업 완료: {backup_path}")
+        user_conn = None
 
         logger.info("데이터 마이그레이션 및 동기화가 성공적으로 완료되었습니다.")
         return True
 
     except Exception as e:
+        if user_conn is not None:
+            user_conn.rollback()
+            user_conn.close()
+        try:
+            _remove_incomplete_db(user_db_path, user_db_preexisting)
+        except OSError:
+            logger.exception("Could not remove the incomplete user database")
         logger.error(f"마이그레이션 중 오류 발생: {e}", exc_info=True)
         return False

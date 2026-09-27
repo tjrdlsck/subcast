@@ -31,10 +31,8 @@ logger = logging.getLogger("subcast")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    try:
-        migrate_legacy_db_if_needed(APP_DATA_DIR)
-    except Exception as e:
-        logger.warning(f"마이그레이션 실행 중 경고: {e}")
+    if not migrate_legacy_db_if_needed(APP_DATA_DIR):
+        raise RuntimeError("User database migration failed; existing data was preserved")
     await manager.initialize()
     yield
 

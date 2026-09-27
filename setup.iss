@@ -1,5 +1,5 @@
 #ifndef MyAppVersion
-#define MyAppVersion "1.3.18"
+#define MyAppVersion "1.3.19"
 #endif
 #define MyAppName "Subcast"
 #define MyAppPublisher "Subcast Inc."
@@ -36,11 +36,16 @@ Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall; Check: not IsAutoUpdate
-Filename: "{app}\{#MyAppExeName}"; Flags: nowait runasoriginaluser; Check: IsAutoUpdate
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent; Check: not IsAutoUpdate
+Filename: "{app}\{#MyAppExeName}"; Flags: nowait runasoriginaluser; Check: IsAutoUpdateAndOriginalUser
 
 [Code]
 function IsAutoUpdate: Boolean;
 begin
   Result := ExpandConstant('{param:SUBCASTUPDATE|0}') = '1';
+end;
+
+function IsAutoUpdateAndOriginalUser: Boolean;
+begin
+  Result := IsAutoUpdate and (ExpandConstant('{param:SUBCASTORIGINALUSER|0}') = '1');
 end;
