@@ -56,16 +56,27 @@ def validate_monitor_settings(settings: Dict[str, Any]) -> None:
         validate_box_settings("nextBox", settings["nextBox"])
 
 class MonitorSettingsRepository:
-    def __init__(self, db_path: str = DEFAULT_DB_PATH):
+    def __init__(self, db_path: str = DEFAULT_DB_PATH, *, initialize: bool = True):
         self.db_path = db_path
-        init_monitor_db(self.db_path)
+        if initialize:
+            init_monitor_db(self.db_path)
 
     def get_settings(self, setting_id: str = "default_profile") -> Optional[Dict[str, Any]]:
-        conn = get_db_connection(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM monitor_settings WHERE setting_id = ?", (setting_id,))
-        row = cursor.fetchone()
-        conn.close()
+        for attempt in range(2):
+            conn = get_db_connection(self.db_path)
+            missing_table = False
+            try:
+                row = conn.execute("SELECT * FROM monitor_settings WHERE setting_id = ?", (setting_id,)).fetchone()
+            except sqlite3.OperationalError as exc:
+                if attempt or str(exc) != "no such table: monitor_settings":
+                    raise
+                row = None
+                missing_table = True
+            finally:
+                conn.close()
+            if attempt or (not missing_table and (row is not None or setting_id != "default_profile")):
+                break
+            init_monitor_db(self.db_path)
 
         if not row:
             return None
@@ -221,14 +232,14 @@ class MonitorSettingsRepository:
 
         return self.get_settings(setting_id)
 
-def get_monitor_settings(db_path: Optional[str] = None, setting_id: str = "default_profile") -> Optional[Dict[str, Any]]:
+def get_monitor_settings(db_path: Optional[str] = None, setting_id: str = "default_profile", *, initialize: bool = True) -> Optional[Dict[str, Any]]:
     if db_path is None:
         db_path = DEFAULT_DB_PATH
-    repo = MonitorSettingsRepository(db_path)
+    repo = MonitorSettingsRepository(db_path, initialize=initialize)
     return repo.get_settings(setting_id)
 
-def update_monitor_settings(settings: Dict[str, Any], db_path: Optional[str] = None, setting_id: str = "default_profile") -> Dict[str, Any]:
+def update_monitor_settings(settings: Dict[str, Any], db_path: Optional[str] = None, setting_id: str = "default_profile", *, initialize: bool = True) -> Dict[str, Any]:
     if db_path is None:
         db_path = DEFAULT_DB_PATH
-    repo = MonitorSettingsRepository(db_path)
+    repo = MonitorSettingsRepository(db_path, initialize=initialize)
     return repo.update_settings(settings, setting_id)

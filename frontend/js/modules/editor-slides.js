@@ -401,11 +401,7 @@
                 if (prevSlide && typeof canvas !== 'undefined' && canvas) {
                     prevSlide.elements = canvas.getObjects().map(obj => serializeElement(obj, BASE_WIDTH, BASE_HEIGHT));
                     if (typeof setCanvasZoom === 'function') {
-                        const prevZoom = canvasZoom;
-                        setCanvasZoom(1.0);
-                        if (!canvas.backgroundColor) canvas.backgroundColor = '#000000';
-                        prevSlide.thumbnail = canvas.toDataURL({ format: 'jpeg', quality: 0.4 });
-                        setCanvasZoom(prevZoom);
+                        prevSlide.thumbnail = captureCanvasThumbnail();
                     }
                     if (ws && ws.readyState === WebSocket.OPEN) {
                         ws.send(JSON.stringify({ type: "SAVE_SLIDE", slide: prevSlide }));
@@ -444,18 +440,7 @@
                 canvas.requestRenderAll();
             }
 
-            // 썸네일 캡처 시 임시로 1.0 줌으로 맞춰 깨지지 않는 고해상도 썸네일을 생성
-            const prevZoom = canvasZoom;
-            setCanvasZoom(1.0);
-
-            if (!canvas.backgroundColor) canvas.backgroundColor = '#000000';
-            const thumbnailData = canvas.toDataURL({
-                format: 'jpeg',
-                quality: 0.4
-            });
-
-            // 캡처 후 이전 사용하던 줌 배율로 원복
-            setCanvasZoom(prevZoom);
+            const thumbnailData = captureCanvasThumbnail();
 
             if (activeObj) {
                 canvas.setActiveObject(activeObj);

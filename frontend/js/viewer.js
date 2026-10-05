@@ -302,6 +302,11 @@
             canvas.renderAll();
         }
 
+        function applyPraiseBroadcastLayout(layout) {
+            projectData.settings.praiseBroadcastLayout = layout;
+            renderCurrentSlide();
+        }
+
         // 웹소켓 연결
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -382,8 +387,7 @@
                 } 
                 else if (message.type === 'PRAISE_BROADCAST_LAYOUT_UPDATED') {
                     if (projectData && projectData.settings) {
-                        projectData.settings.praiseBroadcastLayout = message.layout;
-                        renderCurrentSlide();
+                        applyPraiseBroadcastLayout(message.layout);
                     }
                 }
                 else if (message.type === 'SLIDE_UPDATED') {
@@ -691,6 +695,11 @@
             nextBox: { leftPct: 5.0, topPct: 51.0, widthPct: 90.0, heightPct: 42.0, fontSize: 22, textColor: "#A0A0A0" }
         };
 
+        function applyMonitorViewerSettings(settings) {
+            monitorViewerSettings = settings;
+            renderMonitorViewerLayout();
+        }
+
         async function fetchMonitorViewerSettings() {
             try {
                 const res = await fetch("/api/v1/monitor/settings");
@@ -980,11 +989,9 @@
                     const urlParams = new URLSearchParams(window.location.search);
                     const channel = urlParams.get('channel');
                     if (data.type === "MONITOR_LAYOUT_UPDATE" && data.settings) {
-                        monitorViewerSettings = data.settings;
-                        renderMonitorViewerLayout();
+                        applyMonitorViewerSettings(data.settings);
                     } else if (data.type === "MONITOR_PREVIEW_UPDATE" && data.settings && (channel === 'preview' || channel === 'monitor_preview')) {
-                        monitorViewerSettings = data.settings;
-                        renderMonitorViewerLayout();
+                        applyMonitorViewerSettings(data.settings);
                     } else if (data.type === "SLIDE_CHANGE") {
                         updateMonitorViewerTexts(data.currentContent, data.nextContent, data.isLastSlide, data.isPraise !== undefined ? data.isPraise : true);
                     }
@@ -995,8 +1002,7 @@
             window.addEventListener("storage", (e) => {
                 if (e.key === "subcast_monitor_settings" && e.newValue) {
                     try {
-                        monitorViewerSettings = JSON.parse(e.newValue);
-                        renderMonitorViewerLayout();
+                        applyMonitorViewerSettings(JSON.parse(e.newValue));
                     } catch (err) {}
                 }
             });
@@ -1027,8 +1033,7 @@
                     if (data && data.type === "PRAISE_BROADCAST_LAYOUT_UPDATED" && data.layout) {
                         if (!projectData) projectData = {};
                         if (!projectData.settings) projectData.settings = {};
-                        projectData.settings.praiseBroadcastLayout = data.layout;
-                        renderCurrentSlide();
+                        applyPraiseBroadcastLayout(data.layout);
                     }
                 };
             }
@@ -1039,8 +1044,7 @@
                     try {
                         if (!projectData) projectData = {};
                         if (!projectData.settings) projectData.settings = {};
-                        projectData.settings.praiseBroadcastLayout = JSON.parse(e.newValue);
-                        renderCurrentSlide();
+                        applyPraiseBroadcastLayout(JSON.parse(e.newValue));
                     } catch (err) {}
                 }
             });

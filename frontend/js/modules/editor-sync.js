@@ -69,12 +69,8 @@
         }
 
 
-        function performAutoSave() {
-            if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) return;
-            if (!activeSlideId || !projectData) return;
-            const slide = projectData.slides.find(s => s.id === activeSlideId);
-            if (!slide) return;
-
+        function captureCanvasThumbnail() {
+            // Capture at base zoom, then restore the editor's zoom.
             const prevZoom = canvasZoom;
             setCanvasZoom(1.0);
             if (!canvas.backgroundColor) canvas.backgroundColor = '#000000';
@@ -83,7 +79,17 @@
                 quality: 0.4
             });
             setCanvasZoom(prevZoom);
+            return thumbnailData;
+        }
 
+
+        function performAutoSave() {
+            if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) return;
+            if (!activeSlideId || !projectData) return;
+            const slide = projectData.slides.find(s => s.id === activeSlideId);
+            if (!slide) return;
+
+            const thumbnailData = captureCanvasThumbnail();
             const elements = canvas.getObjects().map(obj => serializeElement(obj, BASE_WIDTH, BASE_HEIGHT));
             const updatedSlide = { ...slide, thumbnail: thumbnailData, elements: elements };
 

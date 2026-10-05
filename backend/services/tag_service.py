@@ -94,35 +94,43 @@ def tag_search_variants(query: str) -> list[str]:
     return [query]
 
 
-def _collect_legacy_names() -> set[str]:
-    names: set[str] = set()
+TagSources = tuple[list[Any], dict[str, Any], list[dict[str, Any]]]
+
+
+def _load_tag_sources() -> TagSources:
     conn = praise_db.get_connection()
     try:
-        rows = conn.execute("SELECT DISTINCT mood FROM praise_songs WHERE mood IS NOT NULL").fetchall()
-        names.update(str(row[0]).strip() for row in rows if str(row[0]).strip())
+        song_moods = [row[0] for row in conn.execute("SELECT mood FROM praise_songs")]
     finally:
         conn.close()
-
-    for item in load_bg_meta().values():
-        if isinstance(item, dict):
-            names.update(_tag_values(item))
-
+    backgrounds = load_bg_meta()
+    projects = []
     if PROJECTS_DIR.exists():
         for project_file in PROJECTS_DIR.glob("*.json"):
             try:
                 project = json.loads(project_file.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
                 continue
-            if not isinstance(project, dict):
-                continue
-            for slide in project.get("slides", []) or []:
-                if isinstance(slide, dict):
-                    names.update(_tag_values(slide))
-            settings = project.get("settings", {})
-            if isinstance(settings, dict):
-                for item in settings.get("stageBgLibrary", []) or []:
-                    if isinstance(item, dict):
-                        names.update(_tag_values(item))
+            if isinstance(project, dict):
+                projects.append(project)
+    return song_moods, backgrounds, projects
+
+
+def _collect_legacy_names(sources: TagSources) -> set[str]:
+    song_moods, backgrounds, projects = sources
+    names = {str(mood).strip() for mood in song_moods if mood is not None and str(mood).strip()}
+    for item in backgrounds.values():
+        if isinstance(item, dict):
+            names.update(_tag_values(item))
+    for project in projects:
+        for slide in project.get("slides", []) or []:
+            if isinstance(slide, dict):
+                names.update(_tag_values(slide))
+        settings = project.get("settings", {})
+        if isinstance(settings, dict):
+            for item in settings.get("stageBgLibrary", []) or []:
+                if isinstance(item, dict):
+                    names.update(_tag_values(item))
     return names
 
 
@@ -144,7 +152,8 @@ def get_tags(include_usage: bool = True) -> list[dict[str, Any]]:
     known = {_tag_key(tag["name"]) for tag in tags}
     known.update(_tag_key(alias) for tag in tags for alias in tag["aliases"])
     added = False
-    for name in sorted(_collect_legacy_names(), key=str.casefold):
+    sources = _load_tag_sources()
+    for name in sorted(_collect_legacy_names(sources), key=str.casefold):
         key = _tag_key(name)
         if key not in known:
             tags.append({"id": str(uuid.uuid4()), "name": name, "aliases": [], "locked": False})
@@ -153,7 +162,7 @@ def get_tags(include_usage: bool = True) -> list[dict[str, Any]]:
     if added:
         _save_tags(tags)
 
-    usage_by_id = _count_all_tag_usage(tags) if include_usage else {}
+    usage_by_id = _count_all_tag_usage(tags, sources) if include_usage else {}
     results = []
     for tag in tags:
         result = dict(tag)
@@ -224,7 +233,8 @@ def count_tag_usage(target: dict[str, Any], tags: list[dict[str, Any]] | None = 
     return _count_all_tag_usage(tags)[target["id"]]
 
 
-def _count_all_tag_usage(tags: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
+def _count_all_tag_usage(tags: list[dict[str, Any]], sources: TagSources | None = None) -> dict[str, dict[str, int]]:
+    song_moods, backgrounds, projects = sources if sources is not None else _load_tag_sources()
     name_to_id = {}
     for tag in tags:
         for name in [tag["name"], *tag["aliases"]]:
@@ -238,43 +248,32 @@ def _count_all_tag_usage(tags: list[dict[str, Any]]) -> dict[str, dict[str, int]
             return None
         return name_to_id.get(_tag_key(value.strip().lstrip("#").strip()))
 
-    conn = praise_db.get_connection()
-    try:
-        for row in conn.execute("SELECT mood FROM praise_songs"):
-            tag_id = id_for(row[0])
-            if tag_id:
-                counts[tag_id]["songs"] += 1
-    finally:
-        conn.close()
+    for mood in song_moods:
+        tag_id = id_for(mood)
+        if tag_id:
+            counts[tag_id]["songs"] += 1
 
-    for name, item in load_bg_meta().items():
+    for name, item in backgrounds.items():
         if isinstance(item, dict):
             for value in _tag_values(item):
                 tag_id = id_for(value)
                 if tag_id:
                     background_names[tag_id].add(name)
 
-    if PROJECTS_DIR.exists():
-        for project_file in PROJECTS_DIR.glob("*.json"):
-            try:
-                project = json.loads(project_file.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
-                continue
-            if not isinstance(project, dict):
-                continue
-            for slide in project.get("slides", []) or []:
-                if isinstance(slide, dict):
-                    slide_tags = {id_for(value) for value in _tag_values(slide)} - {None}
-                    for tag_id in slide_tags:
-                        counts[tag_id]["slides"] += 1
-            settings = project.get("settings", {})
-            if isinstance(settings, dict):
-                for item in settings.get("stageBgLibrary", []) or []:
-                    if isinstance(item, dict) and item.get("name"):
-                        for value in _tag_values(item):
-                            tag_id = id_for(value)
-                            if tag_id:
-                                background_names[tag_id].add(item["name"])
+    for project in projects:
+        for slide in project.get("slides", []) or []:
+            if isinstance(slide, dict):
+                slide_tags = {id_for(value) for value in _tag_values(slide)} - {None}
+                for tag_id in slide_tags:
+                    counts[tag_id]["slides"] += 1
+        settings = project.get("settings", {})
+        if isinstance(settings, dict):
+            for item in settings.get("stageBgLibrary", []) or []:
+                if isinstance(item, dict) and item.get("name"):
+                    for value in _tag_values(item):
+                        tag_id = id_for(value)
+                        if tag_id:
+                            background_names[tag_id].add(item["name"])
 
     for tag_id, names in background_names.items():
         counts[tag_id]["backgrounds"] = len(names)

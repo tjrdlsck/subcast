@@ -1,36 +1,13 @@
-from fastapi import APIRouter, HTTPException, Request
+from functools import partial
+from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from typing import Dict, Any, Optional, Union, List
-from pydantic import BaseModel, Field
+from typing import Dict, Any
 from backend.monitor_repository import get_monitor_settings, update_monitor_settings
 
+get_monitor_settings = partial(get_monitor_settings, initialize=False)
+update_monitor_settings = partial(update_monitor_settings, initialize=False)
+
 router = APIRouter(prefix="/api/v1/monitor", tags=["monitor"])
-
-class MonitorBoxSchema(BaseModel):
-    leftPct: Optional[float] = 5.0
-    topPct: Optional[float] = 5.0
-    widthPct: Optional[float] = 90.0
-    heightPct: Optional[float] = 42.0
-    fontSize: Optional[Union[str, int, float]] = "6.5vw"
-    textColor: Optional[str] = "#FFFFFF"
-    strokeColor: Optional[str] = "transparent"
-    strokeWidth: Optional[int] = 0
-    bgColor: Optional[str] = "transparent"
-    isTransparentBg: Optional[bool] = True
-    fontWeight: Optional[str] = "bold"
-    fontStyle: Optional[str] = "normal"
-    fontFamily: Optional[str] = "Inter"
-    textAlign: Optional[str] = "center"
-    opacity: Optional[float] = 1.0
-    lineHeight: Optional[float] = 1.2
-
-from typing import Dict, Any, Optional, List
-
-class MonitorSettingsPayload(BaseModel):
-    layoutMode: Optional[str] = "custom_canvas"
-    currentBox: Optional[MonitorBoxSchema] = Field(default_factory=MonitorBoxSchema)
-    nextBox: Optional[MonitorBoxSchema] = Field(default_factory=MonitorBoxSchema)
-    customElements: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
 
 @router.get("/settings")
 async def get_settings():
