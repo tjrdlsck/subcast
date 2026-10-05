@@ -11,7 +11,7 @@ function section(source, start, end) {
 }
 
 const viewerSource = fs.readFileSync('frontend/js/viewer.js', 'utf8');
-const viewer = vm.createContext({});
+const viewer = vm.createContext({ renderMonitorViewerLayout() {} });
 vm.runInContext(section(viewerSource, 'function isPraiseSlide(slide)', 'function updateMonitorViewerTexts(')
     + section(viewerSource, 'function updateMonitorViewerTexts(', 'function extractSlideText(slide, fallbackName')
     + section(viewerSource, 'function extractSlideText(slide, fallbackName', 'function updateMonitorFromProjectData(')

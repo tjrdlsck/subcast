@@ -2,6 +2,8 @@ async (page) => {
     const base = 'http://127.0.0.1:8817';
     const check = (condition, message) => { if (!condition) throw Error(message); };
     const viewers = [];
+    const freshScripts = route => route.continue();
+    await page.context().route("**/static/js/**", freshScripts);
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     try {
@@ -45,6 +47,31 @@ async (page) => {
         }, id);
         check(await page.evaluate(() => canvas.getActiveObject()?.text === 'refactor-manual-contract'), 'manual save lost selection');
         check(Math.abs(await page.evaluate(() => canvasZoom) - oldZoom) < 0.00001, 'manual save changed zoom');
+        const originalSlideId = await page.evaluate(() => activeSlideId);
+        await page.evaluate(() => addSlide());
+        await page.waitForFunction(() => projectData.slides.length > 1 && !isSlideDirty);
+        const nextId = await page.evaluate(id => projectData.slides.find(slide => slide.id !== id).id, originalSlideId);
+        await page.evaluate(id => selectSlideForEdit(id), originalSlideId);
+        await page.waitForFunction(id => activeSlideId === id && lockedSlides[id]?.ownerId === myEditorId, originalSlideId);
+        await page.evaluate(id => {
+            canvas.getObjects().find(obj => obj.type === 'textbox').set('text', 'refactor-switch-contract');
+            setSlideDirty(true);
+            selectSlideForEdit(id);
+        }, nextId);
+        await page.waitForFunction(id => activeSlideId === id && !isSlideDirty, nextId);
+        check(await page.evaluate(async ({ projectId, slideId }) => {
+            const data = await (await fetch(`/api/projects/${projectId}/export`)).json();
+            return data.slides.find(slide => slide.id === slideId).elements.some(element => element.content === 'refactor-switch-contract');
+        }, { projectId: id, slideId: originalSlideId }), 'switch lost last edit');
+        await page.evaluate(id => selectSlideForEdit(id), originalSlideId);
+        await page.waitForFunction(id => activeSlideId === id && lockedSlides[id]?.ownerId === myEditorId, originalSlideId);
+        await page.evaluate(() => {
+            canvas.getObjects().find(obj => obj.type === 'textbox').set('text', 'refactor-manual-contract');
+            setSlideDirty(true);
+            saveSlideData();
+        });
+        await page.waitForFunction(() => !isSlideDirty && document.getElementById('status-text').innerText === '저장 완료');
+        check(await page.evaluate(() => window.projectData === projectData && window.activeSlideId === activeSlideId), 'shared editor state diverged');
         const liveId = await page.evaluate(() => activeSlideId);
         await page.evaluate(slideId => ws.send(JSON.stringify({ type: 'SLIDE_CHANGE', slideId })), liveId);
         for (const channel of ['broadcast', 'stage', 'monitor', 'monitor_preview']) {
@@ -84,7 +111,7 @@ async (page) => {
         await preview.waitForFunction(() => monitorViewerSettings.currentBox.fontSize === 43);
         check(await monitor.evaluate(() => monitorViewerSettings.currentBox.fontSize === 37), 'preview changed live monitor');
         await monitor.reload();
-        await monitor.waitForFunction(() => monitorViewerSettings.currentBox.fontSize === 37);
+        await monitor.waitForFunction(() => monitorViewerSettings.currentBox.fontSize === 37 && document.getElementById('monitor-current-text').style.fontSize === '37px');
         await page.reload();
         await page.waitForFunction(() => typeof canvas !== 'undefined' && canvas?.getObjects().some(obj => obj.text === 'refactor-manual-contract'));
         const result = await page.evaluate(() => ({
@@ -95,8 +122,9 @@ async (page) => {
         }));
         check(errors.length === 0, `page errors: ${errors.join('; ')}`);
         check(result.slideType === 'praise' && result.thumbnailsPresent, 'metadata or thumbnail did not persist');
-        return { checks: ['autosave disk persistence', 'manual button persistence and selection', 'zoom restoration', 'broadcast rendering', 'stage formatting isolation', 'monitor layout via HTTP/storage/BroadcastChannel', 'preview isolation', 'reload persistence'], result, pageErrors: errors };
+        return { checks: ['autosave disk persistence', 'manual button persistence and selection', 'zoom restoration', 'broadcast rendering', 'stage formatting isolation', 'monitor layout via HTTP/storage/BroadcastChannel', 'preview isolation', 'reload persistence and initial monitor DOM style', 'dirty switch disk persistence', 'shared editor state'], result, pageErrors: errors };
     } finally {
         for (const viewer of viewers) await viewer.close();
+        await page.context().unroute("**/static/js/**", freshScripts);
     }
 }

@@ -7,7 +7,7 @@ const test = require('node:test');
 const viewerSource = fs.readFileSync(path.join(__dirname, '..', 'frontend', 'js', 'viewer.js'), 'utf8');
 const clone = value => JSON.parse(JSON.stringify(value));
 
-async function createHarness(search = '?channel=broadcast', stored = {}, apiSettings = null) {
+async function createHarness(search = '?channel=broadcast', stored = {}, apiSettings = null, options = {}) {
     const elements = new Map();
     function element() {
         const classes = new Set();
@@ -26,6 +26,7 @@ async function createHarness(search = '?channel=broadcast', stored = {}, apiSett
         'monitor-current-text', 'monitor-next-card', 'monitor-next-text', 'stage-motion-bg']) {
         elements.set(id, element());
     }
+    if (options.monitorHidden) elements.get('monitor-viewer-container').style.display = 'none';
     const listeners = new Map();
     const channels = new Map();
     const sockets = [];
@@ -74,6 +75,7 @@ async function createHarness(search = '?channel=broadcast', stored = {}, apiSett
     });
     vm.runInContext(viewerSource, context, { filename: 'viewer.js', timeout: 1000 });
     window.onload();
+    if (options.initialProject) sockets[0].onmessage({ data: JSON.stringify({ type: 'INITIAL_SYNC', data: options.initialProject }) });
     await new Promise(resolve => setImmediate(resolve));
     return {
         elements, storage, canvas: canvases[0],
@@ -232,6 +234,22 @@ test('monitor initialization loads persisted layout when API is unavailable', as
     const h = await createHarness('?channel=monitor', { subcast_monitor_settings: JSON.stringify(monitorSettings) });
     assertMonitorRender(h);
 });
+
+for (const settingsSource of ['storage', 'api']) {
+    for (const projectFirst of [false, true]) {
+        test(`hidden monitor applies initial ${settingsSource} layout when ${projectFirst ? 'project' : 'settings'} arrives first`, async () => {
+            const h = await createHarness('?channel=monitor',
+                settingsSource === 'storage' ? { subcast_monitor_settings: JSON.stringify(monitorSettings) } : {},
+                settingsSource === 'api' ? monitorSettings : null,
+                { monitorHidden: true, initialProject: projectFirst ? project() : null });
+            if (!projectFirst) h.ws({ type: 'INITIAL_SYNC', data: project() });
+            assert.equal(h.elements.get('monitor-viewer-container').style.display, 'block');
+            assertMonitorRender(h);
+            assert.equal(h.elements.get('monitor-current-text').textContent, 'Current lyric');
+            assert.equal(h.elements.get('monitor-next-text').textContent, 'Next lyric');
+        });
+    }
+}
 
 test('monitor API layout persists and supersedes old local layout', async () => {
     const h = await createHarness('?channel=monitor', { subcast_monitor_settings: JSON.stringify({ currentBox: { fontSize: 99 } }) }, monitorSettings);

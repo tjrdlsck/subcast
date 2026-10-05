@@ -21,8 +21,16 @@
 
         let ws = null;
         let projectData = null;
+        Object.defineProperty(window, 'projectData', {
+            get: () => projectData,
+            set: value => { projectData = value; }
+        });
         let lockedSlides = {};
         let activeSlideId = null;
+        Object.defineProperty(window, 'activeSlideId', {
+            get: () => activeSlideId,
+            set: value => { activeSlideId = value; }
+        });
         let selectedSlideIds = [];
         let canvas = null;
         let myEditorId = null;

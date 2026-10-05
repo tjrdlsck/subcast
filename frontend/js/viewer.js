@@ -920,6 +920,7 @@
                 // 찬양 슬라이드: 모니터 2분할(CURRENT + NEXT) 텍스트 뷰어 출력
                 if (monitorContainer) monitorContainer.style.display = "block";
                 if (canvasContainer) canvasContainer.style.display = "none";
+                renderMonitorViewerLayout();
 
                 if (curCard) curCard.style.display = currentContent ? "flex" : "none";
                 if (curText) curText.textContent = currentContent || "";

@@ -395,17 +395,18 @@
                 return;
             }
 
-            // 1. 기존 슬라이드 작업 내용이 변경된 경우(Dirty) 메모리에 선반영 및 동기화
-            if (activeSlideId && typeof isSlideDirty === 'function' && isSlideDirty() && projectData && projectData.slides) {
+            // Keep the old canvas and lock until its save is confirmed.
+            if (activeSlideId && isSlideDirty && projectData?.slides && canvas) {
                 const prevSlide = projectData.slides.find(s => s.id === activeSlideId);
-                if (prevSlide && typeof canvas !== 'undefined' && canvas) {
-                    prevSlide.elements = canvas.getObjects().map(obj => serializeElement(obj, BASE_WIDTH, BASE_HEIGHT));
-                    if (typeof setCanvasZoom === 'function') {
-                        prevSlide.thumbnail = captureCanvasThumbnail();
+                if (prevSlide) {
+                    const thumbnail = captureCanvasThumbnail();
+                    const elements = canvas.getObjects().map(obj => serializeElement(obj, BASE_WIDTH, BASE_HEIGHT));
+                    if (sendSlideSave({ ...prevSlide, thumbnail, elements }, false,
+                        () => selectSlideForEdit(slideId, force))) {
+                        clearTimeout(autoSaveTimeoutId);
+                        autoSaveTimeoutId = null;
                     }
-                    if (ws && ws.readyState === WebSocket.OPEN) {
-                        ws.send(JSON.stringify({ type: "SAVE_SLIDE", slide: prevSlide }));
-                    }
+                    return;
                 }
             }
 
@@ -433,6 +434,7 @@
             if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) return;
             if (!activeSlideId || !projectData) return;
             const slide = projectData.slides.find(s => s.id === activeSlideId);
+            if (!slide) return;
 
             const activeObj = canvas.getActiveObject();
             if (activeObj) {
@@ -450,23 +452,7 @@
             // 줌이 배제된 768, 432 해상도 기준으로 원소들을 직렬화하여 서버 저장
             const elements = canvas.getObjects().map(obj => serializeElement(obj, BASE_WIDTH, BASE_HEIGHT));
             const updatedSlide = { ...slide, thumbnail: thumbnailData, elements: elements };
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: "SAVE_SLIDE", slide: updatedSlide }));
-            }
-            const idx = projectData.slides.findIndex(s => s.id === activeSlideId);
-            if (idx !== -1) projectData.slides[idx] = updatedSlide;
-
-            // 비침습적 피드백 제공 (블로킹 alert 제거)
-            const statusText = document.getElementById("status-text");
-            if (statusText) {
-                statusText.innerText = "저장 완료";
-                setTimeout(() => {
-                    if (ws && ws.readyState === WebSocket.OPEN) statusText.innerText = "연결됨";
-                }, 2000);
-            }
-
-            updateSlideListItem(activeSlideId);
-            setSlideDirty(false);
+            sendSlideSave(updatedSlide, true);
         }
 
 

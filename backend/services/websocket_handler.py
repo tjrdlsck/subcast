@@ -688,21 +688,50 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                         })
 
             elif msg_type == "SAVE_SLIDE":
+                request_id = message.get("requestId")
+                has_request_id = isinstance(request_id, str)
                 slide_data = message.get("slide")
                 if not slide_data or not manager.project_data:
+                    if has_request_id:
+                        await websocket.send_json({
+                            "type": "SAVE_SLIDE_RESULT", "requestId": request_id,
+                            "success": False, "reason": "Slide could not be saved."
+                        })
                     continue
-                
-                slide_id = slide_data.get("id")
-                updated_slide = Slide.model_validate(slide_data)
+
                 slides = manager.project_data.slides
-                for idx, s in enumerate(slides):
-                    if s.id == slide_id:
-                        slides[idx] = updated_slide
-                        break
-                else:
-                    slides.append(updated_slide)
-                
-                await save_project_data(manager.project_data)
+                slide_index = None
+                previous_slide = None
+                updated_slide = None
+                try:
+                    updated_slide = Slide.model_validate(slide_data)
+                    slide_id = updated_slide.id
+                    for idx, s in enumerate(slides):
+                        if s.id == slide_id:
+                            slide_index = idx
+                            previous_slide = s
+                            slides[idx] = updated_slide
+                            break
+                    else:
+                        slide_index = len(slides)
+                        slides.append(updated_slide)
+
+                    await save_project_data(manager.project_data)
+                except Exception:
+                    # Do not overwrite a newer edit that arrived during persistence.
+                    if slide_index is not None and slide_index < len(slides) and slides[slide_index] is updated_slide:
+                        if previous_slide is None:
+                            slides.pop(slide_index)
+                        else:
+                            slides[slide_index] = previous_slide
+                    if not has_request_id:
+                        raise
+                    logger.exception("Slide save failed for request %s", request_id)
+                    await websocket.send_json({
+                        "type": "SAVE_SLIDE_RESULT", "requestId": request_id,
+                        "success": False, "reason": "Slide could not be saved."
+                    })
+                    continue
                 logger.info(f"Slide {slide_id} saved.")
 
                 live_slide_id = manager.project_data.settings.currentLiveSlideId if manager.project_data.settings else None
@@ -729,6 +758,12 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                         "slide": slide_data,
                         "isLive": False
                     }, role="editor")
+
+                if has_request_id:
+                    await websocket.send_json({
+                        "type": "SAVE_SLIDE_RESULT", "requestId": request_id,
+                        "success": True
+                    })
 
     except WebSocketDisconnect:
         released_slides = manager.disconnect(websocket, role)

@@ -93,21 +93,85 @@
             const elements = canvas.getObjects().map(obj => serializeElement(obj, BASE_WIDTH, BASE_HEIGHT));
             const updatedSlide = { ...slide, thumbnail: thumbnailData, elements: elements };
 
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: "SAVE_SLIDE", slide: updatedSlide }));
-                const idx = projectData.slides.findIndex(s => s.id === activeSlideId);
-                if (idx !== -1) projectData.slides[idx] = updatedSlide;
-                updateSlideListItem(activeSlideId);
-                setSlideDirty(false);
-                updateAutoSaveStatus("saved", "모든 변경사항 저장됨");
-            } else {
-                updateAutoSaveStatus("error", "저장 실패 - 연결 끊김");
+            return sendSlideSave(updatedSlide);
+        }
+
+        let slideEditRevision = 0;
+        let slideSaveSequence = 0;
+        const pendingSlideSaves = new Map();
+        let lastConfirmedSlideSave = null;
+
+        function showSlideSaveFailure(manual) {
+            updateAutoSaveStatus("error", "저장 실패 - 다시 저장해 주세요");
+            if (manual) {
+                const status = document.getElementById("status-text");
+                if (status) status.innerText = "저장 실패 - 다시 저장해 주세요";
             }
+        }
+
+        function finishSlideSave(requestId, success) {
+            const pending = pendingSlideSaves.get(requestId);
+            if (!pending) return;
+            clearTimeout(pending.timeout);
+            pendingSlideSaves.delete(requestId);
+            if (projectData?.id !== pending.projectId) return;
+            if (!success) {
+                if (lastConfirmedSlideSave && lastConfirmedSlideSave.projectId === pending.projectId
+                    && lastConfirmedSlideSave.slideId === pending.slideId
+                    && lastConfirmedSlideSave.revision >= pending.revision) return;
+                showSlideSaveFailure(pending.manual);
+                return;
+            }
+            // A response for an older canvas must not clear newer edits.
+            if (activeSlideId !== pending.slideId || slideEditRevision !== pending.revision) return;
+            lastConfirmedSlideSave = pending;
+            setSlideDirty(false);
+            updateAutoSaveStatus("saved", "모든 변경사항 저장됨");
+            if (pending.manual) {
+                const status = document.getElementById("status-text");
+                if (status) {
+                    status.innerText = "저장 완료";
+                    setTimeout(() => {
+                        if (ws && ws.readyState === WebSocket.OPEN && status.innerText === "저장 완료") {
+                            status.innerText = "연결됨";
+                        }
+                    }, 2000);
+                }
+            }
+            if (pending.afterSave) pending.afterSave();
+        }
+
+        function sendSlideSave(slide, manual = false, afterSave = null) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                updateAutoSaveStatus("error", "저장 실패 - 연결 끊김");
+                if (manual) showSlideSaveFailure(true);
+                return false;
+            }
+            const requestId = `slide-save-${++slideSaveSequence}`;
+            const pending = { projectId: projectData.id, slideId: slide.id, revision: slideEditRevision, manual, afterSave };
+            pendingSlideSaves.set(requestId, pending);
+            pending.timeout = setTimeout(() => finishSlideSave(requestId, false), 10000);
+            try {
+                ws.send(JSON.stringify({ type: "SAVE_SLIDE", requestId, slide }));
+            } catch (error) {
+                finishSlideSave(requestId, false);
+                return false;
+            }
+            const idx = projectData.slides.findIndex(s => s.id === slide.id);
+            if (idx !== -1) projectData.slides[idx] = slide;
+            updateSlideListItem(slide.id);
+            updateAutoSaveStatus("pending", "저장 중...");
+            if (manual) {
+                const status = document.getElementById("status-text");
+                if (status) status.innerText = "저장 중...";
+            }
+            return true;
         }
 
 
         function setSlideDirty(dirty) {
             isSlideDirty = dirty;
+            if (dirty) slideEditRevision++;
         }
 
 
@@ -116,7 +180,10 @@
             window.ws = ws;
             ws.onmessage = (event) => {
                 const message = JSON.parse(event.data);
-                if (message.type === 'STAGE_BG_LIBRARY_SAVE_RESULT') {
+                if (message.type === 'SAVE_SLIDE_RESULT') {
+                    finishSlideSave(message.requestId, message.success === true);
+                }
+                else if (message.type === 'STAGE_BG_LIBRARY_SAVE_RESULT') {
                     const resolveSave = window.pendingStageBgLibrarySaves?.get(message.requestId);
                     if (resolveSave) {
                         window.pendingStageBgLibrarySaves.delete(message.requestId);
@@ -130,7 +197,16 @@
                     }
                 }
                 else if (message.type === 'INITIAL_SYNC') {
-                    projectData = message.data;
+                    const data = message.data;
+                    const keepCanvas = isSlideDirty && projectData?.id === data.id
+                        && data.slides?.some(slide => slide.id === activeSlideId);
+                    if (keepCanvas) {
+                        const previous = projectData.slides.find(slide => slide.id === activeSlideId);
+                        const index = data.slides.findIndex(slide => slide.id === activeSlideId);
+                        data.slides[index] = { ...previous,
+                            elements: canvas.getObjects().map(obj => serializeElement(obj, BASE_WIDTH, BASE_HEIGHT)) };
+                    }
+                    projectData = data;
                     if (message.lockedSlides) {
                         lockedSlides = {};
                         for (const [slideId, val] of Object.entries(message.lockedSlides)) {
@@ -148,7 +224,9 @@
                     // 활성화된 슬라이드가 서버 데이터에 존재하는지 검증하고 방어적으로 처리
                     if (projectData.slides && projectData.slides.length > 0) {
                         const slideExists = projectData.slides.some(s => s.id === activeSlideId);
-                        if (!activeSlideId || !slideExists || myEditorId === null) {
+                        if (keepCanvas) {
+                            selectedSlideIds = [activeSlideId];
+                        } else if (!activeSlideId || !slideExists || myEditorId === null) {
                             activeSlideId = slideExists ? activeSlideId : projectData.slides[0].id;
                             selectedSlideIds = [activeSlideId];
                             selectSlideForEdit(activeSlideId, true);
@@ -240,9 +318,7 @@
                             banner.style.display = isLockedByOthers ? "flex" : "none";
                             banner.innerText = `⚠️ ${message.editorName}님이 편집 중인 슬라이드입니다.`;
                         }
-                        if (isLockedByOthers) {
-                            setControlsState(false);
-                        }
+                        setControlsState(!isLockedByOthers);
                     }
                     updateSlideListItem(message.slideId);
                 }
@@ -266,6 +342,8 @@
                     updateSlideListItem(message.slideId);
                 }
                 else if (message.type === 'SLIDE_UPDATED') {
+                    if (message.slideId === activeSlideId && isSlideDirty && !checkIsLockedByOthers(activeSlideId)) return;
+                    if ([...pendingSlideSaves.values()].some(save => save.slideId === message.slideId)) return;
                     const idx = projectData.slides.findIndex(s => s.id === message.slideId);
                     if (idx !== -1) projectData.slides[idx] = message.slide;
                     if (message.slideId === activeSlideId && checkIsLockedByOthers(activeSlideId)) {
@@ -310,6 +388,7 @@
 
 
         function handleOffline() {
+            for (const requestId of pendingSlideSaves.keys()) finishSlideSave(requestId, false);
             if (autoSaveTimeoutId) {
                 clearTimeout(autoSaveTimeoutId);
             }

@@ -70,10 +70,7 @@ def test_frontend_code_integrity_and_guards():
     assert "projectData?.slides?.find(s => s.id === slide.id)" in slides_code
     assert "let monitorBroadcastChannel = null;" in slides_code
     assert "function getMonitorBroadcastChannel()" in slides_code
-    assert "isSlideDirty()" in slides_code
-    assert "prevSlide.elements = canvas.getObjects()" in slides_code
     assert 'alert("슬라이드가 저장 및 동기화되었습니다.");' not in slides_code
-    assert 'statusText.innerText = "저장 완료";' in slides_code
     assert 'id: "slide_placeholder"' not in slides_code
 
     with open("frontend/js/modules/editor-shortcuts.js", "r", encoding="utf-8") as f:
