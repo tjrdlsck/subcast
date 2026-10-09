@@ -62,7 +62,6 @@ class SystemSettings(BaseModel):
     stageTargetWidth: Optional[int] = None
     stageTargetHeight: Optional[int] = None
     currentLiveSlideId: Optional[str] = None
-    backgroundMode: str = "transparent"
     stageBackground: Optional[Dict[str, Any]] = None
     stageBgLibrary: Optional[List[Dict[str, Any]]] = None
     praiseBroadcastLayout: Optional[Dict[str, Any]] = None

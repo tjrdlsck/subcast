@@ -28,7 +28,7 @@ async function seed(app, slides, settings = {}) {
     const id = await app.seedProject({
         id: 'proj_browser', name: '브라우저 송출 검증',
         settings: { targetWidth: 1920, targetHeight: 1080,
-            currentLiveSlideId: slides[0].id, backgroundMode: 'transparent', ...settings },
+            currentLiveSlideId: slides[0].id, ...settings },
         slides, templates: [], customFonts: []
     });
     projectIds.set(app, id);
@@ -90,6 +90,15 @@ async function monitorSettings(app) {
 }
 
 test.describe('SC-12 송출 제어와 출력 동기화', () => {
+    test('SC-12-04 제거된 크로마키 설정은 투명 배경으로 복원된다', async ({ page, context, app }) => {
+        await seed(app, [slide('slide_a', TEXT_A)], { backgroundMode: 'chromakey' });
+        const obs = await output(context, app, 'obs');
+        await expect(obs.locator('body')).not.toHaveClass(/chromakey-mode/);
+        await expect.poll(() => obs.locator('body').evaluate(el => getComputedStyle(el).backgroundColor))
+            .toBe('rgba(0, 0, 0, 0)');
+        expect((await project(app)).settings).not.toHaveProperty('backgroundMode');
+    });
+
     test('SC-12-01 OFF에서 선택은 방송을 켜지 않는다', async ({ page, context, app }) => {
         await presenter(page, app);
         const obs = await output(context, app, 'obs');

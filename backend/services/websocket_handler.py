@@ -186,19 +186,6 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                 })
                 logger.info(f"Live slide changed to: {new_slide_id}")
 
-            elif msg_type == "SET_BACKGROUND_MODE":
-                mode = message.get("mode", "transparent")
-                if mode in ["transparent", "chromakey"]:
-                    if manager.project_data and manager.project_data.settings:
-                        manager.project_data.settings.backgroundMode = mode
-                        await save_project_data(manager.project_data)
-                    
-                    await manager.broadcast({
-                        "type": "SET_BACKGROUND_MODE",
-                        "mode": mode
-                    })
-                    logger.info(f"Background mode updated to: {mode}")
-
             elif msg_type == "SET_STAGE_BACKGROUND":
                 bg_data = message.get("background", {})
                 if manager.project_data and manager.project_data.settings:

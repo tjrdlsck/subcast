@@ -56,11 +56,6 @@ body.monitor-mode {
     background-color: #000000 !important;
 }
 
-/* 크로마키 녹색 배경 모드 */
-body.chromakey-mode {
-    background-color: #00ff00 !important;
-}
-
 /* 현장 모니터 전용 움직이는 배경 모드 (Stage Mode) */
 body.stage-mode {
     background: linear-gradient(-45deg, #0b0f19, #1e1b4b, #2e1065, #0369a1, #0b0f19) !important;

@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from backend.main import app, manager
+from backend.schemas import ProjectData
 
 client = TestClient(app)
 
@@ -133,25 +134,11 @@ def test_save_slide_with_shapes_and_styles():
         assert target_slide.elements[1].id == "elem_rect_new"
         assert target_slide.elements[1].style.fillColor == "#00ff00"
 
-def test_websocket_background_mode():
-    """웹소켓을 통한 배경 모드 변경 및 영속화 테스트"""
-    import asyncio
-    asyncio.run(manager.initialize())
-    
-    with client.websocket_connect("/ws?role=presenter") as ws:
-        # 최초 동기화 버림
-        ws.receive_json()
-        
-        # 배경 모드를 transparent로 변경 요청
-        ws.send_json({
-            "type": "SET_BACKGROUND_MODE",
-            "mode": "transparent"
-        })
-        
-        # 브로드캐스트 패킷 수신
-        resp = ws.receive_json()
-        assert resp["type"] == "SET_BACKGROUND_MODE"
-        assert resp["mode"] == "transparent"
-        
-        # 영속화된 캐시 확인
-        assert manager.project_data.settings.backgroundMode == "transparent"
+def test_legacy_chromakey_setting_defaults_to_transparent_output():
+    """이전 크로마키 프로젝트 설정을 읽어도 제거된 모드가 보존되지 않는다."""
+    project = ProjectData.model_validate({
+        "settings": {"backgroundMode": "chromakey"}
+    })
+
+    serialized_settings = project.model_dump()["settings"]
+    assert "backgroundMode" not in serialized_settings

@@ -526,9 +526,6 @@
                         targetWidth = projectData.settings.targetWidth || 1920;
                         targetHeight = projectData.settings.targetHeight || 1080;
 
-                        const bgMode = projectData.settings.backgroundMode || "transparent";
-                        const radioEl = document.getElementById(`bg-${bgMode}`);
-                        if (radioEl) radioEl.checked = true;
                     }
                     initCanvas();
                     renderDeck();
@@ -548,13 +545,6 @@
                             renderDeck();
                         });
                     }
-                }
-                else if (message.type === 'SET_BACKGROUND_MODE') {
-                    if (projectData && projectData.settings) {
-                        projectData.settings.backgroundMode = message.mode;
-                    }
-                    const radioEl = document.getElementById(`bg-${message.mode}`);
-                    if (radioEl) radioEl.checked = true;
                 }
                 else if (message.type === 'STAGE_BACKGROUND_MISSING') {
                     warnMissingStageBackground(message.backgroundId, message.fallbackType);
@@ -682,14 +672,6 @@
                         height: stageH
                     }));
 
-                    // 3. 배경 설정 전송
-                    const checkedRadio = document.querySelector('input[name="bg-mode"]:checked');
-                    if (checkedRadio) {
-                        ws.send(JSON.stringify({
-                            type: "SET_BACKGROUND_MODE",
-                            mode: checkedRadio.value
-                        }));
-                    }
                 }
                 if (modal) {
                     modal.classList.remove("active");

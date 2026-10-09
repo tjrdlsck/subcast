@@ -11,7 +11,7 @@ const fabricHash = 'f3a3763020189d69b8d2b64197172682b6d90f8f90fcac52d799b0cf64a9
 function initialProject() {
   return {
     id: 'proj_browser', name: '브라우저 테스트',
-    settings: { targetWidth: 1920, targetHeight: 1080, currentLiveSlideId: 'slide_a', backgroundMode: 'transparent' },
+    settings: { targetWidth: 1920, targetHeight: 1080, currentLiveSlideId: 'slide_a' },
     slides: ['첫 번째 테스트 자막', '두 번째 테스트 자막'].map((text, i) => ({
       id: i ? 'slide_b' : 'slide_a', name: `슬라이드 ${i + 1}`, elements: [{
         id: `text_${i}`, type: 'text', content: text,

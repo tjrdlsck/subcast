@@ -340,8 +340,6 @@
                             targetHeight = projectData.settings.targetHeight || 1080;
                         }
 
-                        const bgMode = projectData.settings.backgroundMode || 'transparent';
-                        document.body.classList.toggle('chromakey-mode', bgMode === 'chromakey');
                         if (projectData.settings.stageBackground) {
                             applyStageBackground(projectData.settings.stageBackground);
                         }
@@ -349,12 +347,6 @@
                     updateCanvasDimensions();
                     updateMonitorFromProjectData();
                 } 
-                else if (message.type === 'SET_BACKGROUND_MODE') {
-                    if (projectData && projectData.settings) {
-                        projectData.settings.backgroundMode = message.mode;
-                    }
-                    document.body.classList.toggle('chromakey-mode', message.mode === 'chromakey');
-                }
                 else if (message.type === 'SET_STAGE_BACKGROUND') {
                     if (projectData && projectData.settings) {
                         projectData.settings.stageBackground = message.background;
