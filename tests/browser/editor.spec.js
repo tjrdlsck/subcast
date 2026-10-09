@@ -273,11 +273,12 @@ test('SC-04-06 긴 한글·여러 줄·특수문자 외곽선 본문 저장과 �
 });
 
 test('SC-15-04 사용자 글꼴 등록·편집 적용·송출 로드와 실패 보존', async ({ page, context, app }) => {
-    await fs.copyFile(path.resolve(__dirname, '../../frontend/fonts/Juache_4e52b9ef.woff'), path.join(app.dataDir, 'frontend/fonts/sc15-fixture.woff'));
+    const systemFont = path.join(process.env.WINDIR || 'C:\\Windows', 'Fonts', 'arial.ttf');
+    await fs.copyFile(systemFont, path.join(app.dataDir, 'frontend/fonts/sc15-fixture.ttf'));
     await openEditor(page);
     const id = await projectId(page);
     await addText(page, 'body', '사용자 글꼴 시험 문구');
-    const css = `@font-face { font-family: 'SC15Fixture'; src: url('${app.url}/static/fonts/sc15-fixture.woff'); }`;
+    const css = `@font-face { font-family: 'SC15Fixture'; src: url('${app.url}/static/fonts/sc15-fixture.ttf') format('truetype'); }`;
     await page.locator('#custom-font-input').fill(css);
     await page.locator('#btn-add-custom-font').click();
     await expect.poll(async () => (await app.exportProject(id)).customFonts?.some(font => font.family === 'SC15Fixture')).toBe(true);
