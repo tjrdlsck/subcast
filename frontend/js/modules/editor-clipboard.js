@@ -12,10 +12,10 @@
             let targets = (selectedSlideIds && selectedSlideIds.length > 0)
                 ? selectedSlideIds
                 : (activeSlideId ? [activeSlideId] : []);
-            if (targets.length === 0) return;
+            if (targets.length === 0) return false;
 
             const slidesToCopy = projectData.slides.filter(s => targets.includes(s.id));
-            if (slidesToCopy.length === 0) return;
+            if (slidesToCopy.length === 0) return false;
 
             let payload;
             if (slidesToCopy.length === 1) {
@@ -32,8 +32,10 @@
 
             try {
                 await navigator.clipboard.writeText(JSON.stringify(payload));
+                return true;
             } catch (err) {
                 console.error("시스템 클립보드 쓰기 실패:", err);
+                return false;
             }
         }
 
@@ -43,7 +45,7 @@
                 : (activeSlideId ? [activeSlideId] : []);
             if (targets.length === 0) return;
 
-            await copySelectedSlides();
+            if (!await copySelectedSlides()) return;
             deleteSlides(targets);
         }
 
