@@ -14,6 +14,20 @@ let pipAmbientAnimId = null;
 let stageBgGridMinSize = 220;
 let stageBgDebounceTimer = null;
 
+window.restoreStageBgSettings = function(settings) {
+    if (!settings) return;
+    currentStageBg = { type: 'ambient', videoUrl: '', opacity: 0.8, blur: 0, ...settings };
+    const opacityInput = document.getElementById('range-stage-bg-opacity');
+    const opacityVal = document.getElementById('val-stage-bg-opacity');
+    const blurInput = document.getElementById('range-stage-bg-blur');
+    const blurVal = document.getElementById('val-stage-bg-blur');
+    if (opacityInput) opacityInput.value = Math.round(currentStageBg.opacity * 100);
+    if (opacityVal) opacityVal.textContent = `${opacityInput?.value ?? Math.round(currentStageBg.opacity * 100)}%`;
+    if (blurInput) blurInput.value = currentStageBg.blur;
+    if (blurVal) blurVal.textContent = `${currentStageBg.blur}px`;
+    updatePipBgLayer();
+};
+
 // PiP 백그라운드 렌더링 루프 및 미디어 재생 완전 정지 (자원 해제)
 window.stopPipPreview = function() {
     if (pipAmbientAnimId) {

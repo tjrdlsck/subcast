@@ -207,6 +207,7 @@
                             elements: canvas.getObjects().map(obj => serializeElement(obj, BASE_WIDTH, BASE_HEIGHT)) };
                     }
                     projectData = data;
+                    window.restoreStageBgSettings?.(projectData.settings?.stageBackground);
                     if (message.lockedSlides) {
                         lockedSlides = {};
                         for (const [slideId, val] of Object.entries(message.lockedSlides)) {
