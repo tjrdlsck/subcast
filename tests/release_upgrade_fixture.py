@@ -26,18 +26,39 @@ def seed(root: Path, state_file: Path) -> None:
     projects = root / "data" / "projects"
     projects.mkdir(parents=True, exist_ok=True)
     project_file = projects / "proj_upgrade.json"
+    preserved_element = {
+        "id": "legacy_lyric", "type": "text", "content": "업데이트 전 보존 가사",
+        "x": 12, "y": 62, "width": 76, "height": 18,
+        "style": {"fontSize": "42px", "fontColor": "#ffee00", "fontFamily": "FixtureFont"},
+    }
     project_file.write_text(
-        ProjectData(id="proj_upgrade", name="Upgrade fixture", slides=[]).model_dump_json(indent=2),
+        ProjectData(
+            id="proj_upgrade", name="Upgrade fixture",
+            settings={"targetWidth": 1920, "targetHeight": 1080, "currentLiveSlideId": "praise_a"},
+            slides=[
+                {"id": "praise_a", "name": "찬양 A", "slideType": "praise", "isPraise": True, "elements": [preserved_element]},
+                {"id": "blank", "name": "빈 화면", "slideType": "blank", "elements": []},
+                {"id": "bible", "name": "성경", "elements": [{**preserved_element, "id": "legacy_verse", "content": "업데이트 전 보존 말씀"}]},
+            ],
+            templates=[{"id": "legacy_template", "name": "이전 디자인", "elements": [preserved_element]}],
+            customFonts=[{"family": "FixtureFont", "cssCode": ".fixture-font { font-family: FixtureFont; }"}],
+        ).model_dump_json(indent=2),
         encoding="utf-8",
     )
     (root / "data" / "active_project_id.txt").write_text("proj_upgrade", encoding="utf-8")
-    (root / "data" / "templates.json").write_text("[]", encoding="utf-8")
+    (root / "data" / "templates.json").write_text(
+        json.dumps([{"id": "legacy_template", "name": "이전 디자인", "elements": [preserved_element]}], ensure_ascii=False),
+        encoding="utf-8",
+    )
     (root / "subcast_config.json").write_text(
         json.dumps({"host": "127.0.0.1", "port": 18543, "auto_start_server": True}), encoding="utf-8"
     )
     backgrounds = root / "frontend" / "assets" / "backgrounds"
     backgrounds.mkdir(parents=True, exist_ok=True)
-    (backgrounds / "upgrade-fixture.bin").write_bytes(b"preserve-background")
+    (backgrounds / "upgrade-fixture.mp4").write_bytes(b"preserve-background")
+    fonts = root / "frontend" / "fonts"
+    fonts.mkdir(parents=True, exist_ok=True)
+    (fonts / "fixture-font.woff2").write_bytes(b"preserve-font")
 
     database = root / "subcast_user.db"
     init_monitor_db(str(database))
@@ -45,8 +66,8 @@ def seed(root: Path, state_file: Path) -> None:
     with sqlite3.connect(database) as db:
         db.execute("UPDATE monitor_settings SET current_font_size = 43 WHERE setting_id = 'default_profile'")
 
-    paths = [project_file, root / "data" / "active_project_id.txt", root / "data" / "templates.json",
-             root / "subcast_config.json", backgrounds / "upgrade-fixture.bin"]
+    paths = [root / "data" / "active_project_id.txt", root / "data" / "templates.json",
+             root / "subcast_config.json", backgrounds / "upgrade-fixture.mp4", fonts / "fixture-font.woff2"]
     state_file.write_text(json.dumps({str(path.relative_to(root)): _digest(path) for path in paths}), encoding="utf-8")
 
 
@@ -62,6 +83,11 @@ def verify(root: Path, state_file: Path) -> None:
     assert migrate_legacy_db_if_needed(str(root)), "User database migration failed"
     project = asyncio.run(load_project_data("proj_upgrade"))
     assert project.name == "Upgrade fixture"
+    assert [slide.id for slide in project.slides] == ["praise_a", "blank", "bible"]
+    assert project.slides[0].elements[0].content == "업데이트 전 보존 가사"
+    assert project.slides[0].elements[0].style.fontFamily == "FixtureFont"
+    assert project.templates[0].name == "이전 디자인"
+    assert project.customFonts[0].family == "FixtureFont"
     with sqlite3.connect(root / "subcast_user.db") as db:
         assert db.execute("SELECT lyrics FROM praise_songs WHERE title='Upgrade song'").fetchone() == ("Preserved lyrics",)
         assert db.execute("SELECT current_font_size FROM monitor_settings WHERE setting_id='default_profile'").fetchone() == (43,)

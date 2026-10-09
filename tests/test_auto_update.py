@@ -130,3 +130,46 @@ def test_backup_failure_prevents_installer_launch(monkeypatch, tmp_path):
     assert response.status_code == 500
     assert system._UPDATE_IN_PROGRESS is False
     assert not (tmp_path / "update").exists()
+
+
+def test_update_flushes_then_backs_up_before_launching_installer(monkeypatch, tmp_path):
+    events = []
+
+    async def latest():
+        events.append("release")
+        return release("99.0.0")
+
+    async def downloaded(_url, _checksum):
+        events.append("download")
+        update_dir = tmp_path / "update"
+        update_dir.mkdir()
+        return str(update_dir / "installer.exe"), str(update_dir)
+
+    async def flushed():
+        events.append("flush")
+
+    def backed_up(_path):
+        events.append("backup")
+        return tmp_path / "backup.zip"
+
+    def launched(_path):
+        events.append("launch")
+
+    async def exit_after_launch(_path):
+        return None
+
+    monkeypatch.setattr(system, "_latest_release", latest)
+    monkeypatch.setattr(system, "_download_verified_installer", downloaded)
+    monkeypatch.setattr(system, "_flush_project_state", flushed)
+    monkeypatch.setattr(system, "create_update_backup", backed_up)
+    monkeypatch.setattr(system, "_launch_installer", launched)
+    monkeypatch.setattr(system, "_schedule_temp_cleanup", lambda _path: None)
+    monkeypatch.setattr(system, "_exit_after_install_launch", exit_after_launch)
+    monkeypatch.setattr(system.ipaddress, "ip_address", lambda _host: SimpleNamespace(is_loopback=True))
+    system._UPDATE_IN_PROGRESS = False
+
+    response = client.post("/api/system/auto-update")
+
+    assert response.status_code == 200
+    assert events == ["release", "download", "flush", "backup", "launch"]
+    system._UPDATE_IN_PROGRESS = False
