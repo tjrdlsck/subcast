@@ -49,3 +49,13 @@ function IsAutoUpdateAndOriginalUser: Boolean;
 begin
   Result := IsAutoUpdate and (ExpandConstant('{param:SUBCASTORIGINALUSER|0}') = '1');
 end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if (CurStep = ssDone) and IsAutoUpdate and not IsAutoUpdateAndOriginalUser then
+    MsgBox(
+      'Subcast 업데이트가 완료되었습니다.' + #13#10#13#10 +
+      '이번 업데이트에서는 프로그램이 자동으로 시작되지 않습니다.' + #13#10 +
+      '평소 사용하던 Windows 계정에서 시작 메뉴나 바탕 화면의 Subcast를 실행해 주세요.',
+      mbInformation, MB_OK);
+end;
