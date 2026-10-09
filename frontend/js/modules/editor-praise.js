@@ -452,7 +452,7 @@
                     const resp = await fetch("/api/praise/save", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ title: newTitle, lyrics: song.lyrics })
+                        body: JSON.stringify({ title: newTitle, lyrics: song.lyrics, mood: song.mood, moods: song.moods })
                     });
                     if (resp.ok) successCount++;
                     else if (resp.status === 409) duplicateCount++;
