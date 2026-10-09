@@ -513,6 +513,30 @@ test('SC-07-08 multiple selection and all-song downloads preserve exact titles',
   expect(contents.map(song => song.title).sort()).toEqual(['자료 A', '자료 B', '자료 C']);
 });
 
+test('SC-07-08 찬양 목록 Shift 범위 선택과 뷰어 닫기 선택 해제', async ({ page, app }) => {
+  for (const title of ['범위 곡 A', '범위 곡 B', '범위 곡 C', '범위 곡 D']) await seedSong(app, title, `${title} 가사`);
+  await praise(page, app);
+  const rows = page.locator('#praise-songs-list .bible-result-item');
+  await songRow(page, '범위 곡 A').click();
+  await songRow(page, '범위 곡 C').click({ modifiers: ['Shift'] });
+  await expect(page.locator('#praise-songs-list .bible-result-item.selected')).toHaveCount(3);
+  await expect(page.locator('#praise-main-viewer-overlay')).toBeVisible();
+  await page.locator('#btn-close-praise-viewer').click();
+  await expect(page.locator('#praise-main-viewer-overlay')).toBeHidden();
+  await expect(page.locator('#praise-songs-list .bible-result-item.selected')).toHaveCount(0);
+});
+
+test('SC-07-01 찬양 목록에서 실제 휠 스크롤로 아래 곡에 접근한다', async ({ page, app }) => {
+  for (let index = 0; index < 24; index++) await seedSong(app, `스크롤 곡 ${String(index).padStart(2, '0')}`, `가사 ${index}`);
+  await praise(page, app);
+  const list = page.locator('#praise-songs-list');
+  await expect(songRow(page, '스크롤 곡 23')).toHaveCount(1);
+  await list.hover();
+  await page.mouse.wheel(0, 1200);
+  await expect.poll(() => list.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+  await expect(songRow(page, '스크롤 곡 23')).toBeInViewport();
+});
+
 test('SC-08-08 editing song data affects new slides while generated slides remain unchanged', async ({ page, app }) => {
   await seedSong(app, '수정관계 시험', '원본 가사');
   await praise(page, app);
@@ -540,6 +564,23 @@ test('SC-10-02 multi-file upload stores both separate media files', async ({ pag
   await expect(page.locator('#stage-bg-upload-status')).toContainText('완료', { timeout: 30_000 });
   await expect(page.locator('.stage-bg-card-main')).toHaveCount(2);
   expect((await backgrounds(app)).map(file => file.title).sort()).toEqual(['alpha.mp4', 'beta.mp4']);
+});
+
+test('SC-10-05 현장 배경 라이브러리 휠 스크롤과 Ctrl+휠 그리드 확대', async ({ page, app }) => {
+  for (let index = 0; index < 24; index++) await seedBackground(app, `스크롤 배경 ${index}.mp4`);
+  await page.setViewportSize({ width: 1920, height: 700 });
+  await stage(page, app);
+  const body = page.locator('#stage-bg-main-grid-body');
+  const grid = page.locator('#stage-bg-main-grid');
+  await expect(page.locator('.stage-bg-card-main')).toHaveCount(24);
+  await body.hover();
+  await page.mouse.wheel(0, 900);
+  await expect.poll(() => body.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+  const before = await grid.evaluate(element => element.style.gridTemplateColumns);
+  await page.keyboard.down('Control');
+  await page.mouse.wheel(0, -240);
+  await page.keyboard.up('Control');
+  await expect.poll(() => grid.evaluate(element => element.style.gridTemplateColumns)).not.toBe(before);
 });
 
 test('SC-10-04 청크 병합 해시·누락 거부·전송 재시도 확인', async ({ page, app }) => {
@@ -807,4 +848,96 @@ test('SC-09-07 long fixture verse divides at 80 characters without dropping text
   const body = (await project(app)).slides.slice(2).map(slide => slide.elements.find(element => element.id.startsWith('elem_bible_c_')).content);
   expect(body.map(content => content.length)).toEqual([80, 80, 25]);
   expect(body.join('')).toBe(text);
+});
+
+test('SC-09-01 성경 권 자동완성 Enter 선택과 바깥 클릭 닫기', async ({ page, app }) => {
+  await openEditor(page, app);
+  await page.locator('[data-target="panel-bible"]').click();
+  const filter = page.locator('#input-bible-book-filter');
+  const popup = page.locator('#bible-book-dropdown-popup');
+  await filter.fill('GEN');
+  await expect(popup.locator('.bible-book-dropdown-item')).toHaveText(['창세기']);
+  await filter.press('Enter');
+  await expect(filter).toHaveValue('창세기');
+  await expect(page.locator('#select-bible-book')).toHaveValue('GEN');
+  await expect(popup).toBeHidden();
+  await expect(page.locator('#input-bible-chapter')).toBeFocused();
+  await filter.fill('없는성경권');
+  await expect(popup).toContainText('검색 결과 없음');
+  await page.locator('#input-bible-chapter').click();
+  await expect(popup).toBeHidden();
+  await expect(page.locator('#select-bible-book')).toHaveValue('GEN');
+  await page.locator('#input-bible-start-verse').fill('3');
+  await page.locator('#input-bible-end-verse').fill('4');
+  await page.locator('#input-bible-chapter').press('Enter');
+  await expect(page.locator('#input-bible-start-verse')).toHaveValue('1');
+  await expect(page.locator('#input-bible-end-verse')).toHaveValue('');
+  await expect(page.locator('#bible-results-list .bible-result-item')).toHaveCount(5);
+});
+
+test('SC-09-05 성경 표 선택 동기화와 Ctrl 휠 글자 조절 및 닫기', async ({ page, app }) => {
+  await bible(page, app, '5');
+  const overlay = page.locator('#bible-main-viewer-overlay');
+  const rows = page.locator('#tbody-bible-main-viewer tr');
+  const label = page.locator('#bible-viewer-fontsize-label');
+  await expect(overlay).toBeVisible();
+  await rows.nth(0).click();
+  await rows.nth(2).click({ modifiers: ['Shift'] });
+  await expect(page.locator('#bible-viewer-selected-count')).toHaveText('3');
+  await expect(page.locator('#val-selected-count')).toHaveText('3');
+  await expect(page.locator('#bible-results-list .bible-item-checkbox:checked')).toHaveCount(3);
+  await rows.nth(1).click({ modifiers: ['Control'] });
+  await expect(page.locator('#bible-viewer-selected-count')).toHaveText('2');
+  await page.locator('#btn-bible-font-increase').click();
+  await expect(label).toHaveText('17px');
+  await page.locator('#btn-bible-font-decrease').click();
+  await expect(label).toHaveText('16px');
+  await rows.nth(0).hover();
+  await page.keyboard.down('Control');
+  await page.mouse.wheel(0, -120);
+  await page.keyboard.up('Control');
+  await expect(label).toHaveText('17px');
+  await expect(page.locator('#table-bible-main-viewer')).toHaveCSS('font-size', '17px');
+  await page.locator('#btn-bible-font-reset').click();
+  await expect(label).toHaveText('16px');
+  await page.keyboard.press('Delete');
+  expect((await project(app)).slides).toHaveLength(2);
+  await expect(rows).toHaveCount(5);
+  await page.locator('#btn-close-bible-viewer').click();
+  await expect(overlay).toBeHidden();
+  await expect(page.locator('#val-selected-count')).toHaveText('2');
+});
+
+test('SC-07-07 찬양 Ctrl 선택 토글과 Delete 취소 및 선택 곡만 삭제', async ({ page, app }) => {
+  for (const title of ['선택 곡 A', '선택 곡 B', '보존 곡 C']) await seedSong(app, title, `${title} 가사`);
+  await praise(page, app);
+  await songRow(page, '선택 곡 A').click();
+  await songRow(page, '선택 곡 B').click({ modifiers: ['Control'] });
+  await expect(page.locator('#praise-songs-list .selected')).toHaveCount(2);
+  await songRow(page, '선택 곡 B').click({ modifiers: ['Control'] });
+  await expect(page.locator('#praise-songs-list .selected')).toHaveCount(1);
+  await expect(songRow(page, '선택 곡 A')).toHaveClass(/selected/);
+  await songRow(page, '선택 곡 B').click({ modifiers: ['Control'] });
+  await alertFrom(page, () => page.keyboard.press('Delete'), false);
+  await expect(page.locator('#praise-songs-list .selected')).toHaveCount(2);
+  expect((await songs(app))).toHaveLength(3);
+  await alertFrom(page, () => page.keyboard.press('Delete'));
+  await expect(page.locator('#praise-songs-list .bible-result-item')).toHaveCount(1);
+  await expect(songRow(page, '보존 곡 C')).toBeVisible();
+  await expect.poll(async () => (await songs(app)).map(song => song.title)).toEqual(['보존 곡 C']);
+});
+
+test('SC-10-09 현장 배경 Ctrl 토글과 Shift 범위 선택', async ({ page, app }) => {
+  for (const name of ['선택-A.mp4', '선택-B.mp4', '선택-C.mp4', '보존-D.mp4']) await seedBackground(app, name);
+  await stage(page, app);
+  const cards = page.locator('.stage-bg-card-main');
+  await expect(cards).toHaveCount(4);
+  await cards.nth(0).click();
+  await cards.nth(2).click({ modifiers: ['Shift'] });
+  await expect(page.locator('.stage-bg-card-main.selected')).toHaveCount(3);
+  await expect(page.locator('#stage-bg-bulk-count')).toContainText('3개');
+  await cards.nth(1).click({ modifiers: ['Control'] });
+  await expect(page.locator('.stage-bg-card-main.selected')).toHaveCount(2);
+  await cards.nth(1).click({ modifiers: ['Control'] });
+  await expect(page.locator('.stage-bg-card-main.selected')).toHaveCount(3);
 });
