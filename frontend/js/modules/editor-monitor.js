@@ -111,13 +111,20 @@ async function saveMonitorSettings(syncCanvasFirst = true) {
     }
     localStorage.setItem("subcast_monitor_settings", JSON.stringify(monitorSettings));
     try {
-        await fetch("/api/v1/monitor/settings", {
+        const response = await fetch("/api/v1/monitor/settings", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(monitorSettings)
         });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
     } catch (e) {
         console.error("Failed to save monitor settings to API", e);
+        if (typeof showToast === 'function') {
+            showToast("무대 모니터 레이아웃 저장에 실패했습니다.");
+        } else {
+            alert("무대 모니터 레이아웃 저장에 실패했습니다.");
+        }
+        return false;
     }
 
     broadcastMonitorSettings();
@@ -126,6 +133,7 @@ async function saveMonitorSettings(syncCanvasFirst = true) {
     } else {
         alert("무대 모니터 레이아웃이 저장 및 적용되었습니다.");
     }
+    return true;
 }
 
 function broadcastMonitorSettings() {
