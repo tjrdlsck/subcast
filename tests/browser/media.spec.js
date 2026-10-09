@@ -255,6 +255,25 @@ test('SC-08-04 black preset generates a background without changing existing sli
   expect(slides[2].elements).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'rect', width: 100, height: 100, style: expect.objectContaining({ fillColor: '#000000' }) })]));
 });
 
+test('SC-08-05 텍스트 상자 없는 찬양 템플릿은 안내하고 생성하지 않는다', async ({ page, app }) => {
+  await seedSong(app, '템플릿 제한 시험', '가사가 들어갈 문구');
+  const data = await app.exportProject();
+  data.templates = [{ id: 'tpl_shape_only', name: '글상자 없는 템플릿', elements: [
+    { id: 'shape_only', type: 'rect', content: '', x: 0, y: 0, width: 100, height: 100, style: { fillColor: '#123456' } },
+  ] }];
+  const id = await app.seedProject(data);
+  const originalSlideIds = data.slides.map(slide => slide.id);
+  const response = await app.request.post('/api/templates/import', { multipart: { file: {
+    name: 'shape-only-template.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(data.templates)),
+  } } });
+  expect(response.ok()).toBeTruthy();
+  await praise(page, app);
+  await songRow(page, '템플릿 제한 시험').click();
+  expect(await alertFrom(page, () => page.locator('#select-praise-design-preset').selectOption('template'))).toContain('텍스트 상자');
+  expect((await project(app)).slides.map(slide => slide.id)).toEqual(originalSlideIds);
+  expect((await app.exportProject(id)).templates.some(template => template.id === 'tpl_shape_only')).toBe(true);
+});
+
 test('SC-08-07 repeated song insertion creates independent group IDs', async ({ page, app }) => {
   await seedSong(app, '반복 시험', '가사1\n\n가사2');
   await praise(page, app);
