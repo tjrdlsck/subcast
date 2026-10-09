@@ -182,7 +182,9 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                 
                 await manager.broadcast({
                     "type": "SLIDE_CHANGE",
-                    "slideId": new_slide_id
+                    "slideId": new_slide_id,
+                    "clientId": message.get("clientId"),
+                    "sequence": message.get("sequence"),
                 })
                 logger.info(f"Live slide changed to: {new_slide_id}")
 

@@ -157,6 +157,43 @@ test.describe('SC-12 송출 제어와 출력 동기화', () => {
         await expect.poll(async () => (await project(app)).settings.currentLiveSlideId).toBe('slide_b');
     });
 
+    test('SC-12-02 늦게 도착한 이전 LIVE 응답은 빠른 다음 입력을 되돌리지 않는다', async ({ page, context, app }) => {
+        await page.addInitScript(() => {
+            window.__slideChangeSequences = [];
+            const descriptor = Object.getOwnPropertyDescriptor(WebSocket.prototype, 'onmessage');
+            Object.defineProperty(WebSocket.prototype, 'onmessage', {
+                configurable: true,
+                enumerable: true,
+                get() { return descriptor.get.call(this); },
+                set(listener) {
+                    return descriptor.set.call(this, listener && function (event) {
+                        let message;
+                        try { message = JSON.parse(event.data); } catch {}
+                        if (message?.type === 'SLIDE_CHANGE') {
+                            window.__slideChangeSequences.push(message.sequence);
+                            if (message.sequence === 1) {
+                                setTimeout(() => listener.call(this, event), 120);
+                                return;
+                            }
+                        }
+                        return listener.call(this, event);
+                    });
+                }
+            });
+        });
+        await presenter(page, app);
+        const obs = await output(context, app, 'obs');
+        await page.keyboard.press('ArrowRight');
+        await page.keyboard.press('ArrowRight');
+        await expect.poll(() => page.evaluate(() => window.__slideChangeSequences.includes(2))).toBe(true);
+        await page.waitForTimeout(150);
+        for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
+
+        await liveIs(page, 'slide_b');
+        await textIs(obs, TEXT_B);
+        await expect.poll(async () => (await project(app)).settings.currentLiveSlideId).toBe('slide_b');
+    });
+
     test('SC-12-05 늦게 연 출력과 새로고침은 현재 LIVE를 유지한다', async ({ page, context, app }) => {
         await presenter(page, app);
         await page.locator('#slide-item-slide_b').click();

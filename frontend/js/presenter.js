@@ -24,6 +24,8 @@
         let lockedSlides = {};
         let currentLiveIndex = -1;
         let selectedSlideId = null;
+        const presenterClientId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        let slideChangeSequence = 0;
         let canvas = null;
         let targetWidth = 1920;
         let targetHeight = 1080;
@@ -461,9 +463,12 @@
         // 슬라이드 전환 명령 송신
         function changeSlide(slideId) {
             if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            const sequence = ++slideChangeSequence;
             ws.send(JSON.stringify({
                 type: "SLIDE_CHANGE",
-                slideId: slideId
+                slideId,
+                clientId: presenterClientId,
+                sequence
             }));
 
             if (projectData && projectData.slides) {
@@ -566,6 +571,8 @@
                     warnMissingStageBackground(message.backgroundId, message.fallbackType);
                 }
                 else if (message.type === 'SLIDE_CHANGE') {
+                    if (message.clientId === presenterClientId && Number.isSafeInteger(message.sequence)
+                        && message.sequence < slideChangeSequence) return;
                     if (projectData) {
                         updateSlideActiveState(message.slideId, message.slideId, true);
                     }
