@@ -202,6 +202,30 @@ test('SC-04-01 그림자 켜기·색상·투명도·블러·오프셋은 슬라�
     expect((await savedSlide(app, id)).elements[0].style.shadow).toMatchObject({ blur: 8, offsetX: 6, offsetY: 9 });
 });
 
+test('SC-04-06 긴 한글·여러 줄·특수문자 외곽선 본문 저장과 송출', async ({ page, context, app }) => {
+    const content = `${'긴 한글 문구와 기호 !? 123 '.repeat(14)}\n둘째 줄은 저장 뒤에도 유지됩니다.`;
+    await openEditor(page);
+    const id = await projectId(page);
+    await addText(page, 'body', content);
+    await page.locator('#text-strokecolor-hex').fill('#00AAFF');
+    await page.locator('#text-strokecolor-hex').press('Tab');
+    await page.locator('#text-strokewidth').fill('3');
+    await page.locator('#text-strokewidth').press('Tab');
+    await expect.poll(async () => (await savedSlide(app, id)).elements.some(item => item.content === content)).toBe(true);
+    const longText = (await savedSlide(app, id)).elements.find(item => item.content === content);
+    expect(longText.style).toMatchObject({ strokeColor: expect.stringContaining('0, 170, 255'), strokeWidth: 3 });
+    const bounds = await page.evaluate(() => {
+        const obj = canvas.getObjects().find(item => item.text?.includes('둘째 줄은 저장'));
+        return obj && { width: obj.width, height: obj.height };
+    });
+    expect(bounds.width).toBeGreaterThan(0);
+    expect(bounds.height).toBeGreaterThan(0);
+
+    const viewer = await context.newPage();
+    await viewer.goto('/static/viewer.html?channel=broadcast');
+    await expect.poll(() => viewer.evaluate(text => canvas.getObjects().some(obj => obj.text === text), content)).toBe(true);
+});
+
 test('SC-04-02/04 도형 채우기·테두리·모서리·좌표·크기·불투명도는 슬라이드 전환 후 유지된다', async ({ page, app }) => {
     await openEditor(page);
     const id = await projectId(page);
