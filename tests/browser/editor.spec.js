@@ -1,5 +1,6 @@
 const { test, expect, openEditor } = require('./fixtures');
 const fs = require('node:fs/promises');
+const path = require('node:path');
 
 const slide = (page, id) => page.locator(`#slide-item-${id}`);
 const tab = (page, name) => page.locator(`[data-target="panel-${name}"]`);
@@ -224,6 +225,29 @@ test('SC-04-06 긴 한글·여러 줄·특수문자 외곽선 본문 저장과 �
     const viewer = await context.newPage();
     await viewer.goto('/static/viewer.html?channel=broadcast');
     await expect.poll(() => viewer.evaluate(text => canvas.getObjects().some(obj => obj.text === text), content)).toBe(true);
+});
+
+test('SC-15-04 사용자 글꼴 등록·편집 적용·송출 로드와 실패 보존', async ({ page, context, app }) => {
+    await fs.copyFile(path.resolve(__dirname, '../../frontend/fonts/Juache_4e52b9ef.woff'), path.join(app.dataDir, 'frontend/fonts/sc15-fixture.woff'));
+    await openEditor(page);
+    const id = await projectId(page);
+    await addText(page, 'body', '사용자 글꼴 시험 문구');
+    const css = `@font-face { font-family: 'SC15Fixture'; src: url('${app.url}/static/fonts/sc15-fixture.woff'); }`;
+    await page.locator('#custom-font-input').fill(css);
+    await page.locator('#btn-add-custom-font').click();
+    await expect.poll(async () => (await app.exportProject(id)).customFonts?.some(font => font.family === 'SC15Fixture')).toBe(true);
+    await page.locator('#fontfamily-editor').selectOption('SC15Fixture');
+    await expect.poll(async () => (await savedSlide(app, id)).elements.some(element => element.style.fontFamily === 'SC15Fixture')).toBe(true);
+
+    const viewer = await context.newPage();
+    await viewer.goto('/static/viewer.html?channel=broadcast');
+    await expect.poll(() => viewer.evaluate(() => document.fonts.check('16px SC15Fixture'))).toBe(true);
+
+    const registered = (await app.exportProject(id)).customFonts;
+    await page.locator('#custom-font-input').fill(`@font-face { font-family: 'SC15Missing'; src: url('${app.url}/static/fonts/missing-sc15.woff'); }`);
+    await page.locator('#btn-add-custom-font').click();
+    await page.waitForTimeout(700);
+    expect((await app.exportProject(id)).customFonts).toEqual(registered);
 });
 
 test('SC-04-02/04 도형 채우기·테두리·모서리·좌표·크기·불투명도는 슬라이드 전환 후 유지된다', async ({ page, app }) => {
