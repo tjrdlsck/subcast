@@ -394,6 +394,21 @@ test.describe('SC-14 무대 모니터', () => {
         await monitor.reload();
         await expect(monitor.locator('#monitor-current-text')).toHaveText(LYRIC_A);
     });
+
+    test('SC-14-10 같은 PC 다른 창에 저장값을 적용하고 화면 크기 변경을 반영한다', async ({ page, context, app }) => {
+        const monitor = await output(context, app, 'monitor');
+        await editorPanel(page, app, 'monitor');
+        await range(page, '#input-monitor-cur-font-size', 4, 1, 0.1);
+        await page.locator('#btn-save-monitor-layout').click();
+        await expect.poll(() => monitor.locator('#monitor-current-text').evaluate(el => el.style.fontSize)).toMatch(/^4(?:\.0)?vw$/);
+
+        await monitor.setViewportSize({ width: 800, height: 600 });
+        await expect.poll(() => monitor.locator('#monitor-current-text').evaluate(el => {
+            const rect = el.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0 && rect.right <= window.innerWidth && rect.bottom <= window.innerHeight;
+        })).toBe(true);
+        await expect(monitor.locator('#monitor-current-text')).toHaveText(LYRIC_A);
+    });
 });
 
 test.describe('출력 설정 복원과 경계 조건', () => {
