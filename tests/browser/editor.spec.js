@@ -50,6 +50,22 @@ test('SC-15-03 접힌 패널에서 탭을 누르면 펼쳐지고 모아보기는
     await expect(slide(page, 'slide_a')).toHaveClass(/editing/);
 });
 async function projectId(page) { return page.evaluate(() => projectData.id); }
+async function seedSlides(app, count) {
+    const project = await app.exportProject();
+    const template = project.slides[0];
+    project.slides = Array.from({ length: count }, (_, index) => ({
+        ...template,
+        id: `slide_${String.fromCharCode(97 + index)}`,
+        name: `슬라이드 ${String.fromCharCode(65 + index)}`,
+        elements: template.elements.map((element, elementIndex) => ({
+            ...element,
+            id: `text_${index}_${elementIndex}`,
+            content: `슬라이드 ${String.fromCharCode(65 + index)} 내용`,
+        })),
+    }));
+    project.settings.currentLiveSlideId = project.slides[0].id;
+    return app.seedProject(project);
+}
 async function savedSlide(app, id, slideId = 'slide_a') {
     return (await app.exportProject(id)).slides.find(item => item.id === slideId);
 }
@@ -145,6 +161,31 @@ for (const accept of [false, true]) {
         await expect(page.locator('.sorter-card')).toHaveCount(accept ? 1 : 2);
         await expect.poll(async () => (await app.exportProject(id)).slides.map(item => item.id))
             .toEqual(accept ? ['slide_a'] : ['slide_a', 'slide_b']);
+    });
+}
+
+for (const scenario of [
+    { name: '중간 슬라이드', selected: ['slide_d'], expected: 'slide_c', remaining: ['slide_a', 'slide_b', 'slide_c'] },
+    { name: '첫 슬라이드', selected: ['slide_a'], expected: 'slide_b', remaining: ['slide_b', 'slide_c', 'slide_d'] },
+    { name: '연속 다중 선택', selected: ['slide_c', 'slide_d'], expected: 'slide_b', remaining: ['slide_a', 'slide_b'] },
+]) {
+    test(`SC-03-06 ${scenario.name} 삭제 후 가장 가까운 위 슬라이드에 포커싱한다`, async ({ page, app }) => {
+        const id = await seedSlides(app, 4);
+        await openEditor(page);
+
+        for (const [index, slideId] of scenario.selected.entries()) {
+            await slide(page, slideId).click(index ? { modifiers: ['Control'] } : undefined);
+        }
+        await expect.poll(() => page.evaluate(() => activeSlideId)).toBe(scenario.selected.at(-1));
+        page.once('dialog', dialog => dialog.accept());
+        await page.keyboard.press('Delete');
+
+        await expect.poll(async () => (await app.exportProject(id)).slides.map(item => item.id)).toEqual(scenario.remaining);
+        await expect.poll(() => page.evaluate(() => activeSlideId)).toBe(scenario.expected);
+        await expect(slide(page, scenario.expected)).toHaveClass(/editing/);
+        await expect.poll(() => page.evaluate(() => canvas.getObjects().map(object => object.text))).toContain(
+            `슬라이드 ${scenario.expected.slice(-1).toUpperCase()} 내용`,
+        );
     });
 }
 
