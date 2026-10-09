@@ -10,6 +10,7 @@ class ElementStyle(BaseModel):
     lineHeight: Optional[float] = None
     textAlign: Optional[str] = "left"
     shadow: Optional[Dict[str, Any]] = None
+    src: Optional[str] = None
     fillColor: Optional[str] = "#4f46e5"
     strokeColor: Optional[str] = "transparent"
     strokeWidth: Optional[int] = 0
