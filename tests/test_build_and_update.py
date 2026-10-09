@@ -41,6 +41,8 @@ def test_setup_iss_db_preservation():
     assert 'Check: IsAutoUpdate' in content
     assert 'runasoriginaluser' in content
     assert '{param:SUBCASTUPDATE|0}' in content
+    assert 'Check: IsAutoUpdateAndOriginalUser' in content
+    assert 'IsAutoUpdate and (ExpandConstant(\'{param:SUBCASTORIGINALUSER|0}\') = \'1\')' in content
 
 def test_find_iscc():
     # ISCC might or might not be installed, but function should run without error
@@ -64,8 +66,9 @@ def test_download_and_update_uses_chunked_download():
     assert 'hashlib.sha256' in src
 
 def test_legacy_seed_does_not_overwrite_appdata():
-    node = next(n for n in RUN_TREE.body if isinstance(n, ast.FunctionDef) and n.name == "copy_missing_tree")
-    src = ast.get_source_segment(RUN_SOURCE, node)
+    launcher_path = os.path.join(ROOT, "backend", "services", "launcher_utils.py")
+    with open(launcher_path, encoding="utf-8") as f:
+        src = f.read()
     assert "if not target_file.exists()" in src
     migration_path = os.path.join(ROOT, "backend", "services", "migration_service.py")
     with open(migration_path, encoding="utf-8") as f:

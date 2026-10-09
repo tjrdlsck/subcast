@@ -418,11 +418,8 @@ def check_for_updates(_icon=None, item=None):
     
     threading.Thread(target=_check).start()
 
-if __name__ == "__main__":
-    if config.get("auto_start_server", True):
-        start_server()
-
-    menu = pystray.Menu(
+def create_tray_menu():
+    return pystray.Menu(
         pystray.MenuItem(lambda text: f"Status: {'Running' if is_running() else 'Stopped'} ({config['port']})", None, enabled=False),
         pystray.MenuItem(f"Version: {CURRENT_VERSION}", None, enabled=False),
         pystray.Menu.SEPARATOR,
@@ -440,5 +437,11 @@ if __name__ == "__main__":
         pystray.MenuItem("Exit", exit_app)
     )
 
+
+if __name__ == "__main__":
+    if config.get("auto_start_server", True):
+        start_server()
+
+    menu = create_tray_menu()
     icon = pystray.Icon("subcast", create_image(), "Subcast WebApp", menu)
     icon.run()
