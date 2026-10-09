@@ -409,6 +409,114 @@ test.describe('SC-14 무대 모니터', () => {
         })).toBe(true);
         await expect(monitor.locator('#monitor-current-text')).toHaveText(LYRIC_A);
     });
+
+    test('SC-14-04/06 색상 외곽선 줄간격은 두 카드에 독립 적용하고 빠른 저장 후 복원한다', async ({ page, context, app }) => {
+        const defaults = await monitorSettings(app);
+        const seeded = await app.request.put('/api/v1/monitor/settings', { data: {
+            ...defaults,
+            currentBox: { ...defaults.currentBox, strokeColor: '#000000' },
+            nextBox: { ...defaults.nextBox, strokeColor: '#000000' },
+        } });
+        expect(seeded.ok()).toBeTruthy();
+        const monitor = await output(context, app, 'monitor');
+        const preview = await output(context, app, 'monitor_preview');
+        const source = (await project(app)).slides.map(item => item.elements);
+        const before = await monitorSettings(app);
+        await editorPanel(page, app, 'monitor');
+        const controls = [
+            { prefix: 'cur', key: 'currentBox', target: 'current', color: '#22cc88', cssColor: 'rgb(34, 204, 136)', stroke: 5, lineHeight: 1.6 },
+            { prefix: 'nxt', key: 'nextBox', target: 'next', color: '#cc3388', cssColor: 'rgb(204, 51, 136)', stroke: 0, lineHeight: 1.85 }
+        ];
+        for (const control of controls) {
+            const color = page.locator(`#input-monitor-${control.prefix}-text-color`);
+            await expect(color).toBeVisible();
+            // Native color dialogs are outside Playwright; exercise the input's browser event path.
+            await color.evaluate((input, value) => {
+                input.value = value;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            }, control.color);
+            await range(page, `#input-monitor-${control.prefix}-stroke-width`, control.stroke, 0, 1);
+            await range(page, `#range-monitor-${control.prefix}-lineheight`, control.lineHeight, 1, 0.05);
+            const text = preview.locator(`#monitor-${control.target}-text`);
+            await expect(text).toHaveCSS('color', control.cssColor);
+            await expect.poll(() => text.evaluate(el => el.style.lineHeight)).toBe(String(control.lineHeight));
+            await expect.poll(() => page.evaluate(({ key, target }) => {
+                const group = monitorCanvas.getObjects().find(item => item.boxType === key);
+                return group.getObjects()[1].strokeWidth;
+            }, { key: control.key, target: control.target })).toBe(control.stroke * (await page.evaluate(() => monitorCanvas.getWidth())) / 1920);
+            await expect(page.locator(`#lbl-monitor-${control.prefix}-stroke-val`)).toHaveText(String(control.stroke));
+            await expect(page.locator(`#val-monitor-${control.prefix}-lineheight`)).toHaveText(`${control.lineHeight.toFixed(2)}x`);
+        }
+        expect(await monitorSettings(app)).toEqual(before);
+        await page.locator('#btn-monitor-apply-quick').click();
+        for (const control of controls) {
+            await expect.poll(async () => (await monitorSettings(app))[control.key]).toMatchObject({
+                textColor: control.color, strokeWidth: control.stroke, lineHeight: control.lineHeight
+            });
+            await expect(monitor.locator(`#monitor-${control.target}-text`)).toHaveCSS('color', control.cssColor);
+        }
+        await page.reload();
+        await page.locator('.nav-tab-btn[data-target="panel-monitor"]').click();
+        await monitor.reload();
+        for (const control of controls) {
+            await expect(page.locator(`#input-monitor-${control.prefix}-text-color`)).toHaveValue(control.color);
+            await expect(page.locator(`#input-monitor-${control.prefix}-stroke-width`)).toHaveValue(String(control.stroke));
+            await expect(page.locator(`#range-monitor-${control.prefix}-lineheight`)).toHaveValue(String(control.lineHeight));
+            const text = monitor.locator(`#monitor-${control.target}-text`);
+            await expect(text).toHaveCSS('color', control.cssColor);
+            await expect(text).toHaveCSS('-webkit-text-stroke-width', `${control.stroke}px`);
+            await expect.poll(() => text.evaluate(el => el.style.lineHeight)).toBe(String(control.lineHeight));
+        }
+        expect((await project(app)).slides.map(item => item.elements)).toEqual(source);
+    });
+
+    for (const [key, target] of [['currentBox', 'current'], ['nextBox', 'next']]) {
+        test(`SC-14-05 ${target} 카드 실제 드래그 리사이즈 저장과 화면 복원`, async ({ page, context, app }) => {
+            const monitor = await output(context, app, 'monitor');
+            await editorPanel(page, app, 'monitor');
+            await expect.poll(() => page.evaluate(() => monitorCanvas.getObjects().length)).toBe(2);
+            const before = await monitorSettings(app);
+            const otherKey = key === 'currentBox' ? 'nextBox' : 'currentBox';
+            const position = await page.evaluate(boxKey => {
+                const card = monitorCanvas.getObjects().find(item => item.boxType === boxKey);
+                const bounds = monitorCanvas.upperCanvasEl.getBoundingClientRect();
+                const center = card.getCenterPoint();
+                return { x: bounds.left + center.x, y: bounds.top + center.y,
+                    left: card.left, top: card.top, width: monitorCanvas.getWidth(), height: monitorCanvas.getHeight() };
+            }, key);
+            await page.mouse.move(position.x, position.y);
+            await page.mouse.down();
+            await page.mouse.move(position.x + 20, position.y - 10, { steps: 8 });
+            await page.mouse.up();
+            const handle = await page.evaluate(boxKey => {
+                const card = monitorCanvas.getObjects().find(item => item.boxType === boxKey);
+                const bounds = monitorCanvas.upperCanvasEl.getBoundingClientRect();
+                return { x: bounds.left + card.oCoords.mr.x, y: bounds.top + card.oCoords.mr.y };
+            }, key);
+            await page.mouse.move(handle.x, handle.y);
+            await page.mouse.down();
+            await page.mouse.move(handle.x - 50, handle.y, { steps: 8 });
+            await page.mouse.up();
+            await page.locator('#btn-monitor-apply-quick').click();
+            await expect.poll(async () => (await monitorSettings(app))[key].leftPct)
+                .toBeCloseTo((position.left + 20) / position.width * 100, 1);
+            const saved = (await monitorSettings(app))[key];
+            expect(saved.topPct).toBeCloseTo((position.top - 10) / position.height * 100, 1);
+            expect(saved.widthPct).toBeLessThan(before[key].widthPct - 1);
+            const untouched = (await monitorSettings(app))[otherKey];
+            for (const property of ['leftPct', 'topPct', 'widthPct', 'heightPct']) {
+                expect(untouched[property]).toBeCloseTo(before[otherKey][property], 0);
+            }
+            expect(untouched.textColor).toBe(before[otherKey].textColor);
+            await monitor.reload();
+            await expect.poll(() => monitor.locator(`#monitor-${target}-card`).evaluate(el => {
+                const bounds = el.getBoundingClientRect();
+                return bounds.width / window.innerWidth * 100;
+            })).toBeCloseTo(saved.widthPct, 1);
+            await expect(monitor.locator(`#monitor-${target}-text`)).toHaveText(target === 'current' ? LYRIC_A : LYRIC_B);
+        });
+    }
 });
 
 test.describe('출력 설정 복원과 경계 조건', () => {
