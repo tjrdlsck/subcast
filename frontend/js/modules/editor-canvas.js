@@ -342,6 +342,7 @@
                     if (el) el.disabled = false;
                 });
                 document.getElementById("text-editor").value = activeObj.text || "";
+                document.getElementById("fontfamily-editor").value = activeObj.fontFamily || "Inter";
                 document.getElementById("fontsize-editor").value = Math.round(activeObj.fontSize || 24);
                 const textLhEl = document.getElementById("text-lineheight");
                 if (textLhEl) textLhEl.value = (activeObj.lineHeight !== undefined ? activeObj.lineHeight : 1.35).toFixed(2);
