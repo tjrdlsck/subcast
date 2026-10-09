@@ -31,6 +31,19 @@ for (const mode of ['missing-ack', 'refused-save']) {
   });
 }
 
+test('저장 응답 후 다른 슬라이드로 전환하고 수정 내용을 보존한다', async ({ page, app }) => {
+  await openEditor(page);
+  await page.locator('[data-target="panel-layers"]').click();
+  await page.locator('.layer-item').first().click();
+  await page.locator('#btn-bold').click();
+  await expect.poll(() => page.evaluate(() => isSlideDirty)).toBe(true);
+
+  await page.locator('[data-target="panel-slides"]').click();
+  await page.locator('#slide-item-slide_b').click();
+  await expect.poll(() => page.evaluate(() => activeSlideId), { timeout: 5_000 }).toBe('slide_b');
+  await expect.poll(async () => (await app.exportProject()).slides[0].elements[0].style.fontWeight).toBe('bold');
+});
+
 test('SC-15-05 second editor cannot overwrite a locked slide and closing releases it', async ({ page, context, app }) => {
   await openEditor(page);
   const second = await context.newPage();
