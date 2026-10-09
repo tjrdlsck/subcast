@@ -476,6 +476,7 @@
         }
 
         function initPraiseFeature() {
+            bindSlideBgModalEvents();
             const searchInput = document.getElementById("input-praise-search");
             const songsList = document.getElementById("praise-songs-list");
             const openAddModalBtn = document.getElementById("btn-praise-open-add-modal");
