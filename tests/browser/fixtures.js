@@ -89,6 +89,8 @@ const test = base.extend({
           expect(response.ok(), await response.text()).toBeTruthy();
           return response.json();
         },
+        async stop() { await stop(); },
+        async start() { await start(); },
         async restart() { await stop(); await start(); },
       };
       await use(app);
