@@ -23,7 +23,7 @@
                     const match = elem.style.fontSize.match(/^(\d+(?:\.\d+)?)\s*vw$/);
                     fontSize = match ? (parseFloat(match[1]) / 100) * canvasWidth : parseInt(elem.style.fontSize) || 20;
                 }
-                const textOptions = { left: x, top: y, width: w > 50 ? w : 250, fontSize: fontSize, fill: elem.style?.fontColor || '#ffffff', stroke: elem.style?.strokeColor || 'transparent', strokeWidth: elem.style?.strokeWidth !== undefined ? elem.style.strokeWidth : 0, fontFamily: elem.style?.fontFamily || 'Inter', fontWeight: elem.style?.fontWeight || 'normal', fontStyle: elem.style?.fontStyle || 'normal', textAlign: elem.style?.textAlign || 'left', opacity: opacity, selectable: !isInsideGroup, hasControls: !isInsideGroup, originalId: elem.id, originalVwSize: elem.style?.fontSize || "3vw", paintFirst: 'stroke' };
+                const textOptions = { left: x, top: y, width: w > 50 ? w : 250, fontSize: fontSize, lineHeight: elem.style?.lineHeight ?? 1.16, fill: elem.style?.fontColor || '#ffffff', stroke: elem.style?.strokeColor || 'transparent', strokeWidth: elem.style?.strokeWidth !== undefined ? elem.style.strokeWidth : 0, fontFamily: elem.style?.fontFamily || 'Inter', fontWeight: elem.style?.fontWeight || 'normal', fontStyle: elem.style?.fontStyle || 'normal', textAlign: elem.style?.textAlign || 'left', opacity: opacity, selectable: !isInsideGroup, hasControls: !isInsideGroup, originalId: elem.id, originalVwSize: elem.style?.fontSize || "3vw", paintFirst: 'stroke' };
                 if (elem.style?.shadow) {
                     textOptions.shadow = new fabric.Shadow({
                         color: elem.style.shadow.color || '#000000',
@@ -80,6 +80,7 @@
                 style.fontFamily = obj.fontFamily || "Inter";
                 style.fontWeight = obj.fontWeight || "normal";
                 style.fontStyle = obj.fontStyle || "normal";
+                style.lineHeight = obj.lineHeight ?? 1.16;
                 style.textAlign = obj.textAlign || "left";
                 style.strokeColor = obj.stroke || "transparent";
                 style.strokeWidth = Math.round(obj.strokeWidth || 0);

@@ -7,6 +7,7 @@ class ElementStyle(BaseModel):
     fontFamily: Optional[str] = "Inter"
     fontWeight: Optional[str] = "normal"
     fontStyle: Optional[str] = "normal"
+    lineHeight: Optional[float] = None
     textAlign: Optional[str] = "left"
     fillColor: Optional[str] = "#4f46e5"
     strokeColor: Optional[str] = "transparent"
