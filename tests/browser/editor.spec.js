@@ -4,6 +4,51 @@ const path = require('node:path');
 
 const slide = (page, id) => page.locator(`#slide-item-${id}`);
 const tab = (page, name) => page.locator(`[data-target="panel-${name}"]`);
+
+test('SC-15-03 열 개 편집 탭은 자신의 패널만 표시하고 출력 미리보기를 정리한다', async ({ page, app }) => {
+    await openEditor(page);
+    const id = await projectId(page);
+    const before = (await app.exportProject(id)).slides.map(item => ({ id: item.id, elements: item.elements }));
+    const names = ['slides', 'templates', 'text', 'shapes', 'layers', 'bible', 'praise', 'stage-bg', 'monitor', 'broadcast', 'slides'];
+    const overlays = ['stage-bg', 'monitor', 'broadcast'];
+    for (const name of names) {
+        await tab(page, name).click();
+        await expect(tab(page, name)).toHaveClass(/active/);
+        await expect(page.locator('.nav-tab-btn.active')).toHaveCount(1);
+        await expect(page.locator('.sidebar-panel.active')).toHaveAttribute('id', `panel-${name}`);
+        await expect(page.locator(`#panel-${name}`)).toBeVisible();
+        for (const other of new Set(names.filter(item => item !== name))) {
+            await expect(page.locator(`#panel-${other}`)).toBeHidden();
+        }
+        for (const overlay of overlays) {
+            const viewer = page.locator(`#${overlay}-main-viewer-overlay`);
+            if (overlay === name) await expect(viewer).toBeVisible();
+            else await expect(viewer).toBeHidden();
+        }
+        await expect(page.locator('#bible-main-viewer-overlay')).toBeHidden();
+        await expect(page.locator('#praise-main-viewer-overlay')).toBeHidden();
+    }
+    expect((await app.exportProject(id)).slides.map(item => ({ id: item.id, elements: item.elements }))).toEqual(before);
+    await expect(slide(page, 'slide_a')).toHaveClass(/editing/);
+});
+
+test('SC-15-03 접힌 패널에서 탭을 누르면 펼쳐지고 모아보기는 다른 탭에서 닫힌다', async ({ page }) => {
+    await openEditor(page);
+    await page.locator('#btn-toggle-sidebar').click();
+    await expect(page.locator('.left-sub-panel')).toHaveClass(/collapsed/);
+    await tab(page, 'text').click();
+    await expect(page.locator('.left-sub-panel')).not.toHaveClass(/collapsed/);
+    await expect(page.locator('#btn-add-text-body')).toBeVisible();
+    await expect(page.locator('#btn-add-text-body')).toBeEnabled();
+    await tab(page, 'slides').click();
+    await page.locator('#btn-toggle-sorter').click();
+    await expect(page.locator('.sorter-card').first()).toBeVisible();
+    await tab(page, 'shapes').click();
+    await expect(page.locator('.sorter-card').first()).toBeHidden();
+    await expect(page.locator('#btn-add-rect')).toBeEnabled();
+    await tab(page, 'slides').click();
+    await expect(slide(page, 'slide_a')).toHaveClass(/editing/);
+});
 async function projectId(page) { return page.evaluate(() => projectData.id); }
 async function savedSlide(app, id, slideId = 'slide_a') {
     return (await app.exportProject(id)).slides.find(item => item.id === slideId);
@@ -468,6 +513,70 @@ for (const direction of ['up', 'down', 'front', 'back']) {
     });
 }
 
+test('SC-04-04 레이어 목록 선택은 속성 패널과 일치하고 소환·삭제는 해당 개체만 변경한다', async ({ page, app }) => {
+    await openEditor(page);
+    const id = await projectId(page);
+    await tab(page, 'shapes').click();
+    await page.locator('#btn-add-rect').click();
+    await page.locator('#btn-add-circle').click();
+    await tab(page, 'layers').click();
+    const circle = page.locator('.layer-item').filter({ hasText: '원형' });
+    const rectangle = page.locator('.layer-item').filter({ hasText: '사각형' });
+    await rectangle.click();
+    await expect(rectangle).toHaveClass(/active/);
+    await expect(page.locator('.layer-item.active')).toHaveCount(1);
+    await expect(page.locator('#shape-corners')).toBeVisible();
+    await expect(page.locator('#shape-corners')).toBeEnabled();
+    await page.locator('#element-left').fill('60');
+    await page.locator('#element-left').press('Tab');
+    await expect.poll(async () => (await savedSlide(app, id)).elements.find(item => item.type === 'rect')?.x).toBeCloseTo(60 / 768 * 100, 1);
+    await circle.click();
+    await expect(circle).toHaveClass(/active/);
+    await expect(page.locator('#shape-corners')).toBeDisabled();
+    await page.keyboard.press('ArrowRight');
+    const offCenter = await page.evaluate(() => {
+        const object = canvas.getActiveObject();
+        return { left: object.left, top: object.top };
+    });
+    await circle.locator('.btn-summon').click();
+    await expect.poll(() => page.evaluate(() => {
+        const object = canvas.getActiveObject();
+        return { left: object.left, top: object.top };
+    })).not.toEqual(offCenter);
+    await rectangle.locator('.btn-delete').click();
+    await expect(page.locator('.layer-item')).toHaveCount(2);
+    await expect(rectangle).toHaveCount(0);
+    await expect.poll(async () => (await savedSlide(app, id)).elements.map(item => item.type)).toEqual(['text', 'circle']);
+    await page.reload();
+    await tab(page, 'layers').click();
+    await expect(page.locator('.layer-item')).toHaveCount(2);
+    await expect(page.locator('.layer-item').filter({ hasText: '첫 번째 테스트' })).toHaveCount(1);
+});
+
+test('SC-04-04 긴 레이어 목록은 휠로 스크롤한 뒤 아래 텍스트를 선택해 편집할 수 있다', async ({ page, app }) => {
+    const data = await app.exportProject();
+    data.slides[0].elements = Array.from({ length: 30 }, (_, index) => ({
+        ...data.slides[0].elements[0], id: `layer_scroll_${index}`, content: `레이어 ${index + 1}`,
+    }));
+    const id = await app.seedProject(data);
+    await openEditor(page);
+    await tab(page, 'layers').click();
+    const body = page.locator('#panel-layers .panel-body');
+    await expect.poll(() => body.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
+    await body.hover();
+    await page.mouse.wheel(0, 10000);
+    await expect.poll(() => body.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+    const bottom = page.locator('.layer-item').last();
+    await expect(bottom).toBeInViewport();
+    await bottom.click();
+    await expect(bottom).toHaveClass(/active/);
+    await expect(page.locator('#text-editor')).toHaveValue('레이어 1');
+    await page.locator('#text-editor').fill('스크롤 후 수정');
+    await page.locator('#text-editor').press('Tab');
+    await expect.poll(async () => (await savedSlide(app, id)).elements.find(item => item.id === 'layer_scroll_0')?.content).toBe('스크롤 후 수정');
+    expect((await savedSlide(app, id)).elements).toHaveLength(30);
+});
+
 test('SC-04-05 그룹 저장과 해제는 두 요소를 보존한다', async ({ page, app }) => {
     const fixture = await app.exportProject();
     fixture.slides[0].elements = [];
@@ -505,6 +614,96 @@ async function templateFixture(app) {
     } } });
     expect(response.ok()).toBe(true);
     return id;
+}
+
+async function seedTemplateList(app, count = 12) {
+    const data = await app.exportProject();
+    const templates = Array.from({ length: count }, (_, index) => ({
+        id: `tpl_list_${index}`, name: `목록 디자인 ${index + 1}`,
+        elements: [{ ...data.slides[0].elements[0], id: `tpl_list_text_${index}` }],
+    }));
+    const response = await app.request.post('/api/templates/import', { multipart: { file: {
+        name: 'template-list.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(templates)),
+    } } });
+    expect(response.ok(), await response.text()).toBeTruthy();
+    return templates;
+}
+
+test('SC-06-04 템플릿 Ctrl 토글·Shift 범위 선택은 적용/삭제 버튼과 선택 내보내기에 반영된다', async ({ page, app }) => {
+    const templates = await seedTemplateList(app, 4);
+    await openEditor(page);
+    await tab(page, 'templates').click();
+    const items = page.locator('.template-grid-item');
+    await expect(items).toHaveCount(4);
+    await expect(page.locator('#btn-apply-template-bulk')).toBeDisabled();
+    await expect(page.locator('#btn-delete-template')).toBeDisabled();
+    await items.nth(0).click();
+    await expect(page.locator('#btn-apply-template-bulk')).toBeEnabled();
+    await items.nth(2).click({ modifiers: ['Shift'] });
+    await expect.poll(() => page.evaluate(() => [...selectedTemplateIds])).toEqual(templates.slice(0, 3).map(item => item.id));
+    await expect(page.locator('#btn-apply-template-bulk')).toBeDisabled();
+    await expect(page.locator('#btn-delete-template')).toBeEnabled();
+    await items.nth(1).click({ modifiers: ['Control'] });
+    await expect.poll(() => page.evaluate(() => [...selectedTemplateIds])).toEqual([templates[0].id, templates[2].id]);
+    const downloadPromise = page.waitForEvent('download');
+    await page.locator('#btn-template-export').click();
+    const download = await downloadPromise;
+    expect(await download.failure()).toBeNull();
+    const exported = JSON.parse(await fs.readFile(await download.path(), 'utf8'));
+    expect(exported.map(item => item.id).sort()).toEqual([templates[0].id, templates[2].id].sort());
+    await items.nth(2).click({ modifiers: ['Control'] });
+    await expect(page.locator('#btn-apply-template-bulk')).toBeEnabled();
+    await items.nth(0).click();
+    await expect.poll(() => page.evaluate(() => selectedTemplateIds.length)).toBe(0);
+    await expect(page.locator('#btn-delete-template')).toBeDisabled();
+    const allDownloadPromise = page.waitForEvent('download');
+    await page.locator('#btn-template-export').click();
+    const allDownload = await allDownloadPromise;
+    expect(JSON.parse(await fs.readFile(await allDownload.path(), 'utf8')).map(item => item.id).sort()).toEqual(templates.map(item => item.id).sort());
+});
+
+test('SC-06-04 템플릿 목록은 휠로 스크롤하고 아래 항목을 선택한 뒤 탭 전환해도 유지된다', async ({ page, app }) => {
+    const templates = await seedTemplateList(app);
+    await openEditor(page);
+    await tab(page, 'templates').click();
+    const list = page.locator('#templates-grid-list');
+    await expect.poll(() => list.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
+    await list.hover();
+    await page.mouse.wheel(0, 10000);
+    await expect.poll(() => list.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+    const last = page.locator(`.template-grid-item[data-id="${templates.at(-1).id}"]`);
+    await expect(last).toBeInViewport();
+    await last.click();
+    await tab(page, 'text').click();
+    await tab(page, 'templates').click();
+    await expect.poll(() => page.evaluate(() => [...selectedTemplateIds])).toEqual([templates.at(-1).id]);
+    await expect(last).toBeInViewport();
+    await expect(page.locator('#btn-apply-template-bulk')).toBeEnabled();
+});
+
+for (const close of ['btn-modal-cancel', 'btn-modal-close']) {
+    test(`SC-06-02 템플릿 적용 ${close}는 선택 내용을 저장하지 않고 다시 열 때 초기화한다`, async ({ page, app }) => {
+        const id = await templateFixture(app);
+        const before = (await app.exportProject(id)).slides.map(item => ({ id: item.id, elements: item.elements }));
+        await openEditor(page);
+        await tab(page, 'templates').click();
+        await page.locator('.template-grid-item').click();
+        await page.locator('#btn-apply-template-bulk').click();
+        await expect(page.locator('.modal-slide-item.selected')).toHaveCount(1);
+        await page.locator('.modal-slide-item').nth(1).click({ modifiers: ['Control'] });
+        await expect(page.locator('.modal-slide-item.selected')).toHaveCount(2);
+        await page.locator(`#${close}`).click();
+        await expect(page.locator('#template-apply-modal')).toBeHidden();
+        expect((await app.exportProject(id)).slides.map(item => ({ id: item.id, elements: item.elements }))).toEqual(before);
+        await page.locator('#btn-apply-template-bulk').click();
+        await expect(page.locator('.modal-slide-item.selected')).toHaveCount(1);
+        await page.locator('.modal-slide-item').first().click({ modifiers: ['Control'] });
+        await expect(page.locator('.modal-slide-item.selected')).toHaveCount(0);
+        await page.locator('#btn-modal-confirm').click();
+        await expect(page.locator('#template-apply-modal')).toBeVisible();
+        expect((await app.exportProject(id)).slides.map(item => ({ id: item.id, elements: item.elements }))).toEqual(before);
+        await page.locator('#btn-modal-cancel').click();
+    });
 }
 
 for (const undo of [false, true]) {

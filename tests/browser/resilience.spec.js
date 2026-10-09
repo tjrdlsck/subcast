@@ -63,16 +63,115 @@ test('SC-15-06 two editors on different slides preserve both saves', async ({ pa
   expect(data.slides[1].elements.some(element => element.content === '편집자 B 변경')).toBe(true);
 });
 
-test('SC-15-01 arrow keys move the selected shape by 1 and Shift by 10', async ({ page, app }) => {
+test('SC-15-01 every arrow direction moves the selected shape by 1 and Shift by 10', async ({ page, app }) => {
   await openEditor(page);
   await page.locator('[data-target="panel-shapes"]').click();
   await page.locator('#btn-add-rect').click();
   const before = await page.evaluate(() => ({ left: canvas.getActiveObject().left, top: canvas.getActiveObject().top }));
-  await page.keyboard.press('ArrowRight');
-  await page.keyboard.press('Shift+ArrowDown');
-  const after = await page.evaluate(() => ({ left: canvas.getActiveObject().left, top: canvas.getActiveObject().top }));
-  expect(after).toEqual({ left: before.left + 1, top: before.top + 10 });
+  const expected = { ...before };
+  for (const shift of [false, true]) {
+    for (const [key, axis, direction] of [['ArrowRight', 'left', 1], ['ArrowDown', 'top', 1], ['ArrowLeft', 'left', -1], ['ArrowUp', 'top', -1]]) {
+      await page.keyboard.press(`${shift ? 'Shift+' : ''}${key}`);
+      expected[axis] += direction * (shift ? 10 : 1);
+      await expect.poll(() => page.evaluate(() => ({ left: canvas.getActiveObject().left, top: canvas.getActiveObject().top }))).toEqual(expected);
+    }
+  }
   await expect.poll(async () => (await app.exportProject()).slides[0].elements.length).toBe(2);
+});
+
+test('SC-15-01 Ctrl+G toggles slide sorter and Escape returns to the active slide', async ({ page }) => {
+  await openEditor(page);
+  const activeId = await page.evaluate(() => activeSlideId);
+  const sorter = page.locator('#slide-sorter-overlay');
+  await page.keyboard.press('Control+g');
+  await expect(sorter).toBeVisible();
+  await expect(page.locator('.sorter-card')).toHaveCount(2);
+  await page.keyboard.press('Control+g');
+  await expect(sorter).toBeHidden();
+  await page.keyboard.press('Control+g');
+  await expect(sorter).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(sorter).toBeHidden();
+  await expect.poll(() => page.evaluate(() => activeSlideId)).toBe(activeId);
+  await expect(page.locator(`#slide-item-${activeId}`)).toHaveClass(/editing/);
+});
+
+test('SC-15-03 canvas zoom buttons resize the canvas and enforce 30 to 300 percent bounds', async ({ page, app }) => {
+  await openEditor(page);
+  const before = (await app.exportProject()).slides;
+  const dimensions = () => page.locator('.canvas-wrapper').evaluate(element => ({ width: element.getBoundingClientRect().width, height: element.getBoundingClientRect().height }));
+  const base = await dimensions();
+  await page.locator('#btn-zoom-in').click();
+  await expect(page.locator('#zoom-percent')).toHaveText('110%');
+  const larger = await dimensions();
+  expect(larger.width).toBeGreaterThan(base.width);
+  expect(larger.height).toBeGreaterThan(base.height);
+  await page.locator('#btn-zoom-reset').click();
+  await expect(page.locator('#zoom-percent')).toHaveText('100%');
+  for (let i = 0; i < 9; i++) await page.locator('#btn-zoom-out').click();
+  await expect(page.locator('#zoom-percent')).toHaveText('30%');
+  for (let i = 0; i < 29; i++) await page.locator('#btn-zoom-in').click();
+  await expect(page.locator('#zoom-percent')).toHaveText('300%');
+  await page.locator('#btn-zoom-reset').click();
+  await expect(page.locator('#zoom-percent')).toHaveText('100%');
+  await expect.poll(dimensions).toEqual(base);
+  expect((await app.exportProject()).slides.map(slide => slide.elements)).toEqual(before.map(slide => slide.elements));
+});
+
+test('SC-15-03 actual Alt and Ctrl wheel inputs zoom the canvas while ordinary wheel leaves scale unchanged', async ({ page }) => {
+  await openEditor(page);
+  const canvasSurface = page.locator('.upper-canvas');
+  await canvasSurface.hover();
+  await page.mouse.wheel(0, -100);
+  await expect(page.locator('#zoom-percent')).toHaveText('100%');
+  await page.keyboard.down('Alt');
+  await page.mouse.wheel(0, -100);
+  await expect(page.locator('#zoom-percent')).toHaveText('105%');
+  await page.mouse.wheel(0, 100);
+  await expect(page.locator('#zoom-percent')).toHaveText('100%');
+  await page.keyboard.up('Alt');
+  await page.keyboard.down('Control');
+  await page.mouse.wheel(0, -100);
+  await expect(page.locator('#zoom-percent')).toHaveText('105%');
+  await page.keyboard.up('Control');
+  await page.locator('#btn-zoom-reset').click();
+  await expect(page.locator('#zoom-percent')).toHaveText('100%');
+});
+
+test('SC-03-08 sorter scroll, Ctrl wheel zoom and double click reveal the selected slide in the sidebar', async ({ page, app }) => {
+  const fixture = await app.exportProject();
+  fixture.slides = Array.from({ length: 50 }, (_, index) => ({ ...fixture.slides[0], id: `scroll_slide_${index}`, name: `스크롤 슬라이드 ${index + 1}` }));
+  fixture.settings.currentLiveSlideId = fixture.slides[0].id;
+  await app.seedProject(fixture);
+  await openEditor(page);
+  await page.keyboard.press('Control+g');
+  const body = page.locator('#slide-sorter-body');
+  await expect(body).toBeVisible();
+  await body.hover();
+  await page.mouse.wheel(0, 1000);
+  await expect.poll(() => body.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+  await page.keyboard.down('Control');
+  await page.mouse.wheel(0, -100);
+  await expect(page.locator('#input-sorter-zoom')).toHaveValue('250');
+  await page.keyboard.up('Control');
+  await page.locator('#btn-sorter-zoom-out').click();
+  await expect(page.locator('#input-sorter-zoom')).toHaveValue('220');
+  await page.locator('#btn-sorter-zoom-reset').click();
+  await expect(page.locator('#input-sorter-zoom')).toHaveValue('220');
+  await page.locator('#sorter-card-scroll_slide_49').dblclick();
+  await expect(page.locator('#slide-sorter-overlay')).toBeHidden();
+  await expect.poll(() => page.evaluate(() => activeSlideId)).toBe('scroll_slide_49');
+  const sidebar = page.locator('#panel-slides .panel-body');
+  await expect.poll(() => sidebar.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+  await expect.poll(() => page.locator('#slide-item-scroll_slide_49').evaluate(element => {
+    const item = element.getBoundingClientRect();
+    const parent = element.closest('.panel-body').getBoundingClientRect();
+    return item.top >= parent.top && item.bottom <= parent.bottom;
+  })).toBe(true);
+  await sidebar.hover();
+  const bottom = await sidebar.evaluate(element => element.scrollTop);
+  await page.mouse.wheel(0, -1000);
+  await expect.poll(() => sidebar.evaluate(element => element.scrollTop)).toBeLessThan(bottom);
 });
 
 test('SC-15-03 zoom and panel display do not change stored geometry', async ({ page, app }) => {
