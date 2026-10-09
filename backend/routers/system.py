@@ -25,7 +25,11 @@ router = APIRouter(prefix="/api/system", tags=["system"])
 
 def _read_version() -> str:
     base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
-    for candidate in (os.path.join(base, "version.txt"), os.path.join(base, "..", "version.txt")):
+    for candidate in (
+        os.path.join(base, "version.txt"),
+        os.path.join(base, "..", "version.txt"),
+        os.path.join(base, "..", "..", "version.txt"),
+    ):
         try:
             value = Path(candidate).read_text(encoding="utf-8").strip()
             if value:

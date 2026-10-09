@@ -27,6 +27,13 @@ def test_get_system_version():
     assert response.json()["version"] == system.CURRENT_VERSION
 
 
+def test_source_version_matches_repository_version_file():
+    from pathlib import Path
+
+    expected = (Path(__file__).resolve().parents[1] / "version.txt").read_text(encoding="utf-8").strip()
+    assert system.CURRENT_VERSION == expected
+
+
 def test_parse_version_rejects_malformed_values():
     assert system._parse_ver("v1.3.17") == (1, 3, 17)
     for malformed in ("1.3.17-beta", "1..2", "https://host/file.exe", ""):
