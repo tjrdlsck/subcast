@@ -26,3 +26,37 @@ jobs:
     - name: Run tests
       run: |
         pytest
+
+  browser:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      SUBCAST_TEST_PYTHON: python
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: npm
+    - name: Install browser test dependencies
+      run: |
+        pip install -r requirements.txt
+        if ($LASTEXITCODE -ne 0) { throw 'Python dependencies failed' }
+        npm ci --ignore-scripts
+        if ($LASTEXITCODE -ne 0) { throw 'Browser test dependencies failed' }
+        npm run test:browser:setup
+        if ($LASTEXITCODE -ne 0) { throw 'Browser test asset preparation failed' }
+        npx playwright install msedge
+        if ($LASTEXITCODE -ne 0) { throw 'Browser installation failed' }
+    - name: Run real browser scenarios
+      run: npm run test:browser
+    - name: Preserve browser reports and failure evidence
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: browser-regression
+        path: test_results/browser/
+        retention-days: 7

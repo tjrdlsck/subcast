@@ -1,0 +1,13 @@
+{
+  "name": "subcast-browser-tests",
+  "private": true,
+  "scripts": {
+    "test:browser:setup": "node tests/browser/prepare.js",
+    "test:browser": "node tests/browser/run.js",
+    "test:browser:visible": "node tests/browser/run.js --headed --workers=1",
+    "test:browser:report": "node tests/browser/run.js --report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1"
+  }
+}
