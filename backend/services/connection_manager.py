@@ -45,14 +45,31 @@ class ConnectionManager:
             if self.project_data:
                 self.project_data.templates = await load_global_templates()
 
+            # 편집기는 우선 슬라이드 정보부터 열고, 큰 썸네일은 별도 메시지로 받습니다.
+            project_data = self.project_data.model_dump() if self.project_data else {}
+            thumbnails = {}
+            if role == "editor":
+                for slide in project_data.get("slides", []):
+                    thumbnail = slide.get("thumbnail")
+                    if thumbnail:
+                        thumbnails[slide["id"]] = thumbnail
+                    slide["thumbnail"] = None
+
             # 최초 연결 시, 현재 캐시된 전체 데이터를 전송하여 동기화
             initial_payload = {
                 "type": "INITIAL_SYNC",
-                "data": self.project_data.model_dump() if self.project_data else {},
+                "data": project_data,
                 "lockedSlides": self.locked_slides,
-                "historyCount": len(self.project_history)
+                "historyCount": len(self.project_history),
+                "thumbnailsPending": bool(thumbnails),
             }
             await websocket.send_text(json.dumps(initial_payload))
+            if thumbnails:
+                await websocket.send_text(json.dumps({
+                    "type": "THUMBNAILS_SYNC",
+                    "projectId": project_data.get("id"),
+                    "thumbnails": thumbnails,
+                }))
         else:
             await websocket.close(code=4000, reason="Invalid role parameter")
 

@@ -4,6 +4,23 @@
 
         let editorPageLeaving = false;
         let reconnectTimerId = null;
+        let editorThumbnailsPending = false;
+
+        function generateMissingSlideThumbnails() {
+            if (editorThumbnailsPending || !projectData?.slides?.length) return;
+            const missingSlides = projectData.slides.filter(slide => !slide.thumbnail);
+            if (!missingSlides.length) return;
+
+            (async () => {
+                const batchSize = 2;
+                for (let i = 0; i < missingSlides.length; i += batchSize) {
+                    const batch = missingSlides.slice(i, i + batchSize);
+                    await Promise.all(batch.map(slide => autoGenerateThumbnail(slide)));
+                    updateSlideListItem(batch[0].id);
+                    if (batch[1]) updateSlideListItem(batch[1].id);
+                }
+            })();
+        }
 
         function checkIsLockedByOthers(slideId) {
             if (!lockedSlides || !slideId) return false;
@@ -194,6 +211,20 @@
                         resolveSave(message);
                     }
                 }
+                else if (message.type === 'THUMBNAILS_SYNC') {
+                    if (!projectData || message.projectId !== projectData.id) return;
+                    const slidesById = new Map(projectData.slides.map(slide => [slide.id, slide]));
+                    for (const [slideId, thumbnail] of Object.entries(message.thumbnails || {})) {
+                        const slide = slidesById.get(slideId);
+                        if (slide && !slide.thumbnail) {
+                            slide.thumbnail = thumbnail;
+                            updateSlideListItem(slideId);
+                        }
+                    }
+                    editorThumbnailsPending = false;
+                    if (isSlideSorterOpen) renderSlideSorter();
+                    generateMissingSlideThumbnails();
+                }
                 else if (message.type === 'MOOD_TAGS_UPDATED') {
                     if (Array.isArray(message.tags)) {
                         window.moodTags = message.tags;
@@ -211,6 +242,7 @@
                             elements: canvas.getObjects().map(obj => serializeElement(obj, BASE_WIDTH, BASE_HEIGHT)) };
                     }
                     projectData = data;
+                    editorThumbnailsPending = message.thumbnailsPending === true;
                     window.restoreStageBgSettings?.(projectData.settings?.stageBackground);
                     if (message.lockedSlides) {
                         lockedSlides = {};
@@ -293,21 +325,7 @@
                         undoBtn.disabled = !(message.historyCount && message.historyCount > 0);
                     }
 
-                    // 썸네일이 없는 슬라이드가 있다면 배치(Batch Size 2) 단위로 순차 생성하여 메모리 스파이크 방지
-                    if (projectData.slides && projectData.slides.length > 0) {
-                        const missingSlides = projectData.slides.filter(s => !s.thumbnail);
-                        if (missingSlides.length > 0) {
-                            (async () => {
-                                const batchSize = 2;
-                                for (let i = 0; i < missingSlides.length; i += batchSize) {
-                                    const batch = missingSlides.slice(i, i + batchSize);
-                                    await Promise.all(batch.map(slide => autoGenerateThumbnail(slide)));
-                                    updateSlideListItem(batch[0].id);
-                                    if (batch[1]) updateSlideListItem(batch[1].id);
-                                }
-                            })();
-                        }
-                    }
+                    generateMissingSlideThumbnails();
                 }
                 else if (message.type === 'SLIDE_LOCKED') {
                     lockedSlides[message.slideId] = { ownerId: message.ownerId, editorName: message.editorName };
