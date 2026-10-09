@@ -1,8 +1,10 @@
 import os
 import sys
 import sqlite3
+import logging
 from typing import List, Dict, Any
 
+logger = logging.getLogger(__name__)
 APP_DATA_DIR = os.environ.get("SUBCAST_DATA_DIR", ".")
 
 
@@ -87,7 +89,7 @@ class BibleDatabaseHelper:
                         from parse_bible import parse_and_import_krv
                         parse_and_import_krv(db_path=self.db_path)
                     except Exception as e:
-                        print(f"자동 성경 파싱 실패: {e}")
+                        logger.warning("Automatic Bible parsing failed: %s", e)
                 conn.commit()
             finally:
                 conn.close()

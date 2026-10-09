@@ -2,6 +2,7 @@ import os
 import sys
 import inspect
 import ast
+import subprocess
 import pytest
 
 # Add parent directory to sys.path
@@ -117,6 +118,26 @@ def test_bible_service_read_only_connection():
         assert cnt >= 0
     finally:
         conn.close()
+
+def test_bible_parser_failure_does_not_break_startup_with_legacy_console(tmp_path):
+    """Missing optional Bible source data must not crash startup on Windows code pages."""
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = ROOT
+    environment["SUBCAST_DATA_DIR"] = str(tmp_path)
+    environment["PYTHONIOENCODING"] = "cp1252"
+
+    result = subprocess.run(
+        [sys.executable, "-c", "from backend.services.bible_service import BibleDatabaseHelper"],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=15,
+    )
+
+    assert result.returncode == 0, result.stderr
 
 def test_run_py_has_threading_import():
     """run.py에 threading 모듈 임포트가 있어야 함"""
