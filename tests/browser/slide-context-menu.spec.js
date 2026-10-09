@@ -168,9 +168,11 @@ test('배경 지정 모달의 X 화면 좌표를 마우스로 누르면 닫기 �
   const hit = await page.evaluate(({ x, y }) => {
     const target = document.elementFromPoint(x, y);
     return { id: target?.id, text: target?.textContent?.trim() };
-  }, { x: box.x + box.width / 2, y: box.y + box.height / 2 });
-  console.log('Background modal X mouse hit target:', hit);
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  }, { x: box.x + box.width - 4, y: box.y + 4 });
+  expect(box.width).toBeGreaterThanOrEqual(36);
+  expect(box.height).toBeGreaterThanOrEqual(36);
+  expect(hit.id).toBe('btn-slide-bg-modal-close');
+  await page.mouse.click(box.x + box.width - 4, box.y + 4);
   await expect(modal).toBeHidden();
 });
 
