@@ -121,7 +121,7 @@ test('SC-04-01 글자 크기는 다른 슬라이드에 갔다 돌아와도 유�
     await page.locator('#fontsize-editor').fill('42');
     await page.locator('#fontsize-editor').press('Tab');
     await returnToSlideAndSelectTopLayer(page);
-    expect(await page.evaluate(() => canvas.getActiveObject().fontSize)).toBe(42);
+    expect(await page.evaluate(() => canvas.getActiveObject().fontSize)).toBeCloseTo(42, 2);
     await expect(page.locator('#fontsize-editor')).toHaveValue('42');
 });
 

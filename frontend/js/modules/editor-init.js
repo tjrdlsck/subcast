@@ -205,6 +205,7 @@
                         width: curWidth,
                         splitByGrapheme: true
                     });
+                    currentEditingElement.originalVwSize = `${(pxSize / BASE_WIDTH * 100).toFixed(4)}vw`;
                     canvas.renderAll();
                     if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) {
                         if (typeof window.subcastMonitorEditor.notifyMonitorChanged === 'function') {
