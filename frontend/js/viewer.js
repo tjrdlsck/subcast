@@ -234,7 +234,10 @@
                 }, savedLayout || {});
 
                 // 1. 반투명 자막 바 (활성화된 경우)
-                if (layout.hasBgBar) {
+                const hasLyricContent = currentSlide.elements?.some(elem =>
+                    ['text', 'i-text', 'textbox'].includes(elem.type) && String(elem.content || '').trim()
+                );
+                if (layout.hasBgBar && hasLyricContent) {
                     const barObj = deserializeElement({
                         id: "elem_praise_broadcast_bar",
                         type: "rect",
