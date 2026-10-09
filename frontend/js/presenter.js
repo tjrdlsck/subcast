@@ -309,16 +309,16 @@
 
             // 상단 LIVE 배지 아이콘 상태 및 클릭 이벤트 업데이트
             const liveBadge = document.getElementById("live-status-badge");
-            const hasLiveSlide = !!projectData.settings?.currentLiveSlideId;
             if (liveBadge) {
                 liveBadge.style.cursor = "pointer";
-                if (hasLiveSlide) {
+                if (projectData.settings?.currentLiveSlideId) {
                     liveBadge.classList.add("on");
                 } else {
                     liveBadge.classList.remove("on");
                 }
                 liveBadge.onclick = () => {
-                    if (hasLiveSlide) {
+                    const liveSlideId = projectData.settings?.currentLiveSlideId;
+                    if (liveSlideId) {
                         // 송출 중일 때는 송출 끄기 (OFF)
                         changeSlide(null);
                     } else {
