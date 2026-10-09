@@ -298,6 +298,26 @@ test('SC-09-03 keyword length guard and Enter search use fixture text', async ({
   await expect(page.locator('#bible-results-list .bible-result-item')).toHaveCount(5);
 });
 
+test('SC-09-09 성경 조회 API 실패는 빈 결과와 구분되고 복구 후 다시 조회된다', async ({ page, app }) => {
+  const before = (await project(app)).slides.map(slide => ({ id: slide.id, elements: slide.elements }));
+  await openEditor(page, app);
+  await page.locator('[data-target="panel-bible"]').click();
+  await page.locator('#input-bible-book-filter').fill('창세기');
+  await page.locator('.bible-book-dropdown-item').filter({ hasText: '창세기' }).click();
+  await page.locator('#input-bible-chapter').fill('1');
+  await page.locator('#input-bible-start-verse').fill('1');
+  await page.locator('#input-bible-end-verse').fill('1');
+  await page.route('**/api/bible/read**', route => route.fulfill({ status: 503, body: 'fixture failure' }));
+  expect(await alertFrom(page, () => page.locator('#btn-bible-fetch').click())).toContain('실패');
+  await expect(page.locator('#bible-results-list .bible-result-item')).toHaveCount(0);
+  expect((await project(app)).slides.map(slide => ({ id: slide.id, elements: slide.elements }))).toEqual(before);
+
+  await page.unroute('**/api/bible/read**');
+  await page.locator('#btn-bible-fetch').click();
+  await expect(page.locator('#bible-results-list .bible-result-item')).toHaveCount(1);
+  expect((await project(app)).slides.map(slide => ({ id: slide.id, elements: slide.elements }))).toEqual(before);
+});
+
 test('SC-09-05 click, Shift range and select-all keep counts consistent', async ({ page, app }) => {
   await bible(page, app);
   const rows = page.locator('#bible-results-list .bible-result-item');
