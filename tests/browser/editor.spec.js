@@ -500,6 +500,33 @@ for (const undo of [false, true]) {
     });
 }
 
+test('SC-08-05 템플릿의 지정한 두 번째 글상자에 기존 문구 연결', async ({ page, app }) => {
+    const data = await app.exportProject();
+    data.templates = [{ id: 'tpl_two_text', name: '두 글상자 템플릿', elements: [
+        { id: 'tpl_title', type: 'text', content: '제목 자리', x: 10, y: 10, width: 80, height: 15, style: { fontSize: '3vw', fontColor: '#ff0000' } },
+        { id: 'tpl_lyrics', type: 'text', content: '가사 자리', x: 10, y: 40, width: 80, height: 30, style: { fontSize: '5vw', fontColor: '#00ff00' } },
+        { id: 'tpl_shape', type: 'rect', content: '', x: 0, y: 0, width: 100, height: 100, style: { fillColor: '#123456' } },
+    ] }];
+    const id = await app.seedProject(data);
+    const response = await app.request.post('/api/templates/import', { multipart: { file: {
+        name: 'two-text-template.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(data.templates)),
+    } } });
+    expect(response.ok()).toBeTruthy();
+
+    await openEditor(page);
+    await tab(page, 'templates').click();
+    await page.locator('.template-grid-item').filter({ hasText: '두 글상자 템플릿' }).click();
+    await page.locator('#btn-apply-template-bulk').click();
+    await page.locator('#select-modal-target-textbox').selectOption('tpl_lyrics');
+    await page.locator('#btn-modal-confirm').click();
+
+    await expect.poll(async () => (await app.exportProject(id)).slides[0].elements.length).toBe(3);
+    const elements = (await app.exportProject(id)).slides[0].elements;
+    expect(elements.map(element => element.content)).toEqual(['제목 자리', '첫 번째 테스트 자막', '']);
+    expect(elements[1].style.fontColor).toBe('#00ff00');
+    expect(elements[2]).toMatchObject({ type: 'rect', width: 100, height: 100 });
+});
+
 for (const accept of [false, true]) {
     test(`SC-06-05 템플릿 삭제 ${accept ? '확정' : '취소'}`, async ({ page, app }) => {
         const id = await templateFixture(app);
