@@ -563,6 +563,45 @@ test('SC-10-05 썸네일 유무와 관계없이 영상 목록과 원본 영상�
   }
 });
 
+test('SC-11-09 편집기 두 창의 태그 갱신과 새 자료 생성', async ({ page, context, app }) => {
+  const existingBg = await seedBackground(app, 'existing-background.mp4');
+  const data = await app.exportProject();
+  data.slides[0].praiseGroupId = 'existing-group';
+  const id = await app.seedProject(data);
+  const second = await context.newPage();
+  await openEditor(page, app);
+  await backgroundModal(page, 'slide_a');
+  await page.locator('.slide-bg-modal-item-card').filter({ hasText: existingBg.filename }).click();
+  await expect.poll(async () => (await app.exportProject(id)).slides[0].overrideBgId).toBe(existingBg.filename);
+  const existingAssignment = (await app.exportProject(id)).slides[0].overrideBgId;
+  await page.locator('#slide-item-slide_b').click();
+  await expect(page.locator('#slide-item-slide_b')).toHaveClass(/editing/);
+  await openEditor(second, app);
+
+  await page.locator('[data-target="panel-praise"]').click();
+  await page.locator('#praise-mood-filter-chips .btn-open-tag-manager').click();
+  await page.locator('#input-new-mood-tag').fill('SC11 이전 태그');
+  await page.locator('#btn-add-mood-tag').click();
+  const oldTag = page.locator('.mood-tag-row').filter({ hasText: 'SC11 이전 태그' });
+  await expect(oldTag).toBeVisible();
+  page.once('dialog', dialog => dialog.accept('SC11 새 태그'));
+  await oldTag.getByRole('button', { name: '이름 변경' }).click();
+  await expect(page.locator('.mood-tag-row').filter({ hasText: 'SC11 새 태그' })).toBeVisible();
+  await expect.poll(() => second.evaluate(() => window.moodTags.some(tag => tag.name === 'SC11 새 태그'))).toBe(true);
+  await second.locator('[data-target="panel-praise"]').click();
+  await expect(second.locator('#praise-mood-filter-chips [data-filter="SC11 새 태그"]')).toBeVisible();
+
+  await second.locator('#btn-praise-open-add-modal').click();
+  await second.locator('#modal-praise-title').fill('새 태그 곡');
+  await second.locator('#modal-praise-lyrics').fill('새 태그의 가사');
+  await second.locator('#modal-praise-mood-chips [data-mood="SC11 새 태그"]').click();
+  await second.locator('#btn-praise-modal-save').click();
+  await expect(second.locator('#praise-add-modal')).toBeHidden();
+  expect((await songs(app)).find(song => song.title === '새 태그 곡').mood).toBe('SC11 새 태그');
+  const saved = await app.exportProject(id);
+  expect(saved.slides[0]).toMatchObject({ praiseGroupId: 'existing-group', overrideBgId: existingAssignment });
+});
+
 test('SC-10-07 rename Escape cancels and collision rejects without removing either file', async ({ page, app }) => {
   const first = await seedBackground(app, 'rename-one.mp4');
   const second = await seedBackground(app, 'rename-two.mp4');
