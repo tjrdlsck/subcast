@@ -534,7 +534,8 @@
                 if (message.type === 'INITIAL_SYNC') {
                     projectData = message.data;
                     applyProjectFonts(projectData.customFonts);
-                    lockedSlides = message.lockedSlides || {};
+                    // 초기 동기화에는 편집자 이름이 없고 웹소켓 소유자 ID만 들어온다.
+                    lockedSlides = Object.fromEntries(Object.keys(message.lockedSlides || {}).map(slideId => [slideId, '']));
 
                     if (projectData.settings) {
                         document.getElementById("width-input").value = projectData.settings.targetWidth || 1920;

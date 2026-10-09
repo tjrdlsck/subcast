@@ -2,6 +2,9 @@
 // Subcast Module: editor-sync.js
 // ==========================================================================
 
+        let editorPageLeaving = false;
+        let reconnectTimerId = null;
+
         function checkIsLockedByOthers(slideId) {
             if (!lockedSlides || !slideId) return false;
             const lock = lockedSlides[slideId];
@@ -176,6 +179,7 @@
 
 
         function connectWebSocket() {
+            if (editorPageLeaving) return;
             ws = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws?role=editor`);
             window.ws = ws;
             ws.onmessage = (event) => {
@@ -228,7 +232,10 @@
                         if (keepCanvas) {
                             selectedSlideIds = [activeSlideId];
                         } else if (!activeSlideId || !slideExists || myEditorId === null) {
-                            activeSlideId = slideExists ? activeSlideId : projectData.slides[0].id;
+                            const liveSlideExists = projectData.slides.some(slide => slide.id === projectData.settings?.currentLiveSlideId);
+                            activeSlideId = slideExists
+                                ? activeSlideId
+                                : liveSlideExists ? projectData.settings.currentLiveSlideId : projectData.slides[0].id;
                             selectedSlideIds = [activeSlideId];
                             selectSlideForEdit(activeSlideId, true);
                         } else {
@@ -389,9 +396,29 @@
                     text.innerText = "연결 끊김";
                 }
                 handleOffline();
-                setTimeout(connectWebSocket, 3000);
+                if (!editorPageLeaving) {
+                    reconnectTimerId = setTimeout(connectWebSocket, 3000);
+                }
             };
         }
+
+        window.addEventListener("pagehide", () => {
+            editorPageLeaving = true;
+            if (reconnectTimerId) {
+                clearTimeout(reconnectTimerId);
+                reconnectTimerId = null;
+            }
+            releaseActiveLock();
+            if (ws && ws.readyState < WebSocket.CLOSING) {
+                ws.close(1000, "Editor page hidden");
+            }
+        });
+
+        window.addEventListener("pageshow", event => {
+            if (!event.persisted) return;
+            editorPageLeaving = false;
+            if (!ws || ws.readyState === WebSocket.CLOSED) connectWebSocket();
+        });
 
 
         function handleOffline() {
