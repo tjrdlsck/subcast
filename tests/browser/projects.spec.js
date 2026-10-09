@@ -14,6 +14,138 @@ async function second(app) {
     return (await response.json()).id;
 }
 
+async function addProjects(app, names) {
+    for (const name of names) {
+        const response = await app.request.post('/api/projects', { data: { name } });
+        expect(response.ok()).toBe(true);
+    }
+}
+async function selectedIds(page) {
+    return page.locator('.project-item.selected').evaluateAll(items => items.map(element => element.dataset.id));
+}
+async function expectSelection(page, ids) {
+    await expect.poll(() => selectedIds(page)).toEqual(ids);
+    await expect(page.locator('.project-item .selected-badge')).toHaveCount(ids.length);
+    if (ids.length) {
+        await expect(page.locator('#selected-count-badge')).toHaveText(`${ids.length}개 선택됨`);
+        await expect(page.locator('#selected-count-badge')).toHaveClass(/show/);
+        await expect(page.locator('#btn-export-selected')).toBeVisible();
+    } else {
+        await expect(page.locator('#selected-count-badge')).not.toHaveClass(/show/);
+        await expect(page.locator('#btn-export-selected')).toBeHidden();
+    }
+}
+
+for (const modifier of ['Control', 'Meta']) {
+    test(`SC-01-04 홈 ${modifier} 클릭은 선택을 추가하고 다시 클릭하면 해제한다`, async ({ page, app }) => {
+        await addProjects(app, ['선택 테스트 B', '선택 테스트 C']);
+        await openList(page);
+        const ids = await page.locator('.project-item').evaluateAll(items => items.map(element => element.dataset.id));
+        await item(page, ids[0]).locator('.project-meta').click();
+        await expectSelection(page, [ids[0]]);
+        await item(page, ids[2]).locator('.project-meta').click({ modifiers: [modifier] });
+        await expectSelection(page, [ids[0], ids[2]]);
+        await item(page, ids[0]).locator('.project-meta').click({ modifiers: [modifier] });
+        await expectSelection(page, [ids[2]]);
+        await item(page, ids[2]).locator('.project-meta').click({ modifiers: [modifier] });
+        await expectSelection(page, []);
+        await item(page, ids[1]).locator('.project-meta').click();
+        await item(page, ids[2]).locator('.project-meta').click();
+        await expectSelection(page, [ids[2]]);
+    });
+}
+
+test('SC-01-04 홈 Shift 클릭은 앞뒤 범위를 선택하고 Ctrl+Shift는 기존 선택을 유지한다', async ({ page, app }) => {
+    await addProjects(app, ['범위 B', '범위 C', '범위 D', '범위 E']);
+    await openList(page);
+    const ids = await page.locator('.project-item').evaluateAll(items => items.map(element => element.dataset.id));
+    await item(page, ids[1]).locator('.project-meta').click();
+    await item(page, ids[3]).locator('.project-meta').click({ modifiers: ['Shift'] });
+    await expectSelection(page, ids.slice(1, 4));
+    await item(page, ids[3]).locator('.project-meta').click();
+    await item(page, ids[0]).locator('.project-meta').click({ modifiers: ['Shift'] });
+    await expectSelection(page, ids.slice(0, 4));
+    await item(page, ids[0]).locator('.project-meta').click();
+    await item(page, ids[3]).locator('.project-meta').click({ modifiers: ['Control'] });
+    await item(page, ids[4]).locator('.project-meta').click({ modifiers: ['Control', 'Shift'] });
+    await expectSelection(page, [ids[0], ids[3], ids[4]]);
+});
+
+for (const accept of [false, true]) {
+    test(`SC-01-05 홈 Delete 다중 삭제 ${accept ? '확정은 선택한 프로젝트만 삭제한다' : '취소는 선택과 데이터를 보존한다'}`, async ({ page, app }) => {
+        await addProjects(app, ['삭제 B', '삭제 C', '삭제 D']);
+        await openList(page);
+        const ids = await page.locator('.project-item').evaluateAll(items => items.map(element => element.dataset.id));
+        const before = await Promise.all(ids.map(id => app.exportProject(id)));
+        const selected = [ids[1], ids[3]];
+        await item(page, selected[0]).locator('.project-meta').click();
+        await item(page, selected[1]).locator('.project-meta').click({ modifiers: ['Control'] });
+        await expectSelection(page, selected);
+        const confirmation = page.waitForEvent('dialog');
+        const deletion = page.keyboard.press('Delete');
+        const dialog = await confirmation;
+        expect(dialog.type()).toBe('confirm');
+        expect(dialog.message()).toContain('선택한 2개의 프로젝트');
+        if (accept) await dialog.accept();
+        else await dialog.dismiss();
+        await deletion;
+        await expect(page.locator('.project-item')).toHaveCount(accept ? 2 : 4);
+        const survivors = accept ? ids.filter(id => !selected.includes(id)) : ids;
+        await expect.poll(async () => (await list(app)).map(project => project.id).sort()).toEqual([...survivors].sort());
+        await expectSelection(page, accept ? [] : selected);
+        for (const id of survivors) {
+            expect((await app.exportProject(id)).slides).toEqual(before.find(project => project.id === id).slides);
+        }
+        await page.reload();
+        await expect(page.locator('.project-item')).toHaveCount(survivors.length);
+        await expectSelection(page, []);
+    });
+}
+
+test('SC-01-05 홈 검색 입력과 이름 편집 중 Delete는 프로젝트를 삭제하지 않는다', async ({ page, app }) => {
+    await second(app);
+    await openList(page);
+    const before = await list(app);
+    let dialogs = 0;
+    page.on('dialog', async dialog => { dialogs++; await dialog.dismiss(); });
+    await item(page).locator('.project-meta').click();
+    await page.locator('#project-search-input').fill('브라우저');
+    await page.locator('#project-search-input').press('Home');
+    await page.locator('#project-search-input').press('Delete');
+    await expect(page.locator('#project-search-input')).toHaveValue('라우저');
+    await page.locator('#project-search-input').fill('');
+    await expect(page.locator('.project-item')).toHaveCount(2);
+    await item(page).locator('.project-name').dblclick();
+    await page.locator('.project-name-input').press('Home');
+    await page.locator('.project-name-input').press('Delete');
+    await expect(page.locator('.project-name-input')).toHaveValue('라우저 테스트');
+    await page.locator('.project-name-input').press('Escape');
+    await expect(item(page).locator('.project-name')).toHaveText('브라우저 테스트');
+    expect(dialogs).toBe(0);
+    expect(await list(app)).toEqual(before);
+});
+
+test('SC-01-04 홈 검색은 선택을 보존하고 필터된 목록의 Shift 범위를 선택한다', async ({ page, app }) => {
+    await addProjects(app, ['필터 예배 A', '필터 예배 B', '필터 예배 C', '다른 모임']);
+    await openList(page);
+    await item(page).locator('.project-meta').click();
+    await page.locator('#project-search-input').fill('필터 예배');
+    await expect(page.locator('.project-item')).toHaveCount(3);
+    await expect(page.locator('#selected-count-badge')).toHaveText('1개 선택됨');
+    const filtered = await page.locator('.project-item').evaluateAll(items => items.map(element => element.dataset.id));
+    await item(page, filtered[0]).locator('.project-meta').click();
+    await item(page, filtered[2]).locator('.project-meta').click({ modifiers: ['Shift'] });
+    await expectSelection(page, filtered);
+    await page.locator('#project-search-input').fill('존재하지않는프로젝트');
+    await expect(page.locator('.project-item')).toHaveCount(0);
+    await expect(page.locator('.empty-projects')).toContainText('검색 결과와 일치하는 프로젝트가 없습니다');
+    await expect(page.locator('#selected-count-badge')).toHaveText('3개 선택됨');
+    await page.locator('#project-search-input').fill('');
+    await expect(page.locator('.project-item')).toHaveCount(5);
+    await expectSelection(page, filtered);
+    await expect(item(page)).not.toHaveClass(/selected/);
+});
+
 test('SC-01-01 UI 프로젝트 생성과 서버 재실행', async ({ page, app }) => {
     await openList(page);
     await create(page, '테스트 예배 A');
