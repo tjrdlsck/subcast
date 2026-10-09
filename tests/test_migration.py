@@ -3,10 +3,12 @@ import shutil
 import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from backend.services.migration_service import migrate_legacy_db_if_needed
 from backend.services.praise_service import PraiseDatabaseHelper
 from backend.monitor_repository import MonitorSettingsRepository
+from backend.services.launcher_utils import copy_missing_tree
 
 
 class TestDataMigration(unittest.TestCase):
@@ -100,6 +102,40 @@ class TestDataMigration(unittest.TestCase):
         # 6. Verify backup created
         backup_path = os.path.join(self.appdata_dir, "GAE_Bible.db.legacy_backup")
         self.assertTrue(os.path.exists(backup_path))
+
+    def test_legacy_file_copy_preserves_appdata_and_is_idempotent(self):
+        source = Path(self.install_dir) / "data"
+        destination = Path(self.appdata_dir) / "data"
+        (source / "projects").mkdir(parents=True, exist_ok=True)
+        (source / "projects" / "old.json").write_text("legacy", encoding="utf-8")
+        (source / "projects" / "new.json").write_text("new asset", encoding="utf-8")
+        (destination / "projects").mkdir(parents=True, exist_ok=True)
+        (destination / "projects" / "old.json").write_text("newer-appdata", encoding="utf-8")
+
+        copy_missing_tree(source, destination)
+        copy_missing_tree(source, destination)
+
+        self.assertEqual((destination / "projects" / "old.json").read_text(encoding="utf-8"), "newer-appdata")
+        self.assertEqual((destination / "projects" / "new.json").read_text(encoding="utf-8"), "new asset")
+        self.assertEqual(list((destination / "projects").glob("old.json")), [destination / "projects" / "old.json"])
+
+    def test_failed_legacy_copy_keeps_sources_and_existing_appdata(self):
+        source = Path(self.install_dir) / "data"
+        destination = Path(self.appdata_dir) / "data"
+        source.mkdir(parents=True, exist_ok=True)
+        destination.mkdir(parents=True, exist_ok=True)
+        legacy_file = source / "project.json"
+        current_file = destination / "project.json"
+        legacy_file.write_text("legacy", encoding="utf-8")
+        current_file.write_text("current", encoding="utf-8")
+        (source / "another.json").write_text("will fail", encoding="utf-8")
+
+        with patch("backend.services.launcher_utils.shutil.copy2", side_effect=OSError("disk full")):
+            with self.assertRaises(OSError):
+                copy_missing_tree(source, destination)
+
+        self.assertEqual(legacy_file.read_text(encoding="utf-8"), "legacy")
+        self.assertEqual(current_file.read_text(encoding="utf-8"), "current")
 
 
 if __name__ == '__main__':

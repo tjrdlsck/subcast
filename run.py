@@ -1,6 +1,5 @@
 import os
 import sys
-import socket
 import webbrowser
 import uvicorn
 import json
@@ -34,7 +33,12 @@ REPO_NAME = "subcast"
 icon = None
 
 import shutil
-from pathlib import Path
+from backend.services.launcher_utils import (
+    clean_port_input,
+    copy_missing_tree,
+    find_available_port,
+    is_port_available,
+)
 
 appdata_dir = os.getenv("APPDATA")
 if not appdata_dir:
@@ -57,26 +61,6 @@ if getattr(sys, 'frozen', False):
     sys.stderr = log_file
 
 install_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.getcwd()
-
-def copy_missing_tree(source, destination):
-    """Seed legacy app files without ever replacing files already in AppData."""
-    source_path = Path(source)
-    destination_path = Path(destination)
-    if not source_path.is_dir():
-        return
-    for root, _dirs, files in os.walk(source_path):
-        relative = Path(root).relative_to(source_path)
-        target_dir = destination_path / relative
-        target_dir.mkdir(parents=True, exist_ok=True)
-        for filename in files:
-            source_file = Path(root) / filename
-            target_file = target_dir / filename
-            if not target_file.exists():
-                try:
-                    shutil.copy2(source_file, target_file)
-                except FileExistsError:
-                    # Another startup process may have created the destination first.
-                    pass
 
 new_data_dir = os.path.join(subcast_appdata, "data")
 for old_dir in [os.path.join(install_dir, "data"), os.path.join(install_dir, "_internal", "data")]:
@@ -133,27 +117,6 @@ def save_config(config):
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(config, f)
 
-def is_port_available(host: str, port: int) -> bool:
-    """지정된 host 및 port에 소켓 바인딩이 가능한지 점검합니다."""
-    check_hosts = [host] if host not in ["0.0.0.0", ""] else ["127.0.0.1", "0.0.0.0"]
-    for chost in check_hosts:
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind((chost, port))
-        except Exception:
-            return False
-    return True
-
-def find_available_port(host: str, preferred_port: int, max_attempts: int = 50) -> int:
-    """선호 포트 충돌 시 다음 가용 포트(preferred_port + 1 ..)를 자동 탐색합니다."""
-    if is_port_available(host, preferred_port):
-        return preferred_port
-    for offset in range(1, max_attempts + 1):
-        candidate = preferred_port + offset
-        if candidate <= 65535 and is_port_available(host, candidate):
-            return candidate
-    return preferred_port
-
 def open_log_file(icon=None, item=None):
     """현재 로그 파일을 기본 텍스트 뷰어로 엽니다."""
     log_path = os.path.join(subcast_appdata, "subcast.log")
@@ -191,17 +154,6 @@ def is_running(item=None):
 
 def is_stopped(item=None):
     return not is_running()
-
-def clean_port_input(raw_output: str) -> int | None:
-    """PowerShell 출력에서 BOM 및 공백을 제거하고 유효한 포트 번호(1024-65535)를 추출합니다."""
-    if not raw_output:
-        return None
-    cleaned = raw_output.replace('\ufeff', '').strip()
-    if cleaned.isdigit():
-        val = int(cleaned)
-        if 1024 <= val <= 65535:
-            return val
-    return None
 
 def start_server(icon=None, item=None):
     global server_thread
