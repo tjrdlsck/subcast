@@ -337,8 +337,14 @@
                 else if (message.type === 'SLIDE_UNLOCKED') {
                     delete lockedSlides[message.slideId];
                     if (message.slideId === activeSlideId) {
-                        document.getElementById("lock-banner").style.display = "none";
-                        setControlsState(true);
+                        const banner = document.getElementById("lock-banner");
+                        if (banner) banner.style.display = "none";
+                        setControlsState(false);
+                        isLockRequested = true;
+                        const editorName = document.getElementById("editor-name")?.value || "편집자";
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({ type: "LOCK_SLIDE", slideId: activeSlideId, editorName }));
+                        }
                     }
                     updateSlideListItem(message.slideId);
                 }
