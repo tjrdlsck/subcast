@@ -29,6 +29,21 @@
         let targetHeight = 1080;
         const warnedMissingStageBgIds = new Set();
 
+        function applyProjectFonts(fonts) {
+            if (!Array.isArray(fonts)) return;
+            fonts.forEach(font => {
+                if (!font.family || !font.cssCode) return;
+                const styleId = `project-font-${font.family.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+                let style = document.getElementById(styleId);
+                if (!style) {
+                    style = document.createElement('style');
+                    style.id = styleId;
+                    document.head.appendChild(style);
+                }
+                style.textContent = font.cssCode;
+            });
+        }
+
         function warnMissingStageBackground(backgroundId, fallbackType) {
             if (!backgroundId || warnedMissingStageBgIds.has(backgroundId)) return;
             warnedMissingStageBgIds.add(backgroundId);
@@ -513,6 +528,7 @@
 
                 if (message.type === 'INITIAL_SYNC') {
                     projectData = message.data;
+                    applyProjectFonts(projectData.customFonts);
                     lockedSlides = message.lockedSlides || {};
 
                     if (projectData.settings) {

@@ -242,6 +242,11 @@ test('SC-15-04 사용자 글꼴 등록·편집 적용·송출 로드와 실패 �
     const viewer = await context.newPage();
     await viewer.goto('/static/viewer.html?channel=broadcast');
     await expect.poll(() => viewer.evaluate(() => document.fonts.check('16px SC15Fixture'))).toBe(true);
+    await expect.poll(() => viewer.evaluate(() => Array.from(document.fonts).some(font => font.family.replaceAll('"', '') === 'SC15Fixture'))).toBe(true);
+    const presenter = await context.newPage();
+    await presenter.goto('/static/presenter.html');
+    await expect(presenter.locator('#status-text')).toHaveText('연결됨');
+    await expect.poll(() => presenter.evaluate(() => Array.from(document.fonts).some(font => font.family.replaceAll('"', '') === 'SC15Fixture'))).toBe(true);
 
     const registered = (await app.exportProject(id)).customFonts;
     await page.locator('#custom-font-input').fill(`@font-face { font-family: 'SC15Missing'; src: url('${app.url}/static/fonts/missing-sc15.woff'); }`);
