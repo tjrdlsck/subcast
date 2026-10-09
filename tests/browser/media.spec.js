@@ -549,6 +549,20 @@ test('SC-10-04 청크 병합 해시·누락 거부·전송 재시도 확인', as
   expect((await backgrounds(app)).some(file => file.title === 'retry-sc1004.mp4')).toBe(true);
 });
 
+test('SC-10-05 썸네일 유무와 관계없이 영상 목록과 원본 영상은 사용할 수 있다', async ({ app }) => {
+  const uploaded = await seedBackground(app, 'thumbnail-environment.mp4');
+  const files = await backgrounds(app);
+  const item = files.find(file => file.name === uploaded.filename);
+  expect(item).toBeTruthy();
+  expect((await app.request.get(item.url)).ok()).toBe(true);
+  if (item.thumbnailUrl) {
+    const thumbnail = await app.request.get(item.thumbnailUrl);
+    expect(thumbnail.ok()).toBe(true);
+    expect(thumbnail.headers()['content-type']).toContain('image/');
+    expect((await thumbnail.body()).length).toBeGreaterThan(0);
+  }
+});
+
 test('SC-10-07 rename Escape cancels and collision rejects without removing either file', async ({ page, app }) => {
   const first = await seedBackground(app, 'rename-one.mp4');
   const second = await seedBackground(app, 'rename-two.mp4');
