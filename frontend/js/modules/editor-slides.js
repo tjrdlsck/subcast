@@ -1015,14 +1015,16 @@
         // ==========================================================================
         function deleteSlides(slideIds) {
             if (!projectData || !projectData.slides || !slideIds || slideIds.length === 0) return;
+            const deletableSlideIds = slideIds.filter(id => !checkIsLockedByOthers(id));
+            if (deletableSlideIds.length === 0) return;
 
             // 1. 서버로 삭제 전송
             if (typeof ws !== "undefined" && ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: "DELETE_SLIDES", slideIds: slideIds }));
+                ws.send(JSON.stringify({ type: "DELETE_SLIDES", slideIds: deletableSlideIds }));
             }
 
             // 2. 로컬 slides 배열 갱신
-            projectData.slides = projectData.slides.filter(s => !slideIds.includes(s.id));
+            projectData.slides = projectData.slides.filter(s => !deletableSlideIds.includes(s.id));
 
             // 3. 만약 slides가 완전히 비었다면 빈 캔버스 상태로 유지
             if (projectData.slides.length === 0) {
@@ -1035,12 +1037,12 @@
                 }
             } else {
                 // 4. 활성 슬라이드가 삭제 대상에 포함되어 있었다면 다른 슬라이드로 포커스 이동
-                if (slideIds.includes(activeSlideId)) {
+                if (deletableSlideIds.includes(activeSlideId)) {
                     const nextActiveId = projectData.slides[0].id;
                     selectedSlideIds = [nextActiveId];
                     selectSlideForEdit(nextActiveId);
                 } else {
-                    selectedSlideIds = selectedSlideIds.filter(id => !slideIds.includes(id));
+                    selectedSlideIds = selectedSlideIds.filter(id => !deletableSlideIds.includes(id));
                     if (selectedSlideIds.length === 0 && activeSlideId) {
                         selectedSlideIds = [activeSlideId];
                     }

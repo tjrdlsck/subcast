@@ -222,5 +222,8 @@ test('우클릭으로 선택된 여러 슬라이드를 삭제해도 다른 편�
   await openMenu(page, 'slide_b');
   page.once('dialog', dialog => dialog.accept());
   await page.locator('#menu-slide-delete').click();
-  await expect.poll(async () => (await app.exportProject()).slides.some(item => item.id === 'slide_a')).toBe(true);
+  await expect.poll(async () => (await app.exportProject()).slides.map(item => item.id)).toEqual(['slide_a']);
+
+  await page.evaluate(() => ws.send(JSON.stringify({ type: 'DELETE_SLIDES', slideIds: ['slide_a'] })));
+  await expect.poll(async () => (await app.exportProject()).slides.map(item => item.id)).toEqual(['slide_a']);
 });

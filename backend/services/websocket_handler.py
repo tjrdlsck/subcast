@@ -614,7 +614,11 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                     logger.info("Slides reordered and synchronized.")
 
             elif msg_type == "DELETE_SLIDES":
-                slide_ids = message.get("slideIds", [])
+                requested_slide_ids = message.get("slideIds", [])
+                slide_ids = [
+                    slide_id for slide_id in requested_slide_ids
+                    if manager.locked_slides.get(slide_id) in (None, ws_id)
+                ]
                 if slide_ids and manager.project_data:
                     manager.project_data.slides = [s for s in manager.project_data.slides if s.id not in slide_ids]
                     if not manager.project_data.slides:
