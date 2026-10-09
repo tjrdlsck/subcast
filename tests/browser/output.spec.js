@@ -360,25 +360,27 @@ test.describe('SC-14 무대 모니터', () => {
         await expect(monitor.locator('#monitor-current-text')).toHaveText(LYRIC_A);
     });
 
-    test('SC-14-05/09 모니터 추가 요소 삭제 저장은 원본 슬라이드를 보호한다', async ({ page, context, app }) => {
+    test('SC-14-05/09 저장된 CURRENT/NEXT 카드 설정을 복원하고 슬라이드 원본을 보호한다', async ({ page, context, app }) => {
+        await seed(app, [slide('slide_a', LYRIC_A, 'praise'), slide('slide_b', LYRIC_B, 'praise')]);
         const initial = await monitorSettings(app);
-        const custom = { id: 'monitor_rect', type: 'rect', content: '', x: 40, y: 45, width: 15, height: 5,
-            style: { fillColor: '#ff0000', opacity: 1, strokeWidth: 0 } };
-        const response = await app.request.put(`${app.url}/api/v1/monitor/settings`, { data: { ...initial, customElements: [custom] } });
+        const settings = {
+            ...initial,
+            currentBox: { ...initial.currentBox, fontSize: '4.0vw', textAlign: 'left' },
+            nextBox: { ...initial.nextBox, fontSize: '3.0vw', textAlign: 'right' }
+        };
+        const response = await app.request.put(`${app.url}/api/v1/monitor/settings`, { data: settings });
         expect(response.ok()).toBeTruthy();
         const source = (await project(app)).slides.map(item => item.elements);
         const monitor = await output(context, app, 'monitor');
         await editorPanel(page, app, 'monitor');
-        await expect.poll(() => page.evaluate(() => monitorCanvas.getObjects().some(obj => obj.originalId === 'monitor_rect'))).toBe(true);
-        const point = await page.evaluate(() => {
-            const rect = monitorCanvas.getObjects().find(obj => obj.originalId === 'monitor_rect');
-            const bounds = monitorCanvas.upperCanvasEl.getBoundingClientRect();
-            return { x: bounds.left + rect.left + rect.width / 2, y: bounds.top + rect.top + rect.height / 2 };
-        });
-        await page.mouse.click(point.x, point.y);
-        await page.keyboard.press('Delete');
+        await expect(page.locator('#input-monitor-cur-font-size')).toHaveValue('4');
+        await expect(page.locator('#select-monitor-cur-text-align')).toHaveValue('left');
+        await expect(page.locator('#input-monitor-nxt-font-size')).toHaveValue('3');
+        await expect(page.locator('#select-monitor-nxt-text-align')).toHaveValue('right');
+        await expect.poll(() => page.evaluate(() => monitorCanvas.getObjects().length)).toBe(2);
         await page.locator('#btn-save-monitor-layout').click();
-        await expect.poll(async () => (await monitorSettings(app)).customElements || []).toEqual([]);
+        await expect.poll(async () => (await monitorSettings(app)).currentBox?.fontSize).toBe('4.0vw');
+        await expect.poll(async () => (await monitorSettings(app)).nextBox?.fontSize).toBe('3.0vw');
         expect((await project(app)).slides.map(item => item.elements)).toEqual(source);
         await monitor.reload();
         await expect(monitor.locator('#monitor-current-text')).toHaveText(LYRIC_A);
