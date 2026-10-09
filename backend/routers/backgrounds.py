@@ -217,15 +217,15 @@ async def complete_background_chunk_upload(req: ChunkUploadCompleteRequest):
     unique_name = f"upload_{uuid.uuid4().hex[:8]}_{req.filename}"
     save_path = backgrounds_dir / unique_name
 
+    missing_chunk = next((idx for idx in range(req.total_chunks)
+                          if not (backgrounds_dir / f".chunk_{clean_upload_id}_{idx}").exists()), None)
+    if missing_chunk is not None:
+        raise HTTPException(status_code=400, detail=f"누락된 청크 파일이 있습니다 (청크 번호: {missing_chunk}).")
+
     # 청크 조각들을 순서대로 하나의 파일로 병합
     with open(save_path, "wb") as outfile:
         for idx in range(req.total_chunks):
             chunk_file = backgrounds_dir / f".chunk_{clean_upload_id}_{idx}"
-            if not chunk_file.exists():
-                if save_path.exists():
-                    save_path.unlink()
-                raise HTTPException(status_code=400, detail=f"누락된 청크 파일이 있습니다 (청크 번호: {idx}).")
-            
             with open(chunk_file, "rb") as infile:
                 outfile.write(infile.read())
             

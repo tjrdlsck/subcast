@@ -1,6 +1,7 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { createHash } = require('node:crypto');
 const { test, expect, openEditor } = require('./fixtures');
 
 const projectId = 'proj_browser';
@@ -502,6 +503,50 @@ test('SC-10-02 multi-file upload stores both separate media files', async ({ pag
   await expect(page.locator('#stage-bg-upload-status')).toContainText('완료', { timeout: 30_000 });
   await expect(page.locator('.stage-bg-card-main')).toHaveCount(2);
   expect((await backgrounds(app)).map(file => file.title).sort()).toEqual(['alpha.mp4', 'beta.mp4']);
+});
+
+test('SC-10-04 청크 병합 해시·누락 거부·전송 재시도 확인', async ({ page, app }) => {
+  const source = await fs.readFile(app.videoPath);
+  const splitAt = Math.max(1, Math.floor(source.length / 2));
+  const uploadId = 'sc1004_success';
+  for (const [index, chunk] of [source.subarray(0, splitAt), source.subarray(splitAt)].entries()) {
+    const response = await app.request.post('/api/backgrounds/upload-chunk', { multipart: {
+      upload_id: uploadId, chunk_index: String(index), total_chunks: '2',
+      file: { name: 'chunk.bin', mimeType: 'application/octet-stream', buffer: chunk },
+    } });
+    expect(response.ok()).toBeTruthy();
+  }
+  const complete = await app.request.post('/api/backgrounds/upload-complete', { data: {
+    upload_id: uploadId, filename: 'sc1004-hash.mp4', total_chunks: 2,
+  } });
+  expect(complete.ok()).toBeTruthy();
+  const uploaded = await complete.json();
+  const downloaded = await (await app.request.get(uploaded.videoUrl)).body();
+  expect(createHash('sha256').update(downloaded).digest('hex')).toBe(createHash('sha256').update(source).digest('hex'));
+
+  const beforeMissing = await backgrounds(app);
+  const missingId = 'sc1004_missing';
+  await app.request.post('/api/backgrounds/upload-chunk', { multipart: {
+    upload_id: missingId, chunk_index: '0', total_chunks: '2',
+    file: { name: 'chunk.bin', mimeType: 'application/octet-stream', buffer: source },
+  } });
+  const missing = await app.request.post('/api/backgrounds/upload-complete', { data: {
+    upload_id: missingId, filename: 'sc1004-incomplete.mp4', total_chunks: 2,
+  } });
+  expect(missing.status()).toBe(400);
+  expect((await backgrounds(app)).map(file => file.name).sort()).toEqual(beforeMissing.map(file => file.name).sort());
+
+  await stage(page, app);
+  let attempts = 0;
+  await page.route('**/api/backgrounds/upload-chunk', async route => {
+    attempts++;
+    if (attempts < 3) await route.fulfill({ status: 503, body: 'temporary failure' });
+    else await route.continue();
+  });
+  await page.locator('#file-upload-bg-input').setInputFiles({ name: 'retry-sc1004.mp4', mimeType: 'video/mp4', buffer: source });
+  await expect(page.locator('#stage-bg-upload-status')).toContainText('완료', { timeout: 30_000 });
+  expect(attempts).toBe(3);
+  expect((await backgrounds(app)).some(file => file.title === 'retry-sc1004.mp4')).toBe(true);
 });
 
 test('SC-10-07 rename Escape cancels and collision rejects without removing either file', async ({ page, app }) => {
