@@ -552,7 +552,13 @@ test('SC-08-08 editing song data affects new slides while generated slides remai
   await insert(page);
   await expect.poll(async () => (await project(app)).slides.length).toBe(4);
   const slides = (await project(app)).slides;
-  expect(slides[2]).toEqual(oldSlide);
+  // Editor sync may generate the cached preview thumbnail after the first read.
+  const slideContent = slide => {
+    const content = { ...slide };
+    delete content.thumbnail;
+    return content;
+  };
+  expect(slideContent(slides[2])).toEqual(slideContent(oldSlide));
   expect(lyricsOf(slides[3])).toContain('새로운 가사');
 });
 
