@@ -317,6 +317,24 @@ test('SC-09-09 성경 조회 API 실패는 빈 결과와 구분되고 복구 후
   await page.locator('#btn-bible-fetch').click();
   await expect(page.locator('#bible-results-list .bible-result-item')).toHaveCount(1);
   expect((await project(app)).slides.map(slide => ({ id: slide.id, elements: slide.elements }))).toEqual(before);
+
+  await page.locator('#chk-select-all-bible').check();
+  await page.locator('#btn-add-bible-slides').click();
+  await expect(page.locator('#bible-insert-modal')).toBeVisible();
+  const beforeInsert = (await project(app)).slides.map(slide => ({ id: slide.id, elements: slide.elements }));
+  await page.evaluate(() => ws.close());
+  await expect.poll(() => page.evaluate(() => ws.readyState)).toBe(3);
+  expect(await alertFrom(page, () => page.locator('#btn-bible-modal-confirm').click())).toContain('실시간 연결');
+  await expect(page.locator('#bible-insert-modal')).toBeVisible();
+  expect((await project(app)).slides.map(slide => ({ id: slide.id, elements: slide.elements }))).toEqual(beforeInsert);
+
+  await page.reload();
+  await openEditor(page, app);
+  await bible(page, app, '1');
+  await page.locator('#chk-select-all-bible').check();
+  await page.locator('#btn-add-bible-slides').click();
+  await insert(page);
+  await expect.poll(async () => (await project(app)).slides.length).toBe(before.length + 2);
 });
 
 test('SC-09-05 click, Shift range and select-all keep counts consistent', async ({ page, app }) => {
