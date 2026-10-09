@@ -218,9 +218,12 @@
                         const slide = slidesById.get(slideId);
                         if (slide && !slide.thumbnail) {
                             slide.thumbnail = thumbnail;
-                            updateSlideListItem(slideId);
+                            updateSlideListItem(slideId, false, slide);
                         }
                     }
+                    const isLastBatch = message.batchCount == null
+                        || message.batchIndex + 1 >= message.batchCount;
+                    if (!isLastBatch) return;
                     editorThumbnailsPending = false;
                     if (isSlideSorterOpen) renderSlideSorter();
                     generateMissingSlideThumbnails();

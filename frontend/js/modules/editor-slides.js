@@ -275,9 +275,9 @@
             if (isSlideSorterOpen) updateSlideSorterSelection();
         }
 
-        function updateSlideListItem(slideId) {
+        function updateSlideListItem(slideId, renderSorter = true, slideOverride = null) {
             const item = document.getElementById(`slide-item-${slideId}`);
-            const slide = projectData?.slides?.find(s => s.id === slideId);
+            const slide = slideOverride || projectData?.slides?.find(s => s.id === slideId);
             if (!item || !slide) return false;
 
             const thumbnail = item.querySelector(".slide-thumbnail-wrapper");
@@ -313,7 +313,7 @@
             } else if (lockLabel) {
                 lockLabel.remove();
             }
-            if (isSlideSorterOpen) renderSlideSorter();
+            if (isSlideSorterOpen && renderSorter) renderSlideSorter();
             return true;
         }
 

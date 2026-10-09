@@ -65,11 +65,19 @@ class ConnectionManager:
             }
             await websocket.send_text(json.dumps(initial_payload))
             if thumbnails:
-                await websocket.send_text(json.dumps({
-                    "type": "THUMBNAILS_SYNC",
-                    "projectId": project_data.get("id"),
-                    "thumbnails": thumbnails,
-                }))
+                thumbnail_items = list(thumbnails.items())
+                thumbnail_batch_size = 64
+                batch_count = (len(thumbnail_items) + thumbnail_batch_size - 1) // thumbnail_batch_size
+                for batch_index in range(batch_count):
+                    start = batch_index * thumbnail_batch_size
+                    batch = dict(thumbnail_items[start:start + thumbnail_batch_size])
+                    await websocket.send_text(json.dumps({
+                        "type": "THUMBNAILS_SYNC",
+                        "projectId": project_data.get("id"),
+                        "thumbnails": batch,
+                        "batchIndex": batch_index,
+                        "batchCount": batch_count,
+                    }))
         else:
             await websocket.close(code=4000, reason="Invalid role parameter")
 
