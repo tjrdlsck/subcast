@@ -176,6 +176,20 @@ test('배경 지정 모달의 X 화면 좌표를 마우스로 누르면 닫기 �
   await expect(modal).toBeHidden();
 });
 
+test('배경 영상 직접 지정으로 모달을 열 때 X 닫기 이벤트 연결을 보장한다', async ({ page }) => {
+  await openEditor(page);
+  await page.locator('#btn-slide-bg-modal-close').evaluate(button => { button.onclick = null; });
+  await openMenu(page, 'slide_b');
+  await page.locator('#menu-slide-background').click();
+
+  const modal = page.locator('#slide-bg-select-modal');
+  const close = page.locator('#btn-slide-bg-modal-close');
+  await expect(modal).toBeVisible();
+  await expect.poll(() => close.evaluate(button => typeof button.onclick)).toBe('function');
+  await close.click();
+  await expect(modal).toBeHidden();
+});
+
 test('우클릭 태그 지정 모달은 헤더 닫기 버튼으로 닫고 다시 열 수 있다', async ({ page }) => {
   await openEditor(page);
   await openMenu(page, 'slide_b');

@@ -885,6 +885,7 @@
                     }
                 }
 
+                bindSlideBgModalEvents();
                 renderSlideBgModalGrid();
                 modal.style.display = "flex";
             }
