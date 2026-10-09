@@ -59,6 +59,8 @@ class CustomFont(BaseModel):
 class SystemSettings(BaseModel):
     targetWidth: int = 1920
     targetHeight: int = 1080
+    stageTargetWidth: Optional[int] = None
+    stageTargetHeight: Optional[int] = None
     currentLiveSlideId: Optional[str] = None
     backgroundMode: str = "transparent"
     stageBackground: Optional[Dict[str, Any]] = None
