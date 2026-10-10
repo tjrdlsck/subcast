@@ -12,6 +12,8 @@
         let praiseClipboardData = [];
         let praiseSearchDebounceTimer = null;
         let praiseSearchAbortController = null;
+        let praiseSongsLoaded = false;
+        let praiseSongsDirty = true;
 
         function renderPraiseMoodSelector(selectedMood = "기본/일반") {
             const container = document.getElementById("modal-praise-mood-chips");
@@ -72,8 +74,11 @@
             renderPraiseMoodFilters();
             const active = document.querySelector("#modal-praise-mood-chips .mood-chip.active")?.dataset.mood || "기본/일반";
             renderPraiseMoodSelector(active);
-            const searchInput = document.getElementById("input-praise-search");
-            if (searchInput) fetchPraiseSongs(searchInput.value);
+            praiseSongsDirty = true;
+            if (document.getElementById("panel-praise")?.classList.contains("active")) {
+                const searchInput = document.getElementById("input-praise-search");
+                if (searchInput) fetchPraiseSongs(searchInput.value);
+            }
         });
 
         function updatePraiseExpectedCount() {
@@ -523,9 +528,6 @@
 
             if (!searchInput || !songsList || !openAddModalBtn || !addSlidesBtn || !addModal) return;
 
-            // 1) 최초 로드 시 DB 내 전체 찬양 목록 렌더링
-            fetchPraiseSongs("");
-
             // 찬양 데이터 내보내기/가져오기 이벤트 바인딩
             const btnPraiseExport = document.getElementById("btn-praise-export");
 
@@ -846,7 +848,7 @@
                 return { title: match[2].trim(), slides: run };
             }
 
-            function showSlideBgSelectModal(slide) {
+            async function showSlideBgSelectModal(slide) {
                 if (!slide) return;
                 activeTargetSlideForBgModal = slide;
 
@@ -886,8 +888,11 @@
                 }
 
                 bindSlideBgModalEvents();
-                renderSlideBgModalGrid();
                 modal.style.display = "flex";
+                const grid = document.getElementById("slide-bg-modal-grid-container");
+                if (grid) grid.textContent = "현장 배경을 불러오는 중…";
+                await window.ensureStageBgLibraryLoaded?.();
+                renderSlideBgModalGrid();
             }
 
             function renderSlideBgModalGrid() {
@@ -1357,6 +1362,8 @@
                 const response = await fetch(`/api/praise/search?query=${encodeURIComponent(translatedQuery)}`, { signal });
                 if (!response.ok) throw new Error("검색 실패");
                 const results = await response.json();
+                praiseSongsLoaded = true;
+                praiseSongsDirty = false;
                 const filteredResults = activePraiseMoodFilter === "all"
                     ? results
                     : results.filter(song => {
@@ -1373,6 +1380,12 @@
                 songsList.innerHTML = `<div style="color: #ef4444; font-size: 0.75rem; text-align: center; padding: 10px;">목록 로드 오류</div>`;
             }
         }
+
+        window.loadPraiseSongsIfNeeded = () => {
+            if (praiseSongsLoaded && !praiseSongsDirty) return Promise.resolve();
+            const searchInput = document.getElementById("input-praise-search");
+            return fetchPraiseSongs(searchInput ? searchInput.value : "");
+        };
 
         function getMoodBadgeStyle(mood) {
             switch(mood) {

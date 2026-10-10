@@ -110,6 +110,8 @@
         };
         addButton?.addEventListener("click", addTag);
         input?.addEventListener("keydown", event => { if (event.key === "Enter") addTag(); });
-        refreshMoodTags().catch(error => console.error("Failed to load mood tags", error));
+        const loadTags = () => refreshMoodTags().catch(error => console.error("Failed to load mood tags", error));
+        if (window.whenEditorSocketReady) window.whenEditorSocketReady(loadTags);
+        else loadTags();
     });
 })();

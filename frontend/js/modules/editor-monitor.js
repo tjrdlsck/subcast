@@ -229,11 +229,11 @@ function hideMonitorMainViewer() {
 }
 
 // 5. 전용 Fabric 캔버스 초기화
-function initMonitorLayoutCanvas() {
+async function initMonitorLayoutCanvas() {
     const canvasContainer = document.getElementById("monitor-canvas-container");
     if (!canvasContainer) return;
 
-    loadMonitorSettings();
+    await loadMonitorSettings();
 
     // 부모 컨테이너 크기에 맞춰 16:9 비율 설정
     const rect = canvasContainer.parentElement.getBoundingClientRect();
@@ -535,8 +535,6 @@ function syncMonitorUIControls(settings) {
 
 // 11. 이벤트 및 초기화 등록
 function initEditorMonitor() {
-    loadMonitorSettings();
-
     // 저장 버튼들
     const btnQuick = document.getElementById("btn-monitor-apply-quick");
     if (btnQuick) btnQuick.onclick = () => saveMonitorSettings(true);

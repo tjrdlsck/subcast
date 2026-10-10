@@ -24,7 +24,8 @@ function initialProject() {
 }
 
 const test = base.extend({
-  app: async ({}, use, testInfo) => {
+  serverTiming: [false, { option: true }],
+  app: async ({ serverTiming }, use, testInfo) => {
     const dataDir = testInfo.outputPath('app-data');
     await fs.mkdir(path.join(dataDir, 'data/projects'), { recursive: true });
     await fs.writeFile(path.join(dataDir, 'data/projects/proj_browser.json'), JSON.stringify(initialProject()));
@@ -51,6 +52,7 @@ const test = base.extend({
       await fs.rm(readyPath, { force: true });
       child = spawn(python, [path.join(__dirname, 'server.py'), '--data-dir', dataDir, '--port', String(port)], {
         cwd: root, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, SUBCAST_TEST_TIMING: serverTiming ? '1' : '0' },
       });
       let spawnError;
       child.once('error', error => { spawnError = error; });
@@ -73,6 +75,7 @@ const test = base.extend({
       api = await request.newContext({ baseURL: url });
       const app = {
         url, dataDir, request: api, videoPath: path.join(dataDir, 'sample.mp4'),
+        getServerLog: () => log,
         async seedProject(project) {
           const response = await api.post('/api/projects/import', {
             multipart: { file: { name: 'fixture.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) } },

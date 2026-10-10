@@ -45,6 +45,9 @@
                 panel.classList.toggle('active', panel.id === tabId);
             });
 
+            if (tabId === 'panel-bible') window.loadBibleBooksIfNeeded?.();
+            if (tabId === 'panel-praise') window.loadPraiseSongsIfNeeded?.();
+
             if (tabId === 'panel-slides' && !wasSlidesPanelActive) {
                 requestAnimationFrame(() => {
                     if (typeof ensureActiveSlideVisible === 'function') {

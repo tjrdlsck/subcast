@@ -251,7 +251,7 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                     history_queue=stage_bg_history_queue
                 )
                 if missing_bg_id:
-                    await websocket.send_text(json.dumps({
+                    await manager.send_text(websocket, json.dumps({
                         "type": "STAGE_BACKGROUND_MISSING",
                         "backgroundId": missing_bg_id,
                         "fallbackType": bg_data.get("type")
@@ -296,7 +296,7 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                                     meta[name][field] = item[field]
                     if not save_bg_meta(meta):
                         raise OSError("배경 태그 메타데이터를 저장하지 못했습니다.")
-                    await websocket.send_text(json.dumps({
+                    await manager.send_text(websocket, json.dumps({
                         "type": "STAGE_BG_LIBRARY_SAVE_RESULT",
                         "requestId": request_id,
                         "success": True,
@@ -310,7 +310,7 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                         except Exception:
                             logger.exception("Failed to roll back stage background library")
                     logger.exception("Failed to save stage background library")
-                    await websocket.send_text(json.dumps({
+                    await manager.send_text(websocket, json.dumps({
                         "type": "STAGE_BG_LIBRARY_SAVE_RESULT",
                         "requestId": request_id,
                         "success": False,
@@ -367,7 +367,7 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                 editor_name = message.get("editorName", "편집자")
                 
                 if slide_id in manager.locked_slides and manager.locked_slides[slide_id] != ws_id:
-                    await websocket.send_text(json.dumps({
+                    await manager.send_text(websocket, json.dumps({
                         "type": "LOCK_FAILED",
                         "slideId": slide_id,
                         "reason": "다른 편집자가 편집 중입니다."
@@ -686,7 +686,7 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                 slide_data = message.get("slide")
                 if not slide_data or not manager.project_data:
                     if has_request_id:
-                        await websocket.send_json({
+                        await manager.send_json(websocket, {
                             "type": "SAVE_SLIDE_RESULT", "requestId": request_id,
                             "success": False, "reason": "Slide could not be saved."
                         })
@@ -720,7 +720,7 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                     if not has_request_id:
                         raise
                     logger.exception("Slide save failed for request %s", request_id)
-                    await websocket.send_json({
+                    await manager.send_json(websocket, {
                         "type": "SAVE_SLIDE_RESULT", "requestId": request_id,
                         "success": False, "reason": "Slide could not be saved."
                     })
@@ -753,7 +753,7 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                     }, role="editor")
 
                 if has_request_id:
-                    await websocket.send_json({
+                    await manager.send_json(websocket, {
                         "type": "SAVE_SLIDE_RESULT", "requestId": request_id,
                         "success": True
                     })

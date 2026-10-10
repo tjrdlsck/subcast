@@ -421,7 +421,7 @@
                 ws.send(JSON.stringify({ type: "LOCK_SLIDE", slideId: slideId, editorName: editorName }));
             }
             loadSlideToCanvas(slideId);
-            setControlsState(true);
+            setControlsState(false);
             updateSlideListSelection();
             scheduleActiveSlideVisibility();
             if (typeof updateMonitorSlideTexts === 'function') {

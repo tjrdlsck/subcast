@@ -21,6 +21,9 @@
 
         let ws = null;
         let projectData = null;
+        let presenterThumbnailsPending = false;
+        let presenterThumbnailSyncId = null;
+        let generatingMissingThumbnails = false;
         let lockedSlides = {};
         let currentLiveIndex = -1;
         let selectedSlideId = null;
@@ -422,6 +425,29 @@
             renderCurrentLiveSlide();
         }
 
+        function generateMissingThumbnails() {
+            if (presenterThumbnailsPending || generatingMissingThumbnails || !projectData?.slides?.length) return;
+            const projectId = projectData.id;
+            const missingSlides = projectData.slides.filter(slide => !slide.thumbnail);
+            if (!missingSlides.length) return;
+
+            generatingMissingThumbnails = true;
+            (async () => {
+                try {
+                    for (let i = 0; i < missingSlides.length; i += 2) {
+                        if (projectData?.id !== projectId) return;
+                        const batch = missingSlides.slice(i, i + 2);
+                        await Promise.all(batch.map(async slide => {
+                            await autoGenerateThumbnail(slide);
+                            updateDeckItem(slide.id);
+                        }));
+                    }
+                } finally {
+                    generatingMissingThumbnails = false;
+                }
+            })();
+        }
+
         function updateDeckItem(slideId) {
             const item = document.getElementById(`slide-item-${slideId}`);
             const slide = projectData?.slides?.find(s => s.id === slideId);
@@ -533,6 +559,8 @@
 
                 if (message.type === 'INITIAL_SYNC') {
                     projectData = message.data;
+                    presenterThumbnailsPending = message.thumbnailsPending === true;
+                    presenterThumbnailSyncId = message.thumbnailSyncId || null;
                     applyProjectFonts(projectData.customFonts);
                     // 초기 동기화에는 편집자 이름이 없고 웹소켓 소유자 ID만 들어온다.
                     lockedSlides = Object.fromEntries(Object.keys(message.lockedSlides || {}).map(slideId => [slideId, '']));
@@ -551,21 +579,24 @@
                     }
                     initCanvas();
                     renderDeck();
-
-                    // 썸네일이 없는 슬라이드가 있다면 순차적으로 자동 생성하여 반영 및 서버 동기화
-                    let needsUpdate = false;
-                    const promises = projectData.slides.map(slide => {
-                        if (!slide.thumbnail) {
-                            needsUpdate = true;
-                            return autoGenerateThumbnail(slide);
+                    if (!presenterThumbnailsPending) generateMissingThumbnails();
+                }
+                else if (message.type === 'THUMBNAILS_SYNC') {
+                    if (!projectData || message.projectId !== projectData.id) return;
+                    if ((message.thumbnailSyncId || null) !== presenterThumbnailSyncId) return;
+                    const slidesById = new Map(projectData.slides.map(slide => [slide.id, slide]));
+                    for (const [slideId, thumbnail] of Object.entries(message.thumbnails || {})) {
+                        const slide = slidesById.get(slideId);
+                        if (slide && !slide.thumbnail) {
+                            slide.thumbnail = thumbnail;
+                            updateDeckItem(slideId);
                         }
-                        return Promise.resolve();
-                    });
-
-                    if (needsUpdate) {
-                        Promise.all(promises).then(() => {
-                            renderDeck();
-                        });
+                    }
+                    const isLastBatch = message.batchCount == null
+                        || message.batchIndex + 1 >= message.batchCount;
+                    if (isLastBatch) {
+                        presenterThumbnailsPending = false;
+                        generateMissingThumbnails();
                     }
                 }
                 else if (message.type === 'STAGE_BACKGROUND_MISSING') {

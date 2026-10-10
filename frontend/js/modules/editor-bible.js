@@ -3,6 +3,7 @@
         // ==========================================================================
         let selectedBibleVerses = [];
         let bibleBooksList = [];
+        let bibleBooksLoadedVersion = null;
         let lastFilteredBooks = [];
         let tempBibleSlidesToAdd = [];
         let targetInsertAfterSlideId = null;
@@ -24,9 +25,6 @@
         }
 
         function initBibleFeature() {
-            // 성경 책 목록 가져오기
-            fetchBibleBooks();
-
             // 성경 번역본 선택 변경 이벤트 바인딩 (이전 검색 결과 및 선택 상태 초기화)
             const selectVer = document.getElementById("select-bible-version");
             if (selectVer) {
@@ -349,6 +347,7 @@
                 const response = await fetch(`/api/bible/books?version=${version}`);
                 if (!response.ok) throw new Error("성경 책 목록 로드 실패");
                 bibleBooksList = await response.json();
+                bibleBooksLoadedVersion = version;
 
                 const selectBook = document.getElementById("select-bible-book");
                 selectBook.innerHTML = "";
@@ -362,10 +361,16 @@
 
                 // 초기 설정 호출
                 onBibleBookChange();
+                const filterInput = document.getElementById("input-bible-book-filter");
+                if (filterInput?.value.trim()) filterBibleBooks(filterInput.value);
             } catch (err) {
                 console.error("Bible books load error:", err);
             }
         }
+
+        window.loadBibleBooksIfNeeded = () => bibleBooksLoadedVersion === getSelectedBibleVersion()
+            ? Promise.resolve()
+            : fetchBibleBooks();
 
         function onBibleBookChange() {
             const selectBook = document.getElementById("select-bible-book");

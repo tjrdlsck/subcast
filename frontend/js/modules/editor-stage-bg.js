@@ -6,6 +6,8 @@ let currentStageBg = {
     blur: 0
 };
 let allStageBgFiles = [];
+let stageBgLibraryLoaded = false;
+let stageBgLibraryDirty = true;
 let selectedStageBgFiles = [];
 let stageBgClipboardFiles = [];
 let lastSelectedStageBgIndex = -1;
@@ -443,9 +445,11 @@ function initStageBgMoodModalEvents() {
 }
 
 document.addEventListener('mood-tags-updated', async () => {
-    await loadStageBgLibrary(true);
+    stageBgLibraryDirty = true;
+    const isStageBgPanelActive = document.getElementById('panel-stage-bg')?.classList.contains('active');
+    if (isStageBgPanelActive) await loadStageBgLibrary(true);
     const modal = document.getElementById('stage-bg-mood-modal');
-    if (modal?.style.display === 'flex' && _stageBgMoodTargets.length > 0) {
+    if (isStageBgPanelActive && modal?.style.display === 'flex' && _stageBgMoodTargets.length > 0) {
         openStageBgMoodModal(_stageBgMoodTargets);
     }
 });
@@ -473,7 +477,7 @@ function showStageBgMainViewer() {
     }
 
     updateStageBgGridColumns();
-    loadStageBgLibrary(false);
+    loadStageBgLibrary(stageBgLibraryDirty);
     initPipPreview();
     const pipContainer = document.getElementById('pip-stage-preview-container');
     if (pipContainer) pipContainer.style.display = 'flex';
@@ -491,7 +495,7 @@ function hideStageBgMainViewer() {
 
 // 백엔드 API에서 배경 라이브러리 목록 로드 (캐싱 지원)
 async function loadStageBgLibrary(force = false) {
-    if (!force && allStageBgFiles && allStageBgFiles.length > 0) {
+    if (!force && stageBgLibraryLoaded && !stageBgLibraryDirty) {
         filterAndRenderStageBgLibrary();
         return;
     }
@@ -500,12 +504,16 @@ async function loadStageBgLibrary(force = false) {
         if (res.ok) {
             const data = await res.json();
             allStageBgFiles = data.files || [];
+            stageBgLibraryLoaded = true;
+            stageBgLibraryDirty = false;
             filterAndRenderStageBgLibrary();
         }
     } catch (e) {
         console.error("Failed to load stage bg list", e);
     }
 }
+
+window.ensureStageBgLibraryLoaded = () => loadStageBgLibrary(stageBgLibraryDirty);
 
 // 오른쪽 메인 칸 배경 라이브러리 그리드 & 검색 필터링 렌더링
 function filterAndRenderStageBgLibrary() {
@@ -964,8 +972,6 @@ function updatePipSlideOverlay() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    loadStageBgLibrary();
-
     const searchInput = document.getElementById('input-stage-bg-search');
     const filterSelect = document.getElementById('select-stage-bg-filter');
     if (searchInput) searchInput.addEventListener('input', filterAndRenderStageBgLibrary);

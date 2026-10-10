@@ -5,6 +5,17 @@
         let editorPageLeaving = false;
         let reconnectTimerId = null;
         let editorThumbnailsPending = false;
+        let editorThumbnailSyncId = null;
+        let editorSocketReady = false;
+        const editorSocketReadyCallbacks = new Set();
+
+        window.whenEditorSocketReady = callback => {
+            if (editorSocketReady || window.ws?.readyState === WebSocket.OPEN) {
+                callback();
+                return;
+            }
+            editorSocketReadyCallbacks.add(callback);
+        };
 
         function generateMissingSlideThumbnails() {
             if (editorThumbnailsPending || !projectData?.slides?.length) return;
@@ -199,6 +210,11 @@
             if (editorPageLeaving) return;
             ws = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws?role=editor`);
             window.ws = ws;
+            ws.addEventListener('open', () => {
+                editorSocketReady = true;
+                for (const callback of editorSocketReadyCallbacks) callback();
+                editorSocketReadyCallbacks.clear();
+            }, { once: true });
             ws.onmessage = (event) => {
                 const message = JSON.parse(event.data);
                 if (message.type === 'SAVE_SLIDE_RESULT') {
@@ -213,6 +229,7 @@
                 }
                 else if (message.type === 'THUMBNAILS_SYNC') {
                     if (!projectData || message.projectId !== projectData.id) return;
+                    if ((message.thumbnailSyncId || null) !== editorThumbnailSyncId) return;
                     const slidesById = new Map(projectData.slides.map(slide => [slide.id, slide]));
                     for (const [slideId, thumbnail] of Object.entries(message.thumbnails || {})) {
                         const slide = slidesById.get(slideId);
@@ -246,6 +263,7 @@
                     }
                     projectData = data;
                     editorThumbnailsPending = message.thumbnailsPending === true;
+                    editorThumbnailSyncId = message.thumbnailSyncId || null;
                     window.restoreStageBgSettings?.(projectData.settings?.stageBackground);
                     if (message.lockedSlides) {
                         lockedSlides = {};
