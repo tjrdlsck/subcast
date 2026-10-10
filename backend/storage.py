@@ -53,12 +53,19 @@ async def load_global_templates() -> List[SlideTemplate]:
 async def save_global_templates(templates: List[SlideTemplate]) -> None:
     """전역 템플릿 목록을 templates.json 파일에 저장합니다."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    temp_path = TEMPLATES_FILE_PATH.with_suffix('.json.tmp')
+    temp_path = TEMPLATES_FILE_PATH.with_suffix(f'.{uuid.uuid4().hex[:8]}.tmp')
     try:
         raw_list = [t.model_dump() for t in templates]
         async with aiofiles.open(temp_path, mode="w", encoding="utf-8") as f:
             await f.write(json.dumps(raw_list, indent=2, ensure_ascii=False))
-        os.replace(temp_path, TEMPLATES_FILE_PATH)
+        for attempt in range(5):
+            try:
+                os.replace(temp_path, TEMPLATES_FILE_PATH)
+                break
+            except PermissionError:
+                if attempt == 4:
+                    raise
+                await asyncio.sleep(0.05 * (2 ** attempt))
     except Exception as e:
         if temp_path.exists():
             try:

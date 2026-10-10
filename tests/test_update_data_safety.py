@@ -40,6 +40,24 @@ def test_missing_active_project_does_not_create_default(monkeypatch: pytest.Monk
     assert not (storage.PROJECTS_DIR / "proj_default.json").exists()
 
 
+def test_concurrent_template_saves_use_independent_atomic_files() -> None:
+    from backend.schemas import SlideTemplate
+
+    async def save_concurrently() -> None:
+        templates = [
+            [SlideTemplate(id=f"tpl_{index}", name=f"템플릿 {index}", elements=[])]
+            for index in range(20)
+        ]
+        await asyncio.gather(*(storage.save_global_templates(item) for item in templates))
+
+    asyncio.run(save_concurrently())
+
+    saved = asyncio.run(storage.load_global_templates())
+    assert len(saved) == 1
+    assert saved[0].id.startswith("tpl_")
+    assert not list(storage.DATA_DIR.glob("templates.*.tmp"))
+
+
 def test_update_backup_contains_consistent_db_and_files(tmp_path: Path) -> None:
     appdata = tmp_path / "Subcast"
     appdata.mkdir()
