@@ -99,6 +99,14 @@ test('실제 프로젝트 데이터에서 송출·편집 전환 단계별 시간
       && (!liveText || canvas.getObjects().some(object => object.text === liveText));
     const observeUsability = () => {
       const role = location.pathname.endsWith('/editor.html') ? 'editor' : 'presenter';
+      if (role === 'editor' && !window.__navigationStages.events.some(event => event.name === 'handoffPreviewReady')) {
+        const preview = document.getElementById('editor-handoff-preview');
+        const cards = document.querySelectorAll('.editor-handoff-card img');
+        if (preview && !preview.hidden && preview.complete && preview.naturalWidth > 0
+          && cards.length > 0 && [...cards].every(image => image.complete && image.naturalWidth > 0)) {
+          record('handoffPreviewReady', { cards: cards.length });
+        }
+      }
       if (role === 'editor' && editorCanvasReady()
         && !window.__navigationStages.events.some(event => event.name === 'editorCanvasReady')) {
         record('editorCanvasReady', { objectCount: canvas.getObjects().length });
@@ -312,6 +320,7 @@ test('실제 프로젝트 데이터에서 송출·편집 전환 단계별 시간
       const appCoreReadyMs = browserStages.events.find(event => event.name === 'appCoreReady')?.atMs;
       const appUsableObservedMs = browserStages.events.find(event => event.name === 'appUsable')?.atMs;
       const editorCanvasReadyMs = browserStages.events.find(event => event.name === 'editorCanvasReady')?.atMs;
+      const handoffPreviewReadyMs = browserStages.events.find(event => event.name === 'handoffPreviewReady')?.atMs;
       const editorControlsEnabledMs = browserStages.events.find(event => event.name === 'editorControlsEnabled')?.atMs;
       const lockRequestMs = browserStages.events.find(event => event.name === 'websocketLockRequest')?.atMs;
       const lockResponseMs = browserStages.events.find(event => event.name === 'websocketLockResponse' && event.isLiveSlide)?.atMs;
@@ -322,6 +331,9 @@ test('실제 프로젝트 데이터에서 송출·편집 전환 단계별 시간
           : browserStages.documentStartEpochMs + appUsableObservedMs - clickStartedAtEpochMs,
         clickToEditorCanvasReadyMs: editorCanvasReadyMs == null ? null
           : browserStages.documentStartEpochMs + editorCanvasReadyMs - clickStartedAtEpochMs,
+        clickToHandoffPreviewReadyMs: handoffPreviewReadyMs == null ? null
+          : browserStages.documentStartEpochMs + handoffPreviewReadyMs - clickStartedAtEpochMs,
+        handoffPreviewReadyMs,
         clickToEditorControlsEnabledMs: editorControlsEnabledMs == null ? null
           : browserStages.documentStartEpochMs + editorControlsEnabledMs - clickStartedAtEpochMs,
         editorControlsEnabledBeforeLock: editorControlsEnabledMs != null
@@ -350,6 +362,7 @@ test('실제 프로젝트 데이터에서 송출·편집 전환 단계별 시간
       clickToAppCoreReadyMs: { p50: percentile(selected.map(sample => sample.clickToAppCoreReadyMs), 0.5), p95: percentile(selected.map(sample => sample.clickToAppCoreReadyMs), 0.95) },
       clickToAppUsableMs: { p50: percentile(selected.map(sample => sample.clickToAppUsableMs), 0.5), p95: percentile(selected.map(sample => sample.clickToAppUsableMs), 0.95) },
       clickToEditorCanvasReadyMs: { p50: percentile(selected.map(sample => sample.clickToEditorCanvasReadyMs), 0.5), p95: percentile(selected.map(sample => sample.clickToEditorCanvasReadyMs), 0.95) },
+      clickToHandoffPreviewReadyMs: { p50: percentile(selected.map(sample => sample.clickToHandoffPreviewReadyMs), 0.5), p95: percentile(selected.map(sample => sample.clickToHandoffPreviewReadyMs), 0.95) },
       clickToEditorControlsEnabledMs: { p50: percentile(selected.map(sample => sample.clickToEditorControlsEnabledMs), 0.5), p95: percentile(selected.map(sample => sample.clickToEditorControlsEnabledMs), 0.95) },
       controlsEnabledBeforeLockCount: selected.filter(sample => sample.editorControlsEnabledBeforeLock).length,
       documentToAppCoreReadyMs: { p50: percentile(selected.map(sample => sample.appCoreReadyMs), 0.5), p95: percentile(selected.map(sample => sample.appCoreReadyMs), 0.95) },
@@ -391,6 +404,8 @@ test('실제 프로젝트 데이터에서 송출·편집 전환 단계별 시간
       expect(sample.browserLockRoundTripMs, '브라우저가 LIVE 슬라이드 잠금 승인을 받아야 함').toBeDefined();
       expect(sample.serverLockRoundTripMs, '테스트 백엔드가 잠금 요청 수신·응답을 기록해야 함').toBeDefined();
       expect(sample.editorCanvasReadyMs, '잠금 승인 전에도 선택한 LIVE 슬라이드 캔버스가 먼저 보여야 함').toBeDefined();
+      expect(sample.handoffPreviewReadyMs, '송출 제어에서 보던 썸네일을 서버 동기화 전에 먼저 보여야 함').toBeDefined();
+      expect(sample.handoffPreviewReadyMs).toBeLessThan(sample.editorCanvasReadyMs);
       expect(sample.lockResponseMs, '잠금 승인 시점을 기록해야 함').toBeDefined();
       expect(sample.editorCanvasReadyMs, '캔버스 미리보기는 잠금 응답을 기다리지 않아야 함').toBeLessThan(sample.lockResponseMs);
       expect(sample.editorControlsEnabledBeforeLock, '잠금 승인 전 편집 도구가 활성화되면 안 됨').toBe(false);

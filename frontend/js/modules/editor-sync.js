@@ -339,6 +339,8 @@
 
                     renderSlides();
                     renderTemplates();
+                    window.finishEditorHandoffPreview?.();
+                    document.getElementById('status-text').innerText = '연결됨';
 
                     // 되돌리기 버튼 상태 업데이트
                     const undoBtn = document.getElementById("btn-undo-template");
@@ -418,7 +420,7 @@
                 const text = document.getElementById("status-text");
                 if (badge && text) {
                     badge.classList.add("connected");
-                    text.innerText = "연결됨";
+                    text.innerText = "슬라이드 불러오는 중";
                 }
                 handleOnline();
                 if (activeSlideId) {

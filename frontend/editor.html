@@ -704,8 +704,68 @@
                     <div class="canvas-wrapper-outer">
                         <div class="canvas-wrapper">
                             <canvas id="editor-canvas"></canvas>
+                            <img id="editor-handoff-preview" alt="" hidden aria-hidden="true">
+                            <span id="editor-handoff-status" hidden aria-hidden="true">서버 확인 중</span>
                         </div>
                     </div>
+                    <script>
+                        (() => {
+                            const key = 'subcast-editor-handoff-v1';
+                            let snapshot;
+                            try {
+                                const raw = sessionStorage.getItem(key);
+                                sessionStorage.removeItem(key);
+                                if (raw && raw.length < 500_000) snapshot = JSON.parse(raw);
+                            } catch { return; }
+                            const validImage = value => typeof value === 'string'
+                                && value.length < 100_000
+                                && /^data:image\/(?:jpeg|png|webp);base64,/.test(value);
+                            if (!snapshot || typeof snapshot.createdAt !== 'number'
+                                || Math.abs(Date.now() - snapshot.createdAt) > 3000
+                                || typeof snapshot.projectId !== 'string'
+                                || typeof snapshot.activeSlideId !== 'string'
+                                || !Array.isArray(snapshot.slides) || snapshot.slides.length > 9) return;
+                            const active = snapshot.slides.find(slide => slide?.id === snapshot.activeSlideId);
+                            if (!active || !validImage(active.thumbnail)) return;
+
+                            const list = document.getElementById('slide-list');
+                            const preview = document.getElementById('editor-handoff-preview');
+                            const status = document.getElementById('editor-handoff-status');
+                            const fragment = document.createDocumentFragment();
+                            for (const slide of snapshot.slides) {
+                                if (!Number.isInteger(slide?.index) || slide.index < 0) continue;
+                                const card = document.createElement('div');
+                                card.className = 'slide-item editor-handoff-card';
+                                card.setAttribute('aria-hidden', 'true');
+                                const number = document.createElement('span');
+                                number.className = 'editor-handoff-number';
+                                number.textContent = String(slide.index + 1);
+                                const wrapper = document.createElement('div');
+                                wrapper.className = 'slide-thumbnail-wrapper';
+                                if (validImage(slide.thumbnail)) {
+                                    const image = document.createElement('img');
+                                    image.src = slide.thumbnail;
+                                    wrapper.appendChild(image);
+                                }
+                                card.append(number, wrapper);
+                                fragment.appendChild(card);
+                            }
+                            list.appendChild(fragment);
+                            preview.src = active.thumbnail;
+                            preview.hidden = false;
+                            status.hidden = false;
+
+                            const timeout = setTimeout(() => window.finishEditorHandoffPreview?.(), 5000);
+                            window.finishEditorHandoffPreview = () => {
+                                clearTimeout(timeout);
+                                preview.hidden = true;
+                                preview.removeAttribute('src');
+                                status.hidden = true;
+                                if (!window.projectData) list.replaceChildren();
+                                window.finishEditorHandoffPreview = null;
+                            };
+                        })();
+                    </script>
 
                     <!-- 방송 화면(찬양 자막) 메인 뷰어 오버레이 -->
                     <div id="broadcast-main-viewer-overlay"

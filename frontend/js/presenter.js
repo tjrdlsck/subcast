@@ -656,6 +656,29 @@
         window.onload = () => {
             connectWebSocket();
 
+            document.querySelector('a[href="/static/editor.html"]')?.addEventListener('click', event => {
+                if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+                const key = 'subcast-editor-handoff-v1';
+                try {
+                    sessionStorage.removeItem(key);
+                    const slides = projectData?.slides;
+                    if (!slides?.length) return;
+                    const activeId = projectData.settings?.currentLiveSlideId;
+                    const activeIndex = Math.max(0, slides.findIndex(slide => slide.id === activeId));
+                    const activeSlide = slides[activeIndex];
+                    if (!activeSlide?.thumbnail) return;
+                    const start = Math.max(0, activeIndex - 4);
+                    const nearby = slides.slice(start, activeIndex + 5).map((slide, offset) => ({
+                        id: slide.id, index: start + offset, thumbnail: slide.thumbnail || null
+                    }));
+                    const snapshot = JSON.stringify({
+                        projectId: projectData.id, activeSlideId: activeSlide.id,
+                        createdAt: Date.now(), slides: nearby
+                    });
+                    if (snapshot.length < 500_000) sessionStorage.setItem(key, snapshot);
+                } catch { /* Navigation still works if session storage is unavailable. */ }
+            });
+
             // 설정 모달 제어 이벤트 바인딩
             const modal = document.getElementById("settings-modal");
             const openBtn = document.getElementById("btn-open-settings");

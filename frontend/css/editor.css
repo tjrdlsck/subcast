@@ -1164,6 +1164,43 @@
             overflow: hidden;
             position: relative;
         }
+        #editor-handoff-preview {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+            z-index: 2;
+        }
+        #editor-handoff-status {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            padding: 5px 8px;
+            background: #090d16;
+            color: #fff;
+            font-size: 12px;
+            z-index: 3;
+        }
+        .editor-handoff-card {
+            pointer-events: none;
+            cursor: default;
+        }
+        .editor-handoff-number {
+            position: absolute;
+            top: -8px;
+            left: -8px;
+            z-index: 2;
+            min-width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: #fff;
+            font-size: 11px;
+            text-align: center;
+            line-height: 18px;
+        }
         /* 캔버스 하단 바 */
         .canvas-bottom-bar {
             height: 38px;
