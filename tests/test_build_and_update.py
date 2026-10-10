@@ -45,6 +45,22 @@ def test_setup_iss_db_preservation():
     assert 'Check: IsAutoUpdateAndOriginalUser' in content
     assert 'IsAutoUpdate and (ExpandConstant(\'{param:SUBCASTORIGINALUSER|0}\') = \'1\')' in content
 
+def test_release_upgrade_smoke_covers_both_supported_previous_versions():
+    workflow_path = os.path.join(ROOT, ".github", "workflows", "release.yml")
+    workflow = open(workflow_path, encoding="utf-8").read()
+    script_path = os.path.join(ROOT, "tests", "release_upgrade_smoke.ps1")
+    script = open(script_path, encoding="utf-8").read()
+    fixture_path = os.path.join(ROOT, "tests", "release_upgrade_fixture.py")
+    fixture = open(fixture_path, encoding="utf-8").read()
+
+    assert "@('1.3.20', '1.3.21')" in script
+    assert "tests\\release_upgrade_smoke.ps1" in workflow
+    assert "v1.3.18" not in workflow
+    assert "checksum" in script.lower()
+    assert "& python $fixtureScript verify $dataDir $stateFile" in script
+    assert 'parser.add_argument("--port", type=int, default=18543)' in fixture
+
+
 def test_find_iscc():
     # ISCC might or might not be installed, but function should run without error
     iscc_path = find_iscc()

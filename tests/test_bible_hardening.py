@@ -38,7 +38,7 @@ def test_editor_slides_js_contains_delete_slides():
         content = f.read()
 
     assert 'function deleteSlides(slideIds)' in content
-    assert 'ws.send(JSON.stringify({ type: "DELETE_SLIDES", slideIds: slideIds }));' in content
+    assert 'ws.send(JSON.stringify({ type: "DELETE_SLIDES", slideIds: deletableSlideIds }));' in content
 
 
 def test_split_text_by_length_behavior():

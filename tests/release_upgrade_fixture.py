@@ -16,7 +16,7 @@ def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def seed(root: Path, state_file: Path) -> None:
+def seed(root: Path, state_file: Path, port: int = 18543) -> None:
     root.mkdir(parents=True, exist_ok=True)
     os.environ["SUBCAST_DATA_DIR"] = str(root)
     from backend.database import init_monitor_db
@@ -51,7 +51,7 @@ def seed(root: Path, state_file: Path) -> None:
         encoding="utf-8",
     )
     (root / "subcast_config.json").write_text(
-        json.dumps({"host": "127.0.0.1", "port": 18543, "auto_start_server": True}), encoding="utf-8"
+        json.dumps({"host": "127.0.0.1", "port": port, "auto_start_server": True}), encoding="utf-8"
     )
     backgrounds = root / "frontend" / "assets" / "backgrounds"
     backgrounds.mkdir(parents=True, exist_ok=True)
@@ -98,5 +98,9 @@ if __name__ == "__main__":
     parser.add_argument("action", choices=["seed", "verify"])
     parser.add_argument("root", type=Path)
     parser.add_argument("state_file", type=Path)
+    parser.add_argument("--port", type=int, default=18543)
     args = parser.parse_args()
-    (seed if args.action == "seed" else verify)(args.root, args.state_file)
+    if args.action == "seed":
+        seed(args.root, args.state_file, args.port)
+    else:
+        verify(args.root, args.state_file)
