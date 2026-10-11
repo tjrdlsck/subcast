@@ -16,10 +16,11 @@ test('SC-16-04 update check failure gives an error and remains retryable', async
   await page.route('**/api/system/check-update', route => route.fulfill({ status: 502, json: { detail: 'offline' } }));
   const dialogPromise = page.waitForEvent('dialog');
   await page.goto('/static/index.html');
-  await page.locator('#btn-check-update').click();
+  const clickPromise = page.locator('#btn-check-update').click();
   const dialog = await dialogPromise;
   expect(dialog.message()).toContain('업데이트 오류');
   await dialog.accept();
+  await clickPromise;
   await expect(page.locator('#btn-check-update')).toBeEnabled();
 });
 
