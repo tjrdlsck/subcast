@@ -1,17 +1,22 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
+from pathlib import Path
 
 block_cipher = None
+oauth_credentials = "client_secret_131602755526-k80ot6sq10ttqhos02vho3vuemj7khia.apps.googleusercontent.com.json"
+datas = [
+    ('frontend', 'frontend'),
+    ('bible.db', '.'),
+    ('version.txt', '.'),
+]
+if Path(oauth_credentials).is_file():
+    datas.append((oauth_credentials, '.'))
 
 a = Analysis(
     ['run.py'],
     pathex=['.'],
     binaries=[],
-    datas=[
-        ('frontend', 'frontend'),
-        ('bible.db', '.'),
-        ('version.txt', '.'),
-    ],
+    datas=datas,
     hiddenimports=[
         'uvicorn.logging',
         'uvicorn.loops',

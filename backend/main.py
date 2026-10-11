@@ -2,7 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, Query
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 from backend.services.connection_manager import manager, ConnectionManager
 from backend.services.bible_service import db_helper, BibleDatabaseHelper
@@ -22,6 +22,7 @@ from backend.routers.system import router as system_router
 from backend.routers.projects import router as projects_router
 from backend.routers.monitor import router as monitor_router
 from backend.routers.tags import router as tags_router
+from backend.routers.cloud_backup import router as cloud_backup_router
 
 from backend.services.migration_service import migrate_legacy_db_if_needed
 from backend.database import APP_DATA_DIR
@@ -48,6 +49,7 @@ app.include_router(system_router)
 app.include_router(projects_router)
 app.include_router(monitor_router)
 app.include_router(tags_router)
+app.include_router(cloud_backup_router)
 
 import os
 import sys
@@ -61,6 +63,23 @@ def get_base_dir() -> Path:
 STATIC_FRONTEND_DIR = get_base_dir() / "frontend"
 
 from backend.services.background_service import backgrounds_dir
+fonts_dir = Path(APP_DATA_DIR) / "frontend" / "fonts"
+fonts_dir.mkdir(parents=True, exist_ok=True)
+
+
+@app.get("/static/fonts/{filename}")
+async def get_custom_font(filename: str):
+    if Path(filename).name != filename:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404)
+    persistent = fonts_dir / filename
+    legacy = Path.cwd() / "frontend" / "fonts" / filename
+    packaged = STATIC_FRONTEND_DIR / "fonts" / filename
+    path = next((candidate for candidate in (persistent, legacy, packaged) if candidate.is_file()), persistent)
+    if not path.is_file():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404)
+    return FileResponse(path)
 
 # 정적 파일 서빙
 app.mount("/static/backgrounds", StaticFiles(directory=str(backgrounds_dir)), name="backgrounds")

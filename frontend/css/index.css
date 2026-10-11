@@ -506,11 +506,14 @@
             z-index: 1000;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.25s ease;
+            visibility: hidden;
+            transition: opacity 0.25s ease, visibility 0s linear 0.25s;
         }
         .modal-overlay.show {
             opacity: 1;
             pointer-events: auto;
+            visibility: visible;
+            transition-delay: 0s;
         }
         .modal-box {
             background: #111827;
@@ -620,6 +623,50 @@
             flex-direction: column;
             gap: 14px;
             overflow: hidden;
+        }
+
+        .cloud-backup-modal-box {
+            width: min(680px, 94vw);
+            max-height: 88vh;
+            overflow-y: auto;
+        }
+        .cloud-drive-status {
+            margin: 14px 0;
+            padding: 11px 13px;
+            border: 1px solid var(--card-border);
+            border-radius: 9px;
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+        .cloud-backup-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 12px 0 16px;
+        }
+        .cloud-snapshot-list {
+            display: grid;
+            gap: 8px;
+            max-height: 34vh;
+            overflow-y: auto;
+        }
+        .cloud-snapshot-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 12px;
+            border: 1px solid var(--card-border);
+            border-radius: 9px;
+            background: rgba(255, 255, 255, 0.035);
+            color: var(--text-main);
+            font-size: 0.83rem;
+        }
+        .cloud-snapshot-item small { display: block; margin-top: 4px; color: var(--text-muted); }
+        .cloud-conflict-badge {
+            color: #fbbf24;
+            font-weight: 700;
         }
         .import-tag-description {
             color: var(--text-muted);

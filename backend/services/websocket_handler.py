@@ -6,6 +6,7 @@ import re
 from fastapi import WebSocket, WebSocketDisconnect
 
 from backend.schemas import Slide, SlideTemplate, Element, CustomFont, ProjectData
+from backend.database import APP_DATA_DIR
 from backend.storage import save_project_data, save_global_templates, load_global_templates
 from backend.services.connection_manager import manager
 from backend.services.background_service import backgrounds_dir, load_bg_meta, save_bg_meta
@@ -536,7 +537,7 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                     import hashlib
                     import re
                     
-                    fonts_dir = os.path.join("frontend", "fonts")
+                    fonts_dir = os.path.join(APP_DATA_DIR, "frontend", "fonts")
                     os.makedirs(fonts_dir, exist_ok=True)
                     
                     parsed_url = urllib.parse.urlparse(url)

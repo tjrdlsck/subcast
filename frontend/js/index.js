@@ -760,4 +760,5 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
             }
+            document.addEventListener('subcast:projects-updated', fetchProjects);
         });

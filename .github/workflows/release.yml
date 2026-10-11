@@ -73,9 +73,30 @@ jobs:
           retention-days: 7
 
       - name: Build with PyInstaller
+        env:
+          SUBCAST_GOOGLE_OAUTH_CREDENTIALS_JSON: ${{ secrets.SUBCAST_GOOGLE_OAUTH_CREDENTIALS_JSON }}
         shell: pwsh
         run: |
-          pyinstaller subcast.spec --clean -y
+          if (-not $env:SUBCAST_GOOGLE_OAUTH_CREDENTIALS_JSON) { throw 'Repository secret SUBCAST_GOOGLE_OAUTH_CREDENTIALS_JSON is required to package Google Drive OAuth.' }
+          $oauthCredentialName = 'client_secret_131602755526-k80ot6sq10ttqhos02vho3vuemj7khia.apps.googleusercontent.com.json'
+          $oauthCredentialPath = Join-Path $PWD $oauthCredentialName
+          try {
+            $oauthConfig = $env:SUBCAST_GOOGLE_OAUTH_CREDENTIALS_JSON | ConvertFrom-Json
+            if ($oauthConfig.installed.client_id -cne '131602755526-k80ot6sq10ttqhos02vho3vuemj7khia.apps.googleusercontent.com' -or [string]::IsNullOrWhiteSpace($oauthConfig.installed.client_secret)) {
+              throw 'Repository OAuth credentials must contain the configured installed-app client ID and a client secret.'
+            }
+            [System.IO.File]::WriteAllText($oauthCredentialPath, $env:SUBCAST_GOOGLE_OAUTH_CREDENTIALS_JSON, [System.Text.UTF8Encoding]::new($false))
+            pyinstaller subcast.spec --clean -y
+            if ($LASTEXITCODE -ne 0) { throw 'PyInstaller failed to build the release package.' }
+            $packagedCredential = Get-ChildItem -Path 'dist\subcast' -Filter $oauthCredentialName -File -Recurse | Select-Object -First 1
+            if (-not $packagedCredential) { throw 'The release package does not contain the OAuth credentials file.' }
+            $packagedOAuthConfig = Get-Content -Raw $packagedCredential.FullName | ConvertFrom-Json
+            if ($packagedOAuthConfig.installed.client_id -cne '131602755526-k80ot6sq10ttqhos02vho3vuemj7khia.apps.googleusercontent.com' -or [string]::IsNullOrWhiteSpace($packagedOAuthConfig.installed.client_secret)) {
+              throw 'The packaged OAuth credentials do not match the configured installed-app client.'
+            }
+          } finally {
+            Remove-Item -LiteralPath $oauthCredentialPath -Force -ErrorAction SilentlyContinue
+          }
 
       - name: Copy version.txt to dist if missing
         shell: pwsh
