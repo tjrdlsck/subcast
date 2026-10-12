@@ -716,3 +716,15 @@
         @media (max-width: 560px) {
             .import-tag-row { grid-template-columns: 1fr; gap: 7px; }
         }
+
+.cloud-environment-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--card-border); margin-bottom: 14px; }
+.cloud-environment-tabs button { flex: 1; padding: 12px; color: var(--text-muted); background: transparent; border: 0; border-bottom: 2px solid transparent; cursor: pointer; }
+.cloud-environment-tabs button[aria-selected="true"] { color: var(--text-main); border-bottom-color: #818cf8; }
+.cloud-environment-tabs button:focus-visible, .cloud-backup-modal-box button:focus-visible { outline: 2px solid #a5b4fc; outline-offset: 2px; }
+.cloud-backup-modal-box [hidden] { display: none !important; }
+.cloud-background-state { flex-shrink: 0; font-size: .8rem; color: var(--text-muted); }
+.cloud-background-state[data-state="removed"] { color: #fca5a5; }
+.cloud-background-state[data-state="added"], .cloud-background-state[data-state="updated"] { color: #c7d2fe; }
+.cloud-snapshot-item > div { min-width: 0; overflow-wrap: anywhere; }
+.cloud-confirm { margin-top: 16px; padding: 14px; border: 1px solid #a5b4fc; border-radius: 9px; }
+@media (max-width: 480px) { .cloud-snapshot-item { align-items: flex-start; flex-direction: column; gap: 6px; } }

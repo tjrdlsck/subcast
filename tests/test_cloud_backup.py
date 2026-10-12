@@ -186,6 +186,25 @@ def test_drive_refresh_sends_client_secret_and_persists_new_access_token(monkeyp
     assert saved_tokens[0]["access_token"] == "renewed-access"
 
 
+def test_environment_manifest_uses_create_then_update_http_methods(monkeypatch):
+    calls = []
+    class Response:
+        def json(self):
+            return {"id": "manifest-1"}
+
+    client = object.__new__(google_drive.GoogleDriveClient)
+    monkeypatch.setattr(client, "_environment_folder_id", lambda: "folder-1")
+    monkeypatch.setattr(client, "request", lambda method, url, **kwargs: calls.append((method, url)) or Response())
+
+    client.upload_environment_manifest(b"{}")
+    client.upload_environment_manifest(b"{}", "manifest-1")
+
+    assert calls[0][0] == "POST"
+    assert "/files?uploadType=multipart" in calls[0][1]
+    assert calls[1][0] == "PATCH"
+    assert "/files/manifest-1?uploadType=multipart" in calls[1][1]
+
+
 def test_remote_assets_are_referenced_without_repeating_media_in_each_snapshot(tmp_path):
     content = b"background-video" * 100_000
     background_dir = tmp_path / "frontend" / "assets" / "backgrounds"

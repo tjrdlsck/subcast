@@ -1,180 +1,157 @@
 const { test, expect } = require('./fixtures');
-
-test('SC-18-01 Drive 미설정 상태에서도 백업 안내를 표시하고 로컬 프로젝트 목록을 유지한다', async ({ page }) => {
-    await page.route('**/api/cloud/drive/status', route => route.fulfill({
-        json: { configured: false, connected: false, pending: false },
-    }));
-
+const video = (name, size = 1048576) => ({ name, title: name, size });
+function environment() {
+    const same = video('same.mp4'), added = video('new.mp4'), removed = video('deleted.mp4');
+    return { exists: true, revision: 'revision-1', needsRestore: false,
+        local: { settingsSize: 2048, backgroundCount: 2, backgroundBytes: 2097152, backgrounds: [same, added] },
+        remote: { revision: 'revision-1', settingsSize: 1024, backgroundCount: 2, backgroundBytes: 2097152, backgrounds: [same, removed] },
+        changes: { added: [added], updated: [], removed: [removed] } };
+}
+async function connected(page, data = environment()) {
+    await page.route('**/api/cloud/drive/status', route => route.fulfill({ json: { configured: true, connected: true } }));
+    await page.route('**/api/cloud/drive/environment', route => route.fulfill({ json: data }));
     await page.goto('/');
-    await expect(page.locator('.project-item[data-id="proj_browser"]')).toBeVisible();
     await page.locator('#btn-open-cloud-backup').click();
+    await expect(page.locator('#btn-drive-backup')).toBeEnabled();
+}
 
-    const modal = page.locator('#cloud-backup-modal');
-    await expect(modal).toBeVisible();
+test('SC-18-01 미설정 안내와 닫기·Escape·포커스 복귀는 로컬 프로젝트를 유지한다', async ({ page }) => {
+    await page.route('**/api/cloud/drive/status', route => route.fulfill({ json: { configured: false, connected: false } }));
+    await page.goto('/');
+    await page.locator('#btn-open-cloud-backup').click();
     await expect(page.locator('#cloud-drive-status')).toContainText('OAuth 클라이언트 자격 증명');
     await expect(page.locator('#btn-drive-connect')).toBeDisabled();
     await expect(page.locator('#btn-drive-backup')).toBeDisabled();
-
     await page.locator('#btn-close-cloud-modal').click();
-    await expect(modal).toBeHidden();
-    await expect(page.locator('.project-item[data-id="proj_browser"]')).toBeVisible();
-
+    await expect(page.locator('#cloud-backup-modal')).toBeHidden();
+    await expect(page.locator('#btn-open-cloud-backup')).toBeFocused();
     await page.locator('#btn-open-cloud-backup').click();
-    await expect(modal).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(modal).toBeHidden();
+    await expect(page.locator('#cloud-backup-modal')).toBeHidden();
+    await expect(page.locator('.project-item[data-id="proj_browser"]')).toBeVisible();
 });
 
-test('SC-18-02 연결 버튼은 팝업 승인 뒤 연결 상태와 백업 목록을 갱신한다', async ({ page }) => {
-    let connected = false;
-    let listedSnapshots = 0;
-    await page.route('**/api/cloud/drive/status', route => route.fulfill({
-        json: { configured: true, connected, pending: !connected },
-    }));
-    await page.route('**/api/cloud/drive/connect', route => route.request().method() === 'POST'
-        ? route.fulfill({ json: { authorizationUrl: 'https://oauth.test/authorize' } })
-        : route.fulfill({ json: { connected: false } }));
-    await page.context().route('https://oauth.test/**', route => route.fulfill({ body: 'Fake OAuth consent page', contentType: 'text/html' }));
-    await page.route('**/api/cloud/drive/snapshots', route => {
-        listedSnapshots++;
-        return route.fulfill({ json: { snapshots: [] } });
-    });
-
+test('SC-18-02 OAuth 팝업 승인 후 환경을 불러온다', async ({ page }) => {
+    let linked = false;
+    await page.route('**/api/cloud/drive/status', route => route.fulfill({ json: { configured: true, connected: linked, pending: !linked } }));
+    await page.route('**/api/cloud/drive/connect', route => route.fulfill({ json: { authorizationUrl: 'https://oauth.test/authorize' } }));
+    await page.context().route('https://oauth.test/**', route => route.fulfill({ body: 'OAuth test', contentType: 'text/html' }));
+    await page.route('**/api/cloud/drive/environment', route => route.fulfill({ json: environment() }));
     await page.goto('/');
     await page.locator('#btn-open-cloud-backup').click();
-    await expect(page.locator('#cloud-drive-status')).toContainText('브라우저에서 Google 계정 권한을 승인해 주세요.');
     const popupPromise = page.waitForEvent('popup');
     await page.locator('#btn-drive-connect').click();
     const popup = await popupPromise;
     await expect(popup).toHaveURL('https://oauth.test/authorize');
-
-    connected = true;
-    await expect(page.locator('#cloud-drive-status')).toContainText('Google Drive 연결됨', { timeout: 5000 });
-    await expect(page.locator('#btn-drive-backup')).toBeEnabled();
-    await expect.poll(() => listedSnapshots).toBeGreaterThan(0);
+    linked = true;
+    await expect(page.locator('#btn-drive-backup')).toBeEnabled({ timeout: 5000 });
+    await expect(page.locator('#cloud-background-list')).toContainText('new.mp4');
     await popup.close();
 });
 
-test('SC-18-03 백업은 선택 프로젝트와 기기 이름을 보내고 새 스냅샷을 표시한다', async ({ page }) => {
-    let backupRequest;
-    let snapshotListCalls = 0;
-    const snapshots = [{
-        fileId: 'drive-snapshot-1', snapshotId: 'snapshot-0001', parentSnapshotId: null,
-        projectName: '브라우저 테스트', deviceLabel: '예배실 PC', createdAt: '2026-10-11T00:00:00Z', hasConflict: false,
-    }];
-    await page.route('**/api/projects', route => route.fulfill({ json: [
-        { id: 'proj_browser', name: '브라우저 테스트', isActive: true, slideCount: 2 },
-    ] }));
-    await page.route('**/api/cloud/drive/status', route => route.fulfill({ json: { configured: true, connected: true } }));
-    await page.route('**/api/cloud/drive/snapshots', route => {
-        snapshotListCalls++;
-        return route.fulfill({ json: { snapshots } });
+test('SC-18-03 전체 배경 크기·추가·삭제 표시와 취소 후 명시적 동기화를 검증한다', async ({ page }) => {
+    let sent = [];
+    await page.route('**/api/cloud/drive/environment/sync', route => {
+        sent.push(route.request().postDataJSON());
+        return route.fulfill({ json: { revision: 'revision-2', backgroundCount: 2, backgroundBytes: 2097152 } });
     });
-    await page.route('**/api/cloud/drive/projects/proj_browser/snapshots', async route => {
-        backupRequest = { method: route.request().method(), body: route.request().postDataJSON() };
-        snapshots.unshift({ ...snapshots[0], fileId: 'drive-snapshot-2', snapshotId: 'snapshot-0002', parentSnapshotId: 'snapshot-0001' });
-        await route.fulfill({ json: {
-            snapshot: { size: 2048, createdAt: '2026-10-11T01:00:00Z' }, heads: [],
-        } });
-    });
-
-    await page.goto('/');
-    await page.locator('#btn-open-cloud-backup').click();
-    await page.locator('#cloud-device-label').fill('예배실 PC');
+    await connected(page);
+    await page.evaluate(() => localStorage.setItem('subcast_monitor_settings', JSON.stringify({ textColor: '#abc123' })));
+    await expect(page.locator('#cloud-local-summary')).toHaveText('공통 설정 2.0 KB · 배경 2개 · 2.0 MB');
+    await expect(page.locator('[data-state="added"]')).toHaveText('Drive에 추가');
+    await expect(page.locator('[data-state="removed"]')).toHaveText('Drive에서 삭제');
     await page.locator('#btn-drive-backup').click();
-
-    await expect(page.locator('#cloud-drive-status')).toContainText('백업 완료');
-    expect(backupRequest).toEqual({ method: 'POST', body: { deviceLabel: '예배실 PC' } });
-    await expect(page.locator('[data-cloud-restore="drive-snapshot-2"]')).toBeVisible();
-    await expect.poll(() => snapshotListCalls).toBeGreaterThan(1);
-});
-
-test('SC-18-04 스냅샷 목록은 분기를 표시하고 새로고침 실패를 알린다', async ({ page }) => {
-    let listFails = false;
-    await page.route('**/api/cloud/drive/status', route => route.fulfill({ json: { configured: true, connected: true } }));
-    await page.route('**/api/cloud/drive/snapshots', route => listFails
-        ? route.fulfill({ status: 502, json: { detail: 'Drive 목록 응답 오류' } })
-        : route.fulfill({ json: { snapshots: [{
-            fileId: 'branch-b', snapshotId: 'branch-b-snapshot', parentSnapshotId: 'base-snapshot',
-            projectName: '기도회', deviceLabel: '다른 PC', createdAt: '2026-10-11T00:00:00Z', hasConflict: true,
-        }] } }));
-
-    await page.goto('/');
-    await page.locator('#btn-open-cloud-backup').click();
-    await expect(page.locator('.cloud-conflict-badge')).toHaveText('분기');
-    await expect(page.locator('[data-cloud-restore="branch-b"]')).toBeVisible();
-
-    listFails = true;
-    await page.locator('#btn-drive-refresh').click();
-    await expect(page.locator('#cloud-snapshot-list')).toContainText('Drive 목록 응답 오류');
-});
-
-test('SC-18-05 복원은 확인 후 새 프로젝트로 추가하고 기존 프로젝트를 유지한다', async ({ page }) => {
-    const projects = [
-        { id: 'proj_browser', name: '원본 프로젝트', isActive: true, slideCount: 2 },
-    ];
-    let restoreRequest;
-    await page.route('**/api/projects', route => route.fulfill({ json: projects }));
-    await page.route('**/api/cloud/drive/status', route => route.fulfill({ json: { configured: true, connected: true } }));
-    await page.route('**/api/cloud/drive/snapshots', route => route.fulfill({ json: { snapshots: [{
-        fileId: 'snapshot-to-restore', snapshotId: 'snapshot-restore', parentSnapshotId: null,
-        projectName: '백업 프로젝트', deviceLabel: '기존 PC', createdAt: '2026-10-11T00:00:00Z', hasConflict: false,
-    }] } }));
-    await page.route('**/api/cloud/drive/restore', async route => {
-        restoreRequest = route.request().postDataJSON();
-        projects.push({ id: 'proj_restored', name: '백업 프로젝트 (복원)', isActive: false, slideCount: 2 });
-        await route.fulfill({ json: { project: { id: 'proj_restored', name: '백업 프로젝트 (복원)' } } });
-    });
-
-    await page.goto('/');
-    await page.locator('#btn-open-cloud-backup').click();
-    let confirmCount = 0;
-    page.once('dialog', async dialog => { confirmCount++; await dialog.accept(); });
-    await page.locator('[data-cloud-restore="snapshot-to-restore"]').click();
-
-    expect(confirmCount).toBe(1);
-    expect(restoreRequest).toEqual({ fileId: 'snapshot-to-restore' });
-    await expect(page.locator('#cloud-project-select')).toHaveValue('proj_restored');
-    await expect(page.locator('#cloud-drive-status')).toContainText('새 프로젝트로 복원했습니다');
-    expect(projects.map(project => project.id)).toEqual(['proj_browser', 'proj_restored']);
-});
-
-test('SC-18-06 백업·복원 실패는 안내하고 연결 해제 시 버튼을 잠근다', async ({ page }) => {
-    let connected = true;
-    await page.route('**/api/projects', route => route.fulfill({ json: [
-        { id: 'proj_browser', name: '브라우저 테스트', isActive: true, slideCount: 2 },
-    ] }));
-    await page.route('**/api/cloud/drive/status', route => route.fulfill({ json: { configured: true, connected } }));
-    await page.route('**/api/cloud/drive/snapshots', route => route.fulfill({ json: { snapshots: [{
-        fileId: 'restore-fails', snapshotId: 'snapshot-bad', projectName: '백업 프로젝트',
-        createdAt: '2026-10-11T00:00:00Z', hasConflict: false,
-    }] } }));
-    await page.route('**/api/cloud/drive/projects/proj_browser/snapshots', route =>
-        route.fulfill({ status: 502, json: { detail: 'Drive 업로드 오류' } }));
-    await page.route('**/api/cloud/drive/restore', route =>
-        route.fulfill({ status: 400, json: { detail: '백업 체크섬 오류' } }));
-    await page.route('**/api/cloud/drive/connect', route => {
-        if (route.request().method() === 'DELETE') {
-            connected = false;
-            return route.fulfill({ json: { connected: false } });
-        }
-        return route.fulfill({ json: { authorizationUrl: 'https://oauth.test/authorize' } });
-    });
-
-    await page.goto('/');
-    await page.locator('#btn-open-cloud-backup').click();
+    await expect(page.locator('#cloud-confirm-description')).toContainText('삭제 1개를 Drive에서 제거');
+    await page.locator('#btn-cloud-confirm-cancel').click();
+    expect(sent).toHaveLength(0);
     await page.locator('#btn-drive-backup').click();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#cloud-backup-modal')).toBeVisible();
+    await expect(page.locator('#cloud-confirm')).toBeHidden();
+    await page.locator('#btn-drive-backup').click();
+    await page.locator('#btn-cloud-confirm-submit').click();
+    await expect(page.locator('#cloud-drive-status')).toContainText('동기화 완료');
+    expect(sent).toEqual([{ baseRevision: 'revision-1', browserSettings: { monitorSettings: { textColor: '#abc123' }, broadcastLayout: null } }]);
+});
+
+test('SC-18-04 원격 변경 409는 재조회하고 파괴적 동기화를 자동 재시도하지 않는다', async ({ page }) => {
+    const data = environment();
+    let syncCalls = 0;
+    await page.route('**/api/cloud/drive/environment/sync', route => {
+        syncCalls++; data.needsRestore = true; data.revision = 'revision-2';
+        return route.fulfill({ status: 409, json: { detail: '다른 PC에서 환경이 변경되었습니다.' } });
+    });
+    await connected(page, data);
+    await page.locator('#btn-drive-backup').click();
+    await page.locator('#btn-cloud-confirm-submit').click();
+    await expect(page.locator('#cloud-drive-status')).toContainText('다른 PC');
+    await expect(page.locator('#btn-drive-backup')).toBeDisabled();
+    expect(syncCalls).toBe(1);
+    await expect(page.locator('#cloud-change-summary')).toContainText('먼저 Drive 환경');
+});
+
+test('SC-18-05 복원 확인·취소와 브라우저 공통 설정 적용은 프로젝트를 유지한다', async ({ page }) => {
+    let body;
+    await page.route('**/api/cloud/drive/environment/restore', route => {
+        body = route.request().postDataJSON();
+        return route.fulfill({ json: { revision: 'revision-1', browserSettings: { monitorSettings: { textColor: '#123456' }, broadcastLayout: { width: 900 } } } });
+    });
+    await connected(page);
+    await page.locator('#cloud-tab-restore').click();
+    await expect(page.locator('#cloud-panel-sync')).toBeHidden();
+    await expect(page.locator('#cloud-remote-list')).toContainText('deleted.mp4');
+    await page.locator('#btn-drive-restore').click();
+    await expect(page.locator('#cloud-confirm-description')).toContainText('교체');
+    await page.locator('#btn-cloud-confirm-cancel').click();
+    expect(body).toBeUndefined();
+    await page.locator('#btn-drive-restore').click();
+    await page.locator('#btn-cloud-confirm-submit').click();
+    await expect(page.locator('#cloud-drive-status')).toContainText('적용했습니다');
+    expect(body).toEqual({ baseRevision: 'revision-1' });
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('subcast_monitor_settings')))).toEqual({ textColor: '#123456' });
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('subcast_praise_broadcast_layout')))).toEqual({ width: 900 });
+    await page.locator('#btn-close-cloud-modal').click();
+    await expect(page.locator('.project-item[data-id="proj_browser"]')).toBeVisible();
+});
+
+test('SC-18-06 동기화·복원 실패는 이전 브라우저 설정을 유지하고 연결 해제는 목록을 비운다', async ({ page }) => {
+    let linked = true;
+    await connected(page);
+    await page.route('**/api/cloud/drive/status', route => route.fulfill({ json: { configured: true, connected: linked } }));
+    await page.route('**/api/cloud/drive/environment/sync', route => route.fulfill({ status: 502, json: { detail: 'Drive 업로드 오류' } }));
+    await page.route('**/api/cloud/drive/environment/restore', route => route.fulfill({ status: 400, json: { detail: '배경 체크섬 오류' } }));
+    await page.route('**/api/cloud/drive/connect', route => { linked = false; return route.fulfill({ json: { connected: false } }); });
+    await page.evaluate(() => localStorage.setItem('subcast_monitor_settings', '{"original":true}'));
+    await page.locator('#btn-drive-backup').click();
+    await page.locator('#btn-cloud-confirm-submit').click();
     await expect(page.locator('#cloud-drive-status')).toContainText('Drive 업로드 오류');
     await expect(page.locator('#btn-drive-backup')).toBeEnabled();
-
-    page.once('dialog', dialog => dialog.accept());
-    await page.locator('[data-cloud-restore="restore-fails"]').click();
-    await expect(page.locator('#cloud-drive-status')).toContainText('백업 체크섬 오류');
-    await expect(page.locator('[data-cloud-restore="restore-fails"]')).toBeEnabled();
-
+    await page.locator('#cloud-tab-restore').click();
+    await page.locator('#btn-drive-restore').click();
+    await page.locator('#btn-cloud-confirm-submit').click();
+    await expect(page.locator('#cloud-drive-status')).toContainText('체크섬 오류');
+    expect(await page.evaluate(() => localStorage.getItem('subcast_monitor_settings'))).toBe('{"original":true}');
     await page.locator('#btn-drive-disconnect').click();
-    await expect(page.locator('#cloud-drive-status')).toContainText('Google Drive 연결이 필요합니다');
     await expect(page.locator('#btn-drive-backup')).toBeDisabled();
-    await expect(page.locator('#btn-drive-refresh')).toBeDisabled();
-    await expect(page.locator('#cloud-snapshot-list')).toBeEmpty();
+    await expect(page.locator('#btn-drive-restore')).toBeDisabled();
+    await expect(page.locator('#cloud-background-list')).toBeEmpty();
+    await expect(page.locator('#cloud-drive-status')).toContainText('연결이 필요');
+});
+
+test('SC-18-07 새로고침 실패·빈 라이브러리·키보드 탭·좁은 화면을 검증한다', async ({ page }) => {
+    const data = environment();
+    data.local = { settingsSize: 0, backgroundCount: 0, backgroundBytes: 0, backgrounds: [] };
+    data.changes = { added: [], updated: [], removed: [] }; data.exists = false;
+    await connected(page, data);
+    await expect(page.locator('#cloud-background-list')).toContainText('배경이 없습니다');
+    await page.locator('#cloud-tab-sync').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(page.locator('#cloud-tab-restore')).toBeFocused();
+    await expect(page.locator('#btn-drive-restore')).toBeDisabled();
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await page.locator('.cloud-backup-modal-box').evaluate(element => { const bounds = element.getBoundingClientRect(); return bounds.left >= 0 && bounds.right <= innerWidth && element.scrollWidth <= element.clientWidth; })).toBe(true);
+    await page.route('**/api/cloud/drive/environment', route => route.fulfill({ status: 502, json: { detail: 'Drive 환경 조회 오류' } }));
+    await page.locator('#btn-drive-refresh').click();
+    await expect(page.locator('#cloud-drive-status')).toContainText('조회 오류');
+    await expect(page.locator('#btn-drive-backup')).toBeDisabled();
 });

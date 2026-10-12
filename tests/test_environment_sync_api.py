@@ -1,0 +1,241 @@
+from __future__ import annotations
+
+import json
+import hashlib
+import sqlite3
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+
+from backend.main import app
+from backend.routers import cloud_backup as cloud_backup_router
+from backend.services import environment_sync
+
+
+class FakeEnvironmentDrive:
+    manifest_id = "manifest-1"
+    manifest: bytes | None = None
+    assets: dict[str, bytes] = {}
+    deletes: list[str] = []
+    next_asset = 0
+
+    @classmethod
+    def reset(cls):
+        cls.manifest = None
+        cls.assets = {}
+        cls.deletes = []
+        cls.next_asset = 0
+
+    def find_environment_manifest(self, _cached_file_id=None):
+        if self.manifest is None:
+            return None, None
+        return {"id": self.manifest_id}, self.manifest
+
+    def upload_environment_manifest(self, content, file_id=None):
+        type(self).manifest_id = file_id or type(self).manifest_id
+        type(self).manifest = content
+        return {"id": type(self).manifest_id}
+
+    def upload_environment_asset(self, path: Path, sha256: str):
+        type(self).next_asset += 1
+        asset_id = f"asset-{type(self).next_asset}"
+        type(self).assets[asset_id] = path.read_bytes()
+        return {"id": asset_id}
+
+    def delete_environment_asset(self, file_id: str):
+        type(self).deletes.append(file_id)
+        type(self).assets.pop(file_id, None)
+
+    def download_file_to_path(self, file_id: str, path: Path):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(type(self).assets[file_id])
+
+
+def _create_user_video(data_dir: Path, name: str, content: bytes):
+    directory = data_dir / "frontend" / "assets" / "backgrounds"
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / name).write_bytes(content)
+    metadata_path = directory / "meta.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8")) if metadata_path.exists() else {}
+    metadata[name] = {"title": name, "userUploaded": True}
+    metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+
+
+def _manifest():
+    return json.loads(FakeEnvironmentDrive.manifest.decode("utf-8"))
+
+
+def test_environment_sync_uploads_settings_and_all_uploaded_videos(tmp_path, monkeypatch):
+    FakeEnvironmentDrive.reset()
+    monkeypatch.setattr(cloud_backup_router, "APP_DATA_DIR", tmp_path)
+    monkeypatch.setattr(cloud_backup_router, "GoogleDriveClient", FakeEnvironmentDrive)
+    _create_user_video(tmp_path, "upload_song.mp4", b"video-data")
+
+    with TestClient(app) as client:
+        before = client.get("/api/cloud/drive/environment")
+        assert before.status_code == 200, before.text
+        assert before.json()["exists"] is False
+        saved = client.post("/api/cloud/drive/environment/sync", json={
+            "baseRevision": None,
+            "browserSettings": {"monitorSettings": {"textColor": "#abc123"}, "broadcastLayout": None},
+        })
+
+    assert saved.status_code == 200, saved.text
+    payload = saved.json()
+    manifest = _manifest()
+    assert payload["backgroundCount"] == 1
+    assert manifest["backgrounds"][0]["name"] == "upload_song.mp4"
+    assert manifest["backgrounds"][0]["assetFileId"] in FakeEnvironmentDrive.assets
+    assert manifest["settings"]["browserSettings"]["monitorSettings"]["textColor"] == "#abc123"
+    assert "bible" not in json.dumps(manifest["settings"]).lower()
+
+
+def test_remote_revision_blocks_stale_sync_and_restore_mirrors_removed_videos(tmp_path, monkeypatch):
+    FakeEnvironmentDrive.reset()
+    monkeypatch.setattr(cloud_backup_router, "APP_DATA_DIR", tmp_path)
+    monkeypatch.setattr(cloud_backup_router, "GoogleDriveClient", FakeEnvironmentDrive)
+    _create_user_video(tmp_path, "upload_old.mp4", b"old-video")
+
+    with TestClient(app) as client:
+        first = client.post("/api/cloud/drive/environment/sync", json={"baseRevision": None})
+        assert first.status_code == 200, first.text
+        revision = first.json()["revision"]
+        assert _manifest()["backgrounds"][0]["assetFileId"] in FakeEnvironmentDrive.assets
+
+        # Simulate another machine advancing the Drive manifest.
+        remote = _manifest()
+        remote["revision"] = "revision-from-other-pc"
+        FakeEnvironmentDrive.manifest = json.dumps(remote).encode("utf-8")
+        stale = client.post("/api/cloud/drive/environment/sync", json={"baseRevision": revision})
+        assert stale.status_code == 409
+
+        # Reset the active revision to the published one and restore on a machine with a different local video.
+        remote["revision"] = revision
+        FakeEnvironmentDrive.manifest = json.dumps(remote).encode("utf-8")
+        state_path = tmp_path / "cloud_backup" / "environment.json"
+        state_path.write_text(json.dumps({"manifestFileId": "manifest-1"}), encoding="utf-8")
+        (tmp_path / "frontend" / "assets" / "backgrounds" / "upload_old.mp4").unlink()
+        _create_user_video(tmp_path, "upload_local_only.mp4", b"local-only")
+        tags_path = tmp_path / "data" / "mood_tags.json"
+        tags_path.parent.mkdir(parents=True, exist_ok=True)
+        tags_path.write_text('{"version": 1, "tags": [{"id": "local", "name": "local"}]}', encoding="utf-8")
+        restored = client.post("/api/cloud/drive/environment/restore", json={"baseRevision": revision})
+
+    assert restored.status_code == 200, restored.text
+    backgrounds = tmp_path / "frontend" / "assets" / "backgrounds"
+    assert (backgrounds / "upload_old.mp4").read_bytes() == b"old-video"
+    assert not (backgrounds / "upload_local_only.mp4").exists()
+    assert not tags_path.exists()
+    assert restored.json()["backgroundCount"] == 1
+
+
+def test_sync_removes_drive_asset_when_user_deletes_local_video(tmp_path, monkeypatch):
+    FakeEnvironmentDrive.reset()
+    monkeypatch.setattr(cloud_backup_router, "APP_DATA_DIR", tmp_path)
+    monkeypatch.setattr(cloud_backup_router, "GoogleDriveClient", FakeEnvironmentDrive)
+    _create_user_video(tmp_path, "upload_remove.mp4", b"remove-me")
+
+    with TestClient(app) as client:
+        first = client.post("/api/cloud/drive/environment/sync", json={"baseRevision": None})
+        assert first.status_code == 200, first.text
+        revision = first.json()["revision"]
+        asset_id = _manifest()["backgrounds"][0]["assetFileId"]
+        background_dir = tmp_path / "frontend" / "assets" / "backgrounds"
+        (background_dir / "upload_remove.mp4").unlink()
+
+        second = client.post("/api/cloud/drive/environment/sync", json={"baseRevision": revision})
+
+    assert second.status_code == 200, second.text
+    assert second.json()["removed"] == 1
+    assert _manifest()["backgrounds"] == []
+    assert asset_id in FakeEnvironmentDrive.deletes
+    assert asset_id not in FakeEnvironmentDrive.assets
+
+
+def test_environment_restore_rejects_invalid_video_checksum_without_touching_local_files(tmp_path, monkeypatch):
+    FakeEnvironmentDrive.reset()
+    monkeypatch.setattr(cloud_backup_router, "APP_DATA_DIR", tmp_path)
+    monkeypatch.setattr(cloud_backup_router, "GoogleDriveClient", FakeEnvironmentDrive)
+    FakeEnvironmentDrive.assets["asset-bad"] = b"tampered"
+    manifest = {
+        "formatVersion": 1, "revision": "r1", "settings": {"praiseSongs": [], "templates": [], "importTagMappings": {}},
+        "backgrounds": [{"name": "upload_remote.mp4", "size": 12,
+                          "sha256": hashlib.sha256(b"expected-data").hexdigest(), "assetFileId": "asset-bad"}],
+    }
+    FakeEnvironmentDrive.manifest = json.dumps(manifest).encode("utf-8")
+    _create_user_video(tmp_path, "upload_keep.mp4", b"keep")
+
+    with TestClient(app) as client:
+        failed = client.post("/api/cloud/drive/environment/restore", json={"baseRevision": "r1"})
+
+    assert failed.status_code == 400
+    assert (tmp_path / "frontend" / "assets" / "backgrounds" / "upload_keep.mp4").read_bytes() == b"keep"
+    assert not (tmp_path / "frontend" / "assets" / "backgrounds" / "upload_remote.mp4").exists()
+
+
+def test_restore_replaces_common_settings_and_preserves_bible_and_other_user_tables(tmp_path, monkeypatch):
+    FakeEnvironmentDrive.reset()
+    monkeypatch.setattr(cloud_backup_router, "APP_DATA_DIR", tmp_path)
+    monkeypatch.setattr(cloud_backup_router, "GoogleDriveClient", FakeEnvironmentDrive)
+    user_db = tmp_path / "subcast_user.db"
+    connection = sqlite3.connect(user_db)
+    connection.execute("CREATE TABLE local_extension (value TEXT)")
+    connection.execute("INSERT INTO local_extension VALUES ('keep-me')")
+    connection.execute("CREATE TABLE praise_songs (id INTEGER PRIMARY KEY, title TEXT, lyrics TEXT, mood TEXT)")
+    connection.execute("INSERT INTO praise_songs VALUES (1, 'Old', 'old lyrics', 'Quiet')")
+    connection.commit()
+    connection.close()
+    bible_db = tmp_path / "bible.db"
+    bible_db.write_bytes(b"packaged-bible-database")
+    manifest = {
+        "formatVersion": 1, "revision": "settings-r1",
+        "settings": {
+            "praiseSongs": [{"id": 7, "title": "New", "lyrics": "new lyrics", "mood": "Worship"}],
+            "templates": [{"id": "template-1", "name": "Service"}], "importTagMappings": {"Praise": "Worship"},
+            "moodTags": {"version": 1, "tags": [{"id": "default", "name": "기본/일반"}]},
+        },
+        "backgrounds": [],
+    }
+    FakeEnvironmentDrive.manifest = json.dumps(manifest).encode("utf-8")
+
+    with TestClient(app) as client:
+        restored = client.post("/api/cloud/drive/environment/restore", json={"baseRevision": "settings-r1"})
+
+    assert restored.status_code == 200, restored.text
+    connection = sqlite3.connect(user_db)
+    songs = connection.execute("SELECT id, title, lyrics, mood FROM praise_songs").fetchall()
+    extension = connection.execute("SELECT value FROM local_extension").fetchone()
+    connection.close()
+    assert songs == [(7, "New", "new lyrics", "Worship")]
+    assert extension == ("keep-me",)
+    assert bible_db.read_bytes() == b"packaged-bible-database"
+    assert json.loads((tmp_path / "data" / "templates.json").read_text(encoding="utf-8")) == manifest["settings"]["templates"]
+    assert json.loads((tmp_path / "data" / "project_import_tag_mappings.json").read_text(encoding="utf-8")) == {"Praise": "Worship"}
+
+
+def test_failed_restore_rolls_back_videos_and_settings(tmp_path, monkeypatch):
+    FakeEnvironmentDrive.reset()
+    monkeypatch.setattr(cloud_backup_router, "APP_DATA_DIR", tmp_path)
+    monkeypatch.setattr(cloud_backup_router, "GoogleDriveClient", FakeEnvironmentDrive)
+    _create_user_video(tmp_path, "upload_local.mp4", b"local-video")
+    templates_path = tmp_path / "data" / "templates.json"
+    templates_path.parent.mkdir(parents=True, exist_ok=True)
+    templates_path.write_text('[{"name":"local-template"}]', encoding="utf-8")
+    FakeEnvironmentDrive.assets["asset-new"] = b"drive-video"
+    manifest = {
+        "formatVersion": 1, "revision": "rollback-r1",
+        "settings": {"praiseSongs": [], "templates": [{"name": "drive-template"}], "importTagMappings": {}},
+        "backgrounds": [{"name": "upload_drive.mp4", "size": 11,
+                          "sha256": hashlib.sha256(b"drive-video").hexdigest(), "assetFileId": "asset-new"}],
+    }
+    FakeEnvironmentDrive.manifest = json.dumps(manifest).encode("utf-8")
+    monkeypatch.setattr(environment_sync, "apply_settings", lambda *_args: (_ for _ in ()).throw(RuntimeError("simulated settings failure")))
+
+    with TestClient(app) as client:
+        failed = client.post("/api/cloud/drive/environment/restore", json={"baseRevision": "rollback-r1"})
+
+    backgrounds = tmp_path / "frontend" / "assets" / "backgrounds"
+    assert failed.status_code == 502
+    assert (backgrounds / "upload_local.mp4").read_bytes() == b"local-video"
+    assert not (backgrounds / "upload_drive.mp4").exists()
+    assert json.loads(templates_path.read_text(encoding="utf-8")) == [{"name": "local-template"}]

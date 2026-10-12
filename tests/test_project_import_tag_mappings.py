@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from backend.main import app
 from backend.routers import projects as projects_router
+from backend.services import project_import_tags
 from backend.services.project_import_tags import apply_import_tag_mappings, extract_project_tags
 
 
@@ -37,8 +38,30 @@ def test_import_mapping_rewrites_project_tags_and_discards_foreign_video_referen
     assert imported["slides"][0]["moods"] == ["Worship", "Prayer"]
     assert imported["slides"][0]["stageBgMoodOverride"] == "Prayer"
     assert imported["slides"][0]["overrideBgId"] is None
-    assert imported["settings"]["stageBgLibrary"] is None
+    assert imported["settings"]["stageBgLibrary"] == []
     assert imported["settings"]["stageBackground"] is None
+
+
+def test_import_mapping_keeps_background_references_when_environment_video_is_present(tmp_path, monkeypatch):
+    background_dir = tmp_path / "frontend" / "assets" / "backgrounds"
+    background_dir.mkdir(parents=True)
+    (background_dir / "shared-video.mp4").write_bytes(b"synced")
+    monkeypatch.setattr(project_import_tags, "APP_DATA_DIR", tmp_path)
+
+    imported = apply_import_tag_mappings({
+        "slides": [{"overrideBgId": "shared-video.mp4"}],
+        "settings": {
+            "stageBgLibrary": [
+                {"name": "shared-video.mp4", "mood": "Worship"},
+                {"name": "missing-video.mp4", "mood": "Quiet"},
+            ],
+            "stageBackground": {"type": "video", "videoUrl": "/static/backgrounds/shared-video.mp4"},
+        },
+    }, {})
+
+    assert imported["slides"][0]["overrideBgId"] == "shared-video.mp4"
+    assert imported["settings"]["stageBgLibrary"] == [{"name": "shared-video.mp4", "mood": "Worship"}]
+    assert imported["settings"]["stageBackground"]["videoUrl"].endswith("shared-video.mp4")
 
 
 def test_import_endpoint_applies_and_saves_user_selected_tag_mapping(monkeypatch):

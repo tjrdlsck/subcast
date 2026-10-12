@@ -59,7 +59,7 @@
                     <span class="projects-count-badge" id="projects-count">0개</span>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center;">
-                    <button class="btn-create-project" id="btn-open-cloud-backup" style="background: rgba(99, 102, 241, 0.18); border: 1px solid rgba(99, 102, 241, 0.35); color: #c7d2fe;" title="Google Drive 백업 및 복원">☁ Drive 백업</button>
+                    <button class="btn-create-project" id="btn-open-cloud-backup" style="background: rgba(99, 102, 241, 0.18); border: 1px solid rgba(99, 102, 241, 0.35); color: #c7d2fe;" title="Google Drive 환경과 배경 동기화">☁ 환경 동기화</button>
                     <input type="file" id="file-import-project" accept=".json" style="display: none;" />
                     <button class="btn-create-project" id="btn-import-project-trigger" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); padding: 10px 14px;" title="프로젝트 가져오기">
                         <img src="/static/assets/icons/download.svg" style="width: 16px; height: 16px; filter: brightness(0) invert(1);" alt="가져오기" />
@@ -117,27 +117,40 @@
 
     <div class="modal-overlay" id="cloud-backup-modal" role="dialog" aria-modal="true" aria-labelledby="cloud-backup-title">
         <div class="modal-box cloud-backup-modal-box">
-            <div class="modal-header" id="cloud-backup-title">Google Drive 백업</div>
-            <p class="import-tag-description">편집기에서 저장 완료를 확인한 뒤 백업해 주세요. 백업은 새 스냅샷으로 보관되며, 다른 PC에서 같은 백업을 바탕으로 작업해도 기존 작업을 덮어쓰지 않고 분기로 남깁니다.</p>
+            <div class="modal-header" id="cloud-backup-title">Google Drive 환경 동기화</div>
+            <p class="import-tag-description">공통 설정과 사용자가 업로드한 배경 영상 전체를 저장합니다. 프로젝트와 슬라이드는 내보내기·가져오기로 옮겨 주세요.</p>
             <div id="cloud-drive-status" class="cloud-drive-status" role="status">Drive 연결 상태 확인 중...</div>
-            <div class="form-group">
-                <label for="cloud-project-select">백업할 프로젝트</label>
-                <select id="cloud-project-select" class="form-input"></select>
-            </div>
-            <div class="form-group">
-                <label for="cloud-device-label">이 기기 이름</label>
-                <input type="text" id="cloud-device-label" class="form-input" maxlength="80" value="이 PC" />
-            </div>
             <div class="cloud-backup-actions">
                 <button type="button" class="btn-submit" id="btn-drive-connect">Google Drive 연결</button>
-                <button type="button" class="btn-submit" id="btn-drive-backup">선택 프로젝트 백업</button>
-                <button type="button" class="btn-cancel" id="btn-drive-refresh">백업 목록 새로고침</button>
+                <button type="button" class="btn-cancel" id="btn-drive-refresh">Drive 상태 새로고침</button>
                 <button type="button" class="btn-cancel" id="btn-drive-disconnect">연결 해제</button>
             </div>
-            <div id="cloud-snapshot-list" class="cloud-snapshot-list" aria-live="polite"></div>
-            <div class="modal-footer">
-                <button class="btn-cancel" id="btn-close-cloud-modal">닫기</button>
+            <div class="cloud-environment-tabs" role="tablist" aria-label="환경 동기화 작업">
+                <button type="button" id="cloud-tab-sync" role="tab" aria-selected="true" aria-controls="cloud-panel-sync">이 PC → Drive</button>
+                <button type="button" id="cloud-tab-restore" role="tab" aria-selected="false" aria-controls="cloud-panel-restore" tabindex="-1">Drive → 이 PC</button>
             </div>
+            <section id="cloud-panel-sync" role="tabpanel" aria-labelledby="cloud-tab-sync">
+                <p class="import-tag-description">이 PC의 전체 배경 목록을 기준으로 동기화합니다. 이 PC에서 삭제한 배경은 Drive에서도 제거됩니다.</p>
+                <div id="cloud-local-summary" class="cloud-drive-status"></div>
+                <div id="cloud-change-summary" class="import-tag-description"></div>
+                <div id="cloud-background-list" class="cloud-snapshot-list" aria-live="polite"></div>
+                <div class="cloud-backup-actions"><button type="button" class="btn-submit" id="btn-drive-backup" disabled>환경과 배경 전체 동기화</button></div>
+            </section>
+            <section id="cloud-panel-restore" role="tabpanel" aria-labelledby="cloud-tab-restore" hidden>
+                <p class="import-tag-description">Drive의 공통 설정과 배경 전체로 이 PC의 환경을 교체합니다. 기존 프로젝트와 슬라이드는 유지되며, 복원에 실패하면 기존 환경으로 되돌립니다.</p>
+                <div id="cloud-remote-summary" class="cloud-drive-status"></div>
+                <div id="cloud-remote-list" class="cloud-snapshot-list"></div>
+                <div class="cloud-backup-actions"><button type="button" class="btn-submit" id="btn-drive-restore" disabled>Drive 환경을 이 PC에 적용</button></div>
+            </section>
+            <div id="cloud-confirm" class="cloud-confirm" role="group" aria-labelledby="cloud-confirm-title" hidden>
+                <strong id="cloud-confirm-title"></strong>
+                <p id="cloud-confirm-description" class="import-tag-description"></p>
+                <div class="cloud-backup-actions">
+                    <button type="button" class="btn-cancel" id="btn-cloud-confirm-cancel">취소</button>
+                    <button type="button" class="btn-submit" id="btn-cloud-confirm-submit">확인하고 진행</button>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn-cancel" id="btn-close-cloud-modal">닫기</button></div>
         </div>
     </div>
 
@@ -162,6 +175,6 @@
     <script src="js/header-display-menu.js"></script>
     <script src="js/modules/editor-display-manager.js?v=1.0.3"></script>
     <script src="js/index.js?v=project-import-tag-mapping-1"></script>
-    <script src="js/cloud-backup.js?v=1"></script>
+    <script src="js/cloud-backup.js?v=2"></script>
 </body>
 </html>

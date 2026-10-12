@@ -1,97 +1,141 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const modal = document.getElementById('cloud-backup-modal');
-    const statusBox = document.getElementById('cloud-drive-status');
-    const projectSelect = document.getElementById('cloud-project-select');
-    const snapshotList = document.getElementById('cloud-snapshot-list');
+    const byId = id => document.getElementById(id);
+    const modal = byId('cloud-backup-modal');
     let statusPoll = null;
     let returnFocusTo = null;
-
-    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
-    }[char]));
-    const setStatus = (message, error = false) => {
-        statusBox.textContent = message;
-        statusBox.style.color = error ? '#fca5a5' : '';
+    let environment = null;
+    let connected = false;
+    let configured = false;
+    let busy = false;
+    let confirmAction = null;
+    let requestGeneration = 0;
+    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
+    const bytes = value => {
+        const size = Number(value) || 0;
+        if (size < 1024) return `${size} B`;
+        if (size < 1024 ** 2) return `${(size / 1024).toFixed(1)} KB`;
+        if (size < 1024 ** 3) return `${(size / 1024 ** 2).toFixed(1)} MB`;
+        return `${(size / 1024 ** 3).toFixed(2)} GB`;
     };
-
-    async function loadProjects() {
-        const response = await fetch('/api/projects');
-        if (!response.ok) throw new Error('프로젝트 목록을 불러오지 못했습니다.');
-        const projects = await response.json();
-        projectSelect.innerHTML = projects.map(project =>
-            `<option value="${escapeHtml(project.id)}">${escapeHtml(project.name)}</option>`
-        ).join('');
-        const active = projects.find(project => project.isActive);
-        if (active) projectSelect.value = active.id;
+    const setStatus = (message, error = false) => {
+        byId('cloud-drive-status').textContent = message;
+        byId('cloud-drive-status').style.color = error ? '#fca5a5' : '';
+    };
+    const buttons = () => {
+        byId('btn-drive-connect').disabled = busy || !configured || connected;
+        byId('btn-drive-disconnect').disabled = busy || !connected;
+        byId('btn-drive-refresh').disabled = busy || !connected;
+        byId('btn-drive-backup').disabled = busy || !connected || !environment || environment.needsRestore;
+        byId('btn-drive-restore').disabled = busy || !connected || !environment?.exists;
+    };
+    async function request(url, options) {
+        const response = await fetch(url, options);
+        const data = await response.json();
+        if (!response.ok) {
+            const error = new Error(data.detail || 'Drive 요청을 완료하지 못했습니다.');
+            error.status = response.status;
+            throw error;
+        }
+        return data;
     }
-
-    async function loadSnapshots() {
-        snapshotList.innerHTML = '<div class="cloud-drive-status">Drive 백업 목록을 불러오는 중...</div>';
+    function render() {
+        const summary = side => `공통 설정 ${bytes(side.settingsSize)} · 배경 ${side.backgroundCount || 0}개 · ${bytes(side.backgroundBytes)}`;
+        const row = (file, state, label) => `<div class="cloud-snapshot-item"><div><strong>${escapeHtml(file.title || file.name)}</strong><small>${escapeHtml(file.name)} · ${bytes(file.size)}</small></div><span class="cloud-background-state" data-state="${state}">${label}</span></div>`;
+        const changes = environment.changes || {};
+        const added = new Set((changes.added || []).map(file => typeof file === 'string' ? file : file.name));
+        const updated = new Set((changes.updated || []).map(file => typeof file === 'string' ? file : file.name));
+        byId('cloud-local-summary').textContent = summary(environment.local || {});
+        byId('cloud-remote-summary').textContent = environment.exists ? summary(environment.remote || {}) : 'Drive에 저장된 환경이 없습니다.';
+        byId('cloud-change-summary').textContent = environment.needsRestore
+            ? '다른 PC에서 저장한 환경이 있습니다. 먼저 Drive 환경을 이 PC에 적용해 주세요.'
+            : `Drive에 추가 ${added.size}개 · 변경 ${updated.size}개 · Drive에서 삭제 ${(changes.removed || []).length}개`;
+        const local = environment.local?.backgrounds || [];
+        byId('cloud-background-list').innerHTML = local.map(file => added.has(file.name) ? row(file, 'added', 'Drive에 추가') : updated.has(file.name) ? row(file, 'updated', 'Drive에서 갱신') : row(file, 'same', '동일')).join('') + (changes.removed || []).map(file => row(typeof file === 'string' ? { name: file } : file, 'removed', 'Drive에서 삭제')).join('') || '<p class="import-tag-description">사용자가 업로드한 배경이 없습니다.</p>';
+        byId('cloud-remote-list').innerHTML = (environment.remote?.backgrounds || []).map(file => row(file, 'same', 'Drive에 저장됨')).join('');
+        buttons();
+    }
+    async function loadEnvironment() {
+        const generation = ++requestGeneration;
+        environment = null;
+        buttons();
         try {
-            const response = await fetch('/api/cloud/drive/snapshots');
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.detail || '백업 목록을 불러오지 못했습니다.');
-            if (!data.snapshots?.length) {
-                snapshotList.innerHTML = '<div class="cloud-drive-status">Drive에 저장된 백업이 없습니다.</div>';
-                return;
-            }
-            snapshotList.innerHTML = data.snapshots.map(snapshot => {
-                const date = snapshot.createdAt ? new Date(snapshot.createdAt).toLocaleString() : '시각 정보 없음';
-                const branch = snapshot.hasConflict ? '<span class="cloud-conflict-badge">분기</span> · ' : '';
-                const parent = snapshot.parentSnapshotId ? `부모 ${(snapshot.parentSnapshotId || '').slice(0, 8)}` : '최초 백업';
-                return `<div class="cloud-snapshot-item"><div><strong>${branch}${escapeHtml(snapshot.projectName || 'Subcast 프로젝트')}</strong><small>${escapeHtml(snapshot.deviceLabel || '기기')} · ${escapeHtml(date)}</small><small>${escapeHtml(parent)} · 스냅샷 ${(snapshot.snapshotId || '').slice(0, 8)}</small></div><button type="button" class="action-btn btn-select" data-cloud-restore="${escapeHtml(snapshot.fileId)}">새 프로젝트로 복원</button></div>`;
-            }).join('');
+            const data = await request('/api/cloud/drive/environment', { cache: 'no-store' });
+            if (generation !== requestGeneration || !connected) return;
+            environment = data;
+            render();
         } catch (error) {
-            snapshotList.innerHTML = `<div class="cloud-drive-status" style="color:#fca5a5">${escapeHtml(error.message)}</div>`;
+            if (generation === requestGeneration) { setStatus(error.message, true); buttons(); }
         }
     }
-
     async function refreshStatus() {
         try {
-            const response = await fetch('/api/cloud/drive/status', { cache: 'no-store' });
-            const status = await response.json();
-            if (!status.configured) setStatus('Google Drive OAuth 클라이언트 자격 증명이 설정되지 않았습니다. 앱을 업데이트한 뒤 다시 시도해 주세요.', true);
-            else if (status.connected) setStatus('Google Drive 연결됨. 백업은 사용자 Drive의 Subcast 폴더에 저장됩니다.');
+            const status = await request('/api/cloud/drive/status', { cache: 'no-store' });
+            configured = status.configured;
+            connected = status.connected;
+            if (!configured) setStatus('Google Drive OAuth 클라이언트 자격 증명이 설정되지 않았습니다. 앱을 업데이트한 뒤 다시 시도해 주세요.', true);
+            else if (connected) setStatus('Google Drive 연결됨. 환경과 배경은 사용자 Drive의 Subcast 폴더에 저장됩니다.');
             else if (status.error) setStatus(status.error, true);
             else setStatus(status.pending ? '브라우저에서 Google 계정 권한을 승인해 주세요.' : 'Google Drive 연결이 필요합니다.');
-            document.getElementById('btn-drive-connect').disabled = !status.configured || status.connected;
-            document.getElementById('btn-drive-backup').disabled = !status.connected || !projectSelect.options.length;
-            document.getElementById('btn-drive-refresh').disabled = !status.connected;
-            document.getElementById('btn-drive-disconnect').disabled = !status.connected;
+            buttons();
             return status;
-        } catch (_) {
-            setStatus('Drive 연결 상태를 확인하지 못했습니다. 로컬 프로젝트 사용에는 영향이 없습니다.', true);
-            return null;
-        }
+        } catch (error) { connected = false; buttons(); setStatus(error.message, true); return null; }
     }
-
-    document.getElementById('btn-open-cloud-backup')?.addEventListener('click', async () => {
-        returnFocusTo = document.activeElement;
-        modal.classList.add('show');
-        document.getElementById('btn-close-cloud-modal').focus();
-        try { await loadProjects(); } catch (error) { setStatus(error.message, true); }
-        const status = await refreshStatus();
-        if (status?.connected) await loadSnapshots();
-    });
-
+    function cancelConfirmation() {
+        byId('cloud-confirm').hidden = true;
+        const action = confirmAction;
+        confirmAction = null;
+        if (action) byId(action === 'sync' ? 'btn-drive-backup' : 'btn-drive-restore').focus();
+    }
     function closeModal() {
+        if (busy) return;
         modal.classList.remove('show');
         clearInterval(statusPoll);
+        cancelConfirmation();
         returnFocusTo?.focus();
     }
-    document.getElementById('btn-close-cloud-modal')?.addEventListener('click', closeModal);
-    modal?.addEventListener('click', event => { if (event.target === modal) closeModal(); });
-    document.addEventListener('keydown', event => {
-        if (event.key === 'Escape' && modal.classList.contains('show')) closeModal();
+    function selectTab(name) {
+        cancelConfirmation();
+        for (const tab of ['sync', 'restore']) {
+            const active = tab === name;
+            byId(`cloud-tab-${tab}`).setAttribute('aria-selected', String(active));
+            byId(`cloud-tab-${tab}`).tabIndex = active ? 0 : -1;
+            byId(`cloud-panel-${tab}`).hidden = !active;
+        }
+    }
+    for (const name of ['sync', 'restore']) {
+        byId(`cloud-tab-${name}`).addEventListener('click', () => selectTab(name));
+        byId(`cloud-tab-${name}`).addEventListener('keydown', event => {
+            if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+                event.preventDefault();
+                const next = event.key === 'Home' ? 'sync' : event.key === 'End' ? 'restore' : name === 'sync' ? 'restore' : 'sync';
+                selectTab(next); byId(`cloud-tab-${next}`).focus();
+            }
+        });
+    }
+    byId('btn-open-cloud-backup').addEventListener('click', async () => {
+        returnFocusTo = document.activeElement;
+        modal.classList.add('show');
+        byId('btn-close-cloud-modal').focus();
+        const status = await refreshStatus();
+        if (status?.connected) await loadEnvironment();
     });
-
-    document.getElementById('btn-drive-connect')?.addEventListener('click', async () => {
+    byId('btn-close-cloud-modal').addEventListener('click', closeModal);
+    modal.addEventListener('click', event => { if (event.target === modal) closeModal(); });
+    document.addEventListener('keydown', event => {
+        if (!modal.classList.contains('show')) return;
+        if (event.key === 'Escape') { if (!byId('cloud-confirm').hidden) cancelConfirmation(); else closeModal(); }
+        if (event.key === 'Tab') {
+            const focusable = [...modal.querySelectorAll('button:not(:disabled), [tabindex="0"]')].filter(element => element.getClientRects().length);
+            const first = focusable[0], last = focusable.at(-1);
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+        }
+    });
+    byId('btn-drive-connect').addEventListener('click', async () => {
         const authWindow = window.open('about:blank', '_blank');
         if (!authWindow) return setStatus('브라우저 팝업이 차단되었습니다. 팝업을 허용한 뒤 다시 연결해 주세요.', true);
         try {
-            const response = await fetch('/api/cloud/drive/connect', { method: 'POST' });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.detail || 'Google Drive 연결을 시작하지 못했습니다.');
+            const data = await request('/api/cloud/drive/connect', { method: 'POST' });
             authWindow.location = data.authorizationUrl;
             setStatus('새 브라우저 창에서 Google 계정 권한을 승인해 주세요.');
             let attempts = 0;
@@ -99,59 +143,62 @@ document.addEventListener('DOMContentLoaded', () => {
             statusPoll = setInterval(async () => {
                 attempts++;
                 const status = await refreshStatus();
-                if (status?.connected) {
-                    clearInterval(statusPoll);
-                    await loadSnapshots();
-                } else if (status?.error || attempts >= 120) clearInterval(statusPoll);
+                if (status?.connected) { clearInterval(statusPoll); await loadEnvironment(); }
+                else if (status?.error || attempts >= 120) clearInterval(statusPoll);
             }, 1500);
+        } catch (error) { authWindow.close(); setStatus(error.message, true); }
+    });
+    byId('btn-drive-refresh').addEventListener('click', loadEnvironment);
+    byId('btn-drive-disconnect').addEventListener('click', async () => {
+        busy = true; buttons();
+        try {
+            await request('/api/cloud/drive/connect', { method: 'DELETE' });
+            clearInterval(statusPoll); requestGeneration++; environment = null;
+            for (const id of ['cloud-background-list', 'cloud-remote-list', 'cloud-local-summary', 'cloud-remote-summary', 'cloud-change-summary']) byId(id).textContent = '';
+            cancelConfirmation(); await refreshStatus();
+        } catch (error) { setStatus(error.message, true); }
+        finally { busy = false; buttons(); }
+    });
+    function confirmOperation(action) {
+        confirmAction = action;
+        byId('cloud-confirm-title').textContent = action === 'sync' ? '이 PC 기준으로 Drive를 동기화할까요?' : 'Drive 환경을 이 PC에 적용할까요?';
+        const changes = environment.changes || {};
+        byId('cloud-confirm-description').textContent = action === 'sync'
+            ? `추가 ${(changes.added || []).length}개 · 변경 ${(changes.updated || []).length}개를 업로드하고, 삭제 ${(changes.removed || []).length}개를 Drive에서 제거합니다. 공통 설정도 이 PC의 값으로 저장됩니다.`
+            : '이 PC의 공통 설정과 배경 전체를 Drive의 환경으로 교체합니다. 프로젝트와 슬라이드는 유지되며, 복원에 실패하면 기존 환경으로 되돌립니다.';
+        byId('cloud-confirm').hidden = false;
+        byId('btn-cloud-confirm-cancel').focus();
+    }
+    byId('btn-drive-backup').addEventListener('click', () => confirmOperation('sync'));
+    byId('btn-drive-restore').addEventListener('click', () => confirmOperation('restore'));
+    byId('btn-cloud-confirm-cancel').addEventListener('click', cancelConfirmation);
+    const readBrowserSettings = () => {
+        const read = key => { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (_) { return null; } };
+        return { monitorSettings: read('subcast_monitor_settings'), broadcastLayout: read('subcast_praise_broadcast_layout') };
+    };
+    byId('btn-cloud-confirm-submit').addEventListener('click', async () => {
+        if (busy || !environment || !confirmAction) return;
+        const action = confirmAction;
+        const body = { baseRevision: environment.revision || environment.remote?.revision || null };
+        if (action === 'sync') body.browserSettings = readBrowserSettings();
+        busy = true; cancelConfirmation(); buttons();
+        byId('btn-close-cloud-modal').disabled = true;
+        setStatus(action === 'sync' ? '환경과 배경 전체를 동기화하는 중...' : 'Drive 환경을 이 PC에 적용하는 중...');
+        try {
+            const data = await request(`/api/cloud/drive/environment/${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            if (action === 'restore') {
+                for (const [field, key] of [['monitorSettings', 'subcast_monitor_settings'], ['broadcastLayout', 'subcast_praise_broadcast_layout']]) {
+                    if (data.browserSettings?.[field] != null) localStorage.setItem(key, JSON.stringify(data.browserSettings[field]));
+                    else localStorage.removeItem(key);
+                }
+                document.dispatchEvent(new CustomEvent('subcast:environment-updated'));
+            }
+            await loadEnvironment();
+            setStatus(action === 'sync' ? '환경과 배경 전체 동기화 완료' : 'Drive 환경을 이 PC에 적용했습니다.');
         } catch (error) {
-            authWindow.close();
+            if (error.status === 409) await loadEnvironment();
             setStatus(error.message, true);
-        }
+        } finally { busy = false; byId('btn-close-cloud-modal').disabled = false; buttons(); }
     });
-
-    document.getElementById('btn-drive-backup')?.addEventListener('click', async event => {
-        const button = event.currentTarget;
-        const projectId = projectSelect.value;
-        if (!projectId) return;
-        button.disabled = true;
-        setStatus('프로젝트와 참조 영상·글꼴을 확인하고 백업하는 중...');
-        try {
-            const response = await fetch(`/api/cloud/drive/projects/${encodeURIComponent(projectId)}/snapshots`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ deviceLabel: document.getElementById('cloud-device-label').value || '이 PC' })
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.detail || '백업에 실패했습니다.');
-            setStatus(`백업 완료 · ${(data.snapshot.size / 1024).toFixed(1)} KB · ${new Date(data.snapshot.createdAt).toLocaleString()}`);
-            await loadSnapshots();
-        } catch (error) { setStatus(error.message, true); }
-        finally { button.disabled = false; }
-    });
-
-    document.getElementById('btn-drive-refresh')?.addEventListener('click', loadSnapshots);
-    document.getElementById('btn-drive-disconnect')?.addEventListener('click', async () => {
-        await fetch('/api/cloud/drive/connect', { method: 'DELETE' });
-        snapshotList.innerHTML = '';
-        await refreshStatus();
-    });
-    snapshotList?.addEventListener('click', async event => {
-        const button = event.target.closest('[data-cloud-restore]');
-        if (!button || !confirm('이 백업을 새 프로젝트로 복원합니다. 기존 프로젝트는 덮어쓰지 않습니다. 계속할까요?')) return;
-        button.disabled = true;
-        try {
-            const response = await fetch('/api/cloud/drive/restore', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileId: button.dataset.cloudRestore })
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.detail || '복원에 실패했습니다.');
-            await loadProjects();
-            projectSelect.value = data.project.id;
-            setStatus(`새 프로젝트로 복원했습니다: ${data.project.name}`);
-            await loadSnapshots();
-            document.dispatchEvent(new CustomEvent('subcast:projects-updated'));
-        } catch (error) { setStatus(error.message, true); }
-        finally { button.disabled = false; }
-    });
+    buttons();
 });

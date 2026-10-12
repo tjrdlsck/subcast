@@ -70,9 +70,17 @@ def save_import_tag_mappings(mappings: dict[str, str]) -> None:
 
 
 def apply_import_tag_mappings(raw: dict[str, Any], mappings: dict[str, str]) -> dict[str, Any]:
-    """Map imported slide tags and drop source-machine media references."""
+    """Map imported tags and retain media references available on this machine."""
     result = dict(raw)
     mapping_by_key = {_key(source): canonical_tag_name(target) for source, target in mappings.items()}
+    backgrounds_dir = Path(APP_DATA_DIR) / "frontend" / "assets" / "backgrounds"
+    available_backgrounds = {path.name for path in backgrounds_dir.iterdir() if path.is_file()} if backgrounds_dir.is_dir() else set()
+
+    def local_video(value: Any) -> str | None:
+        if not isinstance(value, str) or not value.strip():
+            return None
+        name = value.replace("\\", "/").rsplit("/", 1)[-1]
+        return name if name in available_backgrounds else None
 
     def mapped(value: Any) -> Any:
         if not isinstance(value, str) or not value.strip():
@@ -93,15 +101,20 @@ def apply_import_tag_mappings(raw: dict[str, Any], mappings: dict[str, str]) -> 
             updated["moods"] = [mapped(tag) for tag in moods]
         elif isinstance(moods, str):
             updated["moods"] = [mapped(moods)]
-        # A direct video id and a saved output URL belong to the source machine.
-        updated["overrideBgId"] = None
+        # Keep a reference only when the matching media was synced to this machine.
+        updated["overrideBgId"] = local_video(updated.get("overrideBgId"))
         slides.append(updated)
     result["slides"] = slides
 
     settings = result.get("settings")
     if isinstance(settings, dict):
         settings = dict(settings)
-        settings["stageBgLibrary"] = None
-        settings["stageBackground"] = None
+        library = settings.get("stageBgLibrary")
+        if isinstance(library, list):
+            settings["stageBgLibrary"] = [item for item in library if isinstance(item, dict) and local_video(item.get("name"))]
+        background = settings.get("stageBackground")
+        if isinstance(background, dict) and background.get("type") == "video":
+            if not local_video(background.get("videoUrl")):
+                settings["stageBackground"] = None
         result["settings"] = settings
     return result

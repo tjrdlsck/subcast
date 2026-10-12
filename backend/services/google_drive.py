@@ -284,6 +284,79 @@ class GoogleDriveClient:
         stored.write_text(json.dumps({"folderId": folder_id}), encoding="utf-8")
         return folder_id
 
+    def _environment_folder_id(self) -> str:
+        stored = _data_dir() / "cloud_backup" / "environment_folder.json"
+        if stored.exists():
+            try:
+                folder_id = json.loads(stored.read_text(encoding="utf-8")).get("folderId")
+                if folder_id:
+                    response = self.request("GET", f"/files/{folder_id}", params={"fields": "id,trashed"})
+                    if not response.json().get("trashed"):
+                        return folder_id
+            except Exception:
+                pass
+        parent_id = self._folder_id()
+        query = f"'{parent_id}' in parents and name='Environment' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+        results = self.request("GET", "/files", params={
+            "q": query, "fields": "files(id,name)", "spaces": "drive", "pageSize": 10,
+        }).json().get("files", [])
+        if results:
+            folder_id = results[0]["id"]
+        else:
+            response = self.request("POST", "/files", json={
+                "name": "Environment", "mimeType": "application/vnd.google-apps.folder", "parents": [parent_id],
+            })
+            folder_id = response.json()["id"]
+        stored.parent.mkdir(parents=True, exist_ok=True)
+        stored.write_text(json.dumps({"folderId": folder_id}), encoding="utf-8")
+        return folder_id
+
+    def find_environment_manifest(self, cached_file_id: str | None = None) -> tuple[dict[str, Any] | None, bytes | None]:
+        file_info = None
+        if cached_file_id:
+            try:
+                file_info = self.request("GET", f"/files/{cached_file_id}", params={
+                    "fields": "id,name,modifiedTime,size,appProperties,trashed",
+                }).json()
+                if file_info.get("trashed"):
+                    file_info = None
+            except Exception:
+                file_info = None
+        if not file_info:
+            folder_id = self._environment_folder_id()
+            query = f"'{folder_id}' in parents and appProperties has {{ key='subcastKind' and value='environmentManifest' }} and trashed=false"
+            found = self.request("GET", "/files", params={
+                "q": query, "fields": "files(id,name,modifiedTime,size,appProperties)", "spaces": "drive", "pageSize": 10,
+            }).json().get("files", [])
+            if not found:
+                return None, None
+            file_info = max(found, key=lambda item: item.get("modifiedTime", ""))
+        content = self.download_snapshot(file_info["id"])
+        return file_info, content
+
+    def upload_environment_manifest(self, content: bytes, file_id: str | None = None) -> dict[str, Any]:
+        metadata = {"appProperties": {"subcastKind": "environmentManifest", "formatVersion": "1"}}
+        if file_id:
+            endpoint = f"files/{urllib.parse.quote(file_id)}?uploadType=multipart&fields=id,name,modifiedTime,size,appProperties"
+        else:
+            metadata.update({"name": "environment.subcast.json", "mimeType": "application/json",
+                             "parents": [self._environment_folder_id()]})
+            endpoint = "files?uploadType=multipart&fields=id,name,modifiedTime,size,appProperties"
+        return self._upload_multipart(metadata, content, "application/json", endpoint,
+                                      method="PATCH" if file_id else "POST")
+
+    def upload_environment_asset(self, content: Path, sha256: str) -> dict[str, Any]:
+        size = content.stat().st_size
+        metadata = {
+            "name": f"{sha256}.asset", "mimeType": "application/octet-stream",
+            "parents": [self._environment_folder_id()],
+            "appProperties": {"subcastKind": "environmentAsset", "sha256": sha256},
+        }
+        return self._upload_resumable(metadata, content, size)
+
+    def delete_environment_asset(self, file_id: str) -> None:
+        self.request("DELETE", f"/files/{urllib.parse.quote(file_id)}")
+
     def list_snapshots(self, cloud_project_id: str | None = None) -> list[dict[str, Any]]:
         folder_id = self._folder_id()
         query = f"'{folder_id}' in parents and trashed=false"
@@ -381,12 +454,13 @@ class GoogleDriveClient:
                 source.close()
         raise RuntimeError("Google Drive 업로드가 비정상적으로 종료되었습니다.")
 
-    def _upload_multipart(self, metadata: dict[str, Any], content: bytes, mime_type: str, endpoint: str) -> dict[str, Any]:
+    def _upload_multipart(self, metadata: dict[str, Any], content: bytes, mime_type: str, endpoint: str,
+                          method: str = "POST") -> dict[str, Any]:
         boundary = "subcast_" + uuid.uuid4().hex
         body = (f"--{boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n".encode() +
                 json.dumps(metadata).encode("utf-8") + f"\r\n--{boundary}\r\nContent-Type: {mime_type}\r\n\r\n".encode() +
                 content + f"\r\n--{boundary}--".encode())
-        response = self.request("POST", UPLOAD_API + "/" + endpoint,
+        response = self.request(method, UPLOAD_API + "/" + endpoint,
                                 content=body, headers={"Content-Type": f"multipart/related; boundary={boundary}"})
         return response.json()
 
