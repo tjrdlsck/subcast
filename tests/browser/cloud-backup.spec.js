@@ -51,9 +51,16 @@ test('SC-18-02 OAuth 팝업 승인 후 환경을 불러온다', async ({ page })
 
 test('SC-18-03 전체 배경 크기·추가·삭제 표시와 취소 후 명시적 동기화를 검증한다', async ({ page }) => {
     let sent = [];
+    let accepted = false;
     await page.route('**/api/cloud/drive/environment/sync', route => {
         sent.push(route.request().postDataJSON());
-        return route.fulfill({ json: { revision: 'revision-2', backgroundCount: 2, backgroundBytes: 2097152 } });
+        accepted = true;
+        return route.fulfill({ status: 202, json: { operationId: sent.at(-1).operationId, status: 'running' } });
+    });
+    await page.route('**/api/cloud/drive/environment/operations/*', route => {
+        expect(accepted).toBe(true);
+        return route.fulfill({ json: { operationId: sent.at(-1).operationId, action: 'sync', status: 'completed', percent: 100,
+            result: { revision: 'revision-2', backgroundCount: 2, backgroundBytes: 2097152 } } });
     });
     await connected(page);
     await page.evaluate(() => localStorage.setItem('subcast_monitor_settings', JSON.stringify({ textColor: '#abc123' })));
@@ -71,7 +78,10 @@ test('SC-18-03 전체 배경 크기·추가·삭제 표시와 취소 후 명시�
     await page.locator('#btn-drive-backup').click();
     await page.locator('#btn-cloud-confirm-submit').click();
     await expect(page.locator('#cloud-drive-status')).toContainText('동기화 완료');
-    expect(sent).toEqual([{ baseRevision: 'revision-1', browserSettings: { monitorSettings: { textColor: '#abc123' }, broadcastLayout: null } }]);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ baseRevision: 'revision-1', browserSettings: { monitorSettings: { textColor: '#abc123' }, broadcastLayout: null } });
+    expect(typeof sent[0].operationId).toBe('string');
+    expect(sent[0].operationId.length).toBeGreaterThan(0);
 });
 
 test('SC-18-04 원격 변경 409는 재조회하고 파괴적 동기화를 자동 재시도하지 않는다', async ({ page }) => {
@@ -79,8 +89,12 @@ test('SC-18-04 원격 변경 409는 재조회하고 파괴적 동기화를 자�
     let syncCalls = 0;
     await page.route('**/api/cloud/drive/environment/sync', route => {
         syncCalls++; data.needsRestore = true; data.revision = 'revision-2';
-        return route.fulfill({ status: 409, json: { detail: '다른 PC에서 환경이 변경되었습니다.' } });
+        return route.fulfill({ status: 202, json: { operationId: route.request().postDataJSON().operationId, status: 'running' } });
     });
+    await page.route('**/api/cloud/drive/environment/operations/*', route => route.fulfill({ json: {
+        operationId: route.request().url().split('/').at(-1), action: 'sync', status: 'failed', percent: 1,
+        errorStatus: 409, message: '다른 PC에서 환경이 변경되었습니다.',
+    } }));
     await connected(page, data);
     await page.locator('#btn-drive-backup').click();
     await page.locator('#btn-cloud-confirm-submit').click();
@@ -94,8 +108,12 @@ test('SC-18-05 복원 확인·취소와 브라우저 공통 설정 적용은 프
     let body;
     await page.route('**/api/cloud/drive/environment/restore', route => {
         body = route.request().postDataJSON();
-        return route.fulfill({ json: { revision: 'revision-1', browserSettings: { monitorSettings: { textColor: '#123456' }, broadcastLayout: { width: 900 } } } });
+        return route.fulfill({ status: 202, json: { operationId: body.operationId, status: 'running' } });
     });
+    await page.route('**/api/cloud/drive/environment/operations/*', route => route.fulfill({ json: {
+        operationId: body.operationId, action: 'restore', status: 'completed', percent: 100,
+        result: { revision: 'revision-1', browserSettings: { monitorSettings: { textColor: '#123456' }, broadcastLayout: { width: 900 } } },
+    } }));
     await connected(page);
     await page.locator('#cloud-tab-restore').click();
     await expect(page.locator('#cloud-panel-sync')).toBeHidden();
@@ -107,7 +125,9 @@ test('SC-18-05 복원 확인·취소와 브라우저 공통 설정 적용은 프
     await page.locator('#btn-drive-restore').click();
     await page.locator('#btn-cloud-confirm-submit').click();
     await expect(page.locator('#cloud-drive-status')).toContainText('적용했습니다');
-    expect(body).toEqual({ baseRevision: 'revision-1' });
+    expect(body).toMatchObject({ baseRevision: 'revision-1' });
+    expect(typeof body.operationId).toBe('string');
+    expect(body.operationId.length).toBeGreaterThan(0);
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('subcast_monitor_settings')))).toEqual({ textColor: '#123456' });
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('subcast_praise_broadcast_layout')))).toEqual({ width: 900 });
     await page.locator('#btn-close-cloud-modal').click();
@@ -154,4 +174,96 @@ test('SC-18-07 새로고침 실패·빈 라이브러리·키보드 탭·좁은 �
     await page.locator('#btn-drive-refresh').click();
     await expect(page.locator('#cloud-drive-status')).toContainText('조회 오류');
     await expect(page.locator('#btn-drive-backup')).toBeDisabled();
+});
+
+test('SC-18-08 설정 구성요소를 모두 표시하고 배경 목록은 정해진 높이에서 스크롤된다', async ({ page }) => {
+    const data = environment();
+    data.local.settingsSummary = { praiseSongs: 12, templates: 3, moodTags: 5, importTagMappings: 2,
+        monitorSettings: true, browserMonitorSettings: true, broadcastLayout: true };
+    data.remote.settingsSummary = { praiseSongs: 10, templates: 2, moodTags: 4, importTagMappings: 1,
+        monitorSettings: true, browserMonitorSettings: false, broadcastLayout: true };
+    data.local.backgrounds = Array.from({ length: 24 }, (_, index) => video(`local-${index}.mp4`));
+    await page.addInitScript(() => {
+        localStorage.setItem('subcast_monitor_settings', JSON.stringify({ textColor: '#fefefe' }));
+        localStorage.setItem('subcast_praise_broadcast_layout', JSON.stringify({ width: 1920 }));
+    });
+    await connected(page, data);
+
+    await expect(page.locator('#cloud-local-settings')).toContainText('찬양곡 12개');
+    await expect(page.locator('#cloud-local-settings')).toContainText('브라우저 모니터 설정 있음');
+    await expect(page.locator('#cloud-local-settings')).toContainText('방송 화면 설정 있음');
+    await expect(page.locator('#cloud-remote-settings')).toContainText('태그 연결 1개');
+    await expect(page.locator('#cloud-settings-state')).toContainText('브라우저 설정은 동기화 때 포함');
+    const list = page.locator('#cloud-background-list');
+    const metrics = await list.evaluate(element => ({
+        clientHeight: element.clientHeight,
+        scrollHeight: element.scrollHeight,
+        overflowY: getComputedStyle(element).overflowY,
+        modalWidth: document.querySelector('.cloud-backup-modal-box').getBoundingClientRect().width,
+    }));
+    expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight);
+    expect(metrics.overflowY).toBe('auto');
+    expect(metrics.modalWidth).toBeGreaterThan(680);
+});
+
+test('SC-18-09 모달을 닫아도 실제 진행률을 보고 완료 후 다시 열 수 있다', async ({ page }) => {
+    let syncFinished = false;
+    let polls = 0;
+    await page.route('**/api/cloud/drive/environment/operations/*', route => {
+        polls++;
+        const completed = syncFinished;
+        return route.fulfill({ json: {
+            operationId: 'operation-1', action: 'sync', status: completed ? 'completed' : 'running',
+            phase: completed ? 'complete' : 'uploading', percent: completed ? 100 : 38,
+            message: completed ? '환경 작업을 완료했습니다.' : '변경된 배경을 Drive에 올리고 있습니다.',
+            transferredBytes: completed ? 1048576 : 398458, totalBytes: 1048576,
+            completedItems: completed ? 1 : 0, totalItems: 1, currentFile: 'large-video.mp4',
+        } });
+    });
+    await page.route('**/api/cloud/drive/environment/sync', async route => {
+        setTimeout(() => { syncFinished = true; }, 1600);
+        await route.fulfill({ status: 202, json: { operationId: route.request().postDataJSON().operationId, status: 'running' } });
+    });
+    await connected(page);
+    await page.locator('#btn-drive-backup').click();
+    await page.locator('#btn-cloud-confirm-submit').click();
+    await expect(page.locator('#cloud-operation-percent')).toHaveText('38%');
+    await page.locator('#btn-close-cloud-modal').click();
+    await expect(page.locator('#cloud-backup-modal')).toBeHidden();
+    await expect(page.locator('#cloud-operation-indicator')).toBeVisible();
+    await expect(page.locator('#cloud-operation-detail')).toContainText('large-video.mp4');
+    await expect(page.locator('#cloud-operation-percent')).toHaveText('100%', { timeout: 5000 });
+    await expect(page.locator('#btn-cloud-operation-dismiss')).toBeVisible();
+    expect(polls).toBeGreaterThan(1);
+    await page.locator('#btn-cloud-operation-open').click();
+    await expect(page.locator('#cloud-backup-modal')).toBeVisible();
+    await expect(page.locator('#cloud-drive-status')).toContainText('완료');
+});
+
+test('SC-18-10 Drive 작업은 등록 응답 뒤에만 상태를 조회하고 404 없이 완료한다', async ({ page }) => {
+    const requestOrder = [];
+    let accepted = false;
+    let operationId;
+    page.on('response', response => {
+        if (response.url().includes('/api/cloud/drive/environment/operations/')) {
+            requestOrder.push({ type: 'poll', status: response.status(), afterAcceptance: accepted });
+        }
+    });
+    await page.route('**/api/cloud/drive/environment/sync', route => {
+        requestOrder.push({ type: 'start' });
+        operationId = route.request().postDataJSON().operationId;
+        accepted = true;
+        return route.fulfill({ status: 202, json: { operationId, status: 'running' } });
+    });
+    await page.route('**/api/cloud/drive/environment/operations/*', route => route.fulfill({ json: {
+        operationId, action: 'sync', status: 'completed', percent: 100,
+        result: { revision: 'revision-2', backgroundCount: 2, backgroundBytes: 2097152 },
+    } }));
+    await connected(page);
+    await page.locator('#btn-drive-backup').click();
+    await page.locator('#btn-cloud-confirm-submit').click();
+    await expect(page.locator('#cloud-drive-status')).toContainText('동기화 완료');
+    expect(requestOrder[0]).toEqual({ type: 'start' });
+    expect(requestOrder.length).toBeGreaterThan(1);
+    expect(requestOrder.slice(1).every(item => item.type === 'poll' && item.status === 200 && item.afterAcceptance)).toBe(true);
 });

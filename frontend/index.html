@@ -129,6 +129,17 @@
                 <button type="button" id="cloud-tab-sync" role="tab" aria-selected="true" aria-controls="cloud-panel-sync">이 PC → Drive</button>
                 <button type="button" id="cloud-tab-restore" role="tab" aria-selected="false" aria-controls="cloud-panel-restore" tabindex="-1">Drive → 이 PC</button>
             </div>
+            <section class="cloud-settings-card" aria-labelledby="cloud-settings-title">
+                <div class="cloud-settings-heading">
+                    <strong id="cloud-settings-title">공통 설정</strong>
+                    <span id="cloud-settings-state"></span>
+                </div>
+                <div class="cloud-settings-columns">
+                    <div><strong>이 PC</strong><ul id="cloud-local-settings" class="cloud-settings-list"></ul></div>
+                    <div><strong>Drive</strong><ul id="cloud-remote-settings" class="cloud-settings-list"></ul></div>
+                </div>
+                <p class="cloud-settings-note">찬양곡·템플릿·모니터 설정·태그와 브라우저 화면 설정이 포함됩니다. 브라우저 화면 설정은 동기화 시 현재 값으로 저장됩니다.</p>
+            </section>
             <section id="cloud-panel-sync" role="tabpanel" aria-labelledby="cloud-tab-sync">
                 <p class="import-tag-description">이 PC의 전체 배경 목록을 기준으로 동기화합니다. 이 PC에서 삭제한 배경은 Drive에서도 제거됩니다.</p>
                 <div id="cloud-local-summary" class="cloud-drive-status"></div>
@@ -154,6 +165,20 @@
         </div>
     </div>
 
+    <aside id="cloud-operation-indicator" class="cloud-operation-indicator" hidden aria-label="Drive 작업 진행 상태">
+        <div class="cloud-operation-heading">
+            <strong id="cloud-operation-title">Drive 작업 중</strong>
+            <span id="cloud-operation-percent">0%</span>
+        </div>
+        <progress id="cloud-operation-progress" max="100" value="0" aria-label="Drive 작업 진행률"></progress>
+        <div id="cloud-operation-message" class="cloud-operation-message" role="status" aria-live="polite"></div>
+        <div id="cloud-operation-detail" class="cloud-operation-detail"></div>
+        <div class="cloud-operation-actions">
+            <button type="button" id="btn-cloud-operation-open" class="btn-cancel">동기화 창 열기</button>
+            <button type="button" id="btn-cloud-operation-dismiss" class="btn-cancel" hidden>닫기</button>
+        </div>
+    </aside>
+
     <!-- 토스트 알림 메시지 -->
     <div class="modal-overlay" id="project-import-tag-modal" role="dialog" aria-modal="true" aria-labelledby="project-import-tag-title">
         <div class="modal-box import-tag-modal-box">
@@ -175,6 +200,6 @@
     <script src="js/header-display-menu.js"></script>
     <script src="js/modules/editor-display-manager.js?v=1.0.3"></script>
     <script src="js/index.js?v=project-import-tag-mapping-1"></script>
-    <script src="js/cloud-backup.js?v=2"></script>
+    <script src="js/cloud-backup.js?v=3"></script>
 </body>
 </html>

@@ -36,19 +36,25 @@ class FakeEnvironmentDrive:
         type(self).manifest = content
         return {"id": type(self).manifest_id}
 
-    def upload_environment_asset(self, path: Path, sha256: str):
+    def upload_environment_asset(self, path: Path, sha256: str, progress_callback=None):
         type(self).next_asset += 1
         asset_id = f"asset-{type(self).next_asset}"
-        type(self).assets[asset_id] = path.read_bytes()
+        content = path.read_bytes()
+        type(self).assets[asset_id] = content
+        if progress_callback:
+            progress_callback(len(content))
         return {"id": asset_id}
 
     def delete_environment_asset(self, file_id: str):
         type(self).deletes.append(file_id)
         type(self).assets.pop(file_id, None)
 
-    def download_file_to_path(self, file_id: str, path: Path):
+    def download_file_to_path(self, file_id: str, path: Path, progress_callback=None):
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(type(self).assets[file_id])
+        content = type(self).assets[file_id]
+        path.write_bytes(content)
+        if progress_callback:
+            progress_callback(len(content))
 
 
 def _create_user_video(data_dir: Path, name: str, content: bytes):
@@ -65,6 +71,31 @@ def _manifest():
     return json.loads(FakeEnvironmentDrive.manifest.decode("utf-8"))
 
 
+def _completed_operation(client: TestClient, response):
+    operation_id = response.json()["operationId"]
+    operation_response = client.get(f"/api/cloud/drive/environment/operations/{operation_id}")
+    assert operation_response.status_code == 200, operation_response.text
+    operation = operation_response.json()
+    return operation, operation.get("result", {})
+
+
+def test_settings_fingerprint_ignores_monitor_updated_at_but_detects_setting_changes():
+    settings = {
+        "monitorSettings": {
+            "updatedAt": "2026-10-12 12:00:00",
+            "currentBox": {"textColor": "#ffffff"},
+        },
+        "praiseSongs": [],
+    }
+    restored = json.loads(json.dumps(settings))
+    restored["monitorSettings"]["updatedAt"] = "2026-10-12 12:01:00"
+
+    assert cloud_backup_router._settings_fingerprint(settings) == cloud_backup_router._settings_fingerprint(restored)
+
+    restored["monitorSettings"]["currentBox"]["textColor"] = "#000000"
+    assert cloud_backup_router._settings_fingerprint(settings) != cloud_backup_router._settings_fingerprint(restored)
+
+
 def test_environment_sync_uploads_settings_and_all_uploaded_videos(tmp_path, monkeypatch):
     FakeEnvironmentDrive.reset()
     monkeypatch.setattr(cloud_backup_router, "APP_DATA_DIR", tmp_path)
@@ -79,15 +110,35 @@ def test_environment_sync_uploads_settings_and_all_uploaded_videos(tmp_path, mon
             "baseRevision": None,
             "browserSettings": {"monitorSettings": {"textColor": "#abc123"}, "broadcastLayout": None},
         })
+        operation, result = _completed_operation(client, saved)
+        comparison = client.get("/api/cloud/drive/environment")
 
-    assert saved.status_code == 200, saved.text
-    payload = saved.json()
+    assert saved.status_code == 202, saved.text
+    assert saved.json()["status"] == "running"
     manifest = _manifest()
-    assert payload["backgroundCount"] == 1
+    assert result["backgroundCount"] == 1
     assert manifest["backgrounds"][0]["name"] == "upload_song.mp4"
     assert manifest["backgrounds"][0]["assetFileId"] in FakeEnvironmentDrive.assets
     assert manifest["settings"]["browserSettings"]["monitorSettings"]["textColor"] == "#abc123"
     assert "bible" not in json.dumps(manifest["settings"]).lower()
+    assert operation["status"] == "completed"
+    assert operation["percent"] == 100
+    assert comparison.json()["remote"]["settingsSummary"]["browserMonitorSettings"] is True
+    assert comparison.json()["local"]["settingsSummary"]["praiseSongs"] == 0
+
+
+def test_environment_operation_id_cannot_be_reused(tmp_path, monkeypatch):
+    FakeEnvironmentDrive.reset()
+    monkeypatch.setattr(cloud_backup_router, "APP_DATA_DIR", tmp_path)
+    monkeypatch.setattr(cloud_backup_router, "GoogleDriveClient", FakeEnvironmentDrive)
+
+    with TestClient(app) as client:
+        first = client.post("/api/cloud/drive/environment/sync", json={"baseRevision": None, "operationId": "fixed-operation"})
+        duplicate = client.post("/api/cloud/drive/environment/sync", json={"baseRevision": None, "operationId": "fixed-operation"})
+
+    assert first.status_code == 202, first.text
+    assert duplicate.status_code == 409
+    assert "이미 사용한" in duplicate.json()["detail"]
 
 
 def test_remote_revision_blocks_stale_sync_and_restore_mirrors_removed_videos(tmp_path, monkeypatch):
@@ -98,8 +149,9 @@ def test_remote_revision_blocks_stale_sync_and_restore_mirrors_removed_videos(tm
 
     with TestClient(app) as client:
         first = client.post("/api/cloud/drive/environment/sync", json={"baseRevision": None})
-        assert first.status_code == 200, first.text
-        revision = first.json()["revision"]
+        assert first.status_code == 202, first.text
+        _operation, first_result = _completed_operation(client, first)
+        revision = first_result["revision"]
         assert _manifest()["backgrounds"][0]["assetFileId"] in FakeEnvironmentDrive.assets
 
         # Simulate another machine advancing the Drive manifest.
@@ -107,7 +159,10 @@ def test_remote_revision_blocks_stale_sync_and_restore_mirrors_removed_videos(tm
         remote["revision"] = "revision-from-other-pc"
         FakeEnvironmentDrive.manifest = json.dumps(remote).encode("utf-8")
         stale = client.post("/api/cloud/drive/environment/sync", json={"baseRevision": revision})
-        assert stale.status_code == 409
+        assert stale.status_code == 202
+        stale_operation, _ = _completed_operation(client, stale)
+        assert stale_operation["status"] == "failed"
+        assert stale_operation["errorStatus"] == 409
 
         # Reset the active revision to the published one and restore on a machine with a different local video.
         remote["revision"] = revision
@@ -120,13 +175,15 @@ def test_remote_revision_blocks_stale_sync_and_restore_mirrors_removed_videos(tm
         tags_path.parent.mkdir(parents=True, exist_ok=True)
         tags_path.write_text('{"version": 1, "tags": [{"id": "local", "name": "local"}]}', encoding="utf-8")
         restored = client.post("/api/cloud/drive/environment/restore", json={"baseRevision": revision})
+        restored_operation, restore_result = _completed_operation(client, restored)
 
-    assert restored.status_code == 200, restored.text
+    assert restored.status_code == 202, restored.text
+    assert restored_operation["status"] == "completed"
     backgrounds = tmp_path / "frontend" / "assets" / "backgrounds"
     assert (backgrounds / "upload_old.mp4").read_bytes() == b"old-video"
     assert not (backgrounds / "upload_local_only.mp4").exists()
     assert not tags_path.exists()
-    assert restored.json()["backgroundCount"] == 1
+    assert restore_result["backgroundCount"] == 1
 
 
 def test_sync_removes_drive_asset_when_user_deletes_local_video(tmp_path, monkeypatch):
@@ -137,16 +194,19 @@ def test_sync_removes_drive_asset_when_user_deletes_local_video(tmp_path, monkey
 
     with TestClient(app) as client:
         first = client.post("/api/cloud/drive/environment/sync", json={"baseRevision": None})
-        assert first.status_code == 200, first.text
-        revision = first.json()["revision"]
+        assert first.status_code == 202, first.text
+        _operation, first_result = _completed_operation(client, first)
+        revision = first_result["revision"]
         asset_id = _manifest()["backgrounds"][0]["assetFileId"]
         background_dir = tmp_path / "frontend" / "assets" / "backgrounds"
         (background_dir / "upload_remove.mp4").unlink()
 
         second = client.post("/api/cloud/drive/environment/sync", json={"baseRevision": revision})
+        second_operation, second_result = _completed_operation(client, second)
 
-    assert second.status_code == 200, second.text
-    assert second.json()["removed"] == 1
+    assert second.status_code == 202, second.text
+    assert second_operation["status"] == "completed"
+    assert second_result["removed"] == 1
     assert _manifest()["backgrounds"] == []
     assert asset_id in FakeEnvironmentDrive.deletes
     assert asset_id not in FakeEnvironmentDrive.assets
@@ -167,8 +227,11 @@ def test_environment_restore_rejects_invalid_video_checksum_without_touching_loc
 
     with TestClient(app) as client:
         failed = client.post("/api/cloud/drive/environment/restore", json={"baseRevision": "r1"})
+        operation, _ = _completed_operation(client, failed)
 
-    assert failed.status_code == 400
+    assert failed.status_code == 202
+    assert operation["status"] == "failed"
+    assert operation["errorStatus"] == 400
     assert (tmp_path / "frontend" / "assets" / "backgrounds" / "upload_keep.mp4").read_bytes() == b"keep"
     assert not (tmp_path / "frontend" / "assets" / "backgrounds" / "upload_remote.mp4").exists()
 
@@ -200,8 +263,10 @@ def test_restore_replaces_common_settings_and_preserves_bible_and_other_user_tab
 
     with TestClient(app) as client:
         restored = client.post("/api/cloud/drive/environment/restore", json={"baseRevision": "settings-r1"})
+        operation, result = _completed_operation(client, restored)
 
-    assert restored.status_code == 200, restored.text
+    assert restored.status_code == 202, restored.text
+    assert operation["status"] == "completed"
     connection = sqlite3.connect(user_db)
     songs = connection.execute("SELECT id, title, lyrics, mood FROM praise_songs").fetchall()
     extension = connection.execute("SELECT value FROM local_extension").fetchone()
@@ -211,6 +276,7 @@ def test_restore_replaces_common_settings_and_preserves_bible_and_other_user_tab
     assert bible_db.read_bytes() == b"packaged-bible-database"
     assert json.loads((tmp_path / "data" / "templates.json").read_text(encoding="utf-8")) == manifest["settings"]["templates"]
     assert json.loads((tmp_path / "data" / "project_import_tag_mappings.json").read_text(encoding="utf-8")) == {"Praise": "Worship"}
+    assert result["browserSettings"] == {}
 
 
 def test_failed_restore_rolls_back_videos_and_settings(tmp_path, monkeypatch):
@@ -233,9 +299,12 @@ def test_failed_restore_rolls_back_videos_and_settings(tmp_path, monkeypatch):
 
     with TestClient(app) as client:
         failed = client.post("/api/cloud/drive/environment/restore", json={"baseRevision": "rollback-r1"})
+        operation, _ = _completed_operation(client, failed)
 
     backgrounds = tmp_path / "frontend" / "assets" / "backgrounds"
-    assert failed.status_code == 502
+    assert failed.status_code == 202
+    assert operation["status"] == "failed"
+    assert operation["errorStatus"] == 502
     assert (backgrounds / "upload_local.mp4").read_bytes() == b"local-video"
     assert not (backgrounds / "upload_drive.mp4").exists()
     assert json.loads(templates_path.read_text(encoding="utf-8")) == [{"name": "local-template"}]

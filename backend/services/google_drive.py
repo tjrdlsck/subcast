@@ -16,7 +16,7 @@ import uuid
 from ctypes import wintypes
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import httpx
 from backend.database import APP_DATA_DIR
@@ -345,14 +345,15 @@ class GoogleDriveClient:
         return self._upload_multipart(metadata, content, "application/json", endpoint,
                                       method="PATCH" if file_id else "POST")
 
-    def upload_environment_asset(self, content: Path, sha256: str) -> dict[str, Any]:
+    def upload_environment_asset(self, content: Path, sha256: str,
+                                 progress_callback: Callable[[int], None] | None = None) -> dict[str, Any]:
         size = content.stat().st_size
         metadata = {
             "name": f"{sha256}.asset", "mimeType": "application/octet-stream",
             "parents": [self._environment_folder_id()],
             "appProperties": {"subcastKind": "environmentAsset", "sha256": sha256},
         }
-        return self._upload_resumable(metadata, content, size)
+        return self._upload_resumable(metadata, content, size, progress_callback=progress_callback)
 
     def delete_environment_asset(self, file_id: str) -> None:
         self.request("DELETE", f"/files/{urllib.parse.quote(file_id)}")
@@ -412,7 +413,8 @@ class GoogleDriveClient:
         created = self._upload_resumable(metadata, content, size)
         return created["id"]
 
-    def _upload_resumable(self, metadata: dict[str, Any], content: bytes | Path, size: int) -> dict[str, Any]:
+    def _upload_resumable(self, metadata: dict[str, Any], content: bytes | Path, size: int,
+                          progress_callback: Callable[[int], None] | None = None) -> dict[str, Any]:
         endpoint = UPLOAD_API + "/files?uploadType=resumable&fields=id,name,size"
         response = self.request("POST", endpoint, json=metadata, headers={
             "Content-Type": "application/json; charset=UTF-8",
@@ -442,11 +444,15 @@ class GoogleDriveClient:
                            "Content-Range": f"bytes {start}-{end}/{size}" if size else "bytes */0"}
                 result = httpx.put(upload_url, content=chunk, headers=headers, timeout=120)
                 if result.status_code in {200, 201}:
+                    if progress_callback:
+                        progress_callback(min(size, start + len(chunk)))
                     return result.json()
                 if result.status_code != 308:
                     result.raise_for_status()
                     raise RuntimeError(f"Google Drive 업로드가 완료되지 않았습니다: {result.status_code}")
                 start = end + 1
+                if progress_callback:
+                    progress_callback(min(size, start))
                 if start >= size:
                     raise RuntimeError("Google Drive가 마지막 업로드 청크를 완료하지 않았습니다.")
         finally:
@@ -467,7 +473,8 @@ class GoogleDriveClient:
     def download_snapshot(self, file_id: str) -> bytes:
         return self.request("GET", f"{API}/files/{urllib.parse.quote(file_id)}?alt=media").content
 
-    def download_file_to_path(self, file_id: str, destination: Path) -> None:
+    def download_file_to_path(self, file_id: str, destination: Path,
+                              progress_callback: Callable[[int], None] | None = None) -> None:
         url = f"{API}/files/{urllib.parse.quote(file_id)}?alt=media"
         headers = {"Authorization": f"Bearer {self._access_token()}"}
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -481,8 +488,12 @@ class GoogleDriveClient:
                         continue
                     response.raise_for_status()
                     with temp.open("wb") as output:
+                        downloaded = 0
                         for chunk in response.iter_bytes(1024 * 1024):
                             output.write(chunk)
+                            downloaded += len(chunk)
+                            if progress_callback:
+                                progress_callback(downloaded)
                 os.replace(temp, destination)
                 return
         except Exception:

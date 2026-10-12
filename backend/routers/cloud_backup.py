@@ -3,11 +3,12 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
 
 from backend import storage
@@ -20,6 +21,79 @@ from backend.services.connection_manager import manager
 from backend.services import environment_sync
 
 router = APIRouter(prefix="/api/cloud/drive", tags=["cloud-backup"])
+
+_environment_operation_lock = threading.Lock()
+_environment_operations: dict[str, dict] = {}
+_active_environment_operation: str | None = None
+
+
+def _start_environment_operation(operation_id: str, action: str) -> None:
+    global _active_environment_operation
+    with _environment_operation_lock:
+        if _active_environment_operation:
+            raise HTTPException(status_code=409, detail="환경 동기화 작업이 이미 진행 중입니다.")
+        if operation_id in _environment_operations:
+            raise HTTPException(status_code=409, detail="이미 사용한 환경 작업 ID입니다.")
+        _environment_operations[operation_id] = {
+            "operationId": operation_id, "action": action, "status": "running",
+            "phase": "preparing", "percent": 1, "transferredBytes": 0,
+            "totalBytes": 0, "completedItems": 0, "totalItems": 0,
+            "currentFile": "", "message": "환경 작업을 준비하고 있습니다.",
+        }
+        _active_environment_operation = operation_id
+
+
+def _update_environment_operation(operation_id: str, *, phase: str, message: str,
+                                  percent: int | None = None, transferred_bytes: int | None = None,
+                                  total_bytes: int | None = None, completed_items: int | None = None,
+                                  total_items: int | None = None, current_file: str | None = None) -> None:
+    with _environment_operation_lock:
+        operation = _environment_operations.get(operation_id)
+        if not operation or operation["status"] != "running":
+            return
+        operation["phase"] = phase
+        operation["message"] = message
+        if percent is not None:
+            operation["percent"] = max(operation["percent"], min(99, percent))
+        if transferred_bytes is not None:
+            operation["transferredBytes"] = transferred_bytes
+        if total_bytes is not None:
+            operation["totalBytes"] = total_bytes
+        if completed_items is not None:
+            operation["completedItems"] = completed_items
+        if total_items is not None:
+            operation["totalItems"] = total_items
+        if current_file is not None:
+            operation["currentFile"] = current_file
+
+
+def _finish_environment_operation(operation_id: str, *, error: str | None = None,
+                                  error_status: int | None = None, result: dict | None = None) -> None:
+    global _active_environment_operation
+    with _environment_operation_lock:
+        operation = _environment_operations.get(operation_id)
+        if operation:
+            operation.update({"status": "failed" if error else "completed",
+                              "phase": "failed" if error else "complete",
+                              "percent": operation["percent"] if error else 100,
+                              "message": error or "환경 작업을 완료했습니다."})
+            if error:
+                operation["errorStatus"] = error_status
+            else:
+                operation["result"] = result or {}
+        if _active_environment_operation == operation_id:
+            _active_environment_operation = None
+        completed = [key for key, value in _environment_operations.items() if value["status"] != "running"]
+        for key in completed[:-10]:
+            _environment_operations.pop(key, None)
+
+
+def _read_environment_operation(operation_id: str) -> dict:
+    with _environment_operation_lock:
+        operation = _environment_operations.get(operation_id)
+        if not operation:
+            raise HTTPException(status_code=404, detail="환경 작업 상태를 찾을 수 없습니다.")
+        return operation.copy()
 
 
 def _state_path() -> Path:
@@ -79,6 +153,10 @@ def _json_bytes(payload: dict) -> bytes:
 def _settings_fingerprint(settings: dict) -> str:
     import hashlib
     settings_without_browser = {key: value for key, value in settings.items() if key != "browserSettings"}
+    monitor_settings = settings_without_browser.get("monitorSettings")
+    if isinstance(monitor_settings, dict):
+        monitor_settings = {key: value for key, value in monitor_settings.items() if key != "updatedAt"}
+        settings_without_browser["monitorSettings"] = monitor_settings
     return hashlib.sha256(_json_bytes(settings_without_browser)).hexdigest()
 
 
@@ -127,10 +205,29 @@ class RestoreRequest(BaseModel):
 class EnvironmentSyncRequest(BaseModel):
     baseRevision: str | None = None
     browserSettings: dict = Field(default_factory=dict)
+    operationId: str | None = None
 
 
 class EnvironmentRestoreRequest(BaseModel):
     baseRevision: str
+    operationId: str | None = None
+
+
+def _settings_summary(settings: dict) -> dict:
+    mood_tags = settings.get("moodTags")
+    tags = mood_tags.get("tags", []) if isinstance(mood_tags, dict) else mood_tags
+    browser_settings = settings.get("browserSettings")
+    if not isinstance(browser_settings, dict):
+        browser_settings = {}
+    return {
+        "praiseSongs": len(settings.get("praiseSongs", [])),
+        "templates": len(settings.get("templates", [])),
+        "moodTags": len(tags) if isinstance(tags, list) else 0,
+        "importTagMappings": len(settings.get("importTagMappings", {})),
+        "monitorSettings": settings.get("monitorSettings") is not None,
+        "browserMonitorSettings": browser_settings.get("monitorSettings") is not None,
+        "broadcastLayout": browser_settings.get("broadcastLayout") is not None,
+    }
 
 
 def _environment_data_dir() -> Path:
@@ -166,8 +263,10 @@ async def get_environment():
             "revision": remote_revision,
             "needsRestore": bool(remote and state.get("revision") != remote_revision),
             "settingsChanged": bool(remote and local_fingerprint != remote_fingerprint),
-            "local": {"settingsSize": len(_json_bytes(settings)), **_video_totals(videos), "backgrounds": _public_videos(videos)},
+            "local": {"settingsSize": len(_json_bytes(settings)), "settingsSummary": _settings_summary(settings),
+                      **_video_totals(videos), "backgrounds": _public_videos(videos)},
             "remote": {"revision": remote_revision, "settingsSize": len(_json_bytes(remote.get("settings", {}))) if remote else 0,
+                       "settingsSummary": _settings_summary(remote.get("settings", {})) if remote else {},
                        **_video_totals(remote_videos), "backgrounds": _public_videos(remote_videos)},
             "changes": changes,
         }
@@ -179,8 +278,12 @@ async def get_environment():
         raise HTTPException(status_code=502, detail=f"Drive 환경을 불러오지 못했습니다: {exc}") from exc
 
 
-@router.post("/environment/sync")
-async def sync_environment(request: EnvironmentSyncRequest):
+@router.get("/environment/operations/{operation_id}")
+async def get_environment_operation(operation_id: str):
+    return _read_environment_operation(operation_id)
+
+
+def _run_environment_sync(request: EnvironmentSyncRequest, operation_id: str) -> dict:
     data_dir = _environment_data_dir()
     state = _read_environment_state()
     uploaded_ids: list[str] = []
@@ -193,6 +296,15 @@ async def sync_environment(request: EnvironmentSyncRequest):
         settings = environment_sync.validate_settings(settings)
         local_videos = environment_sync.collect_user_videos(data_dir)
         previous_by_hash = {item.get("sha256"): item for item in (remote or {}).get("backgrounds", [])}
+        unique_uploads = {}
+        for item in local_videos:
+            if item["sha256"] not in previous_by_hash:
+                unique_uploads.setdefault(item["sha256"], item)
+        total_upload_bytes = sum(item["size"] for item in unique_uploads.values())
+        completed_upload_bytes = 0
+        completed_uploads = 0
+        _update_environment_operation(operation_id, phase="uploading", message="변경된 배경을 Drive에 올리고 있습니다.",
+                                      percent=5, total_bytes=total_upload_bytes, total_items=len(unique_uploads))
         hash_to_id: dict[str, str] = {}
         backgrounds = []
         for item in local_videos:
@@ -200,12 +312,33 @@ async def sync_environment(request: EnvironmentSyncRequest):
             old = previous_by_hash.get(digest)
             asset_id = hash_to_id.get(digest) or (old or {}).get("assetFileId")
             if not asset_id:
-                uploaded = client.upload_environment_asset(item["path"], digest)
+                def report_upload_progress(done: int) -> None:
+                    transferred = completed_upload_bytes + done
+                    percent = 5 + int(transferred / max(total_upload_bytes, 1) * 82)
+                    _update_environment_operation(
+                        operation_id, phase="uploading", message="변경된 배경을 Drive에 올리고 있습니다.",
+                        percent=percent, transferred_bytes=transferred, total_bytes=total_upload_bytes,
+                        completed_items=completed_uploads, total_items=len(unique_uploads), current_file=item["name"],
+                    )
+
+                uploaded = client.upload_environment_asset(item["path"], digest, progress_callback=report_upload_progress)
                 asset_id = uploaded["id"]
                 uploaded_ids.append(asset_id)
+                completed_upload_bytes += item["size"]
+                completed_uploads += 1
+                _update_environment_operation(
+                    operation_id, phase="uploading", message="변경된 배경을 Drive에 올리고 있습니다.",
+                    percent=5 + int(completed_upload_bytes / max(total_upload_bytes, 1) * 82),
+                    transferred_bytes=completed_upload_bytes, total_bytes=total_upload_bytes,
+                    completed_items=completed_uploads, total_items=len(unique_uploads), current_file=item["name"],
+                )
             hash_to_id[digest] = asset_id
             backgrounds.append({key: value for key, value in item.items() if key != "path"} | {"assetFileId": asset_id})
 
+        _update_environment_operation(operation_id, phase="saving_settings", message="공통 설정과 동기화 목록을 저장하고 있습니다.",
+                                      percent=89, transferred_bytes=total_upload_bytes,
+                                      total_bytes=total_upload_bytes, completed_items=completed_uploads,
+                                      total_items=len(unique_uploads), current_file="")
         previous_ids = {item.get("assetFileId") for item in (remote or {}).get("backgrounds", []) if item.get("assetFileId")}
         current_ids = {item["assetFileId"] for item in backgrounds}
         pending_deletes = (set((remote or {}).get("pendingDeleteAssetIds", [])) | (previous_ids - current_ids)) - current_ids
@@ -221,11 +354,17 @@ async def sync_environment(request: EnvironmentSyncRequest):
         _write_environment_state(state)
 
         cleanup_pending = []
-        for asset_id in sorted(pending_deletes - current_ids):
+        assets_to_delete = sorted(pending_deletes - current_ids)
+        _update_environment_operation(operation_id, phase="cleanup", message="Drive에서 삭제된 배경을 정리하고 있습니다.",
+                                      percent=95, total_items=len(assets_to_delete), completed_items=0)
+        for index, asset_id in enumerate(assets_to_delete, start=1):
             try:
                 client.delete_environment_asset(asset_id)
             except Exception:
                 cleanup_pending.append(asset_id)
+            _update_environment_operation(operation_id, phase="cleanup", message="Drive에서 삭제된 배경을 정리하고 있습니다.",
+                                          percent=95 + int(index / max(len(assets_to_delete), 1) * 4),
+                                          completed_items=index, total_items=len(assets_to_delete))
         if cleanup_pending != manifest["pendingDeleteAssetIds"]:
             manifest["pendingDeleteAssetIds"] = cleanup_pending
             try:
@@ -257,8 +396,29 @@ async def sync_environment(request: EnvironmentSyncRequest):
         raise HTTPException(status_code=502, detail=f"Drive 환경 저장에 실패했습니다: {exc}") from exc
 
 
-@router.post("/environment/restore")
-async def restore_environment(request: EnvironmentRestoreRequest):
+def _execute_environment_operation(action: str, request: EnvironmentSyncRequest | EnvironmentRestoreRequest,
+                                   operation_id: str) -> None:
+    operation = _run_environment_sync if action == "sync" else _run_environment_restore
+    try:
+        result = operation(request, operation_id)
+    except HTTPException as exc:
+        _finish_environment_operation(operation_id, error=str(exc.detail), error_status=exc.status_code)
+    except Exception:
+        message = "Drive 환경 저장에 실패했습니다." if action == "sync" else "Drive 환경 복원에 실패했습니다."
+        _finish_environment_operation(operation_id, error=message, error_status=500)
+    else:
+        _finish_environment_operation(operation_id, result=result)
+
+
+@router.post("/environment/sync", status_code=202)
+async def sync_environment(request: EnvironmentSyncRequest, background_tasks: BackgroundTasks):
+    operation_id = request.operationId or uuid.uuid4().hex
+    _start_environment_operation(operation_id, "sync")
+    background_tasks.add_task(_execute_environment_operation, "sync", request, operation_id)
+    return {"operationId": operation_id, "status": "running"}
+
+
+def _run_environment_restore(request: EnvironmentRestoreRequest, operation_id: str) -> dict:
     staging_dir = Path(APP_DATA_DIR).resolve() / "cloud_backup" / "tmp" / uuid.uuid4().hex
     rollback_dir = staging_dir / "rollback"
     download_dir = staging_dir / "download"
@@ -274,6 +434,11 @@ async def restore_environment(request: EnvironmentRestoreRequest):
         backgrounds = manifest.get("backgrounds", [])
         if not isinstance(backgrounds, list):
             raise ValueError("Drive 배경 영상 목록 형식이 올바르지 않습니다.")
+        total_download_bytes = sum(int(item.get("size", 0)) for item in backgrounds)
+        downloaded_bytes = 0
+        completed_downloads = 0
+        _update_environment_operation(operation_id, phase="downloading", message="Drive에서 배경을 내려받고 있습니다.",
+                                      percent=5, total_bytes=total_download_bytes, total_items=len(backgrounds))
         download_dir.mkdir(parents=True, exist_ok=True)
         video_paths: dict[str, Path] = {}
         for item in backgrounds:
@@ -282,8 +447,31 @@ async def restore_environment(request: EnvironmentRestoreRequest):
             if not isinstance(name, str) or Path(name).name != name or not isinstance(asset_id, str) or not asset_id:
                 raise ValueError("Drive 배경 영상 목록에 올바르지 않은 파일이 있습니다.")
             staged = download_dir / name
-            client.download_file_to_path(asset_id, staged)
+            file_size = int(item.get("size", 0))
+
+            def report_download_progress(done: int) -> None:
+                transferred = downloaded_bytes + done
+                percent = 5 + int(transferred / max(total_download_bytes, 1) * 83)
+                _update_environment_operation(
+                    operation_id, phase="downloading", message="Drive에서 배경을 내려받고 있습니다.",
+                    percent=percent, transferred_bytes=transferred, total_bytes=total_download_bytes,
+                    completed_items=completed_downloads, total_items=len(backgrounds), current_file=name,
+                )
+
+            client.download_file_to_path(asset_id, staged, progress_callback=report_download_progress)
+            downloaded_bytes += file_size
+            completed_downloads += 1
+            _update_environment_operation(
+                operation_id, phase="downloading", message="Drive에서 배경을 내려받고 있습니다.",
+                percent=5 + int(downloaded_bytes / max(total_download_bytes, 1) * 83),
+                transferred_bytes=downloaded_bytes, total_bytes=total_download_bytes,
+                completed_items=completed_downloads, total_items=len(backgrounds), current_file=name,
+            )
             video_paths[name] = staged
+        _update_environment_operation(operation_id, phase="applying_settings", message="배경과 공통 설정을 이 PC에 적용하고 있습니다.",
+                                      percent=94, transferred_bytes=downloaded_bytes,
+                                      total_bytes=total_download_bytes, completed_items=completed_downloads,
+                                      total_items=len(backgrounds), current_file="")
         environment_sync.restore_environment(settings | {"backgrounds": backgrounds}, video_paths, _environment_data_dir(), rollback_dir)
         state.update({"manifestFileId": file_info["id"], "revision": manifest["revision"],
                       "settingsSha256": _settings_fingerprint(settings)})
@@ -299,6 +487,14 @@ async def restore_environment(request: EnvironmentRestoreRequest):
         raise HTTPException(status_code=502, detail=f"Drive 환경 복원에 실패했습니다: {exc}") from exc
     finally:
         shutil.rmtree(staging_dir, ignore_errors=True)
+
+
+@router.post("/environment/restore", status_code=202)
+async def restore_environment(request: EnvironmentRestoreRequest, background_tasks: BackgroundTasks):
+    operation_id = request.operationId or uuid.uuid4().hex
+    _start_environment_operation(operation_id, "restore")
+    background_tasks.add_task(_execute_environment_operation, "restore", request, operation_id)
+    return {"operationId": operation_id, "status": "running"}
 
 
 @router.get("/status")

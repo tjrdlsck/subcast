@@ -626,7 +626,8 @@
         }
 
         .cloud-backup-modal-box {
-            width: min(680px, 94vw);
+            width: min(920px, calc(100vw - 48px));
+            max-width: none;
             max-height: 88vh;
             overflow-y: auto;
         }
@@ -647,16 +648,20 @@
         }
         .cloud-snapshot-list {
             display: grid;
-            gap: 8px;
-            max-height: 34vh;
+            gap: 5px;
+            max-height: clamp(220px, 38vh, 420px);
             overflow-y: auto;
+            overscroll-behavior: contain;
+            scrollbar-width: thin;
+            scrollbar-color: var(--text-muted) transparent;
         }
         .cloud-snapshot-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
-            padding: 10px 12px;
+            gap: 10px;
+            min-height: 44px;
+            padding: 7px 10px;
             border: 1px solid var(--card-border);
             border-radius: 9px;
             background: rgba(255, 255, 255, 0.035);
@@ -664,6 +669,43 @@
             font-size: 0.83rem;
         }
         .cloud-snapshot-item small { display: block; margin-top: 4px; color: var(--text-muted); }
+        .cloud-settings-card {
+            margin: 12px 0 16px;
+            padding: 12px 14px;
+            border: 1px solid var(--card-border);
+            border-radius: 9px;
+            background: rgba(255, 255, 255, 0.025);
+        }
+        .cloud-settings-heading, .cloud-settings-columns { display: flex; justify-content: space-between; gap: 18px; }
+        .cloud-settings-heading { align-items: center; margin-bottom: 10px; }
+        .cloud-settings-heading > span { color: var(--text-muted); font-size: 0.82rem; }
+        .cloud-settings-columns > div { flex: 1; min-width: 0; }
+        .cloud-settings-columns > div > strong { color: var(--text-muted); font-size: 0.78rem; }
+        .cloud-settings-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 14px; margin: 5px 0 0; padding: 0; list-style: none; }
+        .cloud-settings-list li { overflow-wrap: anywhere; color: var(--text-main); font-size: 0.78rem; }
+        .cloud-settings-list li span { color: var(--text-muted); }
+        .cloud-settings-note { margin: 9px 0 0; color: var(--text-muted); font-size: 0.75rem; }
+        .cloud-operation-indicator {
+            position: fixed;
+            right: 18px;
+            bottom: 18px;
+            z-index: 1100;
+            width: min(360px, calc(100vw - 32px));
+            padding: 13px 15px;
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            background: #111827;
+            color: var(--text-main);
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.42);
+        }
+        .cloud-operation-indicator[hidden] { display: none; }
+        .cloud-operation-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .cloud-operation-heading span { font-variant-numeric: tabular-nums; font-weight: 700; }
+        .cloud-operation-indicator progress { display: block; width: 100%; height: 8px; margin: 10px 0 7px; accent-color: #818cf8; }
+        .cloud-operation-message { font-size: 0.84rem; }
+        .cloud-operation-detail { margin-top: 3px; color: var(--text-muted); font-size: 0.76rem; overflow-wrap: anywhere; }
+        .cloud-operation-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 9px; }
+        .cloud-operation-actions button { padding: 5px 9px; font-size: 0.78rem; }
         .cloud-conflict-badge {
             color: #fbbf24;
             font-weight: 700;
@@ -728,3 +770,9 @@
 .cloud-snapshot-item > div { min-width: 0; overflow-wrap: anywhere; }
 .cloud-confirm { margin-top: 16px; padding: 14px; border: 1px solid #a5b4fc; border-radius: 9px; }
 @media (max-width: 480px) { .cloud-snapshot-item { align-items: flex-start; flex-direction: column; gap: 6px; } }
+@media (max-width: 620px) {
+    .cloud-backup-modal-box { width: calc(100vw - 24px); max-height: 92vh; }
+    .cloud-settings-columns { flex-direction: column; gap: 9px; }
+    .cloud-settings-list { grid-template-columns: 1fr 1fr; }
+    .cloud-operation-indicator { right: 12px; bottom: 12px; }
+}
