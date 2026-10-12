@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Subcast 환경 동기화 목업</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #090d15;
+      --surface: #141a27;
+      --surface-raised: #1b2332;
+      --line: rgba(255, 255, 255, .09);
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+      --accent: #7779f5;
+      --good: #45c79a;
+      --warn: #e4b75e;
+      --danger: #ef858e;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body {
+      min-width: 320px; min-height: 100vh; margin: 0;
+      background: radial-gradient(ellipse at 50% 0, #20283a 0, var(--page) 56%);
+      color: var(--text); font: 14px/1.5 Inter, "Segoe UI", sans-serif;
+    }
+    button { color: inherit; font: inherit; }
+    .app-shell { width: min(100% - 36px, 1080px); margin: 40px auto; opacity: .45; }
+    .app-top { display: flex; align-items: center; gap: 13px; padding-bottom: 22px; border-bottom: 1px solid var(--line); }
+    .brand-mark { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid rgba(119,121,245,.4); border-radius: 9px; color: #c2c3ff; font-weight: 750; background: rgba(99,102,241,.14); }
+    .brand { font-weight: 700; }
+    .crumb { color: var(--muted); }
+    .app-content { display: grid; grid-template-columns: 190px 1fr; gap: 24px; margin-top: 28px; }
+    .app-nav, .app-placeholder { border: 1px solid var(--line); border-radius: 10px; background: rgba(20,26,39,.65); }
+    .app-nav { padding: 14px; color: var(--muted); }
+    .app-nav div { padding: 9px; }
+    .app-placeholder { min-height: 420px; padding: 24px; }
+    .ghost-line { height: 12px; margin: 12px 0; border-radius: 4px; background: rgba(255,255,255,.08); }
+    .ghost-line.short { width: 38%; }
+    .veil { position: fixed; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(3,6,12,.72); }
+    .modal {
+      width: min(760px, 100%); max-height: min(850px, calc(100vh - 40px)); overflow: auto;
+      border: 1px solid rgba(255,255,255,.12); border-radius: 13px; background: #111722;
+      box-shadow: 0 24px 90px rgba(0,0,0,.58);
+    }
+    .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 22px 24px 17px; border-bottom: 1px solid var(--line); }
+    h1 { margin: 0; font-size: 19px; letter-spacing: -.02em; }
+    .subtitle { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+    .account { margin-top: 8px; color: #bec3ce; font-size: 11px; }
+    .close { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--muted); font-size: 20px; line-height: 1; cursor: pointer; }
+    .close:hover { background: rgba(255,255,255,.06); color: var(--text); }
+    .tabs { display: flex; gap: 22px; padding: 0 24px; border-bottom: 1px solid var(--line); }
+    .tab { position: relative; padding: 13px 0 12px; border: 0; background: none; color: var(--muted); cursor: pointer; }
+    .tab[aria-selected="true"] { color: var(--text); font-weight: 650; }
+    .tab[aria-selected="true"]::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; background: var(--accent); content: ""; }
+    .body { padding: 20px 24px 22px; }
+    .sync-state { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 15px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.025); }
+    .state-label { color: var(--muted); font-size: 11px; }
+    .state-value { margin-top: 2px; font-weight: 650; }
+    .state-meta { color: var(--muted); font-size: 11px; text-align: right; }
+    .state-indicator { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: var(--warn); vertical-align: 1px; }
+    .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+    .summary-card { padding: 14px 15px; border: 1px solid var(--line); border-radius: 8px; background: #151c29; }
+    .summary-card h2 { margin: 0 0 8px; color: #c7ccd7; font-size: 12px; font-weight: 600; }
+    .summary-main { display: flex; align-items: baseline; gap: 8px; }
+    .summary-main strong { font-size: 20px; letter-spacing: -.02em; }
+    .summary-main span, .summary-foot { color: var(--muted); font-size: 11px; }
+    .summary-foot { margin-top: 5px; }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 21px 0 8px; }
+    .section-head h2 { margin: 0; font-size: 13px; }
+    .section-head span { color: var(--muted); font-size: 11px; }
+    .file-list { border-top: 1px solid var(--line); }
+    .file-row { display: grid; grid-template-columns: minmax(0,1fr) 90px 92px; align-items: center; gap: 12px; min-height: 48px; border-bottom: 1px solid rgba(255,255,255,.055); }
+    .file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-type { display: inline-block; width: 34px; margin-right: 7px; padding: 2px 0; border: 1px solid rgba(255,255,255,.1); border-radius: 4px; color: #b8bfcc; font-size: 9px; text-align: center; vertical-align: 1px; }
+    .file-size { color: var(--muted); font-size: 11px; text-align: right; }
+    .file-state { color: #c9cdd6; font-size: 11px; text-align: right; }
+    .file-state.add { color: #83d8b9; }
+    .file-state.remove { color: #f0a0a6; }
+    .more-files { padding: 9px 0; color: var(--muted); font-size: 11px; }
+    .delta { margin-top: 15px; padding: 12px 14px; border: 1px solid rgba(228,183,94,.22); border-radius: 7px; background: rgba(228,183,94,.055); color: #d2c7b2; font-size: 11px; }
+    .delta strong { color: #f0d7a2; }
+    .delta-line { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 3px; }
+    .modal-foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 24px 19px; border-top: 1px solid var(--line); }
+    .foot-note { max-width: 385px; color: var(--muted); font-size: 10px; }
+    .actions { display: flex; gap: 8px; }
+    .button { min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-raised); cursor: pointer; white-space: nowrap; }
+    .button:hover { background: #252e40; }
+    .button.primary { border-color: var(--accent); background: #6264df; color: #fff; font-weight: 650; }
+    .button.primary:hover { background: #7476ed; }
+    .button:disabled { opacity: .5; cursor: not-allowed; }
+    .notice { margin-top: 16px; padding: 12px 14px; border-left: 2px solid var(--warn); background: rgba(228,183,94,.055); color: #d0c6b4; font-size: 11px; }
+    .included-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; margin: 13px 0 0; padding: 0; list-style: none; }
+    .included-list li { padding: 11px 0; border-bottom: 1px solid var(--line); color: #d4d8e0; font-size: 12px; }
+    .included-list span { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+    .restore-panel { padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.025); }
+    .restore-panel h2 { margin: 0; font-size: 14px; }
+    .restore-panel p { margin: 6px 0 13px; color: var(--muted); font-size: 11px; }
+    .restore-list { margin: 12px 0; border-top: 1px solid var(--line); }
+    .restore-row { display: flex; justify-content: space-between; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+    .restore-row span:last-child { color: var(--muted); white-space: nowrap; }
+    .restore-warning { margin-top: 15px; padding: 12px 14px; border: 1px solid rgba(239,133,142,.2); border-radius: 7px; background: rgba(239,133,142,.055); color: #ddc2c5; font-size: 11px; }
+    .confirm-backdrop { position: fixed; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,.58); }
+    .confirm { width: min(430px, 100%); padding: 20px; border: 1px solid var(--line); border-radius: 10px; background: #171e2b; box-shadow: 0 18px 60px rgba(0,0,0,.5); }
+    .confirm h2 { margin: 0; font-size: 16px; }
+    .confirm p { margin: 8px 0 18px; color: #c1c6d0; font-size: 12px; }
+    .confirm .actions { justify-content: flex-end; }
+    .toast { position: fixed; right: 22px; bottom: 22px; max-width: min(420px, calc(100vw - 32px)); padding: 11px 14px; border: 1px solid var(--line); border-radius: 8px; background: #20293a; color: var(--text); box-shadow: 0 8px 28px rgba(0,0,0,.3); }
+    @media (max-width: 620px) {
+      .app-shell { width: calc(100% - 20px); margin: 15px auto; }
+      .app-content { grid-template-columns: 1fr; }
+      .app-nav { display: none; }
+      .veil { padding: 0; }
+      .modal { width: 100%; max-height: 100vh; min-height: 100vh; border-radius: 0; }
+      .modal-head, .body { padding-right: 17px; padding-left: 17px; }
+      .tabs { padding: 0 17px; }
+      .modal-foot { align-items: stretch; flex-direction: column; padding-right: 17px; padding-left: 17px; }
+      .actions { justify-content: flex-end; }
+      .button { flex: 1; }
+      .summary { grid-template-columns: 1fr; }
+      .included-list { grid-template-columns: 1fr; }
+      .file-row { grid-template-columns: minmax(0,1fr) 66px 70px; gap: 6px; }
+      .state-meta { max-width: 128px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell" aria-hidden="true">
+    <div class="app-top"><div class="brand-mark">S</div><span class="brand">Subcast</span><span class="crumb">/ 프로그램 설정</span></div>
+    <div class="app-content"><aside class="app-nav"><div>일반 설정</div><div>출력 설정</div><div>배경 영상</div><div>환경 동기화</div></aside><section class="app-placeholder"><div class="ghost-line short"></div><div class="ghost-line"></div><div class="ghost-line"></div><div class="ghost-line short"></div></section></div>
+  </main>
+
+  <div class="veil">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <header class="modal-head">
+        <div><h1 id="modal-title">환경 설정 동기화</h1><p class="subtitle">공통 설정과 업로드한 배경 영상을 다른 PC에서도 그대로 사용합니다.</p><div class="account">Google Drive · subcast@example.com</div></div>
+        <button class="close" id="close-modal" aria-label="닫기">×</button>
+      </header>
+      <nav class="tabs" role="tablist" aria-label="환경 동기화 메뉴">
+        <button class="tab" id="tab-sync" role="tab" aria-selected="true" aria-controls="view-sync">동기화</button>
+        <button class="tab" id="tab-restore" role="tab" aria-selected="false" aria-controls="view-restore">이 PC에 복원</button>
+      </nav>
+
+      <section class="body" id="view-sync" role="tabpanel" aria-labelledby="tab-sync">
+        <div class="sync-state">
+          <div><div class="state-label">동기화 상태</div><div class="state-value"><i class="state-indicator"></i><span id="state-text">변경 사항 있음</span></div></div>
+          <div class="state-meta">마지막 동기화<br>10월 10일 오후 8:12 · 이 PC</div>
+        </div>
+        <div class="summary">
+          <article class="summary-card"><h2>공통 설정</h2><div class="summary-main"><strong>2.8 MB</strong><span>4개 항목</span></div><div class="summary-foot">마지막 변경: 오늘 오후 2:14</div></article>
+          <article class="summary-card"><h2>사용자 배경 영상</h2><div class="summary-main"><strong>8.4 GB</strong><span>24개 파일</span></div><div class="summary-foot">기본 제공 배경과 미리보기 이미지는 제외</div></article>
+        </div>
+
+        <div class="section-head"><h2>배경 영상 전체 목록</h2><span>선택한 파일만이 아니라 전체 라이브러리를 동기화합니다</span></div>
+        <div class="file-list" aria-label="배경 영상 동기화 예시 목록">
+          <div class="file-row"><div class="file-name"><span class="file-type">MP4</span>기도회_잔잔한물결.mp4</div><span class="file-size">1.24 GB</span><span class="file-state">동일</span></div>
+          <div class="file-row"><div class="file-name"><span class="file-type">WEBM</span>새벽예배_하늘빛.webm</div><span class="file-size">842 MB</span><span class="file-state add">Drive에 추가</span></div>
+          <div class="file-row"><div class="file-name"><span class="file-type">MP4</span>겨울수련회_배경.mp4</div><span class="file-size">—</span><span class="file-state remove">Drive에서 삭제</span></div>
+        </div>
+        <div class="more-files">그 외 21개 파일 · 전체 용량 8.4 GB</div>
+        <div class="delta" id="delta-box">
+          <strong>동기화 후 Drive 내용이 이 PC와 같아집니다.</strong>
+          <div class="delta-line"><span>새 파일 업로드</span><span>1개 · 842 MB</span></div>
+          <div class="delta-line"><span>이 PC에서 삭제한 파일, Drive에서도 삭제</span><span>1개 · 176 MB</span></div>
+        </div>
+      </section>
+
+      <section class="body" id="view-restore" role="tabpanel" aria-labelledby="tab-restore" hidden>
+        <div class="restore-panel">
+          <h2>Drive에 저장된 최신 환경</h2>
+          <p>이 PC의 공통 설정과 배경 영상 라이브러리를 Drive 상태로 맞춥니다.</p>
+          <div class="restore-list">
+            <div class="restore-row"><span>공통 설정</span><span>2.8 MB · 4개 항목</span></div>
+            <div class="restore-row"><span>사용자 배경 영상</span><span>8.4 GB · 24개 파일</span></div>
+            <div class="restore-row"><span>마지막 동기화</span><span>10월 10일 오후 8:12</span></div>
+          </div>
+          <button class="button primary" id="restore-button">Drive 환경을 이 PC에 적용</button>
+        </div>
+        <div class="restore-warning"><strong>복원 전에 확인하세요.</strong> 이 PC의 현재 설정과 배경 영상 라이브러리를 대체합니다. 기존 로컬 상태는 복원 실패 시 되돌릴 수 있도록 임시 보관합니다. 프로젝트와 슬라이드 데이터는 여기에 포함되지 않으며, 프로젝트 내보내기 파일로 별도 이동합니다.</div>
+      </section>
+
+      <footer class="modal-foot" id="sync-foot">
+        <div class="foot-note">프로젝트·슬라이드는 포함되지 않습니다. 배경 영상을 지우고 동기화하면 Drive에서도 제거됩니다.</div>
+        <div class="actions"><button class="button" id="refresh-button">다시 확인</button><button class="button primary" id="sync-button">Drive에 동기화</button></div>
+      </footer>
+      <footer class="modal-foot" id="restore-foot" hidden>
+        <div class="foot-note">동기화 시점이 다른 PC보다 오래된 경우, 덮어쓰기를 막고 먼저 최신 상태를 확인합니다.</div>
+        <div class="actions"><button class="button" id="back-to-sync">돌아가기</button></div>
+      </footer>
+    </section>
+  </div>
+
+  <div class="confirm-backdrop" id="confirm-dialog" hidden>
+    <section class="confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-copy">
+      <h2 id="confirm-title">Drive와 동기화할까요?</h2>
+      <p id="confirm-copy">새 배경 영상 1개(842 MB)를 업로드하고, 이 PC에서 삭제한 영상 1개(176 MB)를 Drive에서도 제거합니다. 설정과 전체 배경 라이브러리가 이 PC의 상태로 맞춰집니다.</p>
+      <div class="actions"><button class="button" id="cancel-sync">취소</button><button class="button primary" id="confirm-sync">동기화 시작</button></div>
+    </section>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script>
+    const tabs = [...document.querySelectorAll('[role="tab"]')];
+    const panels = [...document.querySelectorAll('[role="tabpanel"]')];
+    const syncFoot = document.getElementById('sync-foot');
+    const restoreFoot = document.getElementById('restore-foot');
+    const confirmDialog = document.getElementById('confirm-dialog');
+    const toast = document.getElementById('toast');
+    let toastTimer;
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toast.hidden = true; }, 2800);
+    }
+    function selectTab(tab) {
+      tabs.forEach(item => item.setAttribute('aria-selected', String(item === tab)));
+      panels.forEach(panel => { panel.hidden = panel.id !== tab.getAttribute('aria-controls'); });
+      const restoring = tab.id === 'tab-restore';
+      syncFoot.hidden = restoring;
+      restoreFoot.hidden = !restoring;
+    }
+    tabs.forEach(tab => tab.addEventListener('click', () => selectTab(tab)));
+    document.getElementById('back-to-sync').addEventListener('click', () => selectTab(document.getElementById('tab-sync')));
+    document.getElementById('refresh-button').addEventListener('click', () => showToast('Drive의 최신 동기화 정보를 확인했습니다.'));
+    document.getElementById('sync-button').addEventListener('click', () => { confirmDialog.hidden = false; });
+    document.getElementById('cancel-sync').addEventListener('click', () => { confirmDialog.hidden = true; });
+    document.getElementById('confirm-sync').addEventListener('click', () => {
+      confirmDialog.hidden = true;
+      document.getElementById('state-text').textContent = '동기화 완료';
+      document.querySelector('.state-indicator').style.background = 'var(--good)';
+      document.getElementById('delta-box').innerHTML = '<strong>Drive와 이 PC가 동기화되었습니다.</strong><div class="delta-line"><span>업로드 1개 · 삭제 1개 반영</span><span>완료</span></div>';
+      document.querySelectorAll('.file-state').forEach(state => {
+        if (state.classList.contains('add')) { state.className = 'file-state'; state.textContent = '동일'; }
+        if (state.classList.contains('remove')) { state.textContent = 'Drive에서 제거됨'; }
+      });
+      showToast('환경 설정과 배경 영상 라이브러리를 동기화했습니다.');
+    });
+    document.getElementById('restore-button').addEventListener('click', () => {
+      if (!confirm('Drive의 설정과 배경 영상 전체로 이 PC의 현재 상태를 바꿀까요?')) return;
+      showToast('목업: Drive 환경을 이 PC에 적용했습니다.');
+    });
+    document.getElementById('close-modal').addEventListener('click', () => showToast('목업: 환경 동기화 창을 닫았습니다.'));
+  </script>
+</body>
+</html>

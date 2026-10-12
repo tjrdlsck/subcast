@@ -1,9 +1,11 @@
 ---
 name: product-orchestrator
-description: 자연어 요구사항을 Discovery부터 Implementation까지 승인 기반 문서 워크플로로 처리한다. 새 기능, 버그 수정, 리팩터링 요청에서 사용하며 한 번에 한 단계만 진행한다.
+description: 사용자가 단계별 기획 문서와 승인을 명시적으로 요청한 경우, 자연어 요구사항을 Discovery부터 Implementation까지 승인 기반 문서 워크플로로 처리한다.
 ---
 
 # Product Orchestrator
+
+일반적인 기능 구현, 버그 수정, 리팩터링에는 적용하지 않는다. 사용자가 단계별 문서와 승인을 명시적으로 요청한 경우에만 아래 절차를 따른다.
 
 ## 시작 규칙
 
@@ -13,7 +15,7 @@ description: 자연어 요구사항을 Discovery부터 Implementation까지 승�
 4. 현재 단계 문서와 이미 승인된 이전 문서만 필요한 범위로 읽는다.
 5. 사용자의 최신 요청이 기존 변경 단위의 피드백인지 새 변경인지 판단한다.
 
-`docs/project-state.md`가 다른 작업 흐름을 가리키거나 현재 작업 폴더에 미커밋 변경이 있으면 덮어쓰지 말고 충돌을 보고한다.
+`docs/project-state.md`의 변경 단위가 완료 상태이면 과거 Allowed Scope와 Protected Scope를 새 요청에 적용하지 않는다. 새 요청에 맞는 범위를 확인하고 새 변경 단위로 기록한 뒤 사용한다. 진행 중인 다른 변경 단위나 미커밋 변경은 관련 파일이 실제로 겹치는지 확인하고, 겹칠 때만 덮어쓰지 말고 충돌을 보고한다. 관련 없는 사용자 변경은 보존한 채 작업을 계속한다.
 
 ## 단계 순서
 
@@ -60,9 +62,7 @@ Legacy 애플리케이션의 기능 변경은 저장소가 정한 `docs/current/
 - 한 번에 하나의 작은 태스크만 구현한다.
 - 수정 직후 관련 단위·통합·정적 검증을 실행한다.
 - 디버깅은 전체 traceback과 로그를 먼저 읽고 원인을 좁힌 뒤 최소 수정한다.
-- Codex 세션에서는 Codex CLI를 다시 호출하거나 자기 자신에게 교차 검증을 요청하지 않는다. 외부 Codex 호출 절차는 Antigravity 전용이다.
 - 검증 로그가 없거나 실패하면 완료로 선언하지 않는다.
-- `.antigravity/rules.md`와 `.agent/agents/product-orchestrator/agent.md`는 항상 보존한다.
 
 ## 응답 형식
 
