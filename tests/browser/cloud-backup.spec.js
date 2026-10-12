@@ -267,3 +267,19 @@ test('SC-18-10 Drive 작업은 등록 응답 뒤에만 상태를 조회하고 40
     expect(requestOrder.length).toBeGreaterThan(1);
     expect(requestOrder.slice(1).every(item => item.type === 'poll' && item.status === 200 && item.afterAcceptance)).toBe(true);
 });
+
+test('SC-18-11 변경 없는 동기화는 Drive 저장을 생략했다고 안내한다', async ({ page }) => {
+    let operationId;
+    await page.route('**/api/cloud/drive/environment/sync', route => {
+        operationId = route.request().postDataJSON().operationId;
+        return route.fulfill({ status: 202, json: { operationId, status: 'running' } });
+    });
+    await page.route('**/api/cloud/drive/environment/operations/*', route => route.fulfill({ json: {
+        operationId, action: 'sync', status: 'completed', percent: 100,
+        result: { revision: 'revision-1', backgroundCount: 2, backgroundBytes: 2097152, unchanged: true },
+    } }));
+    await connected(page);
+    await page.locator('#btn-drive-backup').click();
+    await page.locator('#btn-cloud-confirm-submit').click();
+    await expect(page.locator('#cloud-drive-status')).toContainText('변경 사항이 없어 Drive 저장을 생략했습니다.');
+});

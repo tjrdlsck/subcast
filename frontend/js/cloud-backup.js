@@ -67,7 +67,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     if (modal.classList.contains('show') && status.status === 'completed') {
                         await loadEnvironment();
-                        setStatus(status.action === 'sync' ? '환경과 배경 전체 동기화 완료' : 'Drive 환경을 이 PC에 적용했습니다.');
+                        setStatus(status.action === 'sync'
+                            ? (status.result?.unchanged ? '변경 사항이 없어 Drive 저장을 생략했습니다.' : '환경과 배경 전체 동기화 완료')
+                            : 'Drive 환경을 이 PC에 적용했습니다.');
                     } else if (status.status === 'failed' && status.errorStatus === 409 && modal.classList.contains('show')) {
                         await loadEnvironment();
                     }
@@ -80,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.removeItem(operationStorageKey);
                 break;
             }
-            await wait(600);
+            await wait(1000);
         }
     }
     const buttons = () => {

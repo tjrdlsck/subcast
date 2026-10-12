@@ -205,6 +205,27 @@ def test_environment_manifest_uses_create_then_update_http_methods(monkeypatch):
     assert "/files/manifest-1?uploadType=multipart" in calls[1][1]
 
 
+def test_environment_folder_metadata_is_checked_once_per_drive_client(tmp_path, monkeypatch):
+    folder_file = tmp_path / "cloud_backup" / "environment_folder.json"
+    folder_file.parent.mkdir(parents=True)
+    folder_file.write_text('{"folderId":"environment-folder"}', encoding="utf-8")
+    monkeypatch.setattr(google_drive, "_data_dir", lambda: tmp_path)
+    calls = []
+
+    class Response:
+        def json(self):
+            return {"id": "environment-folder", "trashed": False}
+
+    client = object.__new__(google_drive.GoogleDriveClient)
+    client._folder_ids = {}
+    monkeypatch.setattr(client, "request", lambda method, url, **kwargs: calls.append((method, url)) or Response())
+
+    assert client._environment_folder_id() == "environment-folder"
+    assert client._environment_folder_id() == "environment-folder"
+
+    assert calls == [("GET", "/files/environment-folder")]
+
+
 def test_remote_assets_are_referenced_without_repeating_media_in_each_snapshot(tmp_path):
     content = b"background-video" * 100_000
     background_dir = tmp_path / "frontend" / "assets" / "backgrounds"

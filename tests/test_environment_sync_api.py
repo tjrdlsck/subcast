@@ -18,6 +18,8 @@ class FakeEnvironmentDrive:
     assets: dict[str, bytes] = {}
     deletes: list[str] = []
     next_asset = 0
+    uploads: int = 0
+    downloads: int = 0
 
     @classmethod
     def reset(cls):
@@ -25,6 +27,8 @@ class FakeEnvironmentDrive:
         cls.assets = {}
         cls.deletes = []
         cls.next_asset = 0
+        cls.uploads = 0
+        cls.downloads = 0
 
     def find_environment_manifest(self, _cached_file_id=None):
         if self.manifest is None:
@@ -32,6 +36,7 @@ class FakeEnvironmentDrive:
         return {"id": self.manifest_id}, self.manifest
 
     def upload_environment_manifest(self, content, file_id=None):
+        type(self).uploads += 1
         type(self).manifest_id = file_id or type(self).manifest_id
         type(self).manifest = content
         return {"id": type(self).manifest_id}
@@ -50,6 +55,7 @@ class FakeEnvironmentDrive:
         type(self).assets.pop(file_id, None)
 
     def download_file_to_path(self, file_id: str, path: Path, progress_callback=None):
+        type(self).downloads += 1
         path.parent.mkdir(parents=True, exist_ok=True)
         content = type(self).assets[file_id]
         path.write_bytes(content)
@@ -210,6 +216,79 @@ def test_sync_removes_drive_asset_when_user_deletes_local_video(tmp_path, monkey
     assert _manifest()["backgrounds"] == []
     assert asset_id in FakeEnvironmentDrive.deletes
     assert asset_id not in FakeEnvironmentDrive.assets
+
+
+def test_unchanged_sync_skips_drive_manifest_write(tmp_path, monkeypatch):
+    FakeEnvironmentDrive.reset()
+    monkeypatch.setattr(cloud_backup_router, "APP_DATA_DIR", tmp_path)
+    monkeypatch.setattr(cloud_backup_router, "GoogleDriveClient", FakeEnvironmentDrive)
+    _create_user_video(tmp_path, "upload_same.mp4", b"same-video")
+    browser_settings = {"monitorSettings": {"textColor": "#ffffff"}}
+
+    with TestClient(app) as client:
+        first = client.post("/api/cloud/drive/environment/sync", json={
+            "baseRevision": None, "browserSettings": browser_settings,
+        })
+        _operation, first_result = _completed_operation(client, first)
+        manifest_uploads = FakeEnvironmentDrive.uploads
+        second = client.post("/api/cloud/drive/environment/sync", json={
+            "baseRevision": first_result["revision"], "browserSettings": browser_settings,
+        })
+        operation, result = _completed_operation(client, second)
+
+    assert operation["status"] == "completed"
+    assert result["unchanged"] is True
+    assert result["revision"] == first_result["revision"]
+    assert FakeEnvironmentDrive.uploads == manifest_uploads
+    assert FakeEnvironmentDrive.next_asset == 1
+
+
+def test_restore_skips_download_when_local_video_matches_drive(tmp_path, monkeypatch):
+    FakeEnvironmentDrive.reset()
+    monkeypatch.setattr(cloud_backup_router, "APP_DATA_DIR", tmp_path)
+    monkeypatch.setattr(cloud_backup_router, "GoogleDriveClient", FakeEnvironmentDrive)
+    content = b"same-video-content"
+    _create_user_video(tmp_path, "upload_same.mp4", content)
+    digest = hashlib.sha256(content).hexdigest()
+    FakeEnvironmentDrive.assets["asset-same"] = content
+    FakeEnvironmentDrive.manifest = json.dumps({
+        "formatVersion": 1, "revision": "same-r1", "settings": {},
+        "backgrounds": [{"name": "upload_same.mp4", "title": "upload_same.mp4", "size": len(content),
+                          "sha256": digest, "assetFileId": "asset-same",
+                          "meta": {"title": "upload_same.mp4", "userUploaded": True}}],
+    }).encode("utf-8")
+
+    with TestClient(app) as client:
+        response = client.post("/api/cloud/drive/environment/restore", json={"baseRevision": "same-r1"})
+        operation, result = _completed_operation(client, response)
+
+    assert operation["status"] == "completed", operation.get("message")
+    assert result["backgroundCount"] == 1
+    assert FakeEnvironmentDrive.downloads == 0
+
+
+def test_restore_overwrites_same_name_when_drive_video_changed(tmp_path, monkeypatch):
+    FakeEnvironmentDrive.reset()
+    monkeypatch.setattr(cloud_backup_router, "APP_DATA_DIR", tmp_path)
+    monkeypatch.setattr(cloud_backup_router, "GoogleDriveClient", FakeEnvironmentDrive)
+    _create_user_video(tmp_path, "upload_same.mp4", b"old-content")
+    new_content = b"new-drive-content"
+    digest = hashlib.sha256(new_content).hexdigest()
+    FakeEnvironmentDrive.assets["asset-new"] = new_content
+    FakeEnvironmentDrive.manifest = json.dumps({
+        "formatVersion": 1, "revision": "changed-r1", "settings": {},
+        "backgrounds": [{"name": "upload_same.mp4", "title": "upload_same.mp4", "size": len(new_content),
+                          "sha256": digest, "assetFileId": "asset-new",
+                          "meta": {"title": "upload_same.mp4", "userUploaded": True}}],
+    }).encode("utf-8")
+
+    with TestClient(app) as client:
+        response = client.post("/api/cloud/drive/environment/restore", json={"baseRevision": "changed-r1"})
+        operation, _result = _completed_operation(client, response)
+
+    assert operation["status"] == "completed"
+    assert (tmp_path / "frontend" / "assets" / "backgrounds" / "upload_same.mp4").read_bytes() == new_content
+    assert FakeEnvironmentDrive.downloads == 1
 
 
 def test_environment_restore_rejects_invalid_video_checksum_without_touching_local_files(tmp_path, monkeypatch):

@@ -160,6 +160,26 @@ def _settings_fingerprint(settings: dict) -> str:
     return hashlib.sha256(_json_bytes(settings_without_browser)).hexdigest()
 
 
+def _sync_settings_fingerprint(settings: dict) -> str:
+    """Include browser settings when deciding whether a Drive write is needed."""
+    import hashlib
+    normalized = dict(settings)
+    monitor_settings = normalized.get("monitorSettings")
+    if isinstance(monitor_settings, dict):
+        normalized["monitorSettings"] = {key: value for key, value in monitor_settings.items() if key != "updatedAt"}
+    return hashlib.sha256(_json_bytes(normalized)).hexdigest()
+
+
+def _video_manifest_fingerprint(videos: list[dict]) -> str:
+    import hashlib
+    fields = ("name", "title", "size", "sha256", "meta")
+    normalized = [
+        {key: item[key] for key in fields if key in item}
+        for item in sorted(videos, key=lambda video: video.get("name", "").casefold())
+    ]
+    return hashlib.sha256(_json_bytes(normalized)).hexdigest()
+
+
 def _read_remote_environment(client: GoogleDriveClient, state: dict):
     file_info, content = client.find_environment_manifest(state.get("manifestFileId"))
     if not file_info or content is None:
@@ -295,6 +315,15 @@ def _run_environment_sync(request: EnvironmentSyncRequest, operation_id: str) ->
         settings = environment_sync.collect_settings(data_dir, request.browserSettings)
         settings = environment_sync.validate_settings(settings)
         local_videos = environment_sync.collect_user_videos(data_dir)
+        remote_videos = (remote or {}).get("backgrounds", [])
+        settings_unchanged = bool(remote) and _sync_settings_fingerprint(settings) == _sync_settings_fingerprint(remote.get("settings", {}))
+        videos_unchanged = _video_manifest_fingerprint(local_videos) == _video_manifest_fingerprint(remote_videos)
+        pending_deletes = set((remote or {}).get("pendingDeleteAssetIds", []))
+        if settings_unchanged and videos_unchanged and not pending_deletes:
+            totals = _video_totals(remote_videos)
+            _update_environment_operation(operation_id, phase="completed", message="변경 사항이 없어 Drive 저장을 생략했습니다.", percent=99)
+            return {"revision": remote["revision"], "added": 0, "updated": 0, "removed": 0,
+                    **totals, "cleanupPending": 0, "unchanged": True}
         previous_by_hash = {item.get("sha256"): item for item in (remote or {}).get("backgrounds", [])}
         unique_uploads = {}
         for item in local_videos:
@@ -341,7 +370,7 @@ def _run_environment_sync(request: EnvironmentSyncRequest, operation_id: str) ->
                                       total_items=len(unique_uploads), current_file="")
         previous_ids = {item.get("assetFileId") for item in (remote or {}).get("backgrounds", []) if item.get("assetFileId")}
         current_ids = {item["assetFileId"] for item in backgrounds}
-        pending_deletes = (set((remote or {}).get("pendingDeleteAssetIds", [])) | (previous_ids - current_ids)) - current_ids
+        pending_deletes = (pending_deletes | (previous_ids - current_ids)) - current_ids
         manifest = {
             "formatVersion": 1, "revision": uuid.uuid4().hex, "parentRevision": (remote or {}).get("revision"),
             "updatedAt": datetime.now(timezone.utc).isoformat(), "settings": settings,
@@ -434,13 +463,21 @@ def _run_environment_restore(request: EnvironmentRestoreRequest, operation_id: s
         backgrounds = manifest.get("backgrounds", [])
         if not isinstance(backgrounds, list):
             raise ValueError("Drive 배경 영상 목록 형식이 올바르지 않습니다.")
-        total_download_bytes = sum(int(item.get("size", 0)) for item in backgrounds)
+        local_videos = environment_sync.collect_user_videos(_environment_data_dir())
+        local_by_name = {item["name"]: item for item in local_videos}
+        reusable = {
+            item["name"]: local_by_name[item["name"]]["path"] for item in backgrounds
+            if item.get("name") in local_by_name
+            and local_by_name[item["name"]].get("sha256") == item.get("sha256")
+        }
+        downloads = [item for item in backgrounds if item.get("name") not in reusable]
+        total_download_bytes = sum(int(item.get("size", 0)) for item in downloads)
         downloaded_bytes = 0
         completed_downloads = 0
         _update_environment_operation(operation_id, phase="downloading", message="Drive에서 배경을 내려받고 있습니다.",
-                                      percent=5, total_bytes=total_download_bytes, total_items=len(backgrounds))
+                                      percent=5, total_bytes=total_download_bytes, total_items=len(downloads))
         download_dir.mkdir(parents=True, exist_ok=True)
-        video_paths: dict[str, Path] = {}
+        video_paths: dict[str, Path] = dict(reusable)
         for item in backgrounds:
             name = item.get("name") if isinstance(item, dict) else None
             asset_id = item.get("assetFileId") if isinstance(item, dict) else None
@@ -448,6 +485,8 @@ def _run_environment_restore(request: EnvironmentRestoreRequest, operation_id: s
                 raise ValueError("Drive 배경 영상 목록에 올바르지 않은 파일이 있습니다.")
             staged = download_dir / name
             file_size = int(item.get("size", 0))
+            if name in reusable:
+                continue
 
             def report_download_progress(done: int) -> None:
                 transferred = downloaded_bytes + done
@@ -455,7 +494,7 @@ def _run_environment_restore(request: EnvironmentRestoreRequest, operation_id: s
                 _update_environment_operation(
                     operation_id, phase="downloading", message="Drive에서 배경을 내려받고 있습니다.",
                     percent=percent, transferred_bytes=transferred, total_bytes=total_download_bytes,
-                    completed_items=completed_downloads, total_items=len(backgrounds), current_file=name,
+                    completed_items=completed_downloads, total_items=len(downloads), current_file=name,
                 )
 
             client.download_file_to_path(asset_id, staged, progress_callback=report_download_progress)
@@ -465,7 +504,7 @@ def _run_environment_restore(request: EnvironmentRestoreRequest, operation_id: s
                 operation_id, phase="downloading", message="Drive에서 배경을 내려받고 있습니다.",
                 percent=5 + int(downloaded_bytes / max(total_download_bytes, 1) * 83),
                 transferred_bytes=downloaded_bytes, total_bytes=total_download_bytes,
-                completed_items=completed_downloads, total_items=len(backgrounds), current_file=name,
+                completed_items=completed_downloads, total_items=len(downloads), current_file=name,
             )
             video_paths[name] = staged
         _update_environment_operation(operation_id, phase="applying_settings", message="배경과 공통 설정을 이 PC에 적용하고 있습니다.",

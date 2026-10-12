@@ -231,6 +231,7 @@ class GoogleDriveClient:
         if not client_id() or not client_secret():
             raise RuntimeError("Google OAuth 클라이언트 자격 증명이 설정되지 않았습니다.")
         self.tokens = load_tokens() or {}
+        self._folder_ids: dict[str, str] = {}
         if not self.tokens.get("refresh_token"):
             raise RuntimeError("Google Drive 연결이 필요합니다.")
 
@@ -263,6 +264,8 @@ class GoogleDriveClient:
         return response
 
     def _folder_id(self) -> str:
+        if folder_id := getattr(self, "_folder_ids", {}).get("root"):
+            return folder_id
         stored = _data_dir() / "cloud_backup" / "drive_folder.json"
         if stored.exists():
             try:
@@ -270,6 +273,7 @@ class GoogleDriveClient:
                 if folder_id:
                     response = self.request("GET", f"/files/{folder_id}", params={"fields": "id,trashed"})
                     if not response.json().get("trashed"):
+                        self._folder_ids["root"] = folder_id
                         return folder_id
             except Exception:
                 pass
@@ -282,9 +286,12 @@ class GoogleDriveClient:
             folder_id = response.json()["id"]
         stored.parent.mkdir(parents=True, exist_ok=True)
         stored.write_text(json.dumps({"folderId": folder_id}), encoding="utf-8")
+        self._folder_ids["root"] = folder_id
         return folder_id
 
     def _environment_folder_id(self) -> str:
+        if folder_id := getattr(self, "_folder_ids", {}).get("environment"):
+            return folder_id
         stored = _data_dir() / "cloud_backup" / "environment_folder.json"
         if stored.exists():
             try:
@@ -292,6 +299,7 @@ class GoogleDriveClient:
                 if folder_id:
                     response = self.request("GET", f"/files/{folder_id}", params={"fields": "id,trashed"})
                     if not response.json().get("trashed"):
+                        self._folder_ids["environment"] = folder_id
                         return folder_id
             except Exception:
                 pass
@@ -309,6 +317,7 @@ class GoogleDriveClient:
             folder_id = response.json()["id"]
         stored.parent.mkdir(parents=True, exist_ok=True)
         stored.write_text(json.dumps({"folderId": folder_id}), encoding="utf-8")
+        self._folder_ids["environment"] = folder_id
         return folder_id
 
     def find_environment_manifest(self, cached_file_id: str | None = None) -> tuple[dict[str, Any] | None, bytes | None]:

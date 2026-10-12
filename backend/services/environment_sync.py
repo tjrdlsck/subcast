@@ -194,7 +194,18 @@ def apply_settings(settings: dict[str, Any], data_dir: Path) -> None:
 
 
 def managed_video_names(data_dir: Path) -> set[str]:
-    return {item["name"] for item in collect_user_videos(data_dir)}
+    directory = Path(data_dir) / "frontend" / "assets" / "backgrounds"
+    metadata = _load_json(directory / "meta.json", {})
+    if not isinstance(metadata, dict):
+        raise ValueError("배경 영상 메타데이터 형식이 올바르지 않습니다.")
+    if not directory.exists():
+        return set()
+    return {
+        path.name for path in directory.iterdir()
+        if path.is_file() and path.suffix.lower() in VIDEO_EXTENSIONS
+        and not path.name.startswith((".trash_", ".chunk_", ".pending_delete_"))
+        and (path.name.startswith("upload_") or (metadata.get(path.name) or {}).get("userUploaded") is True)
+    }
 
 
 def prepare_and_apply_videos(settings: dict[str, Any], video_paths: dict[str, Path], data_dir: Path) -> None:
@@ -225,7 +236,7 @@ def prepare_and_apply_videos(settings: dict[str, Any], video_paths: dict[str, Pa
         existing_meta.pop(name, None)
     for name, item in incoming_by_name.items():
         target = directory / name
-        if name not in current_managed or not target.exists():
+        if not target.exists() or _sha256(target) != item.get("sha256"):
             shutil.copy2(video_paths[name], target)
         new_meta = {key: value for key, value in (item.get("meta") or {}).items() if key != "thumbnailUrl"}
         new_meta.update({"title": item.get("title") or name, "userUploaded": True, "isDefault": False})
