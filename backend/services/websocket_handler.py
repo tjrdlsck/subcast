@@ -394,7 +394,8 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                     logger.info(f"Slide unlocked: {slide_id}")
 
             elif msg_type == "ADD_SLIDE":
-                new_id = f"slide_{uuid.uuid4().hex[:8]}"
+                request_id = message.get("requestId")
+                new_id = message.get("slideId") or f"slide_{uuid.uuid4().hex[:8]}"
                 slide_num = len(manager.project_data.slides) + 1 if manager.project_data else 1
                 new_slide = Slide(id=new_id, name=f"새 슬라이드 {slide_num}", elements=[])
                 
@@ -407,36 +408,85 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                             break
                             
                 if manager.project_data:
+                    if any(slide.id == new_id for slide in manager.project_data.slides):
+                        if request_id:
+                            await manager.send_json(websocket, {
+                                "type": "SLIDE_ADD_RESULT", "requestId": request_id,
+                                "success": False, "reason": "이미 존재하는 슬라이드입니다.",
+                                "data": manager.project_data.model_dump()
+                            })
+                        continue
+                    previous_slides = manager.project_data.slides
                     if insert_idx != -1:
+                        manager.project_data.slides = list(previous_slides)
                         manager.project_data.slides.insert(insert_idx, new_slide)
                     else:
-                        manager.project_data.slides.append(new_slide)
-                        
-                    await save_project_data(manager.project_data)
+                        manager.project_data.slides = [*previous_slides, new_slide]
+                    try:
+                        await save_project_data(manager.project_data)
+                    except Exception:
+                        manager.project_data.slides = previous_slides
+                        if request_id:
+                            logger.exception("Slide add failed for request %s", request_id)
+                            await manager.send_json(websocket, {
+                                "type": "SLIDE_ADD_RESULT", "requestId": request_id,
+                                "success": False, "reason": "슬라이드를 저장하지 못했습니다.",
+                                "data": manager.project_data.model_dump()
+                            })
+                            continue
+                        raise
                     await manager.broadcast({
                         "type": "INITIAL_SYNC",
                         "data": manager.project_data.model_dump(),
                         "lockedSlides": manager.locked_slides
                     })
+                    if request_id:
+                        await manager.send_json(websocket, {
+                            "type": "SLIDE_ADD_RESULT", "requestId": request_id,
+                            "success": True, "slideId": new_id
+                        })
                 logger.info(f"New slide added: {new_id}")
 
             elif msg_type == "SAVE_TEMPLATE":
                 tpl_data = message.get("template")
                 if tpl_data and manager.project_data:
-                    new_tpl = SlideTemplate.model_validate(tpl_data)
-                    for idx, t in enumerate(manager.project_data.templates):
-                        if t.id == new_tpl.id:
-                            manager.project_data.templates[idx] = new_tpl
-                            break
-                    else:
-                        manager.project_data.templates.append(new_tpl)
-                    await save_global_templates(manager.project_data.templates)
-                    await save_project_data(manager.project_data)
+                    request_id = message.get("requestId")
+                    previous_templates = list(manager.project_data.templates)
+                    try:
+                        new_tpl = SlideTemplate.model_validate(tpl_data)
+                        for idx, template in enumerate(manager.project_data.templates):
+                            if template.id == new_tpl.id:
+                                manager.project_data.templates[idx] = new_tpl
+                                break
+                        else:
+                            manager.project_data.templates.append(new_tpl)
+                        await save_global_templates(manager.project_data.templates)
+                        await save_project_data(manager.project_data)
+                    except Exception:
+                        manager.project_data.templates = previous_templates
+                        if request_id:
+                            logger.exception("Template save failed for request %s", request_id)
+                            try:
+                                await save_global_templates(previous_templates)
+                            except Exception:
+                                logger.exception("Failed to restore global templates after save failure")
+                            await manager.send_json(websocket, {
+                                "type": "TEMPLATE_SAVE_RESULT", "requestId": request_id,
+                                "success": False, "reason": "템플릿을 저장하지 못했습니다.",
+                                "data": manager.project_data.model_dump()
+                            })
+                            continue
+                        raise
                     await manager.broadcast({
                         "type": "INITIAL_SYNC",
                         "data": manager.project_data.model_dump(),
                         "lockedSlides": manager.locked_slides
                     })
+                    if request_id:
+                        await manager.send_json(websocket, {
+                            "type": "TEMPLATE_SAVE_RESULT", "requestId": request_id,
+                            "success": True, "templateId": new_tpl.id
+                        })
                     logger.info(f"Template saved globally: {new_tpl.id}")
 
             elif msg_type == "DELETE_TEMPLATE":
@@ -615,25 +665,112 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                     logger.info("Slides reordered and synchronized.")
 
             elif msg_type == "DELETE_SLIDES":
+                request_id = message.get("requestId")
                 requested_slide_ids = message.get("slideIds", [])
                 slide_ids = [
                     slide_id for slide_id in requested_slide_ids
                     if manager.locked_slides.get(slide_id) in (None, ws_id)
                 ]
                 if slide_ids and manager.project_data:
-                    manager.project_data.slides = [s for s in manager.project_data.slides if s.id not in slide_ids]
+                    previous_slides = manager.project_data.slides
+                    deleted_records = [
+                        {"index": index, "slide": slide.model_dump()}
+                        for index, slide in enumerate(previous_slides)
+                        if slide.id in slide_ids
+                    ]
+                    manager.project_data.slides = [s for s in previous_slides if s.id not in slide_ids]
+                    fallback_id = None
                     if not manager.project_data.slides:
                         new_id = f"slide_{uuid.uuid4().hex[:8]}"
                         new_slide = Slide(id=new_id, name="새 슬라이드 1", elements=[])
                         manager.project_data.slides.append(new_slide)
+                        fallback_id = new_id
                     
-                    await save_project_data(manager.project_data)
+                    try:
+                        await save_project_data(manager.project_data)
+                    except Exception:
+                        manager.project_data.slides = previous_slides
+                        if request_id:
+                            logger.exception("Slide delete failed for request %s", request_id)
+                            await manager.send_json(websocket, {
+                                "type": "SLIDE_DELETE_RESULT", "requestId": request_id,
+                                "success": False, "reason": "슬라이드를 삭제하지 못했습니다.",
+                                "data": manager.project_data.model_dump()
+                            })
+                            continue
+                        raise
+                    if deleted_records:
+                        manager.record_deleted_slides(ws_id, {
+                            "slides": deleted_records,
+                            "fallbackId": fallback_id,
+                        })
                     await manager.broadcast({
                         "type": "INITIAL_SYNC",
                         "data": manager.project_data.model_dump(),
                         "lockedSlides": manager.locked_slides
                     })
+                    if request_id:
+                        await manager.send_json(websocket, {
+                            "type": "SLIDE_DELETE_RESULT", "requestId": request_id,
+                            "success": True, "undoAvailable": bool(deleted_records)
+                        })
                     logger.info(f"Slides deleted: {slide_ids}")
+                elif request_id:
+                    await manager.send_json(websocket, {
+                        "type": "SLIDE_DELETE_RESULT", "requestId": request_id,
+                        "success": False, "reason": "삭제할 수 있는 슬라이드가 없습니다.",
+                        "data": manager.project_data.model_dump() if manager.project_data else None
+                    })
+
+            elif msg_type == "UNDO_SLIDE_DELETE":
+                action = manager.pop_deleted_slides(ws_id)
+                if not action or not manager.project_data:
+                    await manager.send_json(websocket, {
+                        "type": "SLIDE_DELETE_UNDO_RESULT", "success": False,
+                        "reason": "되돌릴 삭제 기록이 없습니다.",
+                        "data": manager.project_data.model_dump() if manager.project_data else None
+                    })
+                    continue
+
+                previous_slides = list(manager.project_data.slides)
+                try:
+                    fallback_id = action.get("fallbackId")
+                    if (fallback_id and len(previous_slides) == 1
+                            and previous_slides[0].id == fallback_id
+                            and previous_slides[0].name == "새 슬라이드 1"
+                            and not previous_slides[0].elements):
+                        manager.project_data.slides = []
+                    existing_ids = {slide.id for slide in manager.project_data.slides}
+                    for record in sorted(action["slides"], key=lambda item: item["index"]):
+                        restored_slide = Slide.model_validate(record["slide"])
+                        if restored_slide.id in existing_ids:
+                            continue
+                        insert_index = min(record["index"], len(manager.project_data.slides))
+                        manager.project_data.slides.insert(insert_index, restored_slide)
+                        existing_ids.add(restored_slide.id)
+                    if not manager.project_data.slides:
+                        raise ValueError("Undo would leave the project without slides.")
+                    await save_project_data(manager.project_data)
+                except Exception:
+                    manager.project_data.slides = previous_slides
+                    manager.restore_deleted_slides(ws_id, action)
+                    logger.exception("Slide delete undo failed for client %s", ws_id)
+                    await manager.send_json(websocket, {
+                        "type": "SLIDE_DELETE_UNDO_RESULT", "success": False,
+                        "reason": "슬라이드 삭제를 되돌리지 못했습니다.",
+                        "data": manager.project_data.model_dump()
+                    })
+                    continue
+
+                await manager.broadcast({
+                    "type": "INITIAL_SYNC",
+                    "data": manager.project_data.model_dump(),
+                    "lockedSlides": manager.locked_slides
+                })
+                await manager.send_json(websocket, {
+                    "type": "SLIDE_DELETE_UNDO_RESULT", "success": True,
+                    "undoAvailable": bool(manager.deleted_slide_history.get(ws_id))
+                })
 
             elif msg_type == "ADD_SLIDES_BULK":
                 slides_data = message.get("slides", [])

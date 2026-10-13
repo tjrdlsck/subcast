@@ -6,6 +6,7 @@
         let reconnectTimerId = null;
         let editorThumbnailsPending = false;
         let editorThumbnailSyncId = null;
+        let thumbnailGenerationRunning = false;
         let editorSocketReady = false;
         const editorSocketReadyCallbacks = new Set();
 
@@ -18,19 +19,62 @@
         };
 
         function generateMissingSlideThumbnails() {
-            if (editorThumbnailsPending || !projectData?.slides?.length) return;
-            const missingSlides = projectData.slides.filter(slide => !slide.thumbnail);
-            if (!missingSlides.length) return;
+            if (editorThumbnailsPending || thumbnailGenerationRunning || !projectData?.slides?.length) return;
+            const projectId = projectData.id;
+            thumbnailGenerationRunning = true;
 
             (async () => {
+                const slidesToRepair = [];
+                for (const slide of projectData.slides) {
+                    if (!slide.thumbnail) {
+                        slidesToRepair.push({ id: slide.id, force: false });
+                        continue;
+                    }
+                    const isPraise = slide.isPraise === true || slide.slideType === 'praise'
+                        || slide.id?.startsWith('slide_praise_')
+                        || slide.name?.startsWith('찬양:')
+                        || slide.name?.startsWith('자막(템):');
+                    const hasLyrics = elements => (elements || []).some(element =>
+                        (element.type === 'text' && element.content?.trim()) || hasLyrics(element.children));
+                    if (isPraise && hasLyrics(slide.elements) && !(await thumbnailHasVisiblePixels(slide.thumbnail))) {
+                        slidesToRepair.push({ id: slide.id, force: true });
+                    }
+                }
+
                 const batchSize = 2;
-                for (let i = 0; i < missingSlides.length; i += batchSize) {
-                    const batch = missingSlides.slice(i, i + batchSize);
-                    await Promise.all(batch.map(slide => autoGenerateThumbnail(slide)));
+                for (let i = 0; i < slidesToRepair.length; i += batchSize) {
+                    if (projectData?.id !== projectId) return;
+                    const batch = slidesToRepair.slice(i, i + batchSize);
+                    await Promise.all(batch.map(({ id, force }) => {
+                        const slide = projectData.slides.find(item => item.id === id);
+                        return slide ? autoGenerateThumbnail(slide, force) : Promise.resolve();
+                    }));
                     updateSlideListItem(batch[0].id);
                     if (batch[1]) updateSlideListItem(batch[1].id);
                 }
-            })();
+            })().catch(error => console.error('Slide thumbnail repair failed:', error))
+                .finally(() => { thumbnailGenerationRunning = false; });
+        }
+
+        async function thumbnailHasVisiblePixels(source) {
+            if (!source?.startsWith('data:image/')) return true;
+            try {
+                const image = new Image();
+                image.src = source;
+                await image.decode();
+                const sample = document.createElement('canvas');
+                sample.width = 64;
+                sample.height = 36;
+                const context = sample.getContext('2d', { willReadFrequently: true });
+                context.drawImage(image, 0, 0, sample.width, sample.height);
+                const pixels = context.getImageData(0, 0, sample.width, sample.height).data;
+                for (let index = 0; index < pixels.length; index += 4) {
+                    if (pixels[index] + pixels[index + 1] + pixels[index + 2] > 120) return true;
+                }
+                return false;
+            } catch {
+                return true;
+            }
         }
 
         function checkIsLockedByOthers(slideId) {
@@ -220,6 +264,18 @@
                 if (message.type === 'SAVE_SLIDE_RESULT') {
                     finishSlideSave(message.requestId, message.success === true);
                 }
+                else if (message.type === 'SLIDE_ADD_RESULT') {
+                    window.handleSlideAddResult?.(message);
+                }
+                else if (message.type === 'SLIDE_DELETE_RESULT') {
+                    window.handleSlideDeleteResult?.(message);
+                }
+                else if (message.type === 'SLIDE_DELETE_UNDO_RESULT') {
+                    window.handleSlideDeleteUndoResult?.(message);
+                }
+                else if (message.type === 'TEMPLATE_SAVE_RESULT') {
+                    window.handleTemplateSaveResult?.(message);
+                }
                 else if (message.type === 'STAGE_BG_LIBRARY_SAVE_RESULT') {
                     const resolveSave = window.pendingStageBgLibrarySaves?.get(message.requestId);
                     if (resolveSave) {
@@ -252,7 +308,9 @@
                     }
                 }
                 else if (message.type === 'INITIAL_SYNC') {
-                    const data = message.data;
+                    let data = message.data;
+                    data = window.mergePendingSlideState?.(data) || data;
+                    data = window.mergePendingTemplateState?.(data) || data;
                     const keepCanvas = isSlideDirty && projectData?.id === data.id
                         && data.slides?.some(slide => slide.id === activeSlideId);
                     if (keepCanvas) {

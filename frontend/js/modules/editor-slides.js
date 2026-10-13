@@ -2,53 +2,145 @@
 // Subcast Module: editor-slides.js
 // ==========================================================================
 
-        // 백그라운드에서 썸네일을 자동 생성하는 함수
-        function autoGenerateThumbnail(slide) {
-            if (slide.thumbnail) return Promise.resolve(slide.thumbnail);
+        const pendingSlideAdds = new Map();
+        const pendingSlideDeletes = new Map();
+        let slideDeleteUndoAvailable = false;
+        let slideDeleteUndoPending = false;
 
-            return new Promise((resolve) => {
-                // 1. fabric.StaticCanvas용 임시 캔버스 생성 및 요소 렌더링
-                const fabricCanvasEl = document.createElement('canvas');
-                fabricCanvasEl.width = BASE_WIDTH;
-                fabricCanvasEl.height = BASE_HEIGHT;
-
-                const tempCanvas = new fabric.StaticCanvas(fabricCanvasEl, {
-                    backgroundColor: '#000000'
-                });
-
-                (slide.elements || []).forEach(elem => {
-                    const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
-                    if (obj) tempCanvas.add(obj);
-                });
-
-                tempCanvas.renderAll();
-
-                // 2. 최종 출력용 캔버스에 검정 배경을 먼저 확실히 칠한 뒤 합성
-                const outputCanvasEl = document.createElement('canvas');
-                outputCanvasEl.width = BASE_WIDTH;
-                outputCanvasEl.height = BASE_HEIGHT;
-                const ctx = outputCanvasEl.getContext('2d');
-                ctx.fillStyle = '#000000';
-                ctx.fillRect(0, 0, BASE_WIDTH, BASE_HEIGHT);
-                ctx.drawImage(fabricCanvasEl, 0, 0);
-
-                const dataUrl = outputCanvasEl.toDataURL('image/jpeg', 0.4);
-
-                tempCanvas.dispose();
-                slide.thumbnail = dataUrl;
-
-                // 프로젝트에 슬라이드가 여전히 유효하게 존재하는지 확인 후 동기화
-                const currentSlide = projectData?.slides?.find(s => s.id === slide.id);
-                if (currentSlide && ws && ws.readyState === WebSocket.OPEN) {
-                    currentSlide.thumbnail = dataUrl;
-                    ws.send(JSON.stringify({
-                        type: "SAVE_SLIDE",
-                        slide: currentSlide
-                    }));
+        function mergePendingSlideState(data) {
+            if (!data?.slides) return data;
+            for (const pending of pendingSlideAdds.values()) {
+                if (!data.slides.some(slide => slide.id === pending.slide.id)) {
+                    data.slides.splice(Math.min(pending.index, data.slides.length), 0, pending.slide);
                 }
+            }
+            const deletingIds = new Set([...pendingSlideDeletes.values()].flatMap(pending => pending.slideIds));
+            data.slides = data.slides.filter(slide => !deletingIds.has(slide.id));
+            return data;
+        }
+        window.mergePendingSlideState = mergePendingSlideState;
 
-                resolve(dataUrl);
+        function handleSlideAddResult(message) {
+            const pending = pendingSlideAdds.get(message.requestId);
+            if (!pending) return;
+            pendingSlideAdds.delete(message.requestId);
+            if (!message.success) {
+                if (message.data) projectData = message.data;
+                else projectData.slides = projectData.slides.filter(slide => slide.id !== pending.slide.id);
+                renderSlides();
+                alert(message.reason || "슬라이드를 추가하지 못했습니다.");
+                return;
+            }
+            renderSlides();
+        }
+        window.handleSlideAddResult = handleSlideAddResult;
+
+        function handleSlideDeleteResult(message) {
+            const pending = message.requestId ? pendingSlideDeletes.get(message.requestId) : null;
+            if (message.requestId) pendingSlideDeletes.delete(message.requestId);
+            if (message.data) projectData = message.data;
+            if (!message.success) {
+                if (pending?.activeSlideId && projectData.slides.some(slide => slide.id === pending.activeSlideId)) {
+                    activeSlideId = pending.activeSlideId;
+                    selectedSlideIds = pending.selectedSlideIds;
+                    selectSlideForEdit(activeSlideId);
+                }
+                renderSlides();
+                alert(message.reason || "슬라이드를 삭제하지 못했습니다.");
+                return;
+            }
+            slideDeleteUndoAvailable = message.undoAvailable === true;
+            renderSlides();
+        }
+        window.handleSlideDeleteResult = handleSlideDeleteResult;
+
+        function canUndoSlideDeletion() {
+            const sorterOpen = window.subcastSlideSorter?.isOpen?.() === true;
+            return slideDeleteUndoAvailable && !slideDeleteUndoPending
+                && (sorterOpen || document.getElementById("panel-slides")?.classList.contains("active"));
+        }
+        window.canUndoSlideDeletion = canUndoSlideDeletion;
+
+        function undoSlideDeletion() {
+            if (!canUndoSlideDeletion() || !ws || ws.readyState !== WebSocket.OPEN) return;
+            slideDeleteUndoPending = true;
+            ws.send(JSON.stringify({ type: "UNDO_SLIDE_DELETE" }));
+        }
+        window.undoSlideDeletion = undoSlideDeletion;
+
+        function handleSlideDeleteUndoResult(message) {
+            slideDeleteUndoPending = false;
+            if (message.success) slideDeleteUndoAvailable = message.undoAvailable === true;
+            if (message.data) projectData = message.data;
+            renderSlides();
+            if (!message.success) alert(message.reason || "슬라이드 삭제를 되돌리지 못했습니다.");
+        }
+        window.handleSlideDeleteUndoResult = handleSlideDeleteUndoResult;
+
+        // 백그라운드에서 썸네일을 자동 생성하는 함수
+        async function autoGenerateThumbnail(slide, force = false) {
+            if (slide.thumbnail && !force) return slide.thumbnail;
+
+            const fontFaces = new Set();
+            const collectFonts = elements => (elements || []).forEach(element => {
+                if (element.type === 'text') {
+                    const fontFamily = (element.style?.fontFamily || 'Inter').replace(/["\\]/g, '');
+                    const fontSizeMatch = String(element.style?.fontSize || '').match(/^(\d+(?:\.\d+)?)\s*vw$/);
+                    const fontSize = fontSizeMatch ? (parseFloat(fontSizeMatch[1]) / 100) * BASE_WIDTH : 20;
+                    const fontStyle = element.style?.fontStyle || 'normal';
+                    const fontWeight = element.style?.fontWeight || 'normal';
+                    fontFaces.add(`${fontStyle} ${fontWeight} ${fontSize}px "${fontFamily}"`);
+                }
+                if (element.children) collectFonts(element.children);
             });
+            collectFonts(slide.elements);
+            await Promise.all([...fontFaces].map(font => document.fonts.load(font).catch(() => [])));
+            await document.fonts.ready;
+
+            // fabric may finish drawing text on the next browser frame, even after fonts are ready.
+            const fabricCanvasEl = document.createElement('canvas');
+            fabricCanvasEl.width = BASE_WIDTH;
+            fabricCanvasEl.height = BASE_HEIGHT;
+
+            const tempCanvas = new fabric.StaticCanvas(fabricCanvasEl, {
+                backgroundColor: '#000000'
+            });
+
+            (slide.elements || []).forEach(elem => {
+                const obj = deserializeElement(elem, BASE_WIDTH, BASE_HEIGHT);
+                if (obj) tempCanvas.add(obj);
+            });
+
+            tempCanvas.renderAll();
+            await new Promise(resolve => requestAnimationFrame(resolve));
+
+            // 2. 최종 출력용 캔버스에 검정 배경을 먼저 확실히 칠한 뒤 합성
+            const outputCanvasEl = document.createElement('canvas');
+            outputCanvasEl.width = BASE_WIDTH;
+            outputCanvasEl.height = BASE_HEIGHT;
+            const ctx = outputCanvasEl.getContext('2d');
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, BASE_WIDTH, BASE_HEIGHT);
+            // Fabric's retina scaling can enlarge the backing canvas beyond the
+            // logical slide size, so scale it back into the thumbnail bounds.
+            ctx.drawImage(fabricCanvasEl, 0, 0, BASE_WIDTH, BASE_HEIGHT);
+
+            const dataUrl = outputCanvasEl.toDataURL('image/jpeg', 0.4);
+
+            tempCanvas.dispose();
+            slide.thumbnail = dataUrl;
+
+            // 프로젝트에 슬라이드가 여전히 유효하게 존재하는지 확인 후 동기화
+            const currentSlide = projectData?.slides?.find(s => s.id === slide.id);
+            if (currentSlide && ws && ws.readyState === WebSocket.OPEN) {
+                currentSlide.thumbnail = dataUrl;
+                ws.send(JSON.stringify({
+                    type: "SAVE_SLIDE",
+                    slide: currentSlide
+                }));
+            }
+
+            return dataUrl;
         }
 
 
@@ -106,6 +198,12 @@
                 const item = document.createElement("div");
                 item.className = "slide-item";
                 item.id = `slide-item-${slide.id}`;
+                const isPendingAdd = [...pendingSlideAdds.values()].some(pending => pending.slide.id === slide.id);
+                if (isPendingAdd) {
+                    item.classList.add("pending");
+                    item.dataset.pending = "true";
+                    item.title = "서버에 저장 중";
+                }
                 item.setAttribute("draggable", "true");
                 item.dataset.index = index;
                 if (slide.id === activeSlideId) item.classList.add("editing");
@@ -135,6 +233,12 @@
                         ${isLockedByOthers ? `<div class="lock-owner-text" style="font-size: 0.75rem; color: var(--accent-live); margin-top: 4px;">🔒 ${lockName}님이 편집 중</div>` : ''}
                     </div>
                 `;
+                if (isPendingAdd) {
+                    const status = document.createElement("span");
+                    status.textContent = "저장 중";
+                    status.style.cssText = "display:block; margin-top:4px; color:var(--text-muted); font-size:0.68rem;";
+                    item.appendChild(status);
+                }
 
                 // 드래그 앤 드롭 이벤트 핸들러 바인딩
                 item.addEventListener("dragstart", (e) => {
@@ -457,8 +561,26 @@
 
 
         function addSlide() {
+            if (!projectData || !Array.isArray(projectData.slides) || !ws || ws.readyState !== WebSocket.OPEN) {
+                alert("서버와 연결된 뒤 다시 시도해 주세요.");
+                return;
+            }
+            const requestId = `add_slide_${crypto.randomUUID()}`;
+            const slide = {
+                id: `slide_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`,
+                name: `새 슬라이드 ${projectData.slides.length + 1}`,
+                thumbnail: null,
+                elements: []
+            };
+            const activeIndex = projectData.slides.findIndex(item => item.id === activeSlideId);
+            const insertIndex = activeIndex >= 0 ? activeIndex + 1 : projectData.slides.length;
+            pendingSlideAdds.set(requestId, { slide, index: insertIndex });
+            projectData.slides.splice(insertIndex, 0, slide);
+            renderSlides();
             ws.send(JSON.stringify({
                 type: "ADD_SLIDE",
+                requestId,
+                slideId: slide.id,
                 afterSlideId: activeSlideId || null
             }));
         }
@@ -1017,6 +1139,10 @@
             if (!projectData || !projectData.slides || !slideIds || slideIds.length === 0) return;
             const deletableSlideIds = slideIds.filter(id => !checkIsLockedByOthers(id));
             if (deletableSlideIds.length === 0) return;
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert("서버와 연결된 뒤 다시 시도해 주세요.");
+                return;
+            }
             const activeSlideIndex = projectData.slides.findIndex(slide => slide.id === activeSlideId);
             const fallbackSlide = deletableSlideIds.includes(activeSlideId) && activeSlideIndex !== -1
                 ? [
@@ -1024,10 +1150,13 @@
                     ...projectData.slides.slice(activeSlideIndex + 1),
                 ].find(slide => !deletableSlideIds.includes(slide.id))
                 : null;
-            // 1. 서버로 삭제 전송
-            if (typeof ws !== "undefined" && ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: "DELETE_SLIDES", slideIds: deletableSlideIds }));
-            }
+            const requestId = `delete_slides_${crypto.randomUUID()}`;
+            pendingSlideDeletes.set(requestId, {
+                slideIds: [...deletableSlideIds],
+                activeSlideId,
+                selectedSlideIds: [...selectedSlideIds]
+            });
+            ws.send(JSON.stringify({ type: "DELETE_SLIDES", requestId, slideIds: deletableSlideIds }));
 
             // 2. 로컬 slides 배열 갱신
             projectData.slides = projectData.slides.filter(s => !deletableSlideIds.includes(s.id));

@@ -132,6 +132,10 @@
 
 
         function undo() {
+            if (window.canUndoSlideDeletion?.()) {
+                window.undoSlideDeletion();
+                return;
+            }
             if (window.subcastMonitorEditor && window.subcastMonitorEditor.isMonitorMode && window.subcastMonitorEditor.isMonitorMode()) {
                 if (typeof window.subcastMonitorEditor.undoMonitor === 'function') {
                     window.subcastMonitorEditor.undoMonitor();

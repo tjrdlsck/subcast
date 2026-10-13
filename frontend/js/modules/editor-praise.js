@@ -89,7 +89,24 @@
 
             const checkboxes = previewList.querySelectorAll(".praise-preview-item-chk");
             const checkedCount = Array.from(checkboxes).filter(chk => chk.checked).length;
-            valExpected.textContent = checkedCount;
+            const includeTrailingBlank = document.getElementById("chk-praise-trailing-blank")?.checked === true;
+            const songs = selectedPraiseSongs.length > 0
+                ? selectedPraiseSongs
+                : (activeSelectedPraiseSong ? [activeSelectedPraiseSong] : []);
+            let expectedCount = checkedCount;
+            if (songs.length > 1) {
+                expectedCount = songs.reduce((total, song) => {
+                    const blocks = parsePraiseLyricsToBlocks(song.lyrics || "");
+                    return total + blocks.length + (includeTrailingBlank && blocks.length > 0 && blocks[blocks.length - 1] !== "" ? 1 : 0);
+                }, 0);
+            } else if (songs.length === 1 && includeTrailingBlank && checkedCount > 0) {
+                const blocks = parsePraiseLyricsToBlocks(songs[0].lyrics || "");
+                const lastIndex = blocks.length - 1;
+                const lastBlankIsSelected = blocks[lastIndex] === ""
+                    && Array.from(checkboxes).some(chk => Number(chk.dataset.index) === lastIndex && chk.checked);
+                if (!lastBlankIsSelected) expectedCount += 1;
+            }
+            valExpected.textContent = expectedCount;
 
             if (chkAllPraise && checkboxes.length > 0) {
                 chkAllPraise.checked = (checkedCount === checkboxes.length);
@@ -486,6 +503,10 @@
             const songsList = document.getElementById("praise-songs-list");
             const openAddModalBtn = document.getElementById("btn-praise-open-add-modal");
             const addSlidesBtn = document.getElementById("btn-add-praise-slides");
+            const trailingBlankCheckbox = document.getElementById("chk-praise-trailing-blank");
+            if (trailingBlankCheckbox) {
+                trailingBlankCheckbox.addEventListener("change", updatePraiseExpectedCount);
+            }
 
             const addModal = document.getElementById("praise-add-modal");
             const modalCloseBtn = document.getElementById("btn-praise-modal-close");
@@ -1301,6 +1322,10 @@
                     const lyrics = song.lyrics || "";
                     const blocks = parsePraiseLyricsToBlocks(lyrics);
                     if (blocks.length === 0) continue;
+                    const originalBlockCount = blocks.length;
+                    const includeTrailingBlank = document.getElementById("chk-praise-trailing-blank")?.checked === true;
+                    if (includeTrailingBlank && blocks[blocks.length - 1] !== "") blocks.push("");
+                    const trailingBlankIndex = includeTrailingBlank ? blocks.length - 1 : -1;
 
                     const songMood = song.mood || (song.moods && song.moods[0]) || "경배/찬양";
                     const fixedBgId = matchStageBgForSong(songMood, existingUsedBgIds);
@@ -1310,7 +1335,8 @@
                     const praiseGroupId = "praise_grp_" + Math.random().toString(36).substr(2, 9);
 
                     blocks.forEach((block, idx) => {
-                        if (isSingleSong && checkedIndices && !checkedIndices.includes(idx)) return;
+                        if (isSingleSong && checkedIndices && !checkedIndices.includes(idx)
+                            && !(includeTrailingBlank && idx === trailingBlankIndex)) return;
 
                         const isBlank = (block === "");
                         const headerText = isBlank ? `${title} (${idx + 1}/${blocks.length}) [빈 화면]` : `${title} (${idx + 1}/${blocks.length})`;

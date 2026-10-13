@@ -26,6 +26,7 @@ class ConnectionManager:
         self.project_data: Optional[ProjectData] = None
         # 디자인 템플릿 일괄 적용 이전 히스토리 스냅샷 저장 스택 (최대 5개)
         self.project_history: List[dict] = []
+        self.deleted_slide_history: Dict[str, List[list]] = {}
         self._send_locks = WeakKeyDictionary()
         self._thumbnail_tasks: Dict[int, asyncio.Task] = {}
 
@@ -35,6 +36,24 @@ class ConnectionManager:
             self.project_history.append(self.project_data.model_dump())
             if len(self.project_history) > 5:
                 self.project_history.pop(0)
+
+    def record_deleted_slides(self, owner_id: str, slides: list):
+        history = self.deleted_slide_history.setdefault(owner_id, [])
+        history.append(slides)
+        if len(history) > 20:
+            history.pop(0)
+
+    def pop_deleted_slides(self, owner_id: str):
+        history = self.deleted_slide_history.get(owner_id)
+        if not history:
+            return None
+        action = history.pop()
+        if not history:
+            self.deleted_slide_history.pop(owner_id, None)
+        return action
+
+    def restore_deleted_slides(self, owner_id: str, slides: list):
+        self.record_deleted_slides(owner_id, slides)
 
     async def initialize(self):
         """저장소로부터 데이터를 읽어 캐싱합니다."""
@@ -152,6 +171,7 @@ class ConnectionManager:
         if task and not task.done():
             task.cancel()
         ws_id = str(id(websocket))
+        self.deleted_slide_history.pop(ws_id, None)
         released_slides = []
         for slide_id, owner_id in list(self.locked_slides.items()):
             if owner_id == ws_id:

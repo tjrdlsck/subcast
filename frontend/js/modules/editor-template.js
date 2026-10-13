@@ -2,6 +2,39 @@
 // Subcast Module: editor-template.js
 // ==========================================================================
 
+        const pendingTemplateSaves = new Map();
+        const pendingTemplateIds = new Set();
+
+        function mergePendingTemplateState(data) {
+            if (!Array.isArray(data?.templates)) return data;
+            for (const pending of pendingTemplateSaves.values()) {
+                if (!data.templates.some(template => template.id === pending.template.id)) {
+                    data.templates.push(pending.template);
+                }
+            }
+            return data;
+        }
+        window.mergePendingTemplateState = mergePendingTemplateState;
+
+        function handleTemplateSaveResult(message) {
+            const pending = pendingTemplateSaves.get(message.requestId);
+            if (!pending) return;
+            pendingTemplateSaves.delete(message.requestId);
+            pendingTemplateIds.delete(pending.template.id);
+            if (!message.success) {
+                if (Array.isArray(message.data?.templates)) {
+                    projectData.templates = message.data.templates;
+                } else {
+                    projectData.templates = projectData.templates.filter(template => template.id !== pending.template.id);
+                }
+                renderTemplates();
+                alert(message.reason || "템플릿을 저장하지 못했습니다.");
+                return;
+            }
+            renderTemplates();
+        }
+        window.handleTemplateSaveResult = handleTemplateSaveResult;
+
         function saveAsTemplate() {
             if (!activeSlideId || !canvas) return;
             const tplName = prompt("저장할 템플릿의 이름을 입력하세요:", "새 디자인 템플릿");
@@ -37,8 +70,20 @@
                 elements: elements
             };
 
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert("서버와 연결된 뒤 다시 시도해 주세요.");
+                return;
+            }
+            const requestId = `save_template_${crypto.randomUUID()}`;
+            pendingTemplateSaves.set(requestId, { template: templateData });
+            pendingTemplateIds.add(templateData.id);
+            projectData.templates = projectData.templates || [];
+            projectData.templates.push(templateData);
+            renderTemplates();
+
             ws.send(JSON.stringify({
                 type: "SAVE_TEMPLATE",
+                requestId,
                 template: templateData
             }));
         }
@@ -284,6 +329,11 @@
                 const item = document.createElement("div");
                 item.className = "template-grid-item";
                 item.setAttribute("data-id", tpl.id);
+                if (pendingTemplateIds.has(tpl.id)) {
+                    item.dataset.pending = "true";
+                    item.title = "서버에 저장 중";
+                    item.style.opacity = "0.78";
+                }
 
                 const isSelected = selectedTemplateIds.includes(tpl.id);
                 item.style.border = isSelected ? "1.5px solid var(--primary)" : "1px solid var(--panel-border)";
@@ -304,6 +354,12 @@
                         ${tpl.name}
                     </div>
                 `;
+                if (pendingTemplateIds.has(tpl.id)) {
+                    const status = document.createElement("span");
+                    status.textContent = "저장 중";
+                    status.style.cssText = "position:absolute; top:4px; right:4px; padding:2px 5px; border-radius:4px; background:rgba(15,23,42,.9); color:#cbd5e1; font-size:.62rem;";
+                    item.appendChild(status);
+                }
 
                 item.onclick = (e) => selectTemplate(tpl.id, e);
                 gridEl.appendChild(item);

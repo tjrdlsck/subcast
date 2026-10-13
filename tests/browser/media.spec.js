@@ -7,6 +7,21 @@ const { test, expect, openEditor } = require('./fixtures');
 const projectId = 'proj_browser';
 const songRow = (page, title) => page.locator('#praise-songs-list .bible-result-item').filter({ hasText: title });
 const lyricsOf = slide => slide.elements.filter(element => element.type === 'text').map(element => element.content);
+async function visibleThumbnailPixelCount(image) {
+  return image.evaluate(img => {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const context = canvas.getContext('2d');
+    context.drawImage(img, 0, 0);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let count = 0;
+    for (let index = 0; index < pixels.length; index += 4) {
+      if (pixels[index] + pixels[index + 1] + pixels[index + 2] > 90) count++;
+    }
+    return count;
+  });
+}
 async function seedSong(app, title, lyrics, mood = '기본/일반') {
   const response = await app.request.post('/api/praise/save', { data: { title, lyrics, mood } });
   expect(response.ok()).toBeTruthy();
@@ -239,6 +254,119 @@ test('SC-08-03 only checked paragraphs are generated and zero selection is refus
   await insert(page);
   await expect.poll(async () => (await project(app)).slides.length).toBe(4);
   expect((await project(app)).slides.slice(2).map(slide => lyricsOf(slide)[0])).toEqual(['첫 단락', '셋째 단락']);
+});
+
+test('SC-08-11 선택한 찬양곡 끝에 각각 빈 슬라이드를 추가하고 중복을 만들지 않는다', async ({ page, app }) => {
+  await seedSong(app, '끝 빈 화면 곡 A', 'A 첫 가사\n\nA 둘째 가사');
+  await seedSong(app, '끝 빈 화면 곡 B', 'B 첫 가사\n\nB 둘째 가사\n\n ');
+  await praise(page, app);
+  await songRow(page, '끝 빈 화면 곡 A').click();
+  await songRow(page, '끝 빈 화면 곡 B').click({ modifiers: ['Control'] });
+  const trailingBlank = page.locator('#chk-praise-trailing-blank');
+  await expect(trailingBlank).not.toBeChecked();
+  await trailingBlank.check();
+  await expect(page.locator('#val-praise-expected-slides')).toHaveText('6');
+  await page.locator('#btn-add-praise-slides').click();
+  await insert(page);
+  await expect.poll(async () => (await project(app)).slides.length).toBe(8);
+  const added = (await project(app)).slides.slice(2);
+  expect(added.map(slide => lyricsOf(slide)[0])).toEqual([
+    'A 첫 가사', 'A 둘째 가사', '',
+    'B 첫 가사', 'B 둘째 가사', '',
+  ]);
+  await expect.poll(async () => {
+    const slides = (await project(app)).slides.slice(2);
+    return slides.length === 6 && slides.every(slide => /^data:image\/jpeg/.test(slide.thumbnail || ''));
+  }).toBe(true);
+  await page.locator('[data-target="panel-slides"]').click();
+  for (const slide of (await project(app)).slides.slice(2)) {
+    const image = page.locator(`#slide-item-${slide.id} .slide-thumbnail-wrapper img`);
+    await expect(image).toBeVisible();
+    if (lyricsOf(slide)[0]) {
+      expect(await visibleThumbnailPixelCount(image)).toBeGreaterThan(0);
+    }
+  }
+});
+
+test('SC-08-14 단일 찬양곡을 추가하면 새 슬라이드 목록에 가사 미리보기가 표시되고 재실행 후에도 유지된다', async ({ page, app }) => {
+  await seedSong(app, '단일 찬양 미리보기', '미리보기 확인 가사');
+  await praise(page, app);
+  await songRow(page, '단일 찬양 미리보기').click();
+  await page.evaluate(() => {
+    const renderAll = fabric.StaticCanvas.prototype.renderAll;
+    fabric.StaticCanvas.prototype.renderAll = function (...args) {
+      if (this.constructor !== fabric.StaticCanvas) return renderAll.apply(this, args);
+      const canvas = this;
+      requestAnimationFrame(() => {
+        if (!canvas.contextContainer) return;
+        renderAll.apply(canvas, args);
+        // Simulate Fabric's 2x retina backing store on Windows high-DPI screens.
+        const backing = canvas.lowerCanvasEl;
+        const scaled = document.createElement('canvas');
+        scaled.width = backing.width * 2;
+        scaled.height = backing.height * 2;
+        const scaledContext = scaled.getContext('2d');
+        scaledContext.scale(2, 2);
+        scaledContext.drawImage(backing, 0, 0);
+        backing.width = scaled.width;
+        backing.height = scaled.height;
+        backing.getContext('2d').drawImage(scaled, 0, 0);
+      });
+      return this;
+    };
+  });
+  await page.locator('#btn-add-praise-slides').click();
+  await insert(page);
+  await expect.poll(async () => (await project(app)).slides.length).toBe(3);
+
+  await page.locator('[data-target="panel-slides"]').click();
+  const thumbnail = page.locator('[id^="slide-item-slide_praise_"] .slide-thumbnail-wrapper img').last();
+  await expect(thumbnail).toBeVisible();
+  await expect.poll(() => visibleThumbnailPixelCount(thumbnail), { timeout: 5_000 }).toBeGreaterThan(0);
+  await page.reload();
+  await page.locator('[data-target="panel-slides"]').click();
+  const restoredThumbnail = page.locator('[id^="slide-item-slide_praise_"] .slide-thumbnail-wrapper img').last();
+  await expect(restoredThumbnail).toBeVisible();
+  await expect.poll(() => visibleThumbnailPixelCount(restoredThumbnail), { timeout: 5_000 }).toBeGreaterThan(0);
+});
+
+test('SC-08-12 부분 선택해도 빈 슬라이드는 선택한 가사 뒤에 붙는다', async ({ page, app }) => {
+  await seedSong(app, '부분 선택 끝 빈 화면', '첫 단락\n\n둘째 단락');
+  await praise(page, app);
+  await songRow(page, '부분 선택 끝 빈 화면').click();
+  await page.locator('#chk-select-all-praise').uncheck();
+  await page.locator('.praise-preview-item-chk').nth(0).check();
+  await page.locator('#chk-praise-trailing-blank').check();
+  await expect(page.locator('#val-praise-expected-slides')).toHaveText('2');
+  await page.locator('#btn-add-praise-slides').click();
+  await insert(page);
+  await expect.poll(async () => (await project(app)).slides.length).toBe(4);
+  expect((await project(app)).slides.slice(2).map(slide => lyricsOf(slide)[0])).toEqual(['첫 단락', '']);
+});
+
+test('SC-08-13 내용이 있는 찬양 슬라이드의 검은 미리보기는 브라우저에서 다시 생성한다', async ({ page, app }) => {
+  const data = await app.exportProject();
+  const blackThumbnail = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='90'%3E%3Crect width='100%25' height='100%25' fill='black'/%3E%3C/svg%3E";
+  data.slides = [{
+    id: 'slide_legacy_stale_thumbnail',
+    name: '찬양: 검은 미리보기',
+    thumbnail: blackThumbnail,
+    elements: [{
+      id: 'praise_lyrics', type: 'text', content: '미리보기 복구 가사',
+      x: 10, y: 40, width: 80, height: 20,
+      style: { fontSize: '4vw', fontColor: '#ffffff', fontFamily: 'Arial' },
+    }],
+  }];
+  data.settings.currentLiveSlideId = 'slide_legacy_stale_thumbnail';
+  const id = await app.seedProject(data);
+
+  await openEditor(page);
+  await expect(page.locator('#slide-item-slide_legacy_stale_thumbnail .slide-thumbnail-wrapper img')).toBeVisible();
+  await expect.poll(async () => (await app.exportProject(id)).slides[0].thumbnail).not.toBe(blackThumbnail);
+  const repairedThumbnail = (await app.exportProject(id)).slides[0].thumbnail;
+  const repairedImage = page.locator('#slide-item-slide_legacy_stale_thumbnail .slide-thumbnail-wrapper img');
+  await expect(repairedImage).toHaveAttribute('src', repairedThumbnail);
+  await expect.poll(() => visibleThumbnailPixelCount(repairedImage)).toBeGreaterThan(0);
 });
 
 test('SC-08-04 black preset generates a background without changing existing slides', async ({ page, app }) => {

@@ -50,6 +50,21 @@ test('SC-15-03 접힌 패널에서 탭을 누르면 펼쳐지고 모아보기는
     await expect(slide(page, 'slide_a')).toHaveClass(/editing/);
 });
 async function projectId(page) { return page.evaluate(() => projectData.id); }
+async function delaySocketMessage(page, messageType, delayMs = 600) {
+    await page.evaluate(({ messageType, delayMs }) => {
+        const originalSend = window.ws.send.bind(window.ws);
+        window.ws.send = payload => {
+            let message;
+            try { message = JSON.parse(payload); } catch {}
+            if (message?.type === messageType) {
+                setTimeout(() => originalSend(payload), delayMs);
+                return;
+            }
+            originalSend(payload);
+        };
+    }, { messageType, delayMs });
+}
+
 async function seedSlides(app, count) {
     const project = await app.exportProject();
     const template = project.slides[0];
@@ -113,6 +128,101 @@ test('SC-03-01 새 슬라이드는 선택 뒤에 추가되고 재시작 후 유�
     await openEditor(page);
     await expect(page.locator('.slide-item')).toHaveCount(3);
     expect((await app.exportProject(id)).slides.map(item => item.id)).toEqual(data.slides.map(item => item.id));
+});
+
+test('SC-03-07 새 슬라이드는 서버 응답을 기다리지 않고 목록에 즉시 표시된다', async ({ page, app }) => {
+    await openEditor(page);
+    await delaySocketMessage(page, 'ADD_SLIDE');
+    await page.locator('#btn-add-slide').click();
+    const pendingSlide = page.locator('.slide-item[data-pending="true"]');
+    await expect(pendingSlide).toHaveCount(1);
+    const pendingId = await pendingSlide.getAttribute('id');
+    expect((await app.exportProject()).slides).toHaveLength(2);
+    await expect(page.locator('.slide-item')).toHaveCount(3);
+    await expect.poll(async () => (await app.exportProject()).slides).toHaveLength(3);
+    await expect(page.locator(`#${pendingId}`)).not.toHaveAttribute('data-pending', 'true');
+    const addedSlideId = pendingId.replace('slide-item-', '');
+    await expect.poll(async () => {
+        const slides = (await app.exportProject()).slides;
+        return slides.find(item => item.id === addedSlideId)?.thumbnail || null;
+    }).toMatch(/^data:image\/jpeg/);
+    await expect(page.locator(`#${pendingId} .slide-thumbnail-wrapper img`)).toBeVisible();
+});
+
+test('SC-03-09 슬라이드 추가가 거부되면 임시 항목을 제거하고 서버 데이터를 유지한다', async ({ page, app }) => {
+    await openEditor(page);
+    await page.evaluate(() => {
+        const originalSend = window.ws.send.bind(window.ws);
+        window.ws.send = payload => {
+            const message = JSON.parse(payload);
+            if (message.type === 'ADD_SLIDE') {
+                message.slideId = 'slide_a';
+                setTimeout(() => originalSend(JSON.stringify(message)), 300);
+                return;
+            }
+            originalSend(payload);
+        };
+    });
+    page.on('dialog', dialog => dialog.accept());
+    await page.locator('#btn-add-slide').click();
+    await expect(page.locator('.slide-item[data-pending="true"]')).toHaveCount(1);
+    await expect(page.locator('.slide-item[data-pending="true"]')).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.locator('.slide-item')).toHaveCount(2);
+    expect((await app.exportProject()).slides.map(item => item.id)).toEqual(['slide_a', 'slide_b']);
+});
+
+test('SC-03-08 삭제한 다중 슬라이드를 Ctrl+Z로 복구하고 다른 사용자의 추가를 보존한다', async ({ page, app }) => {
+    const id = await seedSlides(app, 3);
+    await openEditor(page);
+    const slideIdsBefore = (await app.exportProject(id)).slides.map(item => item.id);
+    await slide(page, 'slide_b').click();
+    await slide(page, 'slide_c').click({ modifiers: ['Control'] });
+    await expect(page.locator('.slide-item.selected-multi')).toHaveCount(2);
+    page.once('dialog', dialog => dialog.accept());
+    await page.keyboard.press('Delete');
+    await expect.poll(async () => (await app.exportProject(id)).slides.map(item => item.id)).toEqual(['slide_a']);
+    await expect.poll(() => page.evaluate(() => window.canUndoSlideDeletion?.() === true)).toBe(true);
+
+    const addedByOtherEditor = await page.evaluate(() => new Promise((resolve, reject) => {
+        const socket = new WebSocket(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws?role=editor`);
+        const timeout = setTimeout(() => { socket.close(); reject(new Error('second editor request timed out')); }, 5000);
+        socket.onopen = () => socket.send(JSON.stringify({
+            type: 'ADD_SLIDE', requestId: 'other_editor_add', slideId: 'slide_concurrent', afterSlideId: 'slide_a'
+        }));
+        socket.onmessage = event => {
+            const message = JSON.parse(event.data);
+            if (message.type !== 'SLIDE_ADD_RESULT' || message.requestId !== 'other_editor_add') return;
+            clearTimeout(timeout);
+            socket.close();
+            resolve(message.success);
+        };
+        socket.onerror = () => { clearTimeout(timeout); reject(new Error('second editor websocket failed')); };
+    }));
+    expect(addedByOtherEditor).toBe(true);
+    await expect.poll(async () => (await app.exportProject(id)).slides.map(item => item.id)).toEqual(['slide_a', 'slide_concurrent']);
+    await page.keyboard.press('Control+z');
+    await expect.poll(async () => (await app.exportProject(id)).slides.map(item => item.id))
+        .toEqual(['slide_a', ...slideIdsBefore.slice(1), 'slide_concurrent']);
+    const restoredSlides = (await app.exportProject(id)).slides;
+    expect(restoredSlides.slice(0, 3).map(item => item.elements[0]?.content)).toEqual([
+        '슬라이드 A 내용', '슬라이드 B 내용', '슬라이드 C 내용'
+    ]);
+    expect(restoredSlides[3].elements).toEqual([]);
+});
+
+test('SC-03-10 모든 슬라이드를 삭제한 뒤 Ctrl+Z를 누르면 자동 생성된 대체 슬라이드까지 정리한다', async ({ page, app }) => {
+    await openEditor(page);
+    const before = (await app.exportProject()).slides.map(item => item.id);
+    await slide(page, 'slide_b').click();
+    await slide(page, 'slide_a').click({ modifiers: ['Control'] });
+    await expect(page.locator('.slide-item.selected-multi')).toHaveCount(2);
+    page.once('dialog', dialog => dialog.accept());
+    await page.keyboard.press('Delete');
+    await expect.poll(async () => (await app.exportProject()).slides.map(item => item.name)).toEqual(['새 슬라이드 1']);
+    await expect.poll(() => page.evaluate(() => window.canUndoSlideDeletion?.() === true)).toBe(true);
+    await page.keyboard.press('Control+z');
+    await expect.poll(async () => (await app.exportProject()).slides.map(item => item.id)).toEqual(before);
+    await expect(page.locator('.slide-item')).toHaveCount(2);
 });
 
 for (const modifier of ['Control', 'Shift']) {
@@ -482,6 +592,48 @@ test('SC-06-01 현재 디자인을 템플릿으로 저장한다', async ({ page,
     await expect(page.locator('.template-grid-item')).toContainText('독립 테스트 디자인');
     await expect.poll(async () => (await app.exportProject(id)).templates.length).toBe(1);
     expect((await app.exportProject(id)).templates[0].elements[0].content).toBe('첫 번째 테스트 자막');
+});
+
+test('SC-06-08 템플릿은 서버 응답을 기다리지 않고 목록에 표시되고 저장된다', async ({ page, app }) => {
+    await openEditor(page);
+    const id = await projectId(page);
+    await tab(page, 'templates').click();
+    await delaySocketMessage(page, 'SAVE_TEMPLATE');
+    page.once('dialog', dialog => dialog.accept('즉시 표시 템플릿'));
+    await page.locator('#btn-save-template').click();
+    const pendingTemplate = page.locator('.template-grid-item[data-pending="true"]');
+    await expect(pendingTemplate).toHaveCount(1);
+    await expect(pendingTemplate).toContainText('즉시 표시 템플릿');
+    expect((await app.exportProject(id)).templates).toHaveLength(0);
+    await expect.poll(async () => (await app.exportProject(id)).templates).toHaveLength(1);
+    await expect(page.locator('.template-grid-item[data-pending="true"]')).toHaveCount(0);
+    await page.reload();
+    await openEditor(page);
+    await tab(page, 'templates').click();
+    await expect(page.locator('.template-grid-item')).toContainText('즉시 표시 템플릿');
+});
+
+test('SC-06-09 템플릿 저장이 거부되면 임시 항목을 제거하고 오류를 알린다', async ({ page, app }) => {
+    await openEditor(page);
+    await tab(page, 'templates').click();
+    await page.evaluate(() => {
+        const originalSend = window.ws.send.bind(window.ws);
+        window.ws.send = payload => {
+            const message = JSON.parse(payload);
+            if (message.type === 'SAVE_TEMPLATE') {
+                message.template.elements = [null];
+                setTimeout(() => originalSend(JSON.stringify(message)), 300);
+                return;
+            }
+            originalSend(payload);
+        };
+    });
+    page.on('dialog', dialog => dialog.accept('저장 실패 확인'));
+    await page.locator('#btn-save-template').click();
+    await expect(page.locator('.template-grid-item[data-pending="true"]')).toHaveCount(1);
+    await expect(page.locator('.template-grid-item[data-pending="true"]')).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.locator('.template-grid-item')).toHaveCount(0);
+    expect((await app.exportProject()).templates).toEqual([]);
 });
 
 test('SC-15-02 글자 입력 중 Delete는 요소를 삭제하지 않는다', async ({ page, app }) => {
