@@ -53,7 +53,7 @@ def test_release_upgrade_smoke_covers_both_supported_previous_versions():
     fixture_path = os.path.join(ROOT, "tests", "release_upgrade_fixture.py")
     fixture = open(fixture_path, encoding="utf-8").read()
 
-    assert "@('1.3.22', '1.3.23')" in script
+    assert "@('1.3.23', '1.3.24')" in script
     assert "tests\\release_upgrade_smoke.ps1" in workflow
     assert "v1.3.18" not in workflow
     assert "checksum" in script.lower()

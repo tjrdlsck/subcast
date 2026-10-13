@@ -4,7 +4,7 @@ param(
     [string]$NewInstaller,
     [Parameter(Mandatory = $true)]
     [string]$Root,
-    [string[]]$SourceVersions = @('1.3.22', '1.3.23')
+    [string[]]$SourceVersions = @('1.3.23', '1.3.24')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -24,13 +24,36 @@ foreach ($sourceVersion in $SourceVersions) {
 }
 
 function Invoke-Installer([string]$Path, [string[]]$Arguments, [string]$Description) {
+    $logArgument = $Arguments | Where-Object { $_ -match '^/LOG=' } | Select-Object -Last 1
+    $logPath = if ($logArgument) { $logArgument.Substring(5) } else { $null }
     $process = Start-Process -FilePath $Path -ArgumentList $Arguments -PassThru -WindowStyle Hidden
-    if (-not $process.WaitForExit(120000)) {
-        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-        throw "$Description timed out after 120 seconds."
+    $deadline = [DateTime]::UtcNow.AddSeconds(120)
+    while ([DateTime]::UtcNow -lt $deadline) {
+        $process.Refresh()
+        if ($process.HasExited) {
+            if ($process.ExitCode -ne 0) { throw "$Description failed with exit code $($process.ExitCode)." }
+            return
+        }
+
+        if ($logPath -and (Test-Path -LiteralPath $logPath)) {
+            $log = Get-Content -LiteralPath $logPath -Raw
+            if ($log -match '(Installation|Uninstallation) process succeeded\.' -and $log -match 'Log closed\.') {
+                if ($process.WaitForExit(2000)) {
+                    $process.Refresh()
+                    if ($process.ExitCode -ne 0) { throw "$Description failed with exit code $($process.ExitCode)." }
+                } else {
+                    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                    Write-Host "$Description completed successfully; closing the installer process after its success log."
+                }
+                return
+            }
+        }
+
+        Start-Sleep -Milliseconds 250
     }
-    $process.Refresh()
-    if ($process.ExitCode -ne 0) { throw "$Description failed with exit code $($process.ExitCode)." }
+
+    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+    throw "$Description timed out after 120 seconds without a successful installer log."
 }
 
 function Stop-InstalledSubcast([string]$InstallDir) {
