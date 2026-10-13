@@ -4,7 +4,7 @@ param(
     [string]$NewInstaller,
     [Parameter(Mandatory = $true)]
     [string]$Root,
-    [string[]]$SourceVersions = @('1.3.20', '1.3.21')
+    [string[]]$SourceVersions = @('1.3.22', '1.3.23')
 )
 
 $ErrorActionPreference = 'Stop'
