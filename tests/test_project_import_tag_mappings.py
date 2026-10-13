@@ -64,6 +64,34 @@ def test_import_mapping_keeps_background_references_when_environment_video_is_pr
     assert imported["settings"]["stageBackground"]["videoUrl"].endswith("shared-video.mp4")
 
 
+def test_import_mapping_normalizes_restored_video_paths_and_encoded_urls(tmp_path, monkeypatch):
+    name = "restored worship video.mp4"
+    background_dir = tmp_path / "frontend" / "assets" / "backgrounds"
+    background_dir.mkdir(parents=True)
+    (background_dir / name).write_bytes(b"restored")
+    monkeypatch.setattr(project_import_tags, "APP_DATA_DIR", tmp_path)
+
+    imported = apply_import_tag_mappings({
+        "slides": [{"overrideBgId": r"C:\source\static\backgrounds\restored%20worship%20video.mp4?cache=1"}],
+        "settings": {
+            "stageBgLibrary": [{
+                "name": "https://old-pc/static/backgrounds/restored%20worship%20video.mp4?cache=1",
+                "url": "https://old-pc/static/backgrounds/restored%20worship%20video.mp4?cache=1",
+            }],
+            "stageBackground": {
+                "type": "video",
+                "videoUrl": "https://old-pc/static/backgrounds/restored%20worship%20video.mp4?cache=1",
+            },
+        },
+    }, {})
+
+    assert imported["slides"][0]["overrideBgId"] == name
+    assert imported["settings"]["stageBgLibrary"] == [{
+        "name": name, "url": "/static/backgrounds/restored%20worship%20video.mp4",
+    }]
+    assert imported["settings"]["stageBackground"]["videoUrl"] == "/static/backgrounds/restored%20worship%20video.mp4"
+
+
 def test_import_endpoint_applies_and_saves_user_selected_tag_mapping(monkeypatch):
     captured_projects = []
     saved_mappings = []

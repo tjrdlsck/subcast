@@ -8,8 +8,8 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from backend.main import app
-from backend.routers import cloud_backup as cloud_backup_router
-from backend.services import environment_sync
+from backend.routers import cloud_backup as cloud_backup_router, projects as projects_router
+from backend.services import environment_sync, project_import_tags
 
 
 class FakeEnvironmentDrive:
@@ -265,6 +265,54 @@ def test_restore_skips_download_when_local_video_matches_drive(tmp_path, monkeyp
     assert operation["status"] == "completed", operation.get("message")
     assert result["backgroundCount"] == 1
     assert FakeEnvironmentDrive.downloads == 0
+
+
+def test_restored_environment_videos_match_project_json_import(tmp_path, monkeypatch):
+    FakeEnvironmentDrive.reset()
+    monkeypatch.setattr(cloud_backup_router, "APP_DATA_DIR", tmp_path)
+    monkeypatch.setattr(cloud_backup_router, "GoogleDriveClient", FakeEnvironmentDrive)
+    monkeypatch.setattr(project_import_tags, "APP_DATA_DIR", tmp_path)
+    content = b"restored-background"
+    name = "upload_worship video.mp4"
+    digest = hashlib.sha256(content).hexdigest()
+    FakeEnvironmentDrive.assets["asset-restored"] = content
+    FakeEnvironmentDrive.manifest = json.dumps({
+        "formatVersion": 1, "revision": "project-match-r1", "settings": {},
+        "backgrounds": [{"name": name, "title": name, "size": len(content), "sha256": digest,
+                          "assetFileId": "asset-restored", "meta": {"title": name, "userUploaded": True}}],
+    }).encode("utf-8")
+    imported_projects = []
+
+    async def capture_import(project):
+        imported_projects.append(project)
+        return project
+
+    monkeypatch.setattr(projects_router, "import_project_data", capture_import)
+    monkeypatch.setattr(projects_router, "get_tags", lambda include_usage=False: [])
+    old_url = "https://source-pc/static/backgrounds/upload_worship%20video.mp4?old=1"
+    project = {
+        "name": "이동한 예배", "slides": [{"id": "slide-1", "name": "찬양", "overrideBgId": old_url}],
+        "settings": {
+            "stageBgLibrary": [{"name": old_url, "url": old_url}],
+            "stageBackground": {"type": "video", "videoUrl": old_url},
+        },
+    }
+
+    with TestClient(app) as client:
+        restore = client.post("/api/cloud/drive/environment/restore", json={"baseRevision": "project-match-r1"})
+        restore_operation, _ = _completed_operation(client, restore)
+        imported = client.post("/api/projects/import", files={
+            "file": ("service.json", json.dumps(project).encode("utf-8"), "application/json"),
+        })
+
+    assert restore_operation["status"] == "completed"
+    assert imported.status_code == 200, imported.text
+    restored_project = imported_projects[0]
+    assert restored_project["slides"][0]["overrideBgId"] == name
+    assert restored_project["settings"]["stageBgLibrary"] == [{
+        "name": name, "url": "/static/backgrounds/upload_worship%20video.mp4",
+    }]
+    assert restored_project["settings"]["stageBackground"]["videoUrl"] == "/static/backgrounds/upload_worship%20video.mp4"
 
 
 def test_restore_overwrites_same_name_when_drive_video_changed(tmp_path, monkeypatch):

@@ -4,6 +4,7 @@ import json
 import unicodedata
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote, unquote
 
 from backend.database import APP_DATA_DIR
 from backend.services.tag_service import canonical_tag_name
@@ -79,8 +80,12 @@ def apply_import_tag_mappings(raw: dict[str, Any], mappings: dict[str, str]) -> 
     def local_video(value: Any) -> str | None:
         if not isinstance(value, str) or not value.strip():
             return None
-        name = value.replace("\\", "/").rsplit("/", 1)[-1]
+        path = value.replace("\\", "/").split("#", 1)[0].split("?", 1)[0]
+        name = unquote(path.rsplit("/", 1)[-1])
         return name if name in available_backgrounds else None
+
+    def local_video_url(name: str) -> str:
+        return f"/static/backgrounds/{quote(name, safe='')}"
 
     def mapped(value: Any) -> Any:
         if not isinstance(value, str) or not value.strip():
@@ -111,10 +116,25 @@ def apply_import_tag_mappings(raw: dict[str, Any], mappings: dict[str, str]) -> 
         settings = dict(settings)
         library = settings.get("stageBgLibrary")
         if isinstance(library, list):
-            settings["stageBgLibrary"] = [item for item in library if isinstance(item, dict) and local_video(item.get("name"))]
+            matched_library = []
+            for item in library:
+                if not isinstance(item, dict):
+                    continue
+                name = local_video(item.get("name"))
+                if not name:
+                    continue
+                normalized = {**item, "name": name}
+                for field in ("url", "videoUrl"):
+                    if field in normalized:
+                        normalized[field] = local_video_url(name)
+                matched_library.append(normalized)
+            settings["stageBgLibrary"] = matched_library
         background = settings.get("stageBackground")
         if isinstance(background, dict) and background.get("type") == "video":
-            if not local_video(background.get("videoUrl")):
+            name = local_video(background.get("videoUrl"))
+            if name:
+                settings["stageBackground"] = {**background, "videoUrl": local_video_url(name)}
+            else:
                 settings["stageBackground"] = None
         result["settings"] = settings
     return result

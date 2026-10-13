@@ -288,6 +288,47 @@ test('SC-02-04 가져오기 취소는 프로젝트를 추가하지 않는다', a
     expect(await list(app)).toEqual(before);
 });
 
+test('SC-02-06 환경 영상 복원 뒤 옛 PC 경로가 있는 프로젝트 JSON을 가져오면 로컬 영상에 연결한다', async ({ page, app }) => {
+    const upload = await app.request.post('/api/backgrounds/upload', {
+        multipart: { file: { name: 'shared worship.mp4', mimeType: 'video/mp4', buffer: await fs.readFile(app.videoPath) } },
+    });
+    expect(upload.ok(), await upload.text()).toBe(true);
+    const uploaded = await upload.json();
+    const original = await app.seedProject({
+        name: '영상 연결 프로젝트',
+        settings: {
+            stageBackground: { type: 'video', videoUrl: uploaded.videoUrl },
+            stageBgLibrary: [{ name: uploaded.filename, url: uploaded.videoUrl }],
+        },
+        slides: [{ id: 'video-slide', name: '배경 영상 슬라이드', overrideBgId: uploaded.filename, elements: [] }],
+    });
+    const exported = await app.exportProject(original);
+    const oldUrl = `https://old-pc/static/backgrounds/${encodeURIComponent(uploaded.filename)}?cache=old`;
+    exported.slides[0].overrideBgId = `C:\\old-pc\\static\\backgrounds\\${encodeURIComponent(uploaded.filename)}?cache=old`;
+    exported.settings.stageBgLibrary[0].name = oldUrl;
+    exported.settings.stageBgLibrary[0].url = oldUrl;
+    exported.settings.stageBackground.videoUrl = oldUrl;
+
+    await openList(page);
+    const before = await list(app);
+    await page.locator('#file-import-project').setInputFiles({
+        name: 'old-computer-project.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(exported)),
+    });
+    await expect(page.locator('#project-import-tag-modal')).toHaveClass(/show/);
+    await page.locator('#btn-confirm-project-import').click();
+    await expect(page.locator('.project-item')).toHaveCount(before.length + 1);
+    const imported = (await list(app)).find(project => !before.some(existing => existing.id === project.id));
+    const restored = await app.exportProject(imported.id);
+    const localVideoUrl = `/static/backgrounds/${encodeURIComponent(uploaded.filename)}`;
+
+    expect(restored.slides[0].overrideBgId).toBe(uploaded.filename);
+    expect(restored.settings.stageBgLibrary[0]).toMatchObject({
+        name: uploaded.filename, url: localVideoUrl,
+    });
+    expect(restored.settings.stageBackground.videoUrl).toBe(localVideoUrl);
+    expect((await app.request.get(restored.settings.stageBackground.videoUrl)).ok()).toBe(true);
+});
+
 test('SC-02-05 JSON 문법 오류는 기존 프로젝트를 보존한다', async ({ page, app }) => {
     await openList(page);
     const before = await app.exportProject('proj_browser');
