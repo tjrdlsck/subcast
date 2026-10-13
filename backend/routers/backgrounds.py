@@ -1,4 +1,5 @@
 import asyncio
+from copy import deepcopy
 import logging
 import os
 import shutil
@@ -7,6 +8,7 @@ from pathlib import Path
 from typing import List
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel
+from urllib.parse import unquote, quote
 
 from backend.services.background_service import (
     backgrounds_dir,
@@ -16,11 +18,61 @@ from backend.services.background_service import (
     cleanup_trash_backgrounds,
 )
 from backend.services.tag_service import canonicalize_item
+from backend.services.connection_manager import manager
+from backend.storage import list_projects, load_project_data, save_project_data
 
 logger = logging.getLogger("subcast")
 router = APIRouter(prefix="/api/backgrounds", tags=["backgrounds"])
 
 pending_delete_bg_files = set()
+
+
+def _background_reference_name(value: object) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    path = value.replace("\\", "/").split("#", 1)[0].split("?", 1)[0]
+    return unquote(path.rsplit("/", 1)[-1])
+
+
+def _local_background_url(name: str) -> str:
+    return f"/static/backgrounds/{quote(name, safe='')}"
+
+
+def _rename_project_background_references(project, old_name: str, new_name: str) -> bool:
+    changed = False
+    for slide in project.slides:
+        if _background_reference_name(slide.overrideBgId) == old_name:
+            slide.overrideBgId = new_name
+            changed = True
+
+    settings = project.settings
+    background = settings.stageBackground
+    if isinstance(background, dict) and background.get("type") == "video":
+        if _background_reference_name(background.get("videoUrl")) == old_name:
+            settings.stageBackground = {**background, "videoUrl": _local_background_url(new_name)}
+            changed = True
+
+    library = settings.stageBgLibrary
+    if isinstance(library, list):
+        renamed_library = []
+        for item in library:
+            if not isinstance(item, dict):
+                renamed_library.append(item)
+                continue
+            matches = _background_reference_name(item.get("name")) == old_name
+            url_matches = any(_background_reference_name(item.get(field)) == old_name for field in ("url", "videoUrl"))
+            normalized = dict(item)
+            if matches or url_matches:
+                normalized["name"] = new_name
+            for field in ("url", "videoUrl"):
+                if _background_reference_name(item.get(field)) == old_name:
+                    normalized[field] = _local_background_url(new_name)
+            if matches or url_matches:
+                changed = True
+            renamed_library.append(normalized)
+        if changed:
+            settings.stageBgLibrary = renamed_library
+    return changed
 
 
 class ChunkUploadCompleteRequest(BaseModel):
@@ -278,29 +330,73 @@ async def rename_background_file(req: RenameBackgroundRequest):
     if new_path.exists() and old_path.resolve() != new_path.resolve():
         raise HTTPException(status_code=400, detail="동일한 이름의 파일이 이미 존재합니다.")
 
+    changed_projects = []
+    active_id = manager.project_data.id if manager.project_data else None
+    for item in await list_projects():
+        original = (manager.project_data.model_copy(deep=True)
+                    if manager.project_data and manager.project_data.id == item.id
+                    else await load_project_data(item.id))
+        updated = original.model_copy(deep=True)
+        if _rename_project_background_references(updated, old_name, new_name):
+            changed_projects.append((original, updated))
+
+    old_thumb = backgrounds_dir / f"thumb_{old_path.stem}.jpg"
+    new_thumb = backgrounds_dir / f"thumb_{new_path.stem}.jpg"
+    original_meta = load_bg_meta()
+    updated_meta = deepcopy(original_meta)
+    item_meta = updated_meta.pop(old_name, None)
+    if item_meta is not None:
+        old_thumb_url = f"/static/backgrounds/thumb_{old_path.stem}.jpg"
+        if item_meta.get("thumbnailUrl") == old_thumb_url:
+            item_meta["thumbnailUrl"] = f"/static/backgrounds/thumb_{new_path.stem}.jpg"
+        updated_meta[new_name] = item_meta
+
+    saved_projects = []
+    file_renamed = False
+    thumb_renamed = False
     try:
         old_path.rename(new_path)
-
-        old_thumb = backgrounds_dir / f"thumb_{old_path.stem}.jpg"
-        new_thumb = backgrounds_dir / f"thumb_{new_path.stem}.jpg"
+        file_renamed = True
         if old_thumb.exists():
             try:
                 old_thumb.rename(new_thumb)
-            except Exception as te:
-                logger.warning(f"Failed to rename thumb file: {te}")
-
-        meta = load_bg_meta()
-        if old_name in meta:
-            item_meta = meta.pop(old_name)
-            old_thumb_url = f"/static/backgrounds/thumb_{old_path.stem}.jpg"
-            new_thumb_url = f"/static/backgrounds/thumb_{new_path.stem}.jpg"
-            if item_meta.get("thumbnailUrl") == old_thumb_url:
-                item_meta["thumbnailUrl"] = new_thumb_url
-            meta[new_name] = item_meta
-            save_bg_meta(meta)
+                thumb_renamed = True
+            except OSError as exc:
+                logger.warning(f"Failed to rename thumb file: {exc}")
+        if item_meta is not None and not save_bg_meta(updated_meta):
+            raise OSError("배경 메타데이터를 저장하지 못했습니다.")
+        for original, updated in changed_projects:
+            await save_project_data(updated)
+            saved_projects.append(original)
     except Exception as e:
+        for original in reversed(saved_projects):
+            try:
+                await save_project_data(original)
+            except Exception:
+                logger.exception("Failed to roll back project after background rename failure: %s", original.id)
+        if item_meta is not None:
+            save_bg_meta(original_meta)
+        if thumb_renamed and new_thumb.exists():
+            try:
+                new_thumb.rename(old_thumb)
+            except OSError:
+                logger.exception("Failed to roll back background thumbnail rename")
+        if file_renamed and new_path.exists():
+            try:
+                new_path.rename(old_path)
+            except OSError:
+                logger.exception("Failed to roll back background video rename")
         logger.error(f"Failed to rename background file: {e}")
         raise HTTPException(status_code=500, detail=f"파일명 변경 실패: {str(e)}")
+
+    updated_active = next((updated for original, updated in changed_projects if original.id == active_id), None)
+    if updated_active:
+        manager.project_data = updated_active
+        await manager.broadcast({
+            "type": "INITIAL_SYNC",
+            "data": manager.project_data.model_dump(),
+            "lockedSlides": manager.locked_slides,
+        })
 
     meta = load_bg_meta()
     item_meta = meta.get(new_name, {})

@@ -689,6 +689,13 @@ test('SC-11-09 편집기 두 창의 태그 갱신과 새 자료 생성', async (
 test('SC-10-07 rename Escape cancels and collision rejects without removing either file', async ({ page, app }) => {
   const first = await seedBackground(app, 'rename-one.mp4');
   const second = await seedBackground(app, 'rename-two.mp4');
+  const projectData = await project(app);
+  projectData.slides[0].overrideBgId = first.filename;
+  projectData.settings.stageBackground = { type: 'video', videoUrl: first.videoUrl };
+  projectData.settings.stageBgLibrary = [{ name: first.filename, url: first.videoUrl }];
+  const activeProjectId = await app.seedProject(projectData);
+  const inactiveProjectId = await app.seedProject({ ...projectData, name: '배경 이름 변경 비활성 프로젝트' });
+  await app.request.post(`/api/projects/${activeProjectId}/select`);
   await stage(page, app);
   const title = page.locator(`.stage-bg-title[data-filename="${first.filename}"]`);
   await title.dblclick();
@@ -704,6 +711,14 @@ test('SC-10-07 rename Escape cancels and collision rejects without removing eith
   await page.locator('.stage-bg-name-input').press('Enter');
   await expect(page.locator('.stage-bg-title[data-filename="renamed-final.mp4"]')).toHaveCount(1);
   expect((await backgrounds(app)).map(file => file.name)).toContain('renamed-final.mp4');
+  for (const projectId of [activeProjectId, inactiveProjectId]) {
+    const saved = await app.exportProject(projectId);
+    expect(saved.slides[0].overrideBgId).toBe('renamed-final.mp4');
+    expect(saved.settings.stageBgLibrary[0]).toMatchObject({
+      name: 'renamed-final.mp4', url: '/static/backgrounds/renamed-final.mp4',
+    });
+    expect(saved.settings.stageBackground.videoUrl).toBe('/static/backgrounds/renamed-final.mp4');
+  }
 });
 
 test('SC-10-08 repeated background copy and paste creates distinct playable files', async ({ page, app }) => {
