@@ -9,6 +9,7 @@ const songRow = (page, title) => page.locator('#praise-songs-list .bible-result-
 const lyricsOf = slide => slide.elements.filter(element => element.type === 'text').map(element => element.content);
 async function visibleThumbnailPixelCount(image) {
   return image.evaluate(img => {
+    if (!img.complete || img.naturalWidth <= 0 || img.naturalHeight <= 0) return 0;
     const canvas = document.createElement('canvas');
     canvas.width = img.naturalWidth;
     canvas.height = img.naturalHeight;
