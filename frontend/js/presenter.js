@@ -393,7 +393,7 @@
                     <div class="slide-thumbnail-wrapper">
                         ${slide.thumbnail ? `<img src="${slide.thumbnail}" loading="lazy">` : `<span style="font-size: 0.72rem; color: var(--text-muted);">미리보기 없음</span>`}
                     </div>
-                    ${isLocked ? `<div class="slide-lock-indicator">🔒 ${lockedSlides[slide.id] || ''} 편집 중</div>` : ''}
+                    ${isLocked ? `<div class="slide-lock-indicator">🔒 ${String(lockedSlides[slide.id] || '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char])} 편집 중</div>` : ''}
                 `;
 
                 // 클릭 시 슬라이드 선택 (LIVE ON 상태이면 클릭 시 즉시 라이브 전환!)
@@ -566,8 +566,10 @@
                     presenterThumbnailsPending = message.thumbnailsPending === true;
                     presenterThumbnailSyncId = message.thumbnailSyncId || null;
                     applyProjectFonts(projectData.customFonts);
-                    // 초기 동기화에는 편집자 이름이 없고 웹소켓 소유자 ID만 들어온다.
-                    lockedSlides = Object.fromEntries(Object.keys(message.lockedSlides || {}).map(slideId => [slideId, '']));
+                    const lockedSlideNames = message.lockedSlideNames || {};
+                    lockedSlides = Object.fromEntries(Object.keys(message.lockedSlides || {}).map(slideId => [
+                        slideId, String(lockedSlideNames[slideId] || '').slice(0, 40)
+                    ]));
 
                     if (projectData.settings) {
                         document.getElementById("width-input").value = projectData.settings.targetWidth || 1920;

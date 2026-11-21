@@ -220,6 +220,9 @@
                         lockName = lockOwner === myEditorId ? (document.getElementById("editor-name")?.value || "편집자") : "다른 편집자";
                     }
                 }
+                const safeLockName = lockName.replace(/[&<>"']/g, char => ({
+                    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+                })[char]);
 
                 item.innerHTML = `
                     <!-- 슬라이드 순번 배지 (카드 자체의 왼쪽 위 모서리에 배치) -->
@@ -230,7 +233,7 @@
                         <div class="slide-thumbnail-wrapper" style="margin-top: 0;">
                             ${slide.thumbnail ? `<img src="${slide.thumbnail}" loading="lazy">` : `<span style="font-size: 0.7rem; color: var(--text-muted);">미리보기 없음</span>`}
                         </div>
-                        ${isLockedByOthers ? `<div class="lock-owner-text" style="font-size: 0.75rem; color: var(--accent-live); margin-top: 4px;">🔒 ${lockName}님이 편집 중</div>` : ''}
+                        ${isLockedByOthers ? `<div class="lock-owner-text" style="font-size: 0.75rem; color: var(--accent-live); margin-top: 4px;">🔒 ${safeLockName}님이 편집 중</div>` : ''}
                     </div>
                 `;
                 if (isPendingAdd) {

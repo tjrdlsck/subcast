@@ -176,6 +176,19 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                 break
             message = json.loads(data)
             msg_type = message.get("type")
+
+            if msg_type == "SET_EDITOR_NAME" and role == "editor":
+                editor_name = manager.normalize_editor_name(message.get("editorName"))
+                manager.editor_names[ws_id] = editor_name
+                for slide_id, owner_id in list(manager.locked_slides.items()):
+                    if owner_id == ws_id:
+                        await manager.broadcast({
+                            "type": "SLIDE_LOCKED",
+                            "slideId": slide_id,
+                            "ownerId": ws_id,
+                            "editorName": editor_name,
+                        })
+                continue
             
             if msg_type == "SLIDE_CHANGE":
                 new_slide_id = message.get("slideId")
@@ -367,7 +380,7 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
 
             elif msg_type == "LOCK_SLIDE":
                 slide_id = message.get("slideId")
-                editor_name = message.get("editorName", "편집자")
+                editor_name = manager.normalize_editor_name(message.get("editorName"))
                 request_id = message.get("requestId")
                 
                 if slide_id in manager.locked_slides and manager.locked_slides[slide_id] != ws_id:
@@ -378,6 +391,7 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                         "reason": "다른 편집자가 편집 중입니다."
                     }))
                 else:
+                    manager.editor_names[ws_id] = editor_name
                     manager.locked_slides[slide_id] = ws_id
                     if request_id is not None:
                         await manager.send_json(websocket, {

@@ -7,6 +7,31 @@
 
 
         window.onload = () => {
+            const editorNameInput = document.getElementById('editor-name');
+            const editorNameStorageKey = 'subcast-editor-name-v1';
+            if (editorNameInput) {
+                try {
+                    const savedName = sessionStorage.getItem(editorNameStorageKey);
+                    if (savedName !== null) editorNameInput.value = savedName.trim() ? savedName.slice(0, 40) : '편집자A';
+                } catch {
+                    // Keep the default name when browser storage is unavailable.
+                }
+                const saveEditorName = normalize => {
+                    const rawName = editorNameInput.value.slice(0, 40);
+                    const editorName = rawName.trim() || '편집자A';
+                    if (normalize) editorNameInput.value = editorName;
+                    try {
+                        sessionStorage.setItem(editorNameStorageKey, normalize ? editorName : rawName);
+                    } catch {
+                        // Name syncing still works for this page when storage is unavailable.
+                    }
+                    if (normalize) window.broadcastEditorName?.(editorName);
+                };
+                editorNameInput.maxLength = 40;
+                editorNameInput.addEventListener('input', () => saveEditorName(false));
+                editorNameInput.addEventListener('change', () => saveEditorName(true));
+                editorNameInput.addEventListener('blur', () => saveEditorName(true));
+            }
             window.addEventListener('offline', handleOffline);
             window.addEventListener('online', handleOnline);
             initCanvas();

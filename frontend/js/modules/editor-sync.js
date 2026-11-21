@@ -8,7 +8,20 @@
         let editorThumbnailSyncId = null;
         let thumbnailGenerationRunning = false;
         let editorSocketReady = false;
+        let lastBroadcastedEditorName = null;
         const editorSocketReadyCallbacks = new Set();
+
+        function getCurrentEditorName() {
+            return document.getElementById("editor-name")?.value.trim().slice(0, 40) || "편집자A";
+        }
+
+        window.broadcastEditorName = editorName => {
+            const normalizedName = String(editorName || '').trim().slice(0, 40) || '편집자A';
+            if (ws?.readyState === WebSocket.OPEN && normalizedName !== lastBroadcastedEditorName) {
+                lastBroadcastedEditorName = normalizedName;
+                ws.send(JSON.stringify({ type: "SET_EDITOR_NAME", editorName: normalizedName }));
+            }
+        };
 
         function requestSlideLock(slideId, editorName) {
             if (!ws || ws.readyState !== WebSocket.OPEN || !slideId) return;
@@ -336,12 +349,15 @@
                             if (typeof val === 'string') {
                                 lockedSlides[slideId] = {
                                     ownerId: val,
-                                    editorName: val === myEditorId ? (document.getElementById("editor-name")?.value || "편집자") : "다른 편집자"
+                                    editorName: val === myEditorId ? getCurrentEditorName() : "다른 편집자"
                                 };
                             } else if (val && typeof val === 'object') {
                                 lockedSlides[slideId] = val;
                             }
                         }
+                    }
+                    for (const [slideId, name] of Object.entries(message.lockedSlideNames || {})) {
+                        if (lockedSlides[slideId]) lockedSlides[slideId].editorName = String(name).slice(0, 40);
                     }
 
                     // 활성화된 슬라이드가 서버 데이터에 존재하는지 검증하고 방어적으로 처리
@@ -416,7 +432,10 @@
                     generateMissingSlideThumbnails();
                 }
                 else if (message.type === 'SLIDE_LOCKED') {
-                    lockedSlides[message.slideId] = { ownerId: message.ownerId, editorName: message.editorName };
+                    lockedSlides[message.slideId] = {
+                        ownerId: message.ownerId,
+                        editorName: String(message.editorName || '편집자A').slice(0, 40),
+                    };
 
                     if (message.slideId === activeSlideId) {
                         const isLockedByOthers = message.ownerId !== myEditorId;
@@ -433,6 +452,7 @@
                     if (message.slideId !== activeSlideId || message.requestId !== pendingLockRequestId) return;
                     myEditorId = message.ownerId;
                     pendingLockRequestId = null;
+                    window.broadcastEditorName?.(getCurrentEditorName());
                     for (const slideId of Object.keys(lockedSlides)) updateSlideListItem(slideId, false);
                     if (isSlideSorterOpen) renderSlideSorter();
                     const banner = document.getElementById("lock-banner");
@@ -457,7 +477,7 @@
                         const banner = document.getElementById("lock-banner");
                         if (banner) banner.style.display = "none";
                         setControlsState(false);
-                        const editorName = document.getElementById("editor-name")?.value || "편집자";
+                        const editorName = getCurrentEditorName();
                         requestSlideLock(activeSlideId, editorName);
                     }
                     updateSlideListItem(message.slideId);
@@ -482,6 +502,7 @@
                 }
             };
             ws.onopen = () => {
+                lastBroadcastedEditorName = null;
                 const badge = document.getElementById("status-badge");
                 const text = document.getElementById("status-text");
                 if (badge && text) {
@@ -489,8 +510,9 @@
                     text.innerText = "슬라이드 불러오는 중";
                 }
                 handleOnline();
+                window.broadcastEditorName?.(getCurrentEditorName());
                 if (activeSlideId) {
-                    const editorName = document.getElementById("editor-name").value;
+                    const editorName = getCurrentEditorName();
                     requestSlideLock(activeSlideId, editorName);
                 }
             };

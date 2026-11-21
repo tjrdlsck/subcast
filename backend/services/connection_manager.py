@@ -22,6 +22,7 @@ class ConnectionManager:
         }
         # 슬라이드 편집 락 상태 관리: slide_id -> client_unique_id (또는 문자열)
         self.locked_slides: Dict[str, str] = {}
+        self.editor_names: Dict[str, str] = {}
         # 서버 메모리 상의 프로젝트 데이터 캐시
         self.project_data: Optional[ProjectData] = None
         # 디자인 템플릿 일괄 적용 이전 히스토리 스냅샷 저장 스택 (최대 5개)
@@ -60,6 +61,20 @@ class ConnectionManager:
         active_id = get_active_project_id()
         self.project_data = await load_project_data(active_id)
 
+    @staticmethod
+    def normalize_editor_name(name: object) -> str:
+        if not isinstance(name, str):
+            return "편집자A"
+        normalized = "".join(char for char in name if char.isprintable()).strip()[:40]
+        return normalized or "편집자A"
+
+    def locked_slide_names(self) -> Dict[str, str]:
+        return {
+            slide_id: self.editor_names[owner_id]
+            for slide_id, owner_id in self.locked_slides.items()
+            if owner_id in self.editor_names
+        }
+
     async def connect(self, websocket: WebSocket, role: str):
         await websocket.accept()
         if role in self.sessions:
@@ -90,6 +105,7 @@ class ConnectionManager:
                 "type": "INITIAL_SYNC",
                 "data": project_data,
                 "lockedSlides": self.locked_slides,
+                "lockedSlideNames": self.locked_slide_names(),
                 "historyCount": len(self.project_history),
                 "thumbnailsPending": bool(thumbnails),
                 "thumbnailSyncId": thumbnail_sync_id,
@@ -171,6 +187,7 @@ class ConnectionManager:
         if task and not task.done():
             task.cancel()
         ws_id = str(id(websocket))
+        self.editor_names.pop(ws_id, None)
         self.deleted_slide_history.pop(ws_id, None)
         released_slides = []
         for slide_id, owner_id in list(self.locked_slides.items()):
@@ -224,6 +241,7 @@ class ConnectionManager:
         """특정 역할의 클라이언트들에게만 전송하거나, role이 지정되지 않으면 전체에게 브로드캐스트합니다."""
         if message.get("type") == "INITIAL_SYNC":
             message["historyCount"] = len(self.project_history)
+            message["lockedSlideNames"] = self.locked_slide_names()
         payload = json.dumps(message)
         
         if role:
