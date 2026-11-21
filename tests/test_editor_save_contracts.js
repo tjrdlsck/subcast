@@ -22,6 +22,7 @@ function editor({ connected = true, online = true, monitor = false, background =
     let selectedObject = object;
     const context = vm.createContext({
         console, navigator: { onLine: online }, WebSocket: Object.assign(function () { return context.socketFixture; }, { OPEN: 1 }),
+        addEventListener() {},
         document: { readyState: 'loading', addEventListener() {}, getElementById: id => elements.get(id) || null },
         setTimeout(callback, delay) {
             const id = ++timerId;
@@ -52,7 +53,7 @@ function editor({ connected = true, online = true, monitor = false, background =
         }
     };
     context.canvasFixture = canvas;
-    context.socketFixture = { readyState: connected ? 1 : 3, send: data => sent.push(JSON.parse(data)) };
+    context.socketFixture = { readyState: connected ? 1 : 3, addEventListener() {}, send: data => sent.push(JSON.parse(data)) };
     context.setCanvasZoom = zoom => { zooms.push(zoom); run(`canvasZoom = ${zoom}`); };
     context.updateSlideListItem = id => updates.push(id);
     context.updateSlideListSelection = () => {};
@@ -75,7 +76,7 @@ function editor({ connected = true, online = true, monitor = false, background =
             context.socketFixture.onmessage({ data: JSON.stringify({ type: 'SAVE_SLIDE_RESULT', requestId, success }) });
         },
         selected: () => selectedObject,
-        state: () => JSON.parse(run('JSON.stringify({projectData, activeSlideId, selectedSlideIds, isSlideDirty, canvasZoom, isLockRequested})')),
+        state: () => JSON.parse(run('JSON.stringify({projectData, activeSlideId, selectedSlideIds, isSlideDirty, canvasZoom})')),
         tick(milliseconds) {
             now += milliseconds;
             for (const [id, timer] of [...timers]) {
@@ -89,7 +90,7 @@ const expectedElement = {
     id: 'text1', type: 'text', content: '수정한 가사', x: 10, y: 10, width: 50, height: 20,
     style: {
         opacity: 0.8, fontSize: '4vw', fontColor: '#abcdef', fontFamily: 'Inter',
-        fontWeight: 'normal', fontStyle: 'normal', textAlign: 'left',
+        fontWeight: 'normal', fontStyle: 'normal', textAlign: 'left', lineHeight: 1.16,
         strokeColor: 'transparent', strokeWidth: 2
     }
 };
@@ -262,13 +263,14 @@ test('자동 저장은 이미 삭제된 활성 슬라이드를 저장하지 않�
 test('저장 후 전환은 이전 잠금 해제→새 잠금 요청 후 선택과 캔버스를 바꾼다', () => {
     const app = editor();
     app.run("performAutoSave(); setSlideDirty(false); selectSlideForEdit('s2')");
-    assert.deepEqual(app.sent.slice(1), [
+    assert.deepEqual(app.sent.slice(1).map(({ requestId, ...message }) => message), [
         { type: 'UNLOCK_SLIDE', slideId: 's1' },
         { type: 'LOCK_SLIDE', slideId: 's2', editorName: '테스터' }
     ]);
     assert.equal(app.state().activeSlideId, 's2');
     assert.deepEqual(app.state().selectedSlideIds, ['s2']);
-    assert.equal(app.state().isLockRequested, true);
+    assert.equal(typeof app.sent.at(-1).requestId, 'string');
+    assert.ok(app.sent.at(-1).requestId);
     assert.ok(app.updates.includes('load:s2'));
 });
 

@@ -163,8 +163,10 @@ test('실제 프로젝트 데이터에서 송출·편집 전환 단계별 시간
                 thumbnailCount: Object.keys(message.thumbnails || {}).length,
                 batchIndex: message.batchIndex,
               });
-            } else if (message.type === 'SLIDE_LOCKED' || message.type === 'LOCK_FAILED') {
-              record('websocketLockResponse', { type: message.type, isLiveSlide: message.slideId === liveId });
+            } else if (message.type === 'LOCK_GRANTED' || message.type === 'SLIDE_LOCKED' || message.type === 'LOCK_FAILED') {
+              record('websocketLockResponse', {
+                type: message.type, isLiveSlide: message.slideId === liveId, requestId: message.requestId,
+              });
             }
           } catch { }
         });
@@ -185,7 +187,7 @@ test('실제 프로젝트 데이터에서 송출·편집 전환 단계별 시간
             const measuredHandler = function (event) {
               let messageType;
               try { messageType = JSON.parse(event.data).type; } catch { }
-              const tracked = ['INITIAL_SYNC', 'THUMBNAILS_SYNC', 'SLIDE_LOCKED', 'LOCK_FAILED'].includes(messageType);
+              const tracked = ['INITIAL_SYNC', 'THUMBNAILS_SYNC', 'LOCK_GRANTED', 'SLIDE_LOCKED', 'LOCK_FAILED'].includes(messageType);
               const started = performance.now();
               try { return handler.call(this, event); }
               finally {
@@ -312,7 +314,7 @@ test('실제 프로젝트 데이터에서 송출·편집 전환 단계별 시간
       const wsStart = serverTiming.find(event => event.event === 'ws.start' && event.role === role);
       const wsTiming = wsStart ? serverTiming.filter(event => event.id === wsStart.id) : [];
       const lockReceived = wsTiming.find(event => event.event === 'ws.message_received' && event.messageType === 'LOCK_SLIDE');
-      const lockSent = wsTiming.find(event => event.event === 'ws.message_sent' && event.messageType === 'SLIDE_LOCKED');
+      const lockSent = wsTiming.find(event => event.event === 'ws.message_sent' && event.messageType === 'LOCK_GRANTED');
       const frames = receivedFrames.filter(frame => frame.transition === transitionId && frame.role === role);
       const lastThumbnailFrameMs = browserStages.events.filter(event => event.name === 'websocketFrame'
         && event.type === 'THUMBNAILS_SYNC').at(-1)?.atMs;
@@ -323,7 +325,8 @@ test('실제 프로젝트 데이터에서 송출·편집 전환 단계별 시간
       const handoffPreviewReadyMs = browserStages.events.find(event => event.name === 'handoffPreviewReady')?.atMs;
       const editorControlsEnabledMs = browserStages.events.find(event => event.name === 'editorControlsEnabled')?.atMs;
       const lockRequestMs = browserStages.events.find(event => event.name === 'websocketLockRequest')?.atMs;
-      const lockResponseMs = browserStages.events.find(event => event.name === 'websocketLockResponse' && event.isLiveSlide)?.atMs;
+      const lockResponseMs = browserStages.events.find(event => event.name === 'websocketLockResponse'
+        && event.type === 'LOCK_GRANTED' && event.isLiveSlide)?.atMs;
       samples.push({ role, repetition: repetition + 1,
         clickToAppCoreReadyMs: appCoreReadyMs == null ? null
           : browserStages.documentStartEpochMs + appCoreReadyMs - clickStartedAtEpochMs,
@@ -374,7 +377,7 @@ test('실제 프로젝트 데이터에서 송출·편집 전환 단계별 시간
       firstThumbnailBatchMs: { p50: percentile(selected.map(sample => sample.browserStages.events.find(event => event.name === 'websocketFrame' && event.type === 'THUMBNAILS_SYNC' && event.batchIndex === 0)?.atMs), 0.5), p95: percentile(selected.map(sample => sample.browserStages.events.find(event => event.name === 'websocketFrame' && event.type === 'THUMBNAILS_SYNC' && event.batchIndex === 0)?.atMs), 0.95) },
       finalThumbnailBatchMs: { p50: percentile(selected.map(sample => sample.browserStages.events.filter(event => event.name === 'websocketFrame' && event.type === 'THUMBNAILS_SYNC').at(-1)?.atMs), 0.5), p95: percentile(selected.map(sample => sample.browserStages.events.filter(event => event.name === 'websocketFrame' && event.type === 'THUMBNAILS_SYNC').at(-1)?.atMs), 0.95) },
       lockRequestMs: { p50: percentile(selected.map(sample => sample.browserStages.events.find(event => event.name === 'websocketLockRequest')?.atMs), 0.5), p95: percentile(selected.map(sample => sample.browserStages.events.find(event => event.name === 'websocketLockRequest')?.atMs), 0.95) },
-      lockResponseMs: { p50: percentile(selected.map(sample => sample.browserStages.events.find(event => event.name === 'websocketLockResponse' && event.isLiveSlide)?.atMs), 0.5), p95: percentile(selected.map(sample => sample.browserStages.events.find(event => event.name === 'websocketLockResponse' && event.isLiveSlide)?.atMs), 0.95) },
+      lockResponseMs: { p50: percentile(selected.map(sample => sample.browserStages.events.find(event => event.name === 'websocketLockResponse' && event.type === 'LOCK_GRANTED' && event.isLiveSlide)?.atMs), 0.5), p95: percentile(selected.map(sample => sample.browserStages.events.find(event => event.name === 'websocketLockResponse' && event.type === 'LOCK_GRANTED' && event.isLiveSlide)?.atMs), 0.95) },
       browserLockRoundTripMs: { p50: percentile(selected.map(sample => sample.browserLockRoundTripMs), 0.5), p95: percentile(selected.map(sample => sample.browserLockRoundTripMs), 0.95) },
       serverLockRoundTripMs: { p50: percentile(selected.map(sample => sample.serverLockRoundTripMs), 0.5), p95: percentile(selected.map(sample => sample.serverLockRoundTripMs), 0.95) },
       browserToServerLockMs: { p50: percentile(selected.map(sample => sample.browserToServerLockMs), 0.5), p95: percentile(selected.map(sample => sample.browserToServerLockMs), 0.95) },

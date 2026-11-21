@@ -8,12 +8,17 @@ function editor() {
     const sent = [];
     const context = vm.createContext({
         console,
-        document: { readyState: 'loading', addEventListener() {}, getElementById: () => null },
+        addEventListener() {},
+        document: {
+            readyState: 'loading', addEventListener() {},
+            getElementById: id => id === 'status-text' ? { innerText: '' } : null
+        },
         location: { protocol: 'http:', host: 'localhost' },
         localStorage: { getItem: () => null, setItem() {} },
         WebSocket: class {
             static OPEN = 1;
             readyState = 1;
+            addEventListener() {}
             send(data) { sent.push(JSON.parse(data)); }
         }
     });

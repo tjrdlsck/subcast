@@ -106,7 +106,7 @@ class ASGITimingMiddleware:
                     payload_type = json.loads(payload).get('type')
                 except (json.JSONDecodeError, AttributeError):
                     payload_type = None
-                if payload_type == 'SLIDE_LOCKED':
+                if payload_type in {'LOCK_GRANTED', 'SLIDE_LOCKED'}:
                     _emit_timing('ws.message_sent', **fields, messageType=payload_type)
 
         try:

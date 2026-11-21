@@ -93,6 +93,8 @@ test('빈 슬라이드로 전환할 때 현장 배경을 다시 고르지 않는
     const presenterContext = vm.createContext({
         ws: { readyState: 1, send: data => sent.push(JSON.parse(data)) },
         WebSocket: { OPEN: 1 },
+        slideChangeSequence: 0,
+        presenterClientId: 'test-presenter',
         projectData: { slides: [{ id: 'verse' }, { id: 'blank', slideType: 'bibleBlank' }] }
     });
     vm.runInContext(`${changeSlide}\nchangeSlide('blank');`, presenterContext);
