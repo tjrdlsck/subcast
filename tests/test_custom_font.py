@@ -1,9 +1,8 @@
 import pytest
 import asyncio
-import os
 from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
-from backend.main import app, manager
+from backend.main import app, fonts_dir, manager
 from backend.schemas import CustomFont
 
 client = TestClient(app)
@@ -61,13 +60,13 @@ async def test_add_custom_font():
             assert local_url.startswith("/static/fonts/")
             
             filename = local_url.replace("/static/fonts/", "")
-            filepath = os.path.join("frontend", "fonts", filename)
+            filepath = fonts_dir / filename
             
-            assert os.path.exists(filepath)
+            assert filepath.exists()
             
             # 5. 테스트용 파일 청소
             try:
-                os.remove(filepath)
+                filepath.unlink()
             except Exception:
                 pass
             

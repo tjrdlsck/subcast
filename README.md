@@ -1,6 +1,41 @@
-# Subcast 자막 송출 시스템
+# Subcast
 
-실시간 자막 및 슬라이드 송출을 위한 웹소켓 기반 분산 아키텍처 시스템입니다.
+Windows용 실시간 자막·슬라이드 송출 프로그램입니다. 제어 화면에서 내용을 편집하고 웹 브라우저 화면으로 자막과 슬라이드를 송출합니다.
+
+## 실행
+
+### 설치된 프로그램
+
+Subcast를 실행하면 기본 설정에서 서버를 시작하고 제어 화면을 브라우저로 엽니다. 기본 포트는 `8000`이며 사용 중이면 다른 포트로 변경됩니다. 이 PC의 주소는 `http://127.0.0.1:<포트>/static/index.html` 형식입니다. 기본 서버 호스트는 `0.0.0.0`이며, 같은 네트워크의 다른 장치에서는 송출 PC의 IP 주소와 실제 포트를 사용합니다. 다른 장치에 주소를 공유할 때는 송출 PC의 방화벽과 네트워크 접근 범위를 확인하십시오.
+
+사용자 데이터와 설정은 Windows `%APPDATA%\Subcast` 아래에 저장됩니다. 설정 파일은 `subcast_config.json`이며, 사용자 데이터베이스는 `subcast_user.db`입니다. 프로그램을 제거하거나 업데이트하기 전에 필요한 데이터를 별도로 백업하십시오.
+
+### 소스에서 실행
+
+Windows에서 Python 환경을 준비하고 프로젝트 루트에서 다음을 실행합니다.
+
+소스 실행도 설치된 프로그램과 같은 `%APPDATA%\Subcast` 사용자 데이터를 사용합니다. 시험용으로 실행할 때는 기존 데이터를 먼저 백업하거나 별도의 Windows 사용자 환경을 사용하십시오.
+
+```powershell
+python -m venv venv
+venv\Scripts\python.exe -m pip install -r requirements.txt
+venv\Scripts\python.exe run.py
+```
+
+개발용 브라우저 테스트는 Node.js도 필요합니다. 준비 및 실행 방법은 [실제 브라우저 회귀 검증 안내](tests/browser/README.md)를 참고하십시오.
+
+## 검증
+
+Python 테스트는 프로젝트 루트에서 `venv\Scripts\python.exe -m pytest tests`로 실행합니다. 테스트는 임시 사용자 프로필과 앱 데이터 폴더를 사용하며, 성경 DB는 복사본으로 검사합니다. 실제 Edge 브라우저 시나리오와 테스트 데이터 격리, 결과물에 관한 설명은 [tests/browser/README.md](tests/browser/README.md)에 있습니다.
+
+## 빌드
+
+Windows에서 PyInstaller와 Inno Setup 6을 준비한 뒤 `venv\Scripts\python.exe build_all.py`를 실행합니다. 스크립트는 실행 파일, 무설치 ZIP, 설치 프로그램을 만들며 산출물은 `dist/`에 생성됩니다.
+
+## 자료
+
+- 사용자 시나리오 테스트 명세: [docs/current/user-scenario-test-spec.md](docs/current/user-scenario-test-spec.md)
+- 실제 브라우저 회귀 검증: [tests/browser/README.md](tests/browser/README.md)
 
 ---
 

@@ -6,6 +6,7 @@ import os
 import socket
 import sys
 import time
+from http.client import BadStatusLine
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.error import URLError
@@ -62,7 +63,7 @@ def wait_for_server(base_url: str) -> dict:
     while time.monotonic() < deadline:
         try:
             return api_request(base_url, "/api/system/version")
-        except (OSError, URLError):
+        except (OSError, URLError, BadStatusLine):
             time.sleep(0.2)
     raise TimeoutError(f"Launcher server did not become ready at {base_url}")
 

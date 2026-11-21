@@ -50,12 +50,25 @@ def seed(root: Path, state_file: Path, port: int = 18543) -> None:
         json.dumps([{"id": "legacy_template", "name": "이전 디자인", "elements": [preserved_element]}], ensure_ascii=False),
         encoding="utf-8",
     )
+    (root / "data" / "mood_tags.json").write_text(
+        json.dumps({"version": 1, "tags": [{"id": "fixture", "name": "보존 태그"}]}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    (root / "data" / "project_import_tag_mappings.json").write_text(
+        json.dumps({"이전 태그": "보존 태그"}, ensure_ascii=False), encoding="utf-8"
+    )
     (root / "subcast_config.json").write_text(
         json.dumps({"host": "127.0.0.1", "port": port, "auto_start_server": True}), encoding="utf-8"
     )
     backgrounds = root / "frontend" / "assets" / "backgrounds"
     backgrounds.mkdir(parents=True, exist_ok=True)
     (backgrounds / "upgrade-fixture.mp4").write_bytes(b"preserve-background")
+    (backgrounds / "thumb_upgrade-fixture.jpg").write_bytes(b"preserve-thumbnail")
+    (backgrounds / "meta.json").write_text(
+        json.dumps({"upgrade-fixture.mp4": {"title": "보존 배경", "mood": "보존 태그",
+                   "thumbnailUrl": "/static/backgrounds/thumb_upgrade-fixture.jpg"}}, ensure_ascii=False),
+        encoding="utf-8",
+    )
     fonts = root / "frontend" / "fonts"
     fonts.mkdir(parents=True, exist_ok=True)
     (fonts / "fixture-font.woff2").write_bytes(b"preserve-font")
@@ -67,7 +80,9 @@ def seed(root: Path, state_file: Path, port: int = 18543) -> None:
         db.execute("UPDATE monitor_settings SET current_font_size = 43 WHERE setting_id = 'default_profile'")
 
     paths = [root / "data" / "active_project_id.txt", root / "data" / "templates.json",
-             root / "subcast_config.json", backgrounds / "upgrade-fixture.mp4", fonts / "fixture-font.woff2"]
+             root / "data" / "mood_tags.json", root / "data" / "project_import_tag_mappings.json",
+             root / "subcast_config.json", backgrounds / "upgrade-fixture.mp4",
+             backgrounds / "thumb_upgrade-fixture.jpg", backgrounds / "meta.json", fonts / "fixture-font.woff2"]
     state_file.write_text(json.dumps({str(path.relative_to(root)): _digest(path) for path in paths}), encoding="utf-8")
 
 

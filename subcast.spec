@@ -4,11 +4,21 @@ from pathlib import Path
 
 block_cipher = None
 oauth_credentials = "client_secret_131602755526-k80ot6sq10ttqhos02vho3vuemj7khia.apps.googleusercontent.com.json"
+frontend_root = Path('frontend')
 datas = [
-    ('frontend', 'frontend'),
     ('bible.db', '.'),
     ('version.txt', '.'),
 ]
+# Backgrounds and fonts are user data, so keep them out of local releases.
+for file_path in frontend_root.rglob('*'):
+    if not file_path.is_file():
+        continue
+    relative_path = file_path.relative_to(frontend_root)
+    if relative_path.parts[0] == 'fonts' or relative_path.parts[:2] == ('assets', 'backgrounds'):
+        continue
+    target_dir = (Path('frontend') / relative_path.parent).as_posix()
+    datas.append((str(file_path), target_dir))
+
 if Path(oauth_credentials).is_file():
     datas.append((oauth_credentials, '.'))
 

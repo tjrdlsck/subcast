@@ -64,4 +64,4 @@ npm run test:browser:report
 
 프로젝트/편집, 찬양/성경/배경/태그, 송출/방송 레이아웃/모니터, 저장 실패/편집 잠금 등을 포함한다. 실제 설치·트레이·Windows 계정 이전·다중 디스플레이 위치·OBS 합성·BX-100 출력은 이 브라우저 묶음의 통과로 보장하지 않는다. 명세의 미확정 정책도 별도 확인이 필요하다.
 
-`.github/workflows/ci.yml`은 기존 main/develop push 및 PR 조건에서 브라우저 작업을 추가 실행한다. `release.yml`은 태그 배포의 패키징 전에 같은 검증을 실행한다. 실패하면 해당 브라우저 작업 또는 패키징이 실패하고 증거를 7일 보존한다. 이 변경은 로컬 파일이며 아직 커밋·푸시하지 않았다. GitHub 실행 자체는 로컬 실행 결과로 검증했다고 주장하지 않는다.
+`.github/workflows/ci.yml`은 main/develop push 및 PR에서 Python 테스트와 Windows Edge 브라우저 작업을 실행한다. `.github/workflows/release.yml`은 태그 배포 패키징 전에 브라우저 검증을 실행한다. 브라우저 작업의 보고서와 실패 증거는 GitHub Actions 아티팩트로 7일 보존되도록 설정되어 있다. 워크플로 정의는 로컬 파일이며, 실제 GitHub 실행 여부와 결과는 해당 저장소의 Actions 기록에서 확인한다.
