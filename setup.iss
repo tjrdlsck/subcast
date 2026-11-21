@@ -1,5 +1,5 @@
 #ifndef MyAppVersion
-#define MyAppVersion "1.3.25"
+#define MyAppVersion "1.3.26"
 #endif
 #define MyAppName "Subcast"
 #define MyAppPublisher "Subcast Inc."
