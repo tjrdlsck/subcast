@@ -95,7 +95,7 @@
             } else if (lock && typeof lock === 'object') {
                 ownerId = lock.ownerId;
             }
-            return ownerId !== null && myEditorId !== null && ownerId !== myEditorId;
+            return ownerId !== null && ownerId !== myEditorId;
         }
 
 
@@ -433,6 +433,8 @@
                     if (message.slideId !== activeSlideId || message.requestId !== pendingLockRequestId) return;
                     myEditorId = message.ownerId;
                     pendingLockRequestId = null;
+                    for (const slideId of Object.keys(lockedSlides)) updateSlideListItem(slideId, false);
+                    if (isSlideSorterOpen) renderSlideSorter();
                     const banner = document.getElementById("lock-banner");
                     if (banner) banner.style.display = "none";
                     setControlsState(true);
