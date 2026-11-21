@@ -45,7 +45,7 @@ def test_setup_iss_db_preservation():
     assert 'Check: IsAutoUpdateAndOriginalUser' in content
     assert 'IsAutoUpdate and (ExpandConstant(\'{param:SUBCASTORIGINALUSER|0}\') = \'1\')' in content
 
-def test_release_upgrade_smoke_covers_both_supported_previous_versions():
+def test_release_upgrade_smoke_covers_supported_previous_versions():
     workflow_path = os.path.join(ROOT, ".github", "workflows", "release.yml")
     workflow = open(workflow_path, encoding="utf-8").read()
     script_path = os.path.join(ROOT, "tests", "release_upgrade_smoke.ps1")
@@ -53,7 +53,7 @@ def test_release_upgrade_smoke_covers_both_supported_previous_versions():
     fixture_path = os.path.join(ROOT, "tests", "release_upgrade_fixture.py")
     fixture = open(fixture_path, encoding="utf-8").read()
 
-    assert "@('1.3.23', '1.3.24')" in script
+    assert "@('1.3.23', '1.3.24', '1.3.25')" in script
     assert "tests\\release_upgrade_smoke.ps1" in workflow
     assert "v1.3.18" not in workflow
     assert "checksum" in script.lower()
