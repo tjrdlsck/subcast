@@ -10,6 +10,13 @@
         let editorSocketReady = false;
         const editorSocketReadyCallbacks = new Set();
 
+        function requestSlideLock(slideId, editorName) {
+            if (!ws || ws.readyState !== WebSocket.OPEN || !slideId) return;
+            const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            pendingLockRequestId = requestId;
+            ws.send(JSON.stringify({ type: "LOCK_SLIDE", slideId, editorName, requestId }));
+        }
+
         window.whenEditorSocketReady = callback => {
             if (editorSocketReady || window.ws?.readyState === WebSocket.OPEN) {
                 callback();
@@ -411,14 +418,7 @@
                 else if (message.type === 'SLIDE_LOCKED') {
                     lockedSlides[message.slideId] = { ownerId: message.ownerId, editorName: message.editorName };
 
-                    // 내가 명시적으로 락을 요청했고, 그 요청한 슬라이드에 대한 승인이 온 경우 내 식별자로 설정
-                    if (message.slideId === activeSlideId && isLockRequested) {
-                        myEditorId = message.ownerId;
-                        isLockRequested = false;
-                    }
-
                     if (message.slideId === activeSlideId) {
-                        // 타인이 락을 걸고 있을 때만 상단 배너 표시 및 편집 도구 잠금
                         const isLockedByOthers = message.ownerId !== myEditorId;
                         const banner = document.getElementById("lock-banner");
                         if (banner) {
@@ -429,8 +429,17 @@
                     }
                     updateSlideListItem(message.slideId);
                 }
+                else if (message.type === 'LOCK_GRANTED') {
+                    if (message.slideId !== activeSlideId || message.requestId !== pendingLockRequestId) return;
+                    myEditorId = message.ownerId;
+                    pendingLockRequestId = null;
+                    const banner = document.getElementById("lock-banner");
+                    if (banner) banner.style.display = "none";
+                    setControlsState(true);
+                }
                 else if (message.type === 'LOCK_FAILED') {
-                    isLockRequested = false;
+                    if (pendingLockRequestId === null || message.requestId !== pendingLockRequestId) return;
+                    pendingLockRequestId = null;
                     if (message.slideId === activeSlideId) {
                         const banner = document.getElementById("lock-banner");
                         if (banner) {
@@ -446,11 +455,8 @@
                         const banner = document.getElementById("lock-banner");
                         if (banner) banner.style.display = "none";
                         setControlsState(false);
-                        isLockRequested = true;
                         const editorName = document.getElementById("editor-name")?.value || "편집자";
-                        if (ws && ws.readyState === WebSocket.OPEN) {
-                            ws.send(JSON.stringify({ type: "LOCK_SLIDE", slideId: activeSlideId, editorName }));
-                        }
+                        requestSlideLock(activeSlideId, editorName);
                     }
                     updateSlideListItem(message.slideId);
                 }
@@ -483,8 +489,7 @@
                 handleOnline();
                 if (activeSlideId) {
                     const editorName = document.getElementById("editor-name").value;
-                    isLockRequested = true;
-                    ws.send(JSON.stringify({ type: "LOCK_SLIDE", slideId: activeSlideId, editorName: editorName }));
+                    requestSlideLock(activeSlideId, editorName);
                 }
             };
             ws.onclose = () => {

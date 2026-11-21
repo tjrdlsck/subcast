@@ -21,6 +21,8 @@
 
         let canvas = null;
         let ws = null;
+        let pageLeaving = false;
+        let reconnectTimerId = null;
         let projectData = null;
         let targetWidth = 1920;
         let targetHeight = 1080;
@@ -327,10 +329,12 @@
 
         // 웹소켓 연결
         function connectWebSocket() {
+            if (pageLeaving || (ws && ws.readyState < WebSocket.CLOSING)) return;
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws?role=viewer`;
 
             ws = new WebSocket(wsUrl);
+            const socket = ws;
 
             ws.onopen = () => {
                 console.log("WebSocket connected as Viewer");
@@ -419,13 +423,14 @@
             };
 
             ws.onclose = () => {
+                if (socket !== ws) return;
                 console.warn("WebSocket connection closed. Reconnecting...");
                 document.body.classList.add('system-disconnected');
                 if (canvas) {
                     canvas.clear();
                     canvas.renderAll();
                 }
-                setTimeout(connectWebSocket, 3000); // 3초 후 재연결 시도
+                if (!pageLeaving) reconnectTimerId = setTimeout(connectWebSocket, 3000);
             };
 
             ws.onerror = (error) => {
@@ -437,6 +442,18 @@
                 }
             };
         }
+
+        window.addEventListener('pagehide', () => {
+            pageLeaving = true;
+            clearTimeout(reconnectTimerId);
+            reconnectTimerId = null;
+            if (ws && ws.readyState < WebSocket.CLOSING) ws.close(1000, 'Viewer page hidden');
+        });
+        window.addEventListener('pageshow', event => {
+            if (!event.persisted) return;
+            pageLeaving = false;
+            if (!ws || ws.readyState === WebSocket.CLOSED) connectWebSocket();
+        });
 
         let monitorFontSize = 125;
         let fontToastTimeout = null;

@@ -34,7 +34,7 @@
         let selectedSlideIds = [];
         let canvas = null;
         let myEditorId = null;
-        let isLockRequested = false;
+        let pendingLockRequestId = null;
         let currentEditingElement = null;
         let undoStack = [];
         let redoStack = [];

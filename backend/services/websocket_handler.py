@@ -167,11 +167,13 @@ def schedule_debounced_save(delay: float = 0.5):
 
 
 async def handle_websocket_session(websocket: WebSocket, role: str):
-    await manager.connect(websocket, role)
     ws_id = str(id(websocket))
     try:
+        await manager.connect(websocket, role)
         while True:
             data = await websocket.receive_text()
+            if websocket not in manager.sessions.get(role, set()):
+                break
             message = json.loads(data)
             msg_type = message.get("type")
             
@@ -366,15 +368,25 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
             elif msg_type == "LOCK_SLIDE":
                 slide_id = message.get("slideId")
                 editor_name = message.get("editorName", "편집자")
+                request_id = message.get("requestId")
                 
                 if slide_id in manager.locked_slides and manager.locked_slides[slide_id] != ws_id:
                     await manager.send_text(websocket, json.dumps({
                         "type": "LOCK_FAILED",
                         "slideId": slide_id,
+                        "requestId": request_id,
                         "reason": "다른 편집자가 편집 중입니다."
                     }))
                 else:
                     manager.locked_slides[slide_id] = ws_id
+                    if request_id is not None:
+                        await manager.send_json(websocket, {
+                            "type": "LOCK_GRANTED",
+                            "slideId": slide_id,
+                            "requestId": request_id,
+                            "ownerId": ws_id,
+                            "editorName": editor_name,
+                        })
                     await manager.broadcast({
                         "type": "SLIDE_LOCKED",
                         "slideId": slide_id,
@@ -837,6 +849,14 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                 try:
                     updated_slide = Slide.model_validate(slide_data)
                     slide_id = updated_slide.id
+                    lock_owner = manager.locked_slides.get(slide_id)
+                    if lock_owner is not None and lock_owner != ws_id:
+                        if has_request_id:
+                            await manager.send_json(websocket, {
+                                "type": "SAVE_SLIDE_RESULT", "requestId": request_id,
+                                "success": False, "reason": "다른 편집자가 편집 중입니다."
+                            })
+                        continue
                     for idx, s in enumerate(slides):
                         if s.id == slide_id:
                             slide_index = idx
@@ -897,19 +917,14 @@ async def handle_websocket_session(websocket: WebSocket, role: str):
                     })
 
     except WebSocketDisconnect:
-        released_slides = manager.disconnect(websocket, role)
-        for slide_id in released_slides:
-            await manager.broadcast({
-                "type": "SLIDE_UNLOCKED",
-                "slideId": slide_id
-            })
-            logger.info(f"Auto-unlocked slide {slide_id} on client disconnect")
-            
+        logger.debug(f"WebSocket disconnected: role={role}")
     except Exception as e:
         logger.error(f"WebSocket error in {role}: {e}")
+    finally:
         released_slides = manager.disconnect(websocket, role)
         for slide_id in released_slides:
-            await manager.broadcast({
-                "type": "SLIDE_UNLOCKED",
-                "slideId": slide_id
-            })
+            try:
+                await manager.broadcast({"type": "SLIDE_UNLOCKED", "slideId": slide_id})
+            except Exception:
+                logger.exception("Failed to notify editors that slide %s was unlocked", slide_id)
+            logger.info(f"Auto-unlocked slide {slide_id} on client disconnect")

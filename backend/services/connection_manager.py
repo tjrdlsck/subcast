@@ -180,6 +180,46 @@ class ConnectionManager:
         
         return released_slides
 
+    async def _broadcast_to_targets(self, targets, payload: str, role: str = None):
+        failed = []
+        for ws in targets:
+            try:
+                await self.send_text(ws, payload)
+            except Exception as e:
+                logger.error(f"Error broadcasting to {role or 'all'}: {e}")
+                failed.append(ws)
+
+        released_slides = []
+        for ws in failed:
+            ws_role = next((name for name, sessions in self.sessions.items() if ws in sessions), role or "editor")
+            released_slides.extend(self.disconnect(ws, ws_role))
+            try:
+                await ws.close(code=1011, reason="WebSocket send failed")
+            except Exception:
+                pass
+
+        if released_slides:
+            pending_unlocks = set(released_slides)
+            while pending_unlocks:
+                failed_unlock_recipients = set()
+                for slide_id in pending_unlocks:
+                    unlock_message = json.dumps({"type": "SLIDE_UNLOCKED", "slideId": slide_id})
+                    recipients = [ws for sessions in self.sessions.values() for ws in list(sessions)]
+                    for ws in recipients:
+                        try:
+                            await self.send_text(ws, unlock_message)
+                        except Exception as e:
+                            logger.error(f"Error broadcasting unlock: {e}")
+                            failed_unlock_recipients.add(ws)
+                pending_unlocks = set()
+                for ws in failed_unlock_recipients:
+                    ws_role = next((name for name, sessions in self.sessions.items() if ws in sessions), "editor")
+                    pending_unlocks.update(self.disconnect(ws, ws_role))
+                    try:
+                        await ws.close(code=1011, reason="WebSocket send failed")
+                    except Exception:
+                        pass
+
     async def broadcast(self, message: dict, role: str = None):
         """특정 역할의 클라이언트들에게만 전송하거나, role이 지정되지 않으면 전체에게 브로드캐스트합니다."""
         if message.get("type") == "INITIAL_SYNC":
@@ -188,18 +228,10 @@ class ConnectionManager:
         
         if role:
             targets = list(self.sessions.get(role, []))
-            for ws in targets:
-                try:
-                    await self.send_text(ws, payload)
-                except Exception as e:
-                    logger.error(f"Error broadcasting to {role}: {e}")
+            await self._broadcast_to_targets(targets, payload, role)
         else:
-            for r, wss in self.sessions.items():
-                for ws in list(wss):
-                    try:
-                        await self.send_text(ws, payload)
-                    except Exception as e:
-                        logger.error(f"Error broadcasting to {r}: {e}")
+            targets = [ws for sessions in self.sessions.values() for ws in list(sessions)]
+            await self._broadcast_to_targets(targets, payload)
 
 
 manager = ConnectionManager()

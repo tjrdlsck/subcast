@@ -56,6 +56,12 @@ test('SC-15-05 second editor cannot overwrite a locked slide and closing release
   await expect(second.locator('#btn-add-slide')).toBeEnabled();
   await addText(second, '잠금 해제 후 수정');
   await expect.poll(async () => (await app.exportProject()).slides[0].elements.some(element => element.content === '잠금 해제 후 수정')).toBe(true);
+
+  await second.reload();
+  await expect.poll(() => second.evaluate(() => Boolean(
+    activeSlideId && myEditorId && lockedSlides[activeSlideId]?.ownerId === myEditorId
+  ))).toBe(true);
+  await expect(second.locator('#btn-add-text-body')).toBeEnabled();
 });
 
 test('SC-15-06 two editors on different slides preserve both saves', async ({ page, context, app }) => {

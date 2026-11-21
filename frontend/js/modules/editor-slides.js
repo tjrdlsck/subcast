@@ -520,9 +520,8 @@
                 selectedSlideIds = [slideId];
             }
             const editorName = document.getElementById("editor-name")?.value || "편집자";
-            isLockRequested = true;
             if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: "LOCK_SLIDE", slideId: slideId, editorName: editorName }));
+                requestSlideLock(slideId, editorName);
             }
             loadSlideToCanvas(slideId);
             setControlsState(false);

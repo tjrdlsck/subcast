@@ -20,6 +20,8 @@
         })();
 
         let ws = null;
+        let pageLeaving = false;
+        let reconnectTimerId = null;
         let projectData = null;
         let presenterThumbnailsPending = false;
         let presenterThumbnailSyncId = null;
@@ -543,10 +545,12 @@
 
         // 웹소켓 연결
         function connectWebSocket() {
+            if (pageLeaving || (ws && ws.readyState < WebSocket.CLOSING)) return;
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws?role=presenter`;
 
             ws = new WebSocket(wsUrl);
+            const socket = ws;
 
             ws.onopen = () => {
                 const badge = document.getElementById("status-badge");
@@ -646,12 +650,25 @@
             };
 
             ws.onclose = () => {
+                if (socket !== ws) return;
                 const badge = document.getElementById("status-badge");
                 badge.classList.remove("connected");
                 document.getElementById("status-text").innerText = "연결 끊김";
-                setTimeout(connectWebSocket, 3000);
+                if (!pageLeaving) reconnectTimerId = setTimeout(connectWebSocket, 3000);
             };
         }
+
+        window.addEventListener('pagehide', () => {
+            pageLeaving = true;
+            clearTimeout(reconnectTimerId);
+            reconnectTimerId = null;
+            if (ws && ws.readyState < WebSocket.CLOSING) ws.close(1000, 'Presenter page hidden');
+        });
+        window.addEventListener('pageshow', event => {
+            if (!event.persisted) return;
+            pageLeaving = false;
+            if (!ws || ws.readyState === WebSocket.CLOSED) connectWebSocket();
+        });
 
         window.onload = () => {
             connectWebSocket();
